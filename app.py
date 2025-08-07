@@ -20,6 +20,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.linear_model import LogisticRegression
 from prophet import Prophet
 from prophet.plot import plot_plotly, plot_components_plotly
+
 # ==============================================================================
 # APP CONFIGURATION
 # ==============================================================================
@@ -83,6 +84,7 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
 
 # ==============================================================================
 # ICONS DICTIONARY FOR SIDEBAR MENU
@@ -1103,6 +1105,7 @@ with tab_journey:
     with act3: st.subheader("Act III: The Guardian (Lifecycle Management)"); st.markdown("Once the method is live, continuous monitoring is essential... **(Tools 10-15)**")
 st.divider()
 
+
 # --- CORRECTED SIDEBAR LOGIC ---
 
 st.sidebar.title("🧰 Toolkit Navigation")
@@ -1121,32 +1124,32 @@ act3_icons = [ICONS.get(opt, "question-circle") for opt in act3_options]
 if 'method_key' not in st.session_state:
     st.session_state.method_key = act1_options[0]
 
-# CORRECTED: Define separate, argument-free callback functions for each menu
-def update_from_act1():
-    st.session_state.method_key = st.session_state['act1_menu']
+# CORRECTED: Define callback functions that accept the 'key' argument
+def update_from_act1(key):
+    st.session_state.method_key = st.session_state[key]
 
-def update_from_act2():
-    st.session_state.method_key = st.session_state['act2_menu']
+def update_from_act2(key):
+    st.session_state.method_key = st.session_state[key]
     
-def update_from_act3():
-    st.session_state.method_key = st.session_state['act3_menu']
+def update_from_act3(key):
+    st.session_state.method_key = st.session_state[key]
 
 with st.sidebar.expander("ACT I: FOUNDATION & CHARACTERIZATION", expanded=True):
     option_menu(None, act1_options, icons=act1_icons, menu_icon="cast", 
                 key='act1_menu', 
-                on_change=update_from_act1, # CORRECTED: No args needed
+                on_change=update_from_act1,
                 default_index=act1_options.index(st.session_state.method_key) if st.session_state.method_key in act1_options else 0)
 
 with st.sidebar.expander("ACT II: TRANSFER & STABILITY", expanded=True):
     option_menu(None, act2_options, icons=act2_icons, menu_icon="cast",
                 key='act2_menu',
-                on_change=update_from_act2, # CORRECTED: No args needed
+                on_change=update_from_act2,
                 default_index=act2_options.index(st.session_state.method_key) if st.session_state.method_key in act2_options else 0)
 
 with st.sidebar.expander("ACT III: LIFECYCLE & PREDICTIVE MGMT", expanded=True):
     option_menu(None, act3_options, icons=act3_icons, menu_icon="cast",
                 key='act3_menu',
-                on_change=update_from_act3, # CORRECTED: No args needed
+                on_change=update_from_act3,
                 default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
 
 # --- PowerPoint Download Section in Sidebar ---
@@ -1194,7 +1197,6 @@ PAGE_DISPATCHER = {
 if method_key in PAGE_DISPATCHER:
     PAGE_DISPATCHER[method_key]()
 else:
-    # This case should ideally not be reached with the new logic, but it's good practice
     st.error("An error occurred with the navigation. Please refresh the page.")
-    st.session_state.method_key = act1_options[0] # Reset to a safe default
+    st.session_state.method_key = act1_options[0]
     st.rerun()

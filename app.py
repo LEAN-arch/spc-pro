@@ -631,9 +631,14 @@ def render_linearity():
 def render_lod_loq():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To determine the lowest concentration of an analyte that an assay can reliably detect (LOD) and accurately quantify (LOQ).
+    **Purpose:** To formally establish the absolute lower performance boundaries of a quantitative assay. It determines the lowest analyte concentration an assay can reliably **detect (LOD)** and the lowest concentration it can reliably and accurately **quantify (LOQ)**.
     
-    **Application:** This is a critical component of assay characterization, defining the absolute lower limits of the method's capability. The **Limit of Detection (LOD)** answers the qualitative question, "Is the analyte present?" It is the lowest concentration that produces a signal distinguishable from the background noise. The **Limit of Quantitation (LOQ)** is more stringent; it is the lowest concentration that can be measured with an acceptable level of precision and accuracy and typically defines the lower boundary of the assay's reportable range. Understanding these limits is essential for applications such as impurity testing or low-level biomarker detection, where trust in sensitive measurements is paramount.
+    **Strategic Application:** This is a mission-critical parameter for any assay used to measure trace components. The validity of entire programs can hinge on these values. Examples include:
+    - **Host Cell Protein / Impurity Testing:** The LOQ *must* be demonstrably below the specification limit for a potentially harmful impurity in a final drug product. A method with an LOQ higher than the spec is not fit for purpose.
+    - **Early-Stage Disease Diagnosis:** The LOD/LOQ for a cancer biomarker must be low enough to detect the disease at its earliest, most treatable stage, when the biomarker concentration is vanishingly small.
+    - **Pharmacokinetics (PK):** To properly characterize a drug's elimination phase, the assay LOQ must be low enough to measure the final few datapoints in the concentration-time curve.
+
+    The **Limit of Detection (LOD)** is a qualitative threshold based on hypothesis testing, answering "Is the analyte present or not?" It controls the risk of a false positive. The **Limit of Quantitation (LOQ)** is a much higher and more stringent quantitative bar, answering "What is the concentration, and can I trust the numerical value?" It is fundamentally about ensuring the measurement uncertainty at that level is acceptably low. The LOQ typically defines the lower end of the assay's reportable range.
     """)
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -643,38 +648,59 @@ def render_lod_loq():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} ng/mL")
-            st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} ng/mL")
-            st.markdown("- **Signal Distribution:** The violin plot (top) visually confirms that the distribution of the low-concentration samples is clearly separated from the distribution of the blank samples. Overlap here would indicate poor sensitivity.")
-            st.markdown("- **Low-Level Calibration Curve:** The regression plot (bottom) confirms the assay is linear at the low end of the range. The LOD and LOQ are derived from the variability of the residuals (residual standard error) and the slope of this line.")
-            st.markdown("**The Core Insight:** This analysis defines the absolute floor of your assay's capability. It provides the statistical evidence to claim that you can trust quantitative measurements down to the LOQ, and reliably detect the presence of the analyte down to the LOD.")
+            st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} ng/mL", help="The lowest concentration you can report with confidence in the numerical value.")
+            st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} ng/mL", help="The lowest concentration you can reliably claim is 'present'.")
+            st.markdown("""
+            - **Signal Distribution (Violin Plot):** This is a critical first-pass check. The distribution of signals from the 'Blank' samples (the noise) must be clearly separated from the distribution of signals from the 'Low Concentration' samples. Significant overlap indicates the assay lacks the fundamental sensitivity required.
+            - **Low-Level Calibration Curve (Regression Plot):** This plot models the signal-to-concentration relationship at the low end. The LOD and LOQ are not arbitrary numbers; they are derived directly from two key parameters of this model:
+                1.  **The Slope (S):** The assay's sensitivity. A steeper slope is better, as it means a small change in concentration produces a large change in signal.
+                2.  **The Residual Standard Error (σ):** The inherent noise or imprecision of the assay at the low end. A smaller σ is better.
+
+            **The Core Strategic Insight:** This analysis defines the **absolute floor of your assay's validated capability**. It provides the statistical evidence to defend every low-level result you report. Claiming a quantitative result below the validated LOQ is scientifically and regulatorily indefensible. It's the difference between seeing a faint star and being able to measure its brightness.
+            """)
+
         with tabs[1]:
-            st.markdown("- The primary acceptance criterion is that the experimentally determined **LOQ must be less than or equal to the lowest concentration that needs to be measured** for the assay's intended use (e.g., the specification limit for a critical impurity).")
-            st.markdown("- The precision (%CV) and accuracy (%Recovery) at the claimed LOQ should also meet pre-defined acceptance criteria (e.g., CV < 20%, Recovery 80-120%).")
+            st.markdown("Acceptance criteria are absolute and defined by the assay's intended use.")
+            st.markdown("- The primary, non-negotiable criterion is that the experimentally determined **LOQ must be ≤ the lowest concentration that the assay is required to measure** for its specific application (e.g., a release specification for an impurity). If LOQ > specification, the method is not fit for purpose and must be improved.")
+            st.markdown("- For a concentration to be formally declared the LOQ, it must be experimentally confirmed. This typically involves preparing and analyzing 5-6 independent samples at the claimed LOQ concentration and demonstrating that they meet pre-defined acceptance criteria for precision and accuracy (e.g., **%CV < 20% and %Recovery between 80-120%** for a bioassay).")
+            st.warning("""
+            **The LOB, LOD, and LOQ Hierarchy: A Critical Distinction**
+            A full characterization involves three distinct limits:
+            - **Limit of Blank (LOB):** The highest measurement expected from a blank sample. (LOB = mean_blank + 1.645 * sd_blank)
+            - **Limit of Detection (LOD):** The lowest concentration whose signal is statistically distinguishable from the LOB. (LOD = LOB + 1.645 * sd_low_conc_sample)
+            - **Limit of Quantitation (LOQ):** The lowest concentration meeting precision/accuracy requirements, which is almost always higher than the LOD.
+            
+            Confusing these is a common and serious error.
+            """)
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The concepts of LOD and LOQ were formalized and harmonized for the pharmaceutical industry by the **International Council for Harmonisation (ICH)** in their influential **Q2(R1) guideline on Validation of Analytical Procedures**. Before the ICH guidelines, different regulatory bodies had varying definitions and methods, leading to confusion and inconsistency. The ICH guidelines provided a scientifically sound and globally accepted framework for determining and validating these crucial performance characteristics.
+            The need to define analytical sensitivity is as old as chemistry itself, but for decades, definitions were inconsistent and often scientifically unsound. The breakthrough came with the **International Council for Harmonisation (ICH)**, a global body that brings together regulatory authorities and the pharmaceutical industry. Their landmark guideline **ICH Q2(R1) "Validation of Analytical Procedures"** harmonized the definitions and methodologies for LOD and LOQ, creating a global standard.
             
-            ICH Q2(R1) describes several methods, including visual evaluation and signal-to-noise ratio. However, the most common and statistically robust approach for quantitative assays, and the one visualized here, is **based on the standard deviation of the response and the slope of the calibration curve.**
+            This work was heavily influenced by the rigorous statistical framework established by **Lloyd Currie at the National Institute of Standards and Technology (NIST)**. Currie's 1968 paper, "Limits for Qualitative Detection and Quantitative Determination," established a clear, hypothesis-testing framework that distinguished between three levels of analytical decisions: "Is something detected?", "Is the substance present?", and "How much is present?". This forms the statistical foundation for the modern LOB/LOD/LOQ hierarchy.
 
             #### Mathematical Basis
-            This method is based on the **standard deviation of the response ($\sigma$)** and the **slope of the calibration curve (S)**. The $\sigma$ can be determined from the standard deviation of blank measurements or, more robustly, from the standard deviation of the residuals from a low-level regression line.
+            This method is built on the relationship between the assay's signal, its sensitivity (Slope, S), and its noise (standard deviation, σ). The standard deviation σ can be estimated in a few ways, but the most robust is using the **residual standard error** from a regression model fit to low-concentration data, as it pools variability information across multiple levels.
 
-            - **Limit of Detection (LOD):** The formula is derived to provide a high level of confidence (typically >95%) that a signal at this level is not just random noise. The factor 3.3 is a common approximation.
+            - **Limit of Detection (LOD):** The formula is designed to control the risk of false positives and false negatives. The factor 3.3 is an approximation related to the Student's t-distribution that corresponds to a high level of confidence (typically >95%) that a signal at this level is not a random fluctuation of the blank. It is fundamentally about making a **decision** (present/absent).
             """)
-            st.latex(r"LOD = \frac{3.3 \times \sigma}{S}")
+            st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
             st.markdown("""
-            - **Limit of Quantitation (LOQ):** This requires a higher signal-to-noise ratio to ensure not just detection, but also acceptable precision and accuracy. The factor of 10 is the standard convention for this.
+            - **Limit of Quantitation (LOQ):** This is not about detection, but about **measurement quality**. It demands a much higher signal-to-noise ratio to ensure that the measurement is not only detectable but also has an acceptable level of uncertainty (precision and accuracy). The factor of 10 is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.
             """)
-            st.latex(r"LOQ = \frac{10 \times \sigma}{S}")
+            st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
 
 def render_method_comparison():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To formally assess the agreement and bias between two different measurement methods (e.g., a new assay vs. a gold standard, or the R&D lab vs. the QC lab). This goes far beyond a simple correlation to determine if the methods can be used interchangeably.
+    **Purpose:** To formally assess and quantify the degree of agreement and systemic bias between two different measurement methods intended to measure the same quantity. This analysis moves beyond simple correlation to determine if the two methods can be used **interchangeably** in practice.
     
-    **Application:** This study is central to the “Crucible” phase of assay transfer. After developing a new assay, it is essential to demonstrate that it performs equivalently to the established method. This comparison provides definitive evidence to answer the critical question: “Do these two methods agree sufficiently well?” A successful agreement is a key milestone in ensuring a smooth and reliable assay transfer or method validation.
+    **Strategic Application:** This study is the "crucible" of method transfer, validation, or replacement. It's the moment of truth where a new method is judged against an established one. Key scenarios include:
+    - **Tech Transfer:** Proving the QC lab's implementation of an assay is equivalent to the original, highly-characterized R&D method.
+    - **Method Modernization:** Demonstrating a new, faster, or cheaper assay (e.g., a digital PCR) yields clinically equivalent results to an older gold standard (e.g., a cell-based assay).
+    - **Cross-Site/Instrument Harmonization:** Ensuring that results from an instrument in a facility in North Carolina are directly comparable to one in Ireland.
+
+    A failed comparison study can halt a tech transfer, delay a product launch, or invalidate a clinical study, making this analysis a high-stakes gatekeeper. It answers the critical business and regulatory question: “Do these two methods produce the same result, for the same sample, within medically or technically acceptable limits?”
     """)
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -684,40 +710,48 @@ def render_method_comparison():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Mean Bias (Bland-Altman)", value=f"{bias:.2f} units")
-            st.metric(label="💡 Metric: Deming Slope", value=f"{slope:.3f}", help="Ideal = 1.0. Measures proportional bias.")
-            st.metric(label="💡 Metric: Deming Intercept", value=f"{intercept:.2f}", help="Ideal = 0.0. Measures constant bias.")
-            st.markdown("- **Deming Regression:** Checks for systematic constant (intercept) and proportional (slope) errors, correctly accounting for error in both methods.")
-            st.markdown("- **Bland-Altman Plot:** Visualizes the random error and quantifies the expected range of disagreement via the Limits of Agreement (LoA).")
-            st.markdown("- **% Bias Plot:** Directly assesses practical significance. Does the bias at any concentration exceed the pre-defined limits (e.g., ±15%)?")
-            st.markdown("**The Core Insight:** Passing all three analyses proves that the receiving lab's method is statistically indistinguishable from the reference method, confirming a successful transfer.")
+            st.metric(label="📈 KPI: Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference between the Test and Reference methods. A positive value means the Test method measures higher on average.")
+            st.metric(label="💡 Metric: Deming Slope", value=f"{slope:.3f}", help="Ideal = 1.0. Measures proportional bias, which is often concentration-dependent.")
+            st.metric(label="💡 Metric: Deming Intercept", value=f"{intercept:.2f}", help="Ideal = 0.0. Measures constant bias, a fixed offset across the entire range.")
+            st.markdown("""
+            - **Deming Regression:** This is the correct regression for method comparison. Unlike standard OLS, it accounts for measurement error in *both* methods, providing an unbiased estimate of slope (proportional bias) and intercept (constant bias). The goal is to see the red Deming line perfectly overlay the black Line of Identity.
+            - **Bland-Altman Plot:** This plot transforms the question from "are they correlated?" to "how much do they differ?". It visualizes the random error and quantifies the **95% Limits of Agreement (LoA)**. This is the expected range of disagreement for 95% of future measurements. A "smile" or "frown" pattern in the points indicates the variance of the difference changes with concentration.
+            - **% Bias Plot:** This plot assesses **practical significance**. It shows if the bias at any specific concentration exceeds a pre-defined acceptable limit (e.g., ±15%). A method can have a small average bias but a large, unacceptable bias at the low end of the range, which this plot will reveal.
+
+            **The Core Strategic Insight:** This dashboard provides a multi-faceted verdict on method interchangeability. Deming regression diagnoses the *type* of bias (constant vs. proportional), the Bland-Altman plot quantifies the *magnitude* of expected random disagreement, and the % Bias plot confirms *local* acceptability. A successful comparison requires passing all three checks.
+            """)
         with tabs[1]:
-            st.markdown("- **Deming Regression:** The 95% confidence interval for the **slope should contain 1.0**, and the 95% CI for the **intercept should contain 0**.")
-            st.markdown(f"- **Bland-Altman:** At least 95% of the data points must fall within the Limits of Agreement (`{la:.2f}` to `{ua:.2f}`). The width of this interval must also be practically or clinically acceptable.")
-            st.markdown("- **Percent Bias:** The bias at each concentration level should not exceed a pre-defined limit, often **±15%**. ")
+            st.markdown("Acceptance criteria must be pre-defined in the validation protocol and be clinically or technically justified.")
+            st.markdown("- **Deming Regression:** The 95% confidence interval for the **slope must contain 1.0**, and the 95% CI for the **intercept must contain 0**. This provides statistical proof of no systematic bias.")
+            st.markdown(f"- **Bland-Altman:** The primary criterion is that the **95% Limits of Agreement (`{la:.2f}` to `{ua:.2f}`) must be clinically or technically acceptable**. This is a judgment call. A 20-unit LoA might be acceptable for a glucose monitor but catastrophic for a cancer biomarker. Furthermore, at least 95% of the data points must fall within these calculated limits.")
+            st.markdown("- **Total Analytical Error (TAE):** An advanced approach combines bias and imprecision into a single metric. The model can be accepted if, across the entire range, `|Bias| + 1.96 * SD_of_difference` is less than a predefined Total Allowable Error (TEa).")
+            st.error("**The Correlation Catastrophe:** Do not, under any circumstances, use the correlation coefficient (R or R²) as a measure of agreement. Two methods can be perfectly correlated (R=1.0) but have a huge bias (e.g., one method always reads exactly twice as high as the other). A high correlation is a prerequisite for agreement, but it is not evidence of agreement. This is one of the most common and severe statistical errors in scientific literature.")
+
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            **The Problem with Simple Regression:** For decades, scientists incorrectly used Ordinary Least Squares (OLS) regression and correlation (R²) to compare methods. This approach is fundamentally flawed because it assumes the reference method (x-axis) is measured without error, which is never true.
+            For decades, the scientific community committed a cardinal statistical sin: using **Ordinary Least Squares (OLS) regression** and the **correlation coefficient (r)** to compare methods. This is fundamentally flawed because OLS assumes the x-axis (reference method) is measured without error, a clear impossibility.
             
-            - **Deming's Solution:** W. Edwards Deming popularized **Errors-in-Variables Regression** (Deming Regression), which acknowledges that *both* methods have inherent measurement error. It finds a line that minimizes errors in both the x and y directions, providing a much more accurate estimate of the true relationship.
-
-            **The Problem with Correlation:** A high correlation (e.g., R² = 0.99) does not mean two methods agree. It only means they are proportional.
-            - **The Bland-Altman Revolution:** In a landmark 1986 paper, **J. Martin Bland and Douglas G. Altman** addressed this widespread misuse. They proposed a simple, intuitive graphical method that directly assesses **agreement**. By plotting the *difference* between the two methods against their *average*, their plot makes it easy to visualize the mean bias and random error. It has since become the gold standard for method comparison studies.
+            - **Deming's Correction:** While known to statisticians for a century (as errors-in-variables models), it was **W. Edwards Deming** who championed and popularized this type of regression in the 1940s. It correctly assumes both methods have measurement error, providing an unbiased estimate of the true relationship. The most common form, **Deming Regression**, assumes the ratio of the error variances is known, while **Passing-Bablok regression** is a non-parametric alternative that is robust to outliers.
+            
+            - **The Bland-Altman Revolution:** The bigger conceptual leap came in a landmark 1986 paper in *The Lancet* by **J. Martin Bland and Douglas G. Altman**. They ruthlessly exposed the misuse of correlation and proposed their brilliantly simple alternative. Instead of plotting Y vs. X, they plotted the **Difference (Y-X) vs. the Average ((Y+X)/2)**. This simple change of coordinates directly visualizes what scientists actually care about: the magnitude and patterns of disagreement. The Bland-Altman plot is now the undisputed gold standard for method comparison studies in the medical and biological sciences.
             
             #### Mathematical Basis
-            **Deming Regression:** Unlike OLS, Deming regression minimizes the sum of squared perpendicular distances from the data points to the regression line, weighted by the ratio of the error variances ($\lambda = \sigma^2_y / \sigma^2_x$).
+            **Deming Regression:** OLS minimizes the sum of squared vertical distances. Deming regression minimizes the sum of squared distances from the points to the line, weighted by the ratio of the error variances of the two methods ($\lambda = \sigma^2_{error,y} / \sigma^2_{error,x}$). If the methods have equal error ($\lambda=1$), it minimizes the sum of squared perpendicular distances.
             
-            **Bland-Altman Plot:** The key metrics are the **mean bias** ($\bar{d}$) and the **Limits of Agreement (LoA)**, which define the range where 95% of future differences are expected to lie:
+            **Bland-Altman Plot:** This is a graphical analysis, not a statistical test. The key metrics are the **mean difference (bias)**, $\bar{d}$, and the **standard deviation of the differences**, $s_d$. The 95% Limits of Agreement (LoA) are calculated assuming the differences are approximately normally distributed:
             """)
             st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
+            st.markdown("This interval provides a predictive range: for any future sample, we can be 95% confident that the difference between the two methods will fall within these limits. It is the 'margin of error' for method disagreement.")
 
 def render_robustness_rsm():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To systematically explore how deliberate variations in assay parameters (e.g., temperature, pH, incubation time) affect the outcome, and to map the "safe operating space" for the method.
+    **Purpose:** To systematically and efficiently identify the "vital few" process parameters that significantly impact an assay's performance and to characterize their interactions. This allows for the creation of a **"Design Space"**—a proven region of operation where the method is resilient to the unavoidable, small variations of routine use.
     
-    **Application:** This is a proactive approach to managing variation. Rather than reacting to problems, this study identifies which parameters—the "vital few"—must be tightly controlled versus those that have minimal impact (the "trivial many"). **Design of Experiments (DOE)** is used for initial screening, while **Response Surface Methodology (RSM)** is used for optimization. This enables the design of a robust process that reliably withstands real-world variability.
+    **Strategic Application:** This is the essence of modern **Quality by Design (QbD)** and a cornerstone of advanced process validation (ICH Q8). Instead of discovering process weaknesses through painful, expensive failures in routine production, this study proactively "stress tests" the method in a controlled, multi-factorial experiment.
+    - **Screening (DOE):** Used early in development with fractional factorial designs to quickly identify which of many potential factors (e.g., reagent lot, incubation time, temperature, pH, mixing speed) are actually important. This focuses future efforts on what matters.
+    - **Optimization (RSM):** Once the critical factors are known, Response Surface Methodology is used to create a detailed, predictive mathematical map of their effects. This allows scientists to find the "sweet spot" that maximizes performance (e.g., signal-to-noise ratio) while simultaneously minimizing variability (i.e., finding a flat plateau on the response surface). The result is a scientifically justified **Normal Operating Range (NOR)** that guarantees robustness.
     """)
     vis_type = st.radio("Select Analysis Stage:", ["📊 **Stage 1: Factor Screening (Pareto Plot)**", "📈 **Stage 2: Process Optimization (2D Contour)**", "🧊 **Stage 2: Process Optimization (3D Surface)**"], horizontal=True)
     fig_pareto, fig_contour, fig_surface, effects = plot_robustness_rsm()
@@ -730,35 +764,46 @@ def render_robustness_rsm():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Most Significant Factor", value=f"{effects.index[0]}"); st.metric(label="💡 Effect Magnitude", value=f"{effects.values[0]:.2f}")
-            st.markdown("- **Screening (Pareto):** Instantly reveals the 'vital few' parameters with significant effects (those crossing the red line). Here, `Temp` and the `Temp:pH` interaction are the most critical drivers.")
-            st.markdown("- **Optimization (Contour/Surface):** These plots provide a map of the process, revealing the 'sweet spot'—the combination of settings that yields the optimal response (highest point on the surface).")
-            st.markdown("**The Core Insight:** This study provides a map of your assay's operating space, allowing you to set control limits that guarantee robustness against real-world process noise.")
+            st.metric(label="📈 KPI: Most Significant Factor", value=f"{effects.index[0]}", help="The factor with the largest standardized effect on the response.")
+            st.metric(label="💡 Effect Magnitude", value=f"{effects.values[0]:.2f}", help="A value of -5.0 means moving from the low to high setting of this factor decreases the response by 5 units on average.")
+            st.markdown("""
+            - **Screening (Pareto):** A visual application of the Pareto Principle (80/20 rule). It instantly separates the "vital few" from the "trivial many." Any bar that crosses the red significance line represents a factor or interaction that *must* be tightly controlled. The most dangerous finding is often a large **interaction effect** (like `Temp:pH`), which means the effect of Temperature *depends on the level of pH*. This kind of complexity is impossible to find with one-factor-at-a-time (OFAT) experiments.
+            - **Optimization (Contour/Surface):** These are topographical maps of your process. The goal is not just to find the peak of the mountain (optimal response), but to find a large, flat plateau. Operating on a sharp peak is risky; operating on a plateau ensures that small, unavoidable variations in input parameters (a little temperature drift, a slight pH error) have minimal impact on the final result. This is the definition of a **robust process**.
+
+            **The Core Strategic Insight:** This analysis builds a predictive model of your process. It provides the "operating manual" that allows you to set scientifically-backed control limits, predict the impact of deviations, and design a process that is inherently resilient to the noise of the real world. It transforms process understanding from tribal knowledge and guesswork into predictive science.
+            """)
         with tabs[1]:
-            st.markdown("- **Screening:** Any factor whose effect is statistically significant (typically p < 0.05) is considered a **critical parameter**. The SOP must include tighter controls for these parameters.")
-            st.markdown("- **Optimization:** The goal is to define a **Design Space** or **Normal Operating Range (NOR)**—a region on the contour plot where the assay is proven to be robust. Final process parameters should be set well within this space.")
+            st.markdown("- **Screening:** Any factor or interaction with a p-value **< 0.05** is deemed statistically significant. These factors must be identified in the validation report as **Critical Process Parameters (CPPs)** and require defined control limits in the SOP.")
+            st.markdown("- **Optimization & Design Space:** The acceptance criterion is the successful definition of a **Design Space**. Per ICH Q8, the Design Space is the 'multidimensional combination and interaction of input variables and process parameters that have been demonstrated to provide assurance of quality.' Movement within the Design Space is not considered a change and does not require a new regulatory filing, providing enormous operational flexibility.")
+            st.success("""
+            **The Hierarchy of Control:**
+            - **Design Space:** The entire multidimensional space where quality is assured.
+            - **Proven Acceptable Range (PAR):** The edges of the operating ranges tested during validation.
+            - **Normal Operating Range (NOR):** The tighter, target range for routine production, set comfortably within the PAR.
+            """)
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            **DOE:** The foundation of modern DOE was pioneered by **Sir Ronald A. Fisher** in the 1920s at the Rothamsted Agricultural Experimental Station. His revolutionary insight was to test multiple factors simultaneously in a structured **factorial design**, which was the only way to systematically study **interactions**.
+            **DOE:** The entire field of modern experimental design was invented by one man: **Sir Ronald A. Fisher**, working at the Rothamsted Agricultural Experimental Station in the 1920s. Before Fisher, scientists used the inefficient and often misleading one-factor-at-a-time (OFAT) approach. Fisher's revolutionary insight was **factorial design**: varying all factors simultaneously in a structured way. This was orders of magnitude more efficient and, crucially, was the only way to estimate **interactions**, the synergistic or antagonistic effects between factors.
             
-            **RSM:** In the 1950s, **George E. P. Box and K. B. Wilson** built upon Fisher's work to not just identify important factors, but to find their *optimal settings*. They developed **Response Surface Methodology (RSM)**, which uses a more detailed design (like the Central Composite Design shown here) to model the curvature in the response and mathematically find the "peak of the mountain."
+            **RSM:** In the 1950s, the brilliant statistician **George E. P. Box** (a Fisher disciple) and K. B. Wilson extended this work for the chemical industry. They weren't just interested in which factors were significant, but in finding their *optimal settings*. They developed **Response Surface Methodology (RSM)**, which uses more sophisticated designs (like the Central Composite Design shown here with its 'star points') to fit quadratic models. This allows for modeling the curvature of the response and mathematically finding the "peak of the mountain" or the "bottom of the valley." This work is the direct intellectual parent of the modern QbD movement.
             
             #### Mathematical Basis
-            **DOE (Screening):** A 2-level factorial design is used to fit a linear model to estimate main effects and interactions.
+            **DOE (Screening):** Uses a simple 2-level factorial design to fit a linear model with interaction terms. The coefficients ($\beta$) represent the standardized effect of each factor.
             """)
             st.latex(r"y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_{12} X_1 X_2 + \epsilon")
             st.markdown("""
-            **RSM (Optimization):** RSM is used to model the curvature of the response surface by fitting a second-order polynomial model.
+            **RSM (Optimization):** To model curvature, RSM requires a more complex, second-order polynomial model containing quadratic terms ($X_i^2$).
             """)
             st.latex(r"y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_{11} X_1^2 + \beta_{22} X_2^2 + \beta_{12} X_1 X_2 + \epsilon")
+            st.markdown("Finding the optimum involves taking the partial derivatives of this equation with respect to each factor, setting them to zero, and solving the resulting system of equations—a task easily handled by modern software.")
 
 def render_shewhart():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To establish if a process is in a state of statistical control, meaning its variation is stable, consistent, and predictable over time. It distinguishes between inherent, random "common cause" variation and specific, assignable "special cause" variation.
+    **Purpose:** To determine if a process is in a state of **statistical control**. A process in control is stable and predictable, with its variation arising only from inherent, random "common causes." This analysis distinguishes this natural process "noise" from "special cause" variation, which signals a fundamental and often undesirable change in the process.
     
-    **Application:** This is the foundational step in process monitoring and a strict prerequisite for process capability analysis. Before assessing whether a process consistently meets specifications, it must first be shown to be stable. An out-of-control process is unpredictable, making any capability assessment invalid. Establishing control is the first critical step in demonstrating that variation is understood and managed.
+    **Strategic Application:** This is the foundational tool of **Statistical Process Control (SPC)** and the **absolute prerequisite** for any meaningful analysis of process capability (Cpk). A process must first be brought into a state of statistical control before its ability to meet specifications can be evaluated. An out-of-control process is unpredictable; its mean and standard deviation are unstable, making any calculation of Cpk a meaningless snapshot in time. Establishing control is the first victory in demonstrating that a process is understood and managed, not just a series of random events. It is the real-time "voice of the process."
     """)
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -767,67 +812,111 @@ def render_shewhart():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Process Stability", value="Signal Detected", delta="Action Required", delta_color="inverse")
-            st.markdown("- **I-Chart (top):** Monitors the process center (accuracy). The single blue line shows the continuous process. Points marked with a red 'X' are out-of-control signals.")
-            st.markdown("- **MR-Chart (bottom):** Monitors the short-term, run-to-run variability (precision). An out-of-control signal here would indicate the process has become inconsistent.")
-            st.markdown("**The Core Insight:** These charts are the heartbeat of your process. This chart shows a stable process for the first 15 runs, after which a new reagent lot caused a special cause variation, driving the process out of control. This must be fixed before proceeding.")
+            st.metric(label="📈 KPI: Process Stability", value="Signal Detected", delta="Action Required", delta_color="inverse", help="The process has shown a 'special cause' variation that requires investigation.")
+            st.markdown("""
+            - **I-Chart (Individuals Chart):** Monitors the process center (location or accuracy) over time. It is highly sensitive to shifts in the process mean. The zones (1, 2, and 3-sigma) help in applying advanced detection rules (like Westgard or Nelson rules).
+            - **MR-Chart (Moving Range Chart):** Monitors the short-term, run-to-run variability (spread or precision). An out-of-control signal on the MR-chart is often more serious than on the I-chart, as it indicates the process has become fundamentally unstable and inconsistent. **The MR-chart must be in control before the I-chart can be properly interpreted.**
+            
+            **The Core Strategic Insight:** These charts are the EKG of your process. In this example, the process was stable and predictable for 15 runs. The introduction of a new reagent lot created a "special cause" - a shock to the system that shifted the mean upwards, driving the process out of statistical control. An engineer's job is to identify and eliminate special causes to return the process to its predictable state. Only then can they work on improving the stable process itself (e.g., reducing its common cause variation). This chart separates the signal from the noise.
+            """)
         with tabs[1]:
-            st.markdown("- A process is considered stable and ready for the next validation step only when **at least 20-25 consecutive points on both the I-chart and MR-chart show no out-of-control signals** according to the chosen rule set (e.g., Nelson, Westgard). Any signal requires a formal investigation and corrective action.")
+            st.markdown("- A process is deemed to be in a state of statistical control only after a baseline period (typically **25-30 consecutive subgroups or individual measurements**) shows **no special cause signals** on *both* the I-chart and the MR-chart.")
+            st.markdown("- Any point violating a selected control rule (e.g., a point outside the ±3σ limits) signals the presence of a special cause. This mandates a formal **Out-of-Control Action Plan (OCAP)**, which involves:
+                1.  Halting the process.
+                2.  Isolating potentially affected product.
+                3.  Conducting a root cause investigation (e.g., using an Ishikawa / Fishbone diagram).
+                4.  Implementing corrective and preventive actions (CAPA).
+                5.  Only restarting the process after the special cause is eliminated.")
+            st.error("""
+            **The Central Fallacy of Management:**
+            A common and disastrous mistake is to treat common cause variation as if it were a special cause. For example, if a point is high but still within the control limits, and a manager demands an "adjustment," this is called **tampering**. As Deming proved, tampering with a stable process *always increases* its variation and makes it worse. Control charts prevent tampering by defining when to act and when to leave the process alone.
+            """)
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            Developed by the physicist **Walter A. Shewhart** at Bell Labs in the 1920s, these charts are the foundation of modern Statistical Process Control (SPC). Shewhart's breakthrough was recognizing that industrial processes contain two types of variation: **common cause** (the natural, inherent "noise" of a stable process) and **special cause** (unexpected, external events). The purpose of a Shewhart chart is not to eliminate all variation, but to provide a clear, statistical signal to distinguish between these two types, allowing engineers to fix real problems instead of chasing random noise.
+            Control charts were invented by the American physicist and statistician **Dr. Walter A. Shewhart** at Bell Telephone Laboratories in the 1920s. His work was a profound intellectual breakthrough that created the entire field of statistical process control. Shewhart's genius was to recognize that variation in any process comes from two sources:
+            1.  **Common Cause (or Chance) Variation:** The natural, inherent "noise" of a stable, well-designed process. It's the cumulative effect of many small, unavoidable factors. This variation is predictable within a range.
+            2.  **Special Cause (or Assignable) Variation:** The result of a specific, identifiable event external to the usual process, such as a machine malfunction, a bad batch of raw material, or an untrained operator. This variation is unpredictable.
+
+            Shewhart's chart provided, for the first time, an **objective, operational method** to distinguish between these two. Its purpose is to tell managers when to act on the process (a special cause) and, just as importantly, **when to leave the process alone** (only common cause variation present). As his student W. Edwards Deming would later teach, reacting to common cause variation as if it were a special cause ("tampering") is a fundamental management error that *increases* overall variation.
             
             #### Mathematical Basis
-            The key is estimating the process standard deviation ($\hat{\sigma}$) from the average moving range ($\overline{MR}$). For an I-MR chart, the formulas are:
+            The control limits are not specification limits. They are the **"voice of the process."** They are calculated from the process data itself to reflect its natural, inherent variation. For an I-MR chart, the process standard deviation ($\hat{\sigma}$) is estimated from the short-term variability seen in the moving range.
             """)
-            st.latex(r"\hat{\sigma} = \frac{\overline{MR}}{d_2} \quad \text{(where } d_2 \approx 1.128 \text{)}")
-            st.markdown("**I-Chart Limits:**")
-            st.latex(r"UCL/LCL = \bar{x} \pm 3\hat{\sigma}")
-            st.markdown("**MR-Chart Limits:**")
-            st.latex(r"UCL = D_4 \overline{MR} \quad \text{(where } D_4 \approx 3.267 \text{)}")
+            st.latex(r"\hat{\sigma} = \frac{\overline{MR}}{d_2}")
+            st.markdown(r"""
+            where $\overline{MR}$ is the average moving range between consecutive points and $d_2$ is a statistical constant that corrects for bias based on the subgroup size (for a moving range of 2, $d_2 \approx 1.128$).
+            - **I-Chart Limits:** The famous "3-sigma" limits represent the range where 99.73% of points should fall if the process is stable and only common cause variation is present. A point outside this range is an extremely unlikely event, hence a signal of a special cause.
+            """)
+            st.latex(r"UCL_I / LCL_I = \bar{x} \pm 3\hat{\sigma} = \bar{x} \pm 3 \left(\frac{\overline{MR}}{d_2}\right)")
+            st.markdown("- **MR-Chart Limits:** The limits for the moving range chart are also derived from $\overline{MR}$ and statistical constants to detect unusual spikes in short-term volatility.")
+            st.latex(r"UCL_{MR} = D_4 \overline{MR} \quad (\text{where } D_4 \approx 3.267)")
+            st.latex(r"LCL_{MR} = D_3 \overline{MR} \quad (\text{where } D_3 = 0 \text{ for n < 7})")
 
 def render_ewma_cusum():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To implement sensitive charts that can detect small, sustained shifts in the process mean that a standard Shewhart chart, which lacks memory, would miss.
+    **Purpose:** To deploy sensitive control charts designed to rapidly detect **small, sustained shifts** in the process mean, which a standard Shewhart chart, by design, is poor at detecting. These charts achieve their power by incorporating "memory" of past data points.
     
-    **Application:** These are advanced early-warning systems for mature processes. Once major sources of variation are controlled, remaining issues are often small, gradual drifts (e.g., instrument degradation, reagent aging). **EWMA (Exponentially Weighted Moving Average)** is excellent for detecting gradual drifts, while **CUSUM (Cumulative Sum)** is the most statistically powerful tool for detecting small, abrupt, and sustained shifts of a specific magnitude.
+    **Strategic Application:** These are advanced, second-generation SPC tools, best suited for mature, stable processes where large, dramatic failures have been eliminated. They act as a high-sensitivity early warning system for the subtle, insidious process drifts that can occur over time due to factors like equipment wear, reagent degradation, or slow environmental changes.
+    - **EWMA (Exponentially Weighted Moving Average):** This chart is an excellent all-around performer, effective at detecting small shifts and gradual drifts. It is particularly useful for monitoring continuous processes where you want to smooth out high-frequency noise to see the underlying signal, such as monitoring bioreactor pH or temperature.
+    - **CUSUM (Cumulative Sum):** This chart is the **most statistically powerful** tool for detecting a specific, small, abrupt, and sustained shift in the mean. It is the optimal tool when you have a specific failure mode in mind (e.g., "I need to detect a 0.5 sigma shift within 3 runs"). It is essentially a continuous, sequential hypothesis test running in real-time.
     """)
     chart_type = st.sidebar.radio("Select Chart Type:", ('EWMA', 'CUSUM'))
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        if chart_type == 'EWMA': lmbda = st.sidebar.slider("EWMA Lambda (λ)", 0.05, 1.0, 0.2, 0.05); st.plotly_chart(plot_ewma_cusum(chart_type, lmbda, 0, 0), use_container_width=True)
-        else: k_sigma, H_sigma = st.sidebar.slider("CUSUM Slack (k, in σ)", 0.25, 1.5, 0.5, 0.25), st.sidebar.slider("CUSUM Limit (H, in σ)", 2.0, 8.0, 5.0, 0.5); st.plotly_chart(plot_ewma_cusum(chart_type, 0, k_sigma, H_sigma), use_container_width=True)
+        if chart_type == 'EWMA': 
+            lmbda = st.sidebar.slider("EWMA Lambda (λ)", 0.05, 1.0, 0.2, 0.05, help="Controls the chart's memory. A small λ gives more weight to past data (more memory, better for smaller shifts). A λ of 1.0 makes it a Shewhart chart.")
+            st.plotly_chart(plot_ewma_cusum(chart_type, lmbda, 0, 0), use_container_width=True)
+        else: 
+            k_sigma = st.sidebar.slider("CUSUM Slack (k, in σ)", 0.25, 1.5, 0.5, 0.25, help="The 'slack' in the system, typically set to half the size of the shift you want to detect (in standard deviations).")
+            H_sigma = st.sidebar.slider("CUSUM Limit (H, in σ)", 2.0, 8.0, 5.0, 0.5, help="The decision interval or control limit (in standard deviations). A smaller H leads to faster detection but more false alarms.")
+            st.plotly_chart(plot_ewma_cusum(chart_type, 0, k_sigma, H_sigma), use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Shift Detection", value="Signal Detected", delta="Action Required", delta_color="inverse")
-            st.markdown("- **Top Plot (Raw Data):** The small 1.25σ shift after run 25 is almost impossible to see by eye.\n- **Bottom Plot (EWMA/CUSUM):** This chart makes the invisible visible by accumulating small deviations until they cross the red control limit, providing a clear statistical signal.")
-            st.markdown("**The Core Insight:** These charts act as a magnifying glass for the process mean, allowing you to catch subtle problems early and maintain a high level of quality.")
+            st.metric(label="📈 KPI: Shift Detection Speed (ARL)", value="Signal Detected", delta="Action Required", delta_color="inverse", help="These charts are optimized to have a low Average Run Length (ARL) to detect small shifts.")
+            st.markdown("""
+            - **Top Plot (Raw Data):** The 1.25σ shift introduced after run 25 is nearly invisible to the naked eye and would likely not trigger a standard Shewhart chart for many runs.
+            - **Bottom Plot (EWMA/CUSUM):** This chart acts as a signal accumulator. It makes the invisible visible.
+                - **EWMA:** The purple line is a smoothed version of the raw data. It clearly trends upwards after the shift, eventually crossing the tightening red control limit.
+                - **CUSUM:** The chart accumulates deviations from the target. Before the shift, the sums hover around zero. After the shift, the high-side sum (SH) begins to climb relentlessly, like a rising tide, until it breaches the decision limit H.
+
+            **The Core Strategic Insight:** These charts fundamentally change the SPC paradigm from "is it out?" to "where is it heading?". They provide a crucial early warning, allowing for proactive intervention (e.g., scheduling maintenance, changing a reagent column) *before* a specification limit is ever breached, thus preventing scrap and deviation investigations. They enable management *by exception* for highly stable processes.
+            """)
         with tabs[1]:
-            st.markdown("- **EWMA Rule:** For long-term monitoring, a `λ` between **0.1 to 0.3** is a common choice. A signal occurs when the EWMA line crosses the control limits.\n- **CUSUM Rule:** To detect a shift of size $\delta$, set the slack parameter `k` to approximately **$\delta / 2$**. A signal occurs when the CUSUM statistic crosses the decision interval `H`.")
+            st.markdown("- **Tuning is Key:** The performance of these charts depends critically on their tuning parameters, which are chosen based on the desired **Average Run Length (ARL)**. The ARL is the average number of points that will be plotted before a signal is given.")
+            st.markdown("  - **ARL₀:** The in-control ARL (should be high, e.g., >500, to minimize false alarms).")
+            st.markdown("  - **ARL₁:** The out-of-control ARL (should be low, for rapid detection of a given shift).")
+            st.markdown("- **EWMA Tuning:** For detecting small shifts (0.5σ to 1.0σ), a `λ` between **0.05 and 0.25** is typically optimal. The control limit width `L` is usually set to 3.0.")
+            st.markdown("- **CUSUM Tuning:** The chart is tuned to optimally detect a shift of size $\delta$ (in units of σ). The standard design sets the reference value (or slack parameter) `k = δ / 2` and the decision interval `H = 5σ`. For example, to best detect a 1σ shift, set k=0.5σ and H=5σ.")
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            Both EWMA (Roberts, 1959) and CUSUM (Page, 1954) were developed in the 1950s to address the Shewhart chart's insensitivity to small shifts by incorporating "memory". **EWMA** uses an exponentially weighted average to smooth data and reveal underlying trends. **CUSUM** directly accumulates deviations from a target; if the process is on target, the sum hovers around zero, but a small shift causes the sum to trend steadily until it crosses a decision threshold. CUSUM is considered the most statistically powerful method for detecting small, sustained shifts.
-            
+            Both charts were developed in the UK in the 1950s as a direct response to the primary weakness of the Shewhart chart: its insensitivity to small, sustained shifts (a consequence of it being "memoryless").
+            - **CUSUM:** Developed by the British statistician **E. S. Page in 1954**, the CUSUM chart is a direct application of the **Sequential Probability Ratio Test (SPRT)**. The SPRT was a classified statistical method developed by Abraham Wald at Columbia University during WWII for efficiently testing munitions lots (i.e., determining if a batch was good or bad with the minimum number of destructive tests). Page's genius was to turn this batch-level test into a continuous process monitoring scheme.
+            - **EWMA:** Proposed by **S. W. Roberts in 1959**, the EWMA chart comes from the world of time series forecasting. It uses the same logic as exponential smoothing to create a smoothed forecast of the next data point. The control chart then simply plots the difference between the actual point and its forecast. Its performance is nearly as good as CUSUM for specific shifts, but it is more robust if the true shift size is unknown.
+
             #### Mathematical Basis
-            **EWMA:** The statistic $z_i$ is a weighted average of the current observation $x_i$ and the previous EWMA value $z_{i-1}$:
+            **EWMA:** The statistic $z_i$ is a weighted average that gives exponentially decreasing weight to older observations. The "memory" is controlled by $\lambda$.
             """)
-            st.latex(r"z_i = \lambda x_i + (1-\lambda)z_{i-1}")
+            st.latex(r"z_i = \lambda x_i + (1-\lambda)z_{i-1}, \quad \text{where } z_0 = \mu_0")
             st.markdown("""
-            **CUSUM:** Uses two one-sided statistics to detect upward ($SH$) and downward ($SL$) shifts, using a slack value (k) and decision interval (H).
+            The control limits for an EWMA chart are not constant; they widen at the beginning of the chart and then approach a steady-state value. This accounts for the higher uncertainty in the EWMA estimate when there are few data points.
+
+            **CUSUM:** This chart uses two one-sided sums, one for upward shifts ($SH$) and one for downward shifts ($SL$). The "slack" or "reference" value `k` is incorporated at each step. If the process is on target, the deviations are smaller than `k`, so the sum doesn't grow. If a shift occurs, the deviations consistently overcome `k` and the sum trends upwards.
             """)
             st.latex(r"SH_i = \max(0, SH_{i-1} + (x_i - \mu_0) - k)")
+            st.latex(r"SL_i = \max(0, SL_{i-1} + (\mu_0 - x_i) - k)")
+            st.markdown("A signal is triggered if either $SH_i$ or $SL_i$ exceeds the decision interval $H$.")
             
 def render_multi_rule():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To create an objective, statistically-driven system for accepting or rejecting each individual analytical run based on the performance of Quality Control (QC) samples.
+    **Purpose:** To establish and operationalize an objective, statistically-driven system for the real-time acceptance or rejection of individual analytical runs. This is achieved by evaluating the performance of Quality Control (QC) samples against a set of predefined statistical rules that are sensitive to different error patterns.
     
-    **Application:** This is the daily responsibility of the process steward. This multi-rule system serves as a vigilant gatekeeper, ensuring that only valid, trustworthy results are released. It forms the backbone of routine quality control, safeguarding the reliability and compliance of analytical outputs by detecting both large random errors and smaller systematic trends.
+    **Strategic Application:** This is the vigilant gatekeeper of daily laboratory operations. It is the practical application of SPC for run-level decision-making. A well-designed multi-rule system provides a robust defense against releasing invalid data, safeguarding against both large, random errors (e.g., a major pipetting blunder) and smaller, insidious systematic errors (e.g., a slow degradation of a reagent). It is a core requirement for any laboratory operating under regulatory scrutiny (CLIA, CAP, ISO 15189, GxP) as it provides a documented, objective basis for every run disposition decision.
     """)
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -836,54 +925,65 @@ def render_multi_rule():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Run Status", value="Violations Detected", delta="Action Required", delta_color="inverse")
-            st.markdown("- **Levey-Jennings Chart:** Visualizes QC data over time with 1, 2, and 3-sigma zones. Specific rule violations are automatically flagged.\n- **Distribution Plot:** Shows the overall histogram of the QC data; it should approximate a bell curve.")
-            st.markdown("**The Core Insight:** The annotations provide immediate, actionable feedback, distinguishing between random errors (like the `R_4s` rule) and systematic errors (like the `2_2s` or `4_1s` rules), guiding the troubleshooting process.")
+            st.metric(label="📈 KPI: Run Status", value="Violations Detected", delta="Action Required", delta_color="inverse", help="One or more QC rules have been violated, flagging the run for review or rejection.")
+            st.markdown("""
+            - **Levey-Jennings Chart:** This is a specialized Shewhart chart for QC data. The annotations flagging specific rule violations are the key output, converting raw data into actionable information.
+            - **Distribution Plot:** Provides a long-term view of QC performance. A healthy process will show a symmetric, bell-shaped distribution centered on the target mean. Skewness or multiple peaks (bimodality) can indicate persistent, unresolved systematic issues.
+            
+            **The Core Strategic Insight:** Different rules detect different types of errors. This is the power of the multi-rule approach. The type of rule violated provides a critical clue for the subsequent root cause investigation, making troubleshooting faster and more effective.
+            - **Random Error Rules (e.g., `1_3s`, `R_4s`):** These rules are sensitive to single, sporadic events that indicate a loss of precision. An `R_4s` violation (one point at +2s, the next at -2s) is a classic sign of high imprecision or random blunders.
+            - **Systematic Error Rules (e.g., `2_2s`, `4_1s`, `10x`):** These rules are sensitive to sustained shifts or trends that indicate a loss of accuracy. A `4_1s` violation is an early warning of a small but real shift in the mean. A `10x` violation is a strong signal of a significant, persistent bias.
+            """)
         with tabs[1]:
             st.markdown("""
             #### Historical Context & Origin
-            The **Levey-Jennings chart**, an adaptation of industrial control charts for the clinical lab, was developed in the 1950s. However, using simple ±2σ or ±3σ limits was a blunt instrument. In a landmark 1981 paper, **Dr. James Westgard** proposed a "multi-rule" system that combines several different rules to create a highly sensitive yet specific quality control procedure. The Westgard Rules are now the global standard for clinical laboratory QC and are essential for meeting regulatory requirements from bodies like CLIA, CAP, and ISO 15189.
+            The **Levey-Jennings chart**, developed by S. Levey and E. R. Jennings in 1950, was a direct adaptation of industrial Shewhart charts for the unique needs of the clinical laboratory. They plotted individual QC sample results over time, which was a major step forward.
+            
+            However, using only the simple ±2σ (warning) and ±3σ (rejection) limits was a blunt instrument, leading to an undesirable trade-off: high sensitivity to errors came at the cost of too many false rejections, while reducing false rejections meant missing real errors. The definitive solution came in a landmark 1981 paper by **Dr. James O. Westgard**. He logically combined several control rules into a hierarchical algorithm, creating a system with a very low false rejection rate (<1%) but a very high probability of detecting true errors (>90%). This "multi-rule" system, now famously known as the **Westgard Rules**, became the global standard for quality control in clinical laboratories and is essential for meeting the stringent requirements of regulatory and accreditation bodies like CLIA, CAP, and ISO 15189.
             """)
-    st.subheader("Standard Industry Rule Sets")
-    tab_w, tab_n, tab_we = st.tabs(["✅ Westgard Rules", "✅ Nelson Rules", "✅ Western Electric Rules"])
+    st.subheader("Standard Industry Rule Sets: A Comparative Guide")
+    tab_w, tab_n, tab_we = st.tabs(["✅ Westgard Rules (Clinical/Medical Labs)", "✅ Nelson Rules (Industrial/Manufacturing)", "✅ Western Electric Rules (The Foundation)"])
     with tab_w:
-        st.markdown("""Developed for lab QC, vital for CLIA, CAP, ISO 15189 compliance. A run is rejected if a "Rejection Rule" is violated.
-| Rule | Use Case | Interpretation |
+        st.markdown("""Optimized for clinical lab QC, balancing error detection and false rejection. Essential for CLIA, CAP, ISO 15189 compliance. A run is rejected if any of the mandatory rejection rules are violated.
+| Rule | Interpretation | Type of Error Detected |
 |---|---|---|
-| **1_2s** | Warning | One control > ±2σ. Triggers inspection. |
-| **1_3s** | Rejection | One control > ±3σ. |
-| **2_2s** | Rejection | Two consecutive > same ±2σ limit. |
-| **R_4s** | Rejection | One > +2σ and the next > -2σ. |
-| **4_1s** | Rejection | Four consecutive > same ±1σ limit. |
-| **10x** | Rejection | Ten consecutive points on the same side of the mean. |""")
+| **1_2s** | **Warning Rule:** One control measurement exceeds the mean ± 2s. Triggers inspection of other rules, does not cause rejection by itself. | Serves as a screen. |
+| **1_3s** | **Rejection Rule:** One control measurement exceeds the mean ± 3s. | Large Random Error |
+| **2_2s** | **Rejection Rule:** Two *consecutive* control measurements exceed the same mean ± 2s limit (e.g., both > +2s). | Systematic Error (Bias) |
+| **R_4s** | **Rejection Rule:** One control is > +2s and the next is < -2s (or vice-versa) within a single run. The range between them exceeds 4s. | Random Error (Imprecision) |
+| **4_1s** | **Rejection Rule:** Four *consecutive* control measurements exceed the same mean ± 1s limit. | Small, persistent Systematic Error |
+| **10x** | **Rejection Rule:** Ten *consecutive* control measurements fall on the same side of the mean. | Significant Systematic Error (Bias) |""")
     with tab_n:
-        st.markdown("""Excellent for catching non-random patterns in manufacturing and general SPC.
-| Rule | What It Flags |
-|---|---|
-| 1. One point > 3σ | Sudden shift or outlier |
-| 2. 9 points on same side of mean | Mean shift |
-| 3. 6 points increasing or decreasing | Trend |
-| 4. 14 points alternating up/down | Systematic oscillation |
-| 5. 2 of 3 > 2σ (same side) | Moderate shift |
-| 6. 4 of 5 > 1σ (same side) | Small persistent shift |
-| 7. 15 points inside ±1σ | Reduced variation |
-| 8. 8 points outside ±1σ | Increased variation |""")
+        st.markdown("""A comprehensive set of rules developed by Lloyd Nelson at General Electric in the 1980s, excellent for catching a wide variety of non-random patterns in industrial process data. Any rule violation signals a special cause.
+| Rule | What It Flags | Common Cause |
+|---|---|---|
+| 1. One point > 3σ from the mean | A single large deviation, an outlier. | Gross error, measurement blunder. |
+| 2. Nine points in a row on same side of mean | A sustained shift in the process mean. | New raw material, machine setting drift. |
+| 3. Six points in a row, all increasing or decreasing | A process trend or drift. | Tool wear, reagent degradation, operator fatigue. |
+| 4. Fourteen points in a row, alternating up and down | Systematic oscillation, often from over-control. | Two alternating suppliers, "tampering" by operators. |
+| 5. Two out of three points > 2σ (same side) | A moderate shift in the process mean. | A less obvious shift in conditions. |
+| 6. Four out of five points > 1σ (same side) | A small but persistent shift. | An even smaller, but real, change in the mean. |
+| 7. Fifteen points in a row within ±1σ | Stratification; reduced variation (hugging the mean). | Improper sampling (e.g., not sampling the whole process). |
+| 8. Eight points in a row outside ±1σ | Increased variation or bimodal distribution. | Two different processes are being measured as one. |""")
     with tab_we:
-        st.markdown("""Foundational rules from which many other systems were derived.
-| Rule | Interpretation |
-|---|---|
-| **Rule 1** | One point falls outside the ±3σ limits. |
-| **Rule 2** | Two out of three consecutive points fall beyond the ±2σ limit on the same side. |
-| **Rule 3** | Four out of five consecutive points fall beyond the ±1σ limit on the same side. |
-| **Rule 4** | Eight consecutive points fall on the same side of the mean. |""")
+        st.markdown("""The foundational rules developed at Western Electric (part of Bell Labs) in the 1950s, documented in their influential Statistical Quality Control Handbook. They are the basis from which the Westgard and Nelson rules were derived. Simpler but still powerful.
+| Rule | Interpretation | Error Type |
+|---|---|---|
+| **Rule 1** | One point falls outside the ±3σ limits. | Large Random or Systematic Error |
+| **Rule 2** | Two out of three consecutive points fall beyond the ±2σ limit on the same side of the mean. | Systematic Error (Bias) |
+| **Rule 3** | Four out of five consecutive points fall beyond the ±1σ limit on the same side of the mean. | Small Systematic Error |
+| **Rule 4** | Eight (or nine) consecutive points fall on the same side of the mean. | Significant Systematic Error |""")
 
 
 def render_capability():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To determine if a stable process is capable of consistently producing results that meet the required specifications.
+    **Purpose:** To quantitatively determine if a process, once proven to be in a state of statistical control, is **capable** of consistently producing output that meets pre-defined specification limits (USL/LSL).
     
-    **Application:** This is often the final and most critical gate of a successful assay transfer. After demonstrating that the assay is reliable (Act I) and stable in the receiving lab environment (Act II), the final step is to provide statistical evidence that the process can consistently meet stringent quality targets. A high Cpk (process capability index) serves as the quantitative proof that the method performs within specification—delivering reproducible, trustworthy results under routine conditions. In many ways, it is the statistical equivalent of "mission accomplished."
+    **Strategic Application:** This is the ultimate verdict on process performance, often the final gate in a process validation or technology transfer. It directly answers the critical business question: "Is our process good enough to reliably meet customer or regulatory requirements with a high degree of confidence?" 
+    - A high capability index (Cpk) provides objective, statistical evidence that the process is robust, predictable, and delivers high quality. It is a key metric for supplier qualification, internal performance tracking, and regulatory submissions.
+    - A low Cpk is a clear signal that the process requires fundamental improvement, either by **re-centering the process mean** to better align with the target, or by **reducing the process variation (standard deviation)**.
+    In many ways, achieving a high Cpk is the statistical equivalent of "mission accomplished" for a process development or transfer team.
     """)
     scenario = st.sidebar.radio("Select Process Scenario:", ('Ideal', 'Shifted', 'Variable', 'Out of Control'))
     col1, col2 = st.columns([0.7, 0.3])
@@ -894,25 +994,38 @@ def render_capability():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Process Capability (Cpk)", value=f"{cpk_val:.2f}" if scn != 'Out of Control' else "INVALID")
-            st.markdown("- **The Mantra:** Control before Capability. Cpk is only meaningful for a stable, in-control process (see I-Chart in the plot). The 'Out of Control' scenario yields an invalid Cpk because the process is unpredictable.")
-            st.markdown("- **The Key Insight:** A process can be perfectly **in control but not capable** (the 'Shifted' and 'Variable' scenarios). The control chart looks fine, but the process is producing out-of-spec results. This is why you need both tools.")
+            st.metric(label="📈 KPI: Process Capability (Cpk)", value=f"{cpk_val:.2f}" if scn != 'Out of Control' else "INVALID", help="Measures how well the process fits within the spec limits, accounting for centering. Higher is better.")
+            st.markdown("""
+            - **The Mantra: Control Before Capability.** The control chart (top plot) is a prerequisite. The Cpk metric is only statistically valid and meaningful if the process is stable and in-control. The 'Out of Control' scenario yields an **INVALID** Cpk because an unstable process has no single, predictable "voice" to measure. Its future performance is unknown.
+            - **The Key Insight: Control ≠ Capability.** A process can be perfectly in-control (predictable) but not capable (producing bad product). 
+                - The **'Shifted'** scenario shows a process that is precise but inaccurate.
+                - The **'Variable'** scenario shows a process that is centered but imprecise.
+            Both are in control, but both have a poor Cpk. This demonstrates why you need both SPC (for control) and Capability Analysis (for quality).
+            """)
         with tabs[1]:
-            st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable** (a common minimum target, corresponding to a 4-sigma process).")
-            st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** (a common Six Sigma target).")
-            st.markdown("- `Cpk < 1.0`: Process is **not capable** of meeting specifications and requires improvement (either recentering or variance reduction).")
+            st.markdown("These are industry-standard benchmarks, often required by customers, especially in automotive and aerospace. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
+            st.markdown("- `Cpk < 1.00`: Process is **not capable**. The "voice of the process" is wider than the "voice of the customer." A significant portion of output will not meet specifications.")
+            st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**. It requires tight control and monitoring, as small shifts can lead to non-conforming product.")
+            st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable**. This is a common minimum target for many industries, corresponding to a "4-sigma" quality level and a theoretical defect rate of ~63 parts per million (PPM).")
+            st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** and is approaching **Six Sigma** quality. This corresponds to a "5-sigma" level and a theoretical defect rate of ~0.6 PPM.")
+            st.markdown("- `Cpk ≥ 2.00`: Process has achieved **Six Sigma capability** (assuming no long-term shift). This represents world-class performance with a theoretical defect rate of just 2 parts per *billion*. ")
+
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The concept of process capability indices originated in the manufacturing industry, particularly in Japan in the 1970s, as part of the Total Quality Management (TQM) revolution. However, it was the rise of **Six Sigma** at Motorola in the 1980s that truly popularized Cpk and made it a global standard for quality. The core idea of Six Sigma is to reduce process variation so that the nearest specification limit is at least six standard deviations away from the process mean. A Cpk of 2.0 corresponds to a true Six Sigma process.
+            The concept of comparing process output to specification limits is old, but the formalization into capability indices originated in the Japanese manufacturing industry in the 1970s as a core part of the Total Quality Management (TQM) movement. These tools allowed engineers to express process quality with a single, universal number.
+            
+            However, it was the **Six Sigma** initiative, pioneered by engineer Bill Smith at **Motorola in the 1980s**, that catapulted Cpk to global prominence. Motorola was suffering from high warranty costs and realized they needed a much higher standard of quality. The "Six Sigma" concept was born: a process so capable that the nearest specification limit is at least six standard deviations away from the process mean. This translates to a defect rate of just 3.4 parts per million (which famously accounts for a hypothetical 1.5 sigma long-term drift of the process mean). Cpk became the standard metric for measuring progress toward this ambitious goal.
             
             #### Mathematical Basis
-            Capability analysis compares the **"Voice of the Process"** (the actual spread of the data, typically a 6σ spread) to the **"Voice of the Customer"** (the allowable spread defined by the specification limits).
+            Capability analysis is a direct comparison between the **"Voice of the Customer"** (the allowable spread defined by the specification limits, USL - LSL) and the **"Voice of the Process"** (the actual, natural spread of the data, conventionally defined as a 6σ spread).
 
-            - **Cpk (Actual Capability):** This metric measures if the process is narrow enough *and* well-centered. It is the lesser of the upper and lower capability indices, effectively measuring the distance from the process mean to the *nearest* specification limit.
+            - **Cp (Potential Capability):** This metric measures if the process is narrow enough, but it ignores centering. It's the best the process *could* be if it were perfectly centered. It answers the question: "Is our process fundamentally precise enough?"
             """)
+            st.latex(r"C_p = \frac{\text{Tolerance Width}}{\text{Process Width}} = \frac{USL - LSL}{6\hat{\sigma}}")
+            st.markdown("- **Cpk (Actual Capability):** This is the more important metric as it accounts for process centering. It is the lesser of the upper and lower capability indices, effectively measuring the distance from the process mean to the *nearest* specification limit. It is the 'worst-case scenario' and answers: "How is our process *actually* performing right now?")
             st.latex(r"C_{pk} = \min(C_{pu}, C_{pl}) = \min \left( \frac{USL - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - LSL}{3\hat{\sigma}} \right)")
-            st.markdown("A Cpk of 1.33 means there is a 'buffer' equivalent to one standard deviation between the process edge and the nearest specification limit.")
+            st.markdown("A Cpk of 1.33 means that the process distribution could fit between the mean and the nearest spec limit 1.33 times. This provides a 'buffer' zone to absorb small process shifts without producing defects.")
 
 def render_anomaly_detection():
     st.markdown("""

@@ -1103,6 +1103,8 @@ with tab_journey:
     with act3: st.subheader("Act III: The Guardian (Lifecycle Management)"); st.markdown("Once the method is live, continuous monitoring is essential... **(Tools 10-15)**")
 st.divider()
 
+# --- CORRECTED SIDEBAR LOGIC ---
+
 st.sidebar.title("🧰 Toolkit Navigation")
 st.sidebar.markdown("Select a statistical method to analyze and visualize.")
 
@@ -1119,26 +1121,32 @@ act3_icons = [ICONS.get(opt, "question-circle") for opt in act3_options]
 if 'method_key' not in st.session_state:
     st.session_state.method_key = act1_options[0]
 
-# Define the callback function. This function will be triggered ONLY on a user click.
-def update_selected_method(key):
-    st.session_state.method_key = st.session_state[key]
+# CORRECTED: Define separate, argument-free callback functions for each menu
+def update_from_act1():
+    st.session_state.method_key = st.session_state['act1_menu']
+
+def update_from_act2():
+    st.session_state.method_key = st.session_state['act2_menu']
+    
+def update_from_act3():
+    st.session_state.method_key = st.session_state['act3_menu']
 
 with st.sidebar.expander("ACT I: FOUNDATION & CHARACTERIZATION", expanded=True):
     option_menu(None, act1_options, icons=act1_icons, menu_icon="cast", 
                 key='act1_menu', 
-                on_change=update_selected_method, args=('act1_menu',),
+                on_change=update_from_act1, # CORRECTED: No args needed
                 default_index=act1_options.index(st.session_state.method_key) if st.session_state.method_key in act1_options else 0)
 
 with st.sidebar.expander("ACT II: TRANSFER & STABILITY", expanded=True):
     option_menu(None, act2_options, icons=act2_icons, menu_icon="cast",
                 key='act2_menu',
-                on_change=update_selected_method, args=('act2_menu',),
+                on_change=update_from_act2, # CORRECTED: No args needed
                 default_index=act2_options.index(st.session_state.method_key) if st.session_state.method_key in act2_options else 0)
 
 with st.sidebar.expander("ACT III: LIFECYCLE & PREDICTIVE MGMT", expanded=True):
     option_menu(None, act3_options, icons=act3_icons, menu_icon="cast",
                 key='act3_menu',
-                on_change=update_selected_method, args=('act3_menu',),
+                on_change=update_from_act3, # CORRECTED: No args needed
                 default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
 
 # --- PowerPoint Download Section in Sidebar ---
@@ -1183,7 +1191,6 @@ PAGE_DISPATCHER = {
     "Bayesian Inference": render_bayesian, "Confidence Interval Concept": render_ci_concept
 }
 
-# Execute the appropriate rendering function
 if method_key in PAGE_DISPATCHER:
     PAGE_DISPATCHER[method_key]()
 else:

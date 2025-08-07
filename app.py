@@ -1107,6 +1107,7 @@ st.divider()
 st.sidebar.title("🧰 Toolkit Navigation")
 st.sidebar.markdown("Select a statistical method to analyze and visualize.")
 
+# Define the menu options and icons for each act
 act1_options = ["Gage R&R", "Linearity and Range", "LOD & LOQ", "Method Comparison", "Assay Robustness (DOE/RSM)"]
 act2_options = ["Process Stability (Shewhart)", "Small Shift Detection", "Run Validation", "Process Capability (Cpk)"]
 act3_options = ["Anomaly Detection (ML)", "Predictive QC (ML)", "Control Forecasting (AI)", "Pass/Fail Analysis", "Bayesian Inference", "Confidence Interval Concept"]
@@ -1115,37 +1116,33 @@ act1_icons = [ICONS.get(opt, "question-circle") for opt in act1_options]
 act2_icons = [ICONS.get(opt, "question-circle") for opt in act2_options]
 act3_icons = [ICONS.get(opt, "question-circle") for opt in act3_options]
 
+# Initialize session state for the selected method if it doesn't exist
 if 'method_key' not in st.session_state:
     st.session_state.method_key = act1_options[0]
 
-selected_method = st.session_state.method_key
+# Define the callback function. This function will be triggered ONLY on a user click.
+def update_selected_method(key):
+    st.session_state.method_key = st.session_state[key]
 
 with st.sidebar.expander("ACT I: FOUNDATION & CHARACTERIZATION", expanded=True):
-    selection = option_menu(None, act1_options, icons=act1_icons, menu_icon="cast", 
-                            key='act1_menu', 
-                            default_index=act1_options.index(st.session_state.method_key) if st.session_state.method_key in act1_options else 0)
-    if selection != st.session_state.method_key:
-        selected_method = selection
+    option_menu(None, act1_options, icons=act1_icons, menu_icon="cast", 
+                key='act1_menu', 
+                on_change=update_selected_method, args=('act1_menu',),
+                default_index=act1_options.index(st.session_state.method_key) if st.session_state.method_key in act1_options else 0)
 
 with st.sidebar.expander("ACT II: TRANSFER & STABILITY", expanded=True):
-    selection = option_menu(None, act2_options, icons=act2_icons, menu_icon="cast",
-                            key='act2_menu',
-                            default_index=act2_options.index(st.session_state.method_key) if st.session_state.method_key in act2_options else 0)
-    if selection != st.session_state.method_key:
-        selected_method = selection
+    option_menu(None, act2_options, icons=act2_icons, menu_icon="cast",
+                key='act2_menu',
+                on_change=update_selected_method, args=('act2_menu',),
+                default_index=act2_options.index(st.session_state.method_key) if st.session_state.method_key in act2_options else 0)
 
 with st.sidebar.expander("ACT III: LIFECYCLE & PREDICTIVE MGMT", expanded=True):
-    selection = option_menu(None, act3_options, icons=act3_icons, menu_icon="cast",
-                            key='act3_menu',
-                            default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
-    if selection != st.session_state.method_key:
-        selected_method = selection
+    option_menu(None, act3_options, icons=act3_icons, menu_icon="cast",
+                key='act3_menu',
+                on_change=update_selected_method, args=('act3_menu',),
+                default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
 
-# Update session state and rerun if a new selection was made
-if selected_method != st.session_state.method_key:
-    st.session_state.method_key = selected_method
-    st.rerun() # CORRECTED: Use modern st.rerun()
-
+# --- PowerPoint Download Section in Sidebar ---
 st.sidebar.divider()
 st.sidebar.header("📊 Generate Report")
 if st.sidebar.button("Generate Executive PowerPoint Summary", use_container_width=True):
@@ -1170,11 +1167,13 @@ if st.sidebar.button("Generate Executive PowerPoint Summary", use_container_widt
 
 st.divider()
 
+# Get the currently selected method from session state
 method_key = st.session_state.method_key
 method_list = act1_options + act2_options + act3_options
 method_key_with_num = f"{method_list.index(method_key) + 1}. {method_key}"
 st.header(method_key_with_num)
 
+# --- Main Content Area Dispatcher ---
 PAGE_DISPATCHER = {
     "Gage R&R": render_gage_rr, "Linearity and Range": render_linearity, "LOD & LOQ": render_lod_loq,
     "Method Comparison": render_method_comparison, "Assay Robustness (DOE/RSM)": render_robustness_rsm,
@@ -1184,4 +1183,12 @@ PAGE_DISPATCHER = {
     "Control Forecasting (AI)": render_forecasting, "Pass/Fail Analysis": render_pass_fail,
     "Bayesian Inference": render_bayesian, "Confidence Interval Concept": render_ci_concept
 }
-PAGE_DISPATCHER[method_key]()
+
+# Execute the appropriate rendering function
+if method_key in PAGE_DISPATCHER:
+    PAGE_DISPATCHER[method_key]()
+else:
+    # This case should ideally not be reached with the new logic, but it's good practice
+    st.error("An error occurred with the navigation. Please refresh the page.")
+    st.session_state.method_key = act1_options[0] # Reset to a safe default
+    st.rerun()

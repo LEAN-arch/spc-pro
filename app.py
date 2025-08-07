@@ -816,7 +816,6 @@ def render_multi_rule():
             """)
     st.subheader("Standard Industry Rule Sets")
     tab_w, tab_n, tab_we = st.tabs(["✅ Westgard Rules", "✅ Nelson Rules", "✅ Western Electric Rules"])
-    # CORRECTED: Added the missing content for the rule set tabs
     with tab_w:
         st.markdown("""Developed for lab QC, vital for CLIA, CAP, ISO 15189 compliance. A run is rejected if a "Rejection Rule" is violated.
 | Rule | Use Case | Interpretation |

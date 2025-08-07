@@ -20,7 +20,6 @@ from sklearn.ensemble import IsolationForest
 from sklearn.linear_model import LogisticRegression
 from prophet import Prophet
 from prophet.plot import plot_plotly, plot_components_plotly
-
 # ==============================================================================
 # APP CONFIGURATION
 # ==============================================================================
@@ -71,7 +70,7 @@ st.markdown("""
         border-radius: 8px;
     }
 
-    /* Sidebar styling */
+    /* Sidebar styling - NOTE: This class name is subject to change in future Streamlit versions */
     .st-emotion-cache-16txtl3 { padding: 2rem 1.5rem; }
     
     /* Custom section header class for content panes */
@@ -144,55 +143,6 @@ def create_conceptual_map_plotly():
 def wilson_score_interval(p_hat, n, z=1.96):
     if n == 0: return (0, 1)
     term1 = (p_hat + z**2 / (2 * n)); denom = 1 + z**2 / n; term2 = z * np.sqrt((p_hat * (1-p_hat)/n) + (z**2 / (4 * n**2))); return (term1 - term2) / denom, (term1 + term2) / denom
-
-# ==============================================================================
-# POWERPOINT REPORT GENERATION FUNCTION
-# ==============================================================================
-def generate_ppt_report(kpi_data, spc_fig):
-    prs = Presentation()
-    prs.slide_width, prs.slide_height = Inches(16), Inches(9)
-    
-    # Title Slide
-    title_slide_layout = prs.slide_layouts[0]
-    slide = prs.slides.add_slide(title_slide_layout)
-    title = slide.shapes.title
-    subtitle = slide.placeholders[1]
-    title.text = "Validation & Tech Transfer Analytics Summary"
-    subtitle.text = f"Generated on {pd.Timestamp.now().strftime('%Y-%m-%d')}"
-
-    # KPI Dashboard Slide
-    kpi_slide_layout = prs.slide_layouts[5] # Blank layout
-    slide = prs.slides.add_slide(kpi_slide_layout)
-    slide.shapes.title.text = "Key Validation Performance Indicators (KPIs)"
-    
-    positions = [(Inches(1), Inches(1.5)), (Inches(6), Inches(1.5)), (Inches(11), Inches(1.5))]
-    for i, (kpi_title, kpi_val, kpi_desc) in enumerate(kpi_data):
-        txBox = slide.shapes.add_textbox(positions[i][0], positions[i][1], Inches(4), Inches(2.5))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p1 = tf.paragraphs[0]; p1.text = kpi_title; p1.font.bold = True; p1.font.size = Pt(24)
-        p2 = tf.add_paragraph(); p2.text = str(kpi_val); p2.font.size = Pt(48); p2.font.bold = True
-        p3 = tf.add_paragraph(); p3.text = str(kpi_desc); p3.font.size = Pt(16)
-
-    # Chart Slide
-    chart_slide_layout = prs.slide_layouts[5]
-    slide = prs.slides.add_slide(chart_slide_layout)
-    slide.shapes.title.text = "Process Stability (Shewhart Control Chart)"
-    try:
-        image_stream = io.BytesIO()
-        spc_fig.write_image(image_stream, format='png', scale=2, width=1200, height=600)
-        image_stream.seek(0)
-        slide.shapes.add_picture(image_stream, Inches(1), Inches(1.75), width=Inches(14))
-    except Exception as e:
-        txBox = slide.shapes.add_textbox(Inches(1), Inches(2.5), Inches(14), Inches(4))
-        p = txBox.text_frame.add_paragraph()
-        p.text = f"Chart Generation Failed: {e}\nEnsure 'kaleido' is installed."; p.font.color.rgb = RGBColor(255, 0, 0)
-
-    # Save to a byte stream
-    ppt_stream = io.BytesIO()
-    prs.save(ppt_stream)
-    ppt_stream.seek(0)
-    return ppt_stream
 
 # ==============================================================================
 # INDIVIDUAL PLOTTING FUNCTIONS (COLLAPSED FOR BREVITY IN PROMPT)
@@ -497,7 +447,54 @@ def plot_ci_concept(n=30):
         fig2.add_trace(go.Scatter(x=[sample_mean], y=[i], mode='markers', marker=dict(color='black', size=5, symbol='line-ns-open'), hovertemplate=f"<b>Run {i+1} (n={n})</b><br>Sample Mean: {sample_mean:.2f}<extra></extra>"))
     avg_width = total_width / n_sims; fig2.add_vline(x=pop_mean, line_dash="dash", line_color="black", annotation_text=f"True Mean={pop_mean}"); fig2.update_layout(title_text=f"<b>The Practical Result: 100 Simulated CIs (Sample Size n={n})</b>", title_x=0.5, yaxis_title="Simulation Run", xaxis_title="Value", showlegend=False, yaxis_range=[-2, n_sims+2])
     return fig1, fig2, capture_count, n_sims, avg_width
+# ==============================================================================
+# POWERPOINT REPORT GENERATION FUNCTION
+# ==============================================================================
+def generate_ppt_report(kpi_data, spc_fig):
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = Inches(16), Inches(9)
+    
+    # Title Slide
+    title_slide_layout = prs.slide_layouts[0]
+    slide = prs.slides.add_slide(title_slide_layout)
+    title = slide.shapes.title
+    subtitle = slide.placeholders[1]
+    title.text = "Validation & Tech Transfer Analytics Summary"
+    subtitle.text = f"Generated on {pd.Timestamp.now().strftime('%Y-%m-%d')}"
 
+    # KPI Dashboard Slide
+    kpi_slide_layout = prs.slide_layouts[5] # Blank layout
+    slide = prs.slides.add_slide(kpi_slide_layout)
+    slide.shapes.title.text = "Key Validation Performance Indicators (KPIs)"
+    
+    positions = [(Inches(1), Inches(1.5)), (Inches(6), Inches(1.5)), (Inches(11), Inches(1.5))]
+    for i, (kpi_title, kpi_val, kpi_desc) in enumerate(kpi_data):
+        txBox = slide.shapes.add_textbox(positions[i][0], positions[i][1], Inches(4), Inches(2.5))
+        tf = txBox.text_frame
+        tf.word_wrap = True
+        p1 = tf.paragraphs[0]; p1.text = kpi_title; p1.font.bold = True; p1.font.size = Pt(24)
+        p2 = tf.add_paragraph(); p2.text = str(kpi_val); p2.font.size = Pt(48); p2.font.bold = True
+        p3 = tf.add_paragraph(); p3.text = str(kpi_desc); p3.font.size = Pt(16)
+
+    # Chart Slide
+    chart_slide_layout = prs.slide_layouts[5]
+    slide = prs.slides.add_slide(chart_slide_layout)
+    slide.shapes.title.text = "Process Stability (Shewhart Control Chart)"
+    try:
+        image_stream = io.BytesIO()
+        spc_fig.write_image(image_stream, format='png', scale=2, width=1200, height=600)
+        image_stream.seek(0)
+        slide.shapes.add_picture(image_stream, Inches(1), Inches(1.75), width=Inches(14))
+    except Exception as e:
+        txBox = slide.shapes.add_textbox(Inches(1), Inches(2.5), Inches(14), Inches(4))
+        p = txBox.text_frame.add_paragraph()
+        p.text = f"Chart Generation Failed: {e}\nEnsure 'kaleido' is installed."; p.font.color.rgb = RGBColor(255, 0, 0)
+
+    # Save to a byte stream
+    ppt_stream = io.BytesIO()
+    prs.save(ppt_stream)
+    ppt_stream.seek(0)
+    return ppt_stream
 # ==============================================================================
 # UI RENDERING FUNCTIONS
 # ==============================================================================
@@ -809,8 +806,8 @@ def render_multi_rule():
         tabs = st.tabs(["💡 Key Insights & Interpretation", "📖 Method Theory & History"])
         with tabs[0]:
             st.metric(label="📈 KPI: Run Status", value="Violations Detected", delta="Action Required", delta_color="inverse")
-            st.markdown("- **Levey-Jennings Chart:** Visualizes QC data over time with 1, 2, and 3-sigma zones. Specific rule violations are automatically flagged and annotated.\n- **Distribution Plot:** Shows the overall histogram of the QC data; it should approximate a bell curve.")
-            st.markdown("**The Core Insight:** The annotations on the Levey-Jennings chart provide immediate, actionable feedback, distinguishing between random errors (like the `R_4s` rule) and systematic errors (like the `2_2s` or `4_1s` rules), guiding the troubleshooting process.")
+            st.markdown("- **Levey-Jennings Chart:** Visualizes QC data over time with 1, 2, and 3-sigma zones. Specific rule violations are automatically flagged.\n- **Distribution Plot:** Shows the overall histogram of the QC data; it should approximate a bell curve.")
+            st.markdown("**The Core Insight:** The annotations provide immediate, actionable feedback, distinguishing between random errors (like the `R_4s` rule) and systematic errors (like the `2_2s` or `4_1s` rules), guiding the troubleshooting process.")
         with tabs[1]:
             st.markdown("""
             #### Historical Context & Origin
@@ -818,6 +815,38 @@ def render_multi_rule():
             """)
     st.subheader("Standard Industry Rule Sets")
     tab_w, tab_n, tab_we = st.tabs(["✅ Westgard Rules", "✅ Nelson Rules", "✅ Western Electric Rules"])
+    # CORRECTED: Added the missing content for the rule set tabs
+    with tab_w:
+        st.markdown("""Developed for lab QC, vital for CLIA, CAP, ISO 15189 compliance. A run is rejected if a "Rejection Rule" is violated.
+| Rule | Use Case | Interpretation |
+|---|---|---|
+| **1_2s** | Warning | One control > ±2σ. Triggers inspection. |
+| **1_3s** | Rejection | One control > ±3σ. |
+| **2_2s** | Rejection | Two consecutive > same ±2σ limit. |
+| **R_4s** | Rejection | One > +2σ and the next > -2σ. |
+| **4_1s** | Rejection | Four consecutive > same ±1σ limit. |
+| **10x** | Rejection | Ten consecutive points on the same side of the mean. |""")
+    with tab_n:
+        st.markdown("""Excellent for catching non-random patterns in manufacturing and general SPC.
+| Rule | What It Flags |
+|---|---|
+| 1. One point > 3σ | Sudden shift or outlier |
+| 2. 9 points on same side of mean | Mean shift |
+| 3. 6 points increasing or decreasing | Trend |
+| 4. 14 points alternating up/down | Systematic oscillation |
+| 5. 2 of 3 > 2σ (same side) | Moderate shift |
+| 6. 4 of 5 > 1σ (same side) | Small persistent shift |
+| 7. 15 points inside ±1σ | Reduced variation |
+| 8. 8 points outside ±1σ | Increased variation |""")
+    with tab_we:
+        st.markdown("""Foundational rules from which many other systems were derived.
+| Rule | Interpretation |
+|---|---|
+| **Rule 1** | One point falls outside the ±3σ limits. |
+| **Rule 2** | Two out of three consecutive points fall beyond the ±2σ limit on the same side. |
+| **Rule 3** | Four out of five consecutive points fall beyond the ±1σ limit on the same side. |
+| **Rule 4** | Eight consecutive points fall on the same side of the mean. |""")
+
 
 def render_capability():
     st.markdown("""
@@ -1057,7 +1086,7 @@ st.markdown("Welcome! This toolkit is a collection of interactive modules design
 tab_intro, tab_map, tab_journey = st.tabs(["🚀 The V&V Framework", "🗺️ Concept Map", "📖 The Scientist's Journey"])
 with tab_intro:
     st.markdown('<h4 class="section-header">The V&V Model: A Strategic Framework</h4>', unsafe_allow_html=True)
-    st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for technology transfer...")
+    st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework...")
     st.plotly_chart(plot_v_model(), use_container_width=True)
 
 with tab_map:
@@ -1067,11 +1096,11 @@ with tab_map:
 
 with tab_journey:
     st.header("The Scientist's/Engineer's Journey: A Three-Act Story")
-    st.markdown("""In the world of quality and development, the challenges are often complex and hidden in the details. This toolkit is structured as a three-act journey to navigate these phases with clarity and confidence.""")
+    st.markdown("""In the world of quality and development, the challenges are often complex and hidden in the details...""")
     act1, act2, act3 = st.columns(3)
-    with act1: st.subheader("Act I: Know Thyself (The Foundation)"); st.markdown("Before any transfer or scale-up, you must understand the capability and limits of your current measurement systems. This phase focuses on characterization and validation—building a strong foundation of data integrity. **(Tools 1-5)**")
-    with act2: st.subheader("Act II: The Transfer (The Crucible)"); st.markdown("A validated method must prove its robustness in a new environment. This is the moment to assess transferability, stability, and comparability under operational conditions. **(Tools 6-9)**")
-    with act3: st.subheader("Act III: The Guardian (Lifecycle Management)"); st.markdown("Once the method is live, continuous monitoring is essential. This act focuses on using advanced tools to detect signals, predict deviations, and maintain process control over time. **(Tools 10-15)**")
+    with act1: st.subheader("Act I: Know Thyself (The Foundation)"); st.markdown("Before any transfer or scale-up, you must understand the capability and limits of your current measurement systems... **(Tools 1-5)**")
+    with act2: st.subheader("Act II: The Transfer (The Crucible)"); st.markdown("A validated method must prove its robustness in a new environment... **(Tools 6-9)**")
+    with act3: st.subheader("Act III: The Guardian (Lifecycle Management)"); st.markdown("Once the method is live, continuous monitoring is essential... **(Tools 10-15)**")
 st.divider()
 
 st.sidebar.title("🧰 Toolkit Navigation")
@@ -1081,59 +1110,77 @@ act1_options = ["Gage R&R", "Linearity and Range", "LOD & LOQ", "Method Comparis
 act2_options = ["Process Stability (Shewhart)", "Small Shift Detection", "Run Validation", "Process Capability (Cpk)"]
 act3_options = ["Anomaly Detection (ML)", "Predictive QC (ML)", "Control Forecasting (AI)", "Pass/Fail Analysis", "Bayesian Inference", "Confidence Interval Concept"]
 
-act1_icons = [ICONS.get(opt.split(". ")[-1], "question-circle") for opt in act1_options]
-act2_icons = [ICONS.get(opt.split(". ")[-1], "question-circle") for opt in act2_options]
-act3_icons = [ICONS.get(opt.split(". ")[-1], "question-circle") for opt in act3_options]
+act1_icons = [ICONS.get(opt, "question-circle") for opt in act1_options]
+act2_icons = [ICONS.get(opt, "question-circle") for opt in act2_options]
+act3_icons = [ICONS.get(opt, "question-circle") for opt in act3_options]
 
-# Determine which option is currently selected to set the correct default index
 if 'method_key' not in st.session_state:
     st.session_state.method_key = act1_options[0]
 
+selected_method = st.session_state.method_key
+
 with st.sidebar.expander("ACT I: FOUNDATION & CHARACTERIZATION", expanded=True):
-    selected_act1 = option_menu(None, act1_options, icons=act1_icons, menu_icon="cast", 
-                                key='act1_menu', 
-                                default_index=act1_options.index(st.session_state.method_key) if st.session_state.method_key in act1_options else 0)
+    selection = option_menu(None, act1_options, icons=act1_icons, menu_icon="cast", 
+                            key='act1_menu', 
+                            default_index=act1_options.index(st.session_state.method_key) if st.session_state.method_key in act1_options else 0)
+    if selection != st.session_state.method_key:
+        selected_method = selection
 
 with st.sidebar.expander("ACT II: TRANSFER & STABILITY", expanded=True):
-    selected_act2 = option_menu(None, act2_options, icons=act2_icons, menu_icon="cast",
-                                key='act2_menu',
-                                default_index=act2_options.index(st.session_state.method_key) if st.session_state.method_key in act2_options else 0)
+    selection = option_menu(None, act2_options, icons=act2_icons, menu_icon="cast",
+                            key='act2_menu',
+                            default_index=act2_options.index(st.session_state.method_key) if st.session_state.method_key in act2_options else 0)
+    if selection != st.session_state.method_key:
+        selected_method = selection
 
 with st.sidebar.expander("ACT III: LIFECYCLE & PREDICTIVE MGMT", expanded=True):
-    selected_act3 = option_menu(None, act3_options, icons=act3_icons, menu_icon="cast",
-                                key='act3_menu',
-                                default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
+    selection = option_menu(None, act3_options, icons=act3_icons, menu_icon="cast",
+                            key='act3_menu',
+                            default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
+    if selection != st.session_state.method_key:
+        selected_method = selection
 
-if selected_act1 != st.session_state.method_key and selected_act1 in act1_options:
-    st.session_state.method_key = selected_act1
-    st.experimental_rerun()
-if selected_act2 != st.session_state.method_key and selected_act2 in act2_options:
-    st.session_state.method_key = selected_act2
-    st.experimental_rerun()
-if selected_act3 != st.session_state.method_key and selected_act3 in act3_options:
-    st.session_state.method_key = selected_act3
-    st.experimental_rerun()
-# --- PowerPoint Download Section in Sidebar ---
+# Update session state and rerun if a new selection was made
+if selected_method != st.session_state.method_key:
+    st.session_state.method_key = selected_method
+    st.rerun() # CORRECTED: Use modern st.rerun()
+
 st.sidebar.divider()
 st.sidebar.header("📊 Generate Report")
 if st.sidebar.button("Generate Executive PowerPoint Summary", use_container_width=True):
-    # ... (PPTX generation logic) ...
-    st.sidebar.download_button(...)
+    with st.spinner("Building your report..."):
+        _, pct_rr, _ = plot_gage_rr()
+        _, model_lin = plot_linearity()
+        _, cpk_val, _ = plot_capability('Ideal')
+        kpi_data = [
+            ("Gage R&R", f"{pct_rr:.1f}%", "Measurement System Variation"),
+            ("Linearity R²", f"{model_lin.rsquared:.4f}", "Goodness of Fit"),
+            ("Process Capability (Cpk)", f"{cpk_val:.2f}", "Ability to Meet Specs")
+        ]
+        spc_fig = plot_shewhart()
+        ppt_buffer = generate_ppt_report(kpi_data, spc_fig)
+        st.sidebar.download_button(
+            label="📥 Download PowerPoint Report",
+            data=ppt_buffer,
+            file_name=f"V&V_Analytics_Summary_{pd.Timestamp.now().strftime('%Y%m%d')}.pptx",
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            use_container_width=True
+        )
 
 st.divider()
 
-# Add the number back to the header for clarity
-method_key_with_num = f"{list(ICONS.keys()).index(st.session_state.method_key) + 1}. {st.session_state.method_key}"
+method_key = st.session_state.method_key
+method_list = act1_options + act2_options + act3_options
+method_key_with_num = f"{method_list.index(method_key) + 1}. {method_key}"
 st.header(method_key_with_num)
 
 PAGE_DISPATCHER = {
-    "1. Gage R&R": render_gage_rr, "2. Linearity and Range": render_linearity, "3. LOD & LOQ": render_lod_loq,
-    "4. Method Comparison": render_method_comparison, "5. Assay Robustness (DOE/RSM)": render_robustness_rsm,
-    "6. Process Stability (Shewhart)": render_shewhart, "7. Small Shift Detection": render_ewma_cusum,
-    "8. Run Validation": render_multi_rule, "9. Process Capability (Cpk)": render_capability,
-    "10. Anomaly Detection (ML)": render_anomaly_detection, "11. Predictive QC (ML)": render_predictive_qc,
-    "12. Control Forecasting (AI)": render_forecasting, "13. Pass/Fail Analysis": render_pass_fail,
-    "14. Bayesian Inference": render_bayesian, "15. Confidence Interval Concept": render_ci_concept
+    "Gage R&R": render_gage_rr, "Linearity and Range": render_linearity, "LOD & LOQ": render_lod_loq,
+    "Method Comparison": render_method_comparison, "Assay Robustness (DOE/RSM)": render_robustness_rsm,
+    "Process Stability (Shewhart)": render_shewhart, "Small Shift Detection": render_ewma_cusum,
+    "Run Validation": render_multi_rule, "Process Capability (Cpk)": render_capability,
+    "Anomaly Detection (ML)": render_anomaly_detection, "Predictive QC (ML)": render_predictive_qc,
+    "Control Forecasting (AI)": render_forecasting, "Pass/Fail Analysis": render_pass_fail,
+    "Bayesian Inference": render_bayesian, "Confidence Interval Concept": render_ci_concept
 }
-
 PAGE_DISPATCHER[method_key]()

@@ -518,7 +518,8 @@ def render_gage_rr():
             st.metric(label="💡 KPI: % Part Variation", value=f"{pct_part:.1f}%", delta="Higher is better")
             st.markdown("- **Variation by Part & Operator (Main Plot):** This plot visualizes the core interactions. Ideally, the colored lines (operator means) should track each other closely, and the boxes (representing measurement spread) should be small and consistent across all parts.")
             st.markdown("- **Overall Variation by Operator (Top Right):** This provides a summary view. If the boxes are at different heights, it indicates a systematic bias between operators (a reproducibility issue).")
-            st.markdown("**The Core Insight:** A low % Gage R&R proves that your measurement system is a reliable 'ruler' and that most of the variation you see in your process is real process variation, not measurement noise. A high value indicates that your ruler is "spongy," making it impossible to trust your measurements.")
+            # --- THIS IS THE CORRECTED LINE ---
+            st.markdown("""**The Core Insight:** A low % Gage R&R proves that your measurement system is a reliable 'ruler' and that most of the variation you see in your process is real process variation, not measurement noise. A high value indicates that your ruler is "spongy," making it impossible to trust your measurements.""")
         with tabs[1]:
             st.markdown("Acceptance criteria are typically based on guidelines from the **Automotive Industry Action Group (AIAG)**, which are considered the global standard:")
             st.markdown("- **< 10% Gage R&R:** The measurement system is **acceptable** and can be used without reservation.")

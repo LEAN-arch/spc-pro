@@ -502,54 +502,53 @@ def generate_ppt_report(kpi_data, spc_fig):
 # ==============================================================================
 
 def render_gage_rr():
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To rigorously quantify the inherent variability (error) of a measurement system and separate it from the true variation of the process being measured. A Gage R&R study is the definitive method for assessing the reliability of a measurement instrument or analytical method.
-    
-    **Application:** This study represents the foundational checkpoint in any technology transfer or process validation. Before one can claim a process is stable or capable, one must first prove that the "ruler" being used to measure it is trustworthy. An unreliable measurement system injects noise and uncertainty into the data, potentially masking real process shifts or creating false alarms. By partitioning the total observed variation into its distinct components—**Repeatability** (equipment variation), **Reproducibility** (operator variation), and **Part-to-Part** variation—this analysis provides statistical proof of the measurement system's fitness for purpose. It is a non-negotiable prerequisite for all subsequent validation activities.
-    """)
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        fig, pct_rr, pct_part = plot_gage_rr()
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
-        with tabs[0]:
-            st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse")
-            st.metric(label="💡 KPI: % Part Variation", value=f"{pct_part:.1f}%", delta="Higher is better")
-            st.markdown("- **Variation by Part & Operator (Main Plot):** This plot visualizes the core interactions. Ideally, the colored lines (operator means) should track each other closely, and the boxes (representing measurement spread) should be small and consistent across all parts.")
-            st.markdown("- **Overall Variation by Operator (Top Right):** This provides a summary view. If the boxes are at different heights, it indicates a systematic bias between operators (a reproducibility issue).")
-            # --- THIS IS THE CORRECTED LINE ---
-            st.markdown("""**The Core Insight:** A low % Gage R&R proves that your measurement system is a reliable 'ruler' and that most of the variation you see in your process is real process variation, not measurement noise. A high value indicates that your ruler is "spongy," making it impossible to trust your measurements.""")
-        with tabs[1]:
-            st.markdown("Acceptance criteria are typically based on guidelines from the **Automotive Industry Action Group (AIAG)**, which are considered the global standard:")
-            st.markdown("- **< 10% Gage R&R:** The measurement system is **acceptable** and can be used without reservation.")
-            st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable**. Its use may be approved based on the importance of the application, the cost of improving the measurement system, and other factors. It signals a need for caution.")
-            st.markdown("- **> 30% Gage R&R:** The system is **unacceptable**. It must be improved before it can be used for process control or validation. Data collected with such a system is considered unreliable.")
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            The concepts of Repeatability and Reproducibility have been a cornerstone of measurement science for over a century, but they were formally codified and popularized by the **Automotive Industry Action Group (AIAG)** in the 1980s. During the major quality revolution in the US auto industry, driven by competition from Japan, the AIAG created the Measurement Systems Analysis (MSA) manual. This manual established the Gage R&R study as a global standard for assessing the quality of a measurement system.
-            
-            The earliest methods for calculation were simple range-based approximations. However, these methods had a critical flaw: they could not separate the variation due to operator-part interaction from the variation due to the operators themselves. To solve this, the industry adopted **Analysis of Variance (ANOVA)**, a technique pioneered by Sir Ronald A. Fisher, as the preferred method. ANOVA is a powerful statistical tool that can rigorously partition the total variation into its distinct sources, providing a much more precise and insightful analysis.
+st.markdown("""
+#### Purpose & Application
+Purpose: To rigorously quantify the inherent variability (error) of a measurement system and separate it from the true variation of the process being measured. A Gage R&R study is the definitive method for assessing the reliability of a measurement instrument or analytical method.
+**Application:** This study represents the foundational checkpoint in any technology transfer or process validation. Before one can claim a process is stable or capable, one must first prove that the "ruler" being used to measure it is trustworthy. An unreliable measurement system injects noise and uncertainty into the data, potentially masking real process shifts or creating false alarms. By partitioning the total observed variation into its distinct components—**Repeatability** (equipment variation), **Reproducibility** (operator variation), and **Part-to-Part** variation—this analysis provides statistical proof of the measurement system's fitness for purpose. It is a non-negotiable prerequisite for all subsequent validation activities.
+""")
+col1, col2 = st.columns([0.7, 0.3])
+with col1:
+    fig, pct_rr, pct_part = plot_gage_rr()
+    st.plotly_chart(fig, use_container_width=True)
+with col2:
+    st.subheader("Analysis & Interpretation")
+    tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
+    with tabs[0]:
+        st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse")
+        st.metric(label="💡 KPI: % Part Variation", value=f"{pct_part:.1f}%", delta="Higher is better")
+        st.markdown("- **Variation by Part & Operator (Main Plot):** This plot visualizes the core interactions. Ideally, the colored lines (operator means) should track each other closely, and the boxes (representing measurement spread) should be small and consistent across all parts.")
+        st.markdown("- **Overall Variation by Operator (Top Right):** This provides a summary view. If the boxes are at different heights, it indicates a systematic bias between operators (a reproducibility issue).")
+        # --- THIS IS THE CORRECTED LINE ---
+        st.markdown("""**The Core Insight:** A low % Gage R&R proves that your measurement system is a reliable 'ruler' and that most of the variation you see in your process is real process variation, not measurement noise. A high value indicates that your ruler is "spongy," making it impossible to trust your measurements.""")
+    with tabs[1]:
+        st.markdown("Acceptance criteria are typically based on guidelines from the **Automotive Industry Action Group (AIAG)**, which are considered the global standard:")
+        st.markdown("- **< 10% Gage R&R:** The measurement system is **acceptable** and can be used without reservation.")
+        st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable**. Its use may be approved based on the importance of the application, the cost of improving the measurement system, and other factors. It signals a need for caution.")
+        st.markdown("- **> 30% Gage R&R:** The system is **unacceptable**. It must be improved before it can be used for process control or validation. Data collected with such a system is considered unreliable.")
+    with tabs[2]:
+        st.markdown("""
+        #### Historical Context & Origin
+        The concepts of Repeatability and Reproducibility have been a cornerstone of measurement science for over a century, but they were formally codified and popularized by the **Automotive Industry Action Group (AIAG)** in the 1980s. During the major quality revolution in the US auto industry, driven by competition from Japan, the AIAG created the Measurement Systems Analysis (MSA) manual. This manual established the Gage R&R study as a global standard for assessing the quality of a measurement system.
+        
+        The earliest methods for calculation were simple range-based approximations. However, these methods had a critical flaw: they could not separate the variation due to operator-part interaction from the variation due to the operators themselves. To solve this, the industry adopted **Analysis of Variance (ANOVA)**, a technique pioneered by Sir Ronald A. Fisher, as the preferred method. ANOVA is a powerful statistical tool that can rigorously partition the total variation into its distinct sources, providing a much more precise and insightful analysis.
 
-            #### Mathematical Basis
-            The ANOVA method is based on partitioning the total sum of squares ($SS_T$) into components attributable to each source of variation:
-            """)
-            st.latex(r"SS_T = SS_{Part} + SS_{Operator} + SS_{Interaction} + SS_{Error}")
-            st.markdown("""
-            From the Mean Squares (MS = SS/df) in the ANOVA table, we can estimate the variance components ($\hat{\sigma}^2$) for each source:
-            - **Repeatability (Equipment Variation, EV):** This is the inherent, random error of the measurement system itself, estimated directly from the Mean Square Error.
-            """)
-            st.latex(r"\hat{\sigma}^2_{EV} = MS_{Error}")
-            st.markdown("- **Reproducibility (Appraiser Variation, AV):** This is the variation introduced by different operators. It includes the main effect of the operator and the operator-part interaction.")
-            st.latex(r"\hat{\sigma}^2_{AV} = \frac{MS_{Operator} - MS_{Interaction}}{n_{parts} \cdot n_{replicates}} + \frac{MS_{Interaction} - MS_{Error}}{n_{replicates}}")
-            st.markdown("""
-            The total **Gage R&R** variance is the sum of these two components, and the key KPI is its contribution to the total process variation.
-            """)
-            st.latex(r"\%R\&R = 100 \times \left( \frac{\hat{\sigma}^2_{EV} + \hat{\sigma}^2_{AV}}{\hat{\sigma}^2_{Total}} \right)")
-
+        #### Mathematical Basis
+        The ANOVA method is based on partitioning the total sum of squares ($SS_T$) into components attributable to each source of variation:
+        """)
+        st.latex(r"SS_T = SS_{Part} + SS_{Operator} + SS_{Interaction} + SS_{Error}")
+        st.markdown("""
+        From the Mean Squares (MS = SS/df) in the ANOVA table, we can estimate the variance components ($\hat{\sigma}^2$) for each source:
+        - **Repeatability (Equipment Variation, EV):** This is the inherent, random error of the measurement system itself, estimated directly from the Mean Square Error.
+        """)
+        st.latex(r"\hat{\sigma}^2_{EV} = MS_{Error}")
+        st.markdown("- **Reproducibility (Appraiser Variation, AV):** This is the variation introduced by different operators. It includes the main effect of the operator and the operator-part interaction.")
+        st.latex(r"\hat{\sigma}^2_{AV} = \frac{MS_{Operator} - MS_{Interaction}}{n_{parts} \cdot n_{replicates}} + \frac{MS_{Interaction} - MS_{Error}}{n_{replicates}}")
+        st.markdown("""
+        The total **Gage R&R** variance is the sum of these two components, and the key KPI is its contribution to the total process variation.
+        """)
+        st.latex(r"\%R\&R = 100 \times \left( \frac{\hat{\sigma}^2_{EV} + \hat{\sigma}^2_{AV}}{\hat{\sigma}^2_{Total}} \right)")
+        
 def render_linearity():
     st.markdown("""
     #### Purpose & Application

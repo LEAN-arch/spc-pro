@@ -502,59 +502,78 @@ def generate_ppt_report(kpi_data, spc_fig):
 # ==============================================================================
 
 def render_gage_rr():
-st.markdown("""
-#### Purpose & Application
-Purpose: To rigorously quantify the inherent variability (error) of a measurement system and separate it from the true variation of the process being measured. A Gage R&R study is the definitive method for assessing the reliability of a measurement instrument or analytical method.
-**Application:** This study represents the foundational checkpoint in any technology transfer or process validation. Before one can claim a process is stable or capable, one must first prove that the "ruler" being used to measure it is trustworthy. An unreliable measurement system injects noise and uncertainty into the data, potentially masking real process shifts or creating false alarms. By partitioning the total observed variation into its distinct components—**Repeatability** (equipment variation), **Reproducibility** (operator variation), and **Part-to-Part** variation—this analysis provides statistical proof of the measurement system's fitness for purpose. It is a non-negotiable prerequisite for all subsequent validation activities.
-""")
-col1, col2 = st.columns([0.7, 0.3])
-with col1:
-    fig, pct_rr, pct_part = plot_gage_rr()
-    st.plotly_chart(fig, use_container_width=True)
-with col2:
-    st.subheader("Analysis & Interpretation")
-    tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
-    with tabs[0]:
-        st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse")
-        st.metric(label="💡 KPI: % Part Variation", value=f"{pct_part:.1f}%", delta="Higher is better")
-        st.markdown("- **Variation by Part & Operator (Main Plot):** This plot visualizes the core interactions. Ideally, the colored lines (operator means) should track each other closely, and the boxes (representing measurement spread) should be small and consistent across all parts.")
-        st.markdown("- **Overall Variation by Operator (Top Right):** This provides a summary view. If the boxes are at different heights, it indicates a systematic bias between operators (a reproducibility issue).")
-        # --- THIS IS THE CORRECTED LINE ---
-        st.markdown("""**The Core Insight:** A low % Gage R&R proves that your measurement system is a reliable 'ruler' and that most of the variation you see in your process is real process variation, not measurement noise. A high value indicates that your ruler is "spongy," making it impossible to trust your measurements.""")
-    with tabs[1]:
-        st.markdown("Acceptance criteria are typically based on guidelines from the **Automotive Industry Action Group (AIAG)**, which are considered the global standard:")
-        st.markdown("- **< 10% Gage R&R:** The measurement system is **acceptable** and can be used without reservation.")
-        st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable**. Its use may be approved based on the importance of the application, the cost of improving the measurement system, and other factors. It signals a need for caution.")
-        st.markdown("- **> 30% Gage R&R:** The system is **unacceptable**. It must be improved before it can be used for process control or validation. Data collected with such a system is considered unreliable.")
-    with tabs[2]:
-        st.markdown("""
-        #### Historical Context & Origin
-        The concepts of Repeatability and Reproducibility have been a cornerstone of measurement science for over a century, but they were formally codified and popularized by the **Automotive Industry Action Group (AIAG)** in the 1980s. During the major quality revolution in the US auto industry, driven by competition from Japan, the AIAG created the Measurement Systems Analysis (MSA) manual. This manual established the Gage R&R study as a global standard for assessing the quality of a measurement system.
-        
-        The earliest methods for calculation were simple range-based approximations. However, these methods had a critical flaw: they could not separate the variation due to operator-part interaction from the variation due to the operators themselves. To solve this, the industry adopted **Analysis of Variance (ANOVA)**, a technique pioneered by Sir Ronald A. Fisher, as the preferred method. ANOVA is a powerful statistical tool that can rigorously partition the total variation into its distinct sources, providing a much more precise and insightful analysis.
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To rigorously quantify the inherent variability (error) of a measurement system and decompose it from the true, underlying variation of the process or product. A Gage R&R study is the definitive method for assessing the **metrological fitness-for-purpose** of any analytical method or instrument. It answers the fundamental question: "Is my measurement system a precision instrument, or a random number generator?"
+    
+    **Strategic Application:** This is the non-negotiable **foundational checkpoint** in any technology transfer, process validation, or serious quality improvement initiative. Attempting to characterize a process with an uncharacterized measurement system is scientifically invalid. An unreliable measurement system creates a "fog of uncertainty," injecting noise that can lead to two costly errors:
+    1.  **Type I Error (False Alarm):** The measurement system's noise makes a good batch appear out-of-spec, leading to unnecessary investigations and rejection of good product.
+    2.  **Type II Error (Missed Signal):** The noise masks a real process drift or shift, allowing a bad batch to be released, potentially leading to catastrophic field failures.
 
-        #### Mathematical Basis
-        The ANOVA method is based on partitioning the total sum of squares ($SS_T$) into components attributable to each source of variation:
-        """)
-        st.latex(r"SS_T = SS_{Part} + SS_{Operator} + SS_{Interaction} + SS_{Error}")
-        st.markdown("""
-        From the Mean Squares (MS = SS/df) in the ANOVA table, we can estimate the variance components ($\hat{\sigma}^2$) for each source:
-        - **Repeatability (Equipment Variation, EV):** This is the inherent, random error of the measurement system itself, estimated directly from the Mean Square Error.
-        """)
-        st.latex(r"\hat{\sigma}^2_{EV} = MS_{Error}")
-        st.markdown("- **Reproducibility (Appraiser Variation, AV):** This is the variation introduced by different operators. It includes the main effect of the operator and the operator-part interaction.")
-        st.latex(r"\hat{\sigma}^2_{AV} = \frac{MS_{Operator} - MS_{Interaction}}{n_{parts} \cdot n_{replicates}} + \frac{MS_{Interaction} - MS_{Error}}{n_{replicates}}")
-        st.markdown("""
-        The total **Gage R&R** variance is the sum of these two components, and the key KPI is its contribution to the total process variation.
-        """)
-        st.latex(r"\%R\&R = 100 \times \left( \frac{\hat{\sigma}^2_{EV} + \hat{\sigma}^2_{AV}}{\hat{\sigma}^2_{Total}} \right)")
+    By partitioning the total observed variation into its distinct components—**Repeatability** (within-system consistency), **Reproducibility** (between-system consistency), and **Part-to-Part** variation (the "voice of the process")—this analysis provides the objective, statistical evidence needed to trust your data.
+    """)
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, pct_rr, pct_part = plot_gage_rr()
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse", help="This represents the percentage of the total observed variation that is consumed by measurement error.")
+            st.metric(label="💡 KPI: Number of Distinct Categories (ndc)", value=f"{int(1.41 * (pct_part / pct_rr)**0.5) if pct_rr > 0 else '>10'}", help="An estimate of how many distinct groups the measurement system can discern in the process data. A value < 5 is problematic.")
+
+            st.markdown("""
+            - **Variation by Part & Operator (Main Plot):** The diagnostic heart of the study.
+                - *High Repeatability Error:* Wide boxes for a given operator, indicating the instrument/assay has poor precision. This is often a hardware or chemistry problem.
+                - *High Reproducibility Error:* The colored lines (operator means) are not parallel or are vertically offset. This is often a human factor or training issue.
+                - ***The Interaction Term:*** A significant Operator-by-Part interaction is the most insidious problem. It means operators are not just biased, but *inconsistently* biased. Operator A measures Part 1 high and Part 5 low, while Operator B does the opposite. This points to ambiguous instructions or a flawed measurement technique.
+
+            - **The Core Strategic Insight:** A low % Gage R&R validates your measurement system as a trustworthy "ruler," confirming that the variation you observe reflects genuine process dynamics, not measurement noise. A high value means your ruler is "spongy," making any conclusions about your process's health statistically indefensible. You cannot manage what you cannot reliably measure.
+            
+            - **The "Number of Distinct Categories" (ndc):** This is a powerful, less-known metric that translates the %R&R into practical terms. It estimates how many non-overlapping groups your measurement system can reliably distinguish within your process's variation.
+                - `ndc = 1`: The system is useless; it cannot even tell the difference between a high part and a low part.
+                - `ndc = 2-4`: The system can only perform crude screening (e.g., pass/fail).
+                - `ndc ≥ 5`: The system is considered adequate for process control. This is a much more intuitive target than "10% R&R."
+            """)
+
+        with tabs[1]:
+            st.markdown("Acceptance criteria are risk-based and derived from the **AIAG's Measurement Systems Analysis (MSA)** manual, the de facto global standard. The percentage is calculated against the **total study variation**.")
+            st.markdown("- **< 10% Gage R&R:** The system is **acceptable**. The 'fog of uncertainty' is minimal. The system can reliably detect process shifts and can be used for SPC and capability analysis.")
+            st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable or marginal**. This is a gray area. Its use may be approved for less critical characteristics, but it is likely unsuitable for controlling a critical-to-quality parameter. This result should trigger a mandatory improvement project for the measurement method.")
+            st.markdown("- **> 30% Gage R&R:** The system is **unacceptable and must be rejected**. Data generated by this system is untrustworthy. Using this system for process decisions is equivalent to making decisions by flipping a coin. The method must be fundamentally improved (e.g., new instrument, revised SOP, extensive operator retraining) and the Gage R&R study repeated. ")
+            st.info("""
+            **Beyond the Numbers: The Part Selection Strategy**
+            The most common failure mode of a Gage R&R study is not the math, but the study design. The parts selected for the study **must span the full expected range of process variation**. If you only select parts from the middle of the distribution, your Part-to-Part variation will be artificially low, which will mathematically inflate your % Gage R&R and cause a good system to fail. A robust study includes parts from near the Lower and Upper Specification Limits.
+            """)
+            
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            While the concepts are old, their modern, rigorous application was born out of the quality crisis in the American automotive industry in the late 1970s and early 1980s. Faced with superior Japanese quality, US manufacturers, guided by luminaries like **W. Edwards Deming**, realized they were often "tampering" with their processes—adjusting a stable process based on faulty measurement data, thereby *increasing* variation.
+            
+            The **AIAG** codified the solution in the first MSA manual. The critical evolution was the move from the simple **Average and Range (X-bar & R) method** to the **ANOVA method**. The X-bar & R method is computationally simpler but has a critical flaw: it confounds the operator-part interaction with reproducibility. The **ANOVA method**, pioneered for agriculture by the legendary geneticist and statistician **Sir Ronald A. Fisher**, became the gold standard because of its unique ability to cleanly partition and test the significance of each variance component, including the crucial interaction term.
+            
+            #### Mathematical Basis
+            The ANOVA method is founded on the elegant principle of partitioning the total sum of squared deviations from the mean ($SS_T$) into components attributable to each factor in the experiment.
+            """)
+            st.latex(r"SS_{Total} = SS_{Part} + SS_{Operator} + SS_{Part \times Operator} + SS_{Error}")
+            st.markdown("""
+            These sums of squares are then converted to Mean Squares (MS) by dividing by their respective degrees of freedom (df). The variance components ($\hat{\sigma}^2$) for each source of variation are then estimated from these MS values.
+            - **Repeatability (Equipment Variation, EV):** This is the irreducible, inherent random error of the measurement process under fixed conditions. It is the variation observed when the same operator measures the same part multiple times. It is estimated directly by the Mean Square Error, which represents the "unexplained" variance.
+            """)
+            st.latex(r"\hat{\sigma}^2_{Repeatability} = \hat{\sigma}^2_{EV} = MS_{Error}")
+            st.markdown("- **Reproducibility (Appraiser Variation, AV):** This is the variation introduced when different operators, systems, or labs measure the same parts. It's a measure of systematic bias between appraisers. Crucially, it is composed of two sub-components: the 'pure' operator effect and the operator-part interaction effect.")
+            st.latex(r"\hat{\sigma}^2_{Reproducibility} = \hat{\sigma}^2_{Operator} + \hat{\sigma}^2_{Interaction}")
+            st.latex(r"\text{where } \hat{\sigma}^2_{Operator} = \frac{MS_{Operator} - MS_{Interaction}}{n_{parts} \cdot n_{replicates}} \text{ and } \hat{\sigma}^2_{Interaction} = \frac{MS_{Interaction} - MS_{Error}}{n_{replicates}}")
+            st.warning("**Negative Variance Components:** It is mathematically possible for the formulas above to yield a negative variance for the Operator or Interaction term (if, for example, MS_Interaction > MS_Operator). This is a statistical artifact. The correct interpretation is that the true variance component is zero, and it should be set to zero for calculating the final %R&R.")
         
 def render_linearity():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To verify an assay's ability to provide results that are directly proportional to the concentration of the analyte across a specified, reportable range.
+    **Purpose:** To verify and validate that an assay's response is directly and predictably proportional to the known concentration or quantity of the analyte across its entire intended operational range. This establishes the fundamental relationship between a measured signal and a physical quantity.
     
-    **Application:** This study is a fundamental part of assay validation, as stipulated by regulatory bodies like the FDA and ICH. It provides statistical evidence that the assay is not only precise but also consistently accurate across its entire measurement range. An assay with non-linearity can produce dangerously misleading results at the extremes (high or low concentrations), even if it performs well in the middle. This evaluation is therefore critical for ensuring reliable data interpretation for all patient samples or product batches.
+    **Strategic Application:** This is a cornerstone of quantitative assay validation, mandated by every major regulatory body (FDA, EMA, ICH). It provides the statistical evidence that the assay is not just precise, but **globally accurate** across its reportable range. A method exhibiting non-linearity might be perfectly accurate at a central control point but dangerously inaccurate at the upper or lower specification limits. This can lead to incorrect batch disposition decisions or, in a clinical setting, misdiagnosis. This study is therefore critical for ensuring the **interchangeability of results** regardless of where they fall within the range.
     """)
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -564,39 +583,49 @@ def render_linearity():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}")
-            st.metric(label="💡 Metric: Slope", value=f"{model.params[1]:.3f}")
-            st.metric(label="💡 Metric: Y-Intercept", value=f"{model.params[0]:.2f}")
-            st.markdown("- **Linearity Plot:** Visually confirms the straight-line relationship between nominal and measured values, ideally tracking the black 'Line of Identity'.")
-            st.markdown("- **Residual Plot:** This is the most powerful diagnostic tool. A random, structureless scatter of points around zero confirms linearity. A curve or funnel shape reveals non-linearity or heteroscedasticity (non-constant variance), respectively.")
-            st.markdown("- **Recovery Plot:** Directly assesses accuracy at each level. Points falling outside the 80-120% limits indicate a significant bias at those concentrations, which may require limiting the reportable range.")
-            st.markdown("**The Core Insight:** A high R², a slope near 1, an intercept near 0, random residuals, and recovery within limits collectively provide statistical proof that your assay is trustworthy across its entire reportable range.")
+            st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}", help="Indicates the proportion of variance in the measured values explained by the nominal values. A necessary, but not sufficient, criterion.")
+            st.metric(label="💡 Metric: Slope", value=f"{model.params[1]:.3f}", help="Ideal = 1.0. A slope < 1 indicates signal compression at high concentrations; > 1 indicates signal expansion.")
+            st.metric(label="💡 Metric: Y-Intercept", value=f"{model.params[0]:.2f}", help="Ideal = 0.0. A non-zero intercept indicates a constant systematic error, or background bias.")
+            st.markdown("""
+            - **Linearity Plot:** A primary visual check. The data should cluster tightly around the Line of Identity (y=x). Any systematic deviation (e.g., a gentle 'S' curve) suggests non-linearity that R² alone might miss.
+            - **Residual Plot:** The single most powerful diagnostic for linearity. A perfect model shows a random, "shotgun blast" pattern of points centered on zero.
+                - **A curved (U or ∩) pattern** is the classic sign of non-linearity, indicating the straight-line model is inappropriate. This is often due to detector saturation at high concentrations or complex binding kinetics at low concentrations.
+                - **A funnel or cone shape (heteroscedasticity)** indicates that the absolute error of the measurement increases with concentration. This is extremely common in analytical chemistry and violates a key assumption of OLS. Forcing an OLS fit on heteroscedastic data gives undue weight to the high-concentration points and can lead to poor accuracy at the low end. The proper technique is **Weighted Least Squares (WLS) Regression.**
+            - **Recovery Plot:** The practical business-end of the analysis. It translates statistical error into analytical accuracy. It directly answers the question: "At a given true concentration, what result does my assay report, and by how much is it off?"
+            
+            **The Core Strategic Insight:** A high R², a slope of 1, an intercept of 0, randomly scattered residuals, and recovery within tight limits collectively provide a **verifiable chain of evidence** that the assay is a trustworthy quantitative tool across its entire defined range. This builds the fundamental trust required for product release or clinical decisions.
+            """)
+
         with tabs[1]:
-            st.markdown("- **R-squared (R²):** The coefficient of determination should be very high, typically **> 0.995** for analytical methods.")
-            st.markdown("- **Slope:** The slope of the regression line should be statistically indistinguishable from 1.0. A common acceptance range is **0.95 to 1.05**.")
-            st.markdown("- **Y-Intercept:** The 95% confidence interval for the intercept should contain **0**, indicating no significant constant bias.")
-            st.markdown("- **Recovery:** The percent recovery at each concentration level should fall within a pre-defined range, often **80% to 120%** for bioassays or **98% to 102%** for simpler chemical assays.")
+            st.markdown("These criteria are defined in the validation protocol and must be met to declare the method linear. They are often tiered based on the assay type.")
+            st.markdown("- **R-squared (R²):** While common, it is a weak criterion alone. An R² > **0.995** is a typical starting point, but for chromatography (HPLC, GC), R² > **0.999** is often required.")
+            st.markdown("- **Slope:** The 95% confidence interval for the slope must contain 1.0. A common acceptance range for the point estimate is **0.95 to 1.05** for immunoassays, but may be tightened to **0.98 to 1.02** for more precise methods.")
+            st.markdown("- **Y-Intercept:** The 95% confidence interval for the intercept must contain 0. This statistically proves the absence of a significant constant bias.")
+            st.markdown("- **Residuals:** There should be no obvious pattern or trend in the residual plot. Formal statistical tests like the **Lack-of-Fit test** can be used to objectively prove linearity. This requires designing the experiment with true replicates at each concentration level.")
+            st.markdown("- **Recovery:** The percent recovery at each concentration level must fall within a pre-defined range. This is often the most important criterion. For bioassays, this might be **80% to 120%**, but for drug substance purity assays, it could be as strict as **99.0% to 101.0%**.")
+
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The mathematical foundation for this analysis is **Ordinary Least Squares (OLS) Regression**, a fundamental statistical method developed independently by Adrien-Marie Legendre (1805) and Carl Friedrich Gauss (1809). Gauss, working in astronomy, developed the method to predict the orbits of celestial bodies from a limited number of observations. He was trying to find the "best fit" curve to describe the path of the dwarf planet Ceres.
-
-            The core principle of OLS is to find the line that minimizes the sum of the squared vertical distances (the "residuals") between the observed data points and the fitted line. This concept of minimizing squared error is one of the most powerful and widely used ideas in all of statistics and machine learning. In assay validation, we apply this centuries-old technique to answer a very modern question: "Does my instrument's response have a linear relationship with the true concentration of the substance I'm measuring?"
+            The mathematical engine is **Ordinary Least Squares (OLS) Regression**, a cornerstone of statistics developed by **Adrien-Marie Legendre (1805)** and, more famously, **Carl Friedrich Gauss (1809)**. Gauss, the "Prince of Mathematicians," used it to solve a pressing astronomical problem: rediscovering the dwarf planet Ceres after it was lost behind the sun. With only a few data points on its early trajectory, he calculated a best-fit orbit that allowed astronomers to find it again exactly where he predicted.
             
+            The genius of OLS lies in its objective function: to find the line that **minimizes the sum of the squared vertical distances (the "residuals")** between the observed data and the fitted line. This principle is not arbitrary; under the assumption of normally distributed errors, the OLS estimates are the **Maximum Likelihood Estimates (MLE)**, meaning they are the parameter values that make the observed data most probable. This provides a deep theoretical justification for what seems like a simple curve-fitting exercise. In validation, we use Gauss's powerful tool to confirm a simple, but critical, physical reality for our assay.
+
             #### Mathematical Basis
-            We fit a simple linear model to the calibration data:
+            The goal is to fit a simple linear model to the calibration data, which links the true concentration ($x$) to the measured response ($y$).
             """)
             st.latex("y = \\beta_0 + \\beta_1 x + \\epsilon")
             st.markdown("""
-            - $y$ is the measured concentration (the response).
-            - $x$ is the nominal (true) concentration.
-            - $\\beta_0$ is the y-intercept, which represents the constant systematic bias of the assay (ideally 0).
-            - $\\beta_1$ is the slope, which represents the proportional bias of the assay (ideally 1).
-            - $\\epsilon$ is the random error term.
+            - $y$: The measured concentration or instrument signal.
+            - $x$: The nominal (true) concentration of the reference standard.
+            - $\\beta_0$ (Intercept): Represents the assay's **constant systematic error**. This is the signal you'd expect at zero concentration.
+            - $\\beta_1$ (Slope): Represents the assay's **proportional systematic error**. This is the sensitivity of the assay.
+            - $\\epsilon$: The random, unpredictable measurement error, assumed to be normally distributed with a mean of zero and constant variance.
 
-            The analysis involves statistical tests on the estimated coefficients:
-            - **Hypothesis Test for Slope:** $H_0: \\beta_1 = 1$ vs. $H_a: \\beta_1 \\neq 1$
-            - **Hypothesis Test for Intercept:** $H_0: \\beta_0 = 0$ vs. $H_a: \\beta_0 \\neq 0$
+            The validation hinges on formal statistical tests of the estimated coefficients ($\hat{\beta}_0, \hat{\beta}_1$):
+            - **Hypothesis Test for Slope:** $H_0: \\beta_1 = 1$ (no proportional bias) vs. $H_a: \\beta_1 \\neq 1$.
+            - **Hypothesis Test for Intercept:** $H_0: \\beta_0 = 0$ (no constant bias) vs. $H_a: \\beta_0 \\neq 0$.
+            A p-value > 0.05 for these tests supports the claim of linearity and no bias.
             """)
 
 def render_lod_loq():

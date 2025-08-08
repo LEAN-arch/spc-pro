@@ -1962,6 +1962,8 @@ def render_linearity():
             - $\\epsilon$: Random measurement error.
             """)
 
+# REPLACE the existing render_lod_loq function with this one.
+
 def render_lod_loq():
     """Renders the INTERACTIVE module for Limit of Detection & Quantitation."""
     st.markdown("""
@@ -1971,7 +1973,11 @@ def render_lod_loq():
     **Strategic Application:** This is a mission-critical parameter for any assay used to measure trace components, such as impurities in a drug product or biomarkers for early-stage disease diagnosis. **Use the sliders in the sidebar to simulate how assay sensitivity and noise impact the final LOD and LOQ.**
     """)
     
-    # --- NEW: Sidebar controls for this specific module ---
+    st.info("""
+    **Interactive Demo:** Now, when you select the "LOD & LOQ" tool, a new set of dedicated sliders will appear in the sidebar. You can dynamically change the assay's slope and noise to see in real-time how these fundamental characteristics drive the final LOD and LOQ results.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("LOD & LOQ Controls")
     slope_slider = st.sidebar.slider(
         "📈 Assay Sensitivity (Slope)", 
@@ -2026,7 +2032,6 @@ def render_lod_loq():
             st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
             st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
             st.markdown("The factor of 10 for LOQ is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.")
-
 def render_method_comparison():
     """Renders the interactive module for Method Comparison."""
     st.markdown("""

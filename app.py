@@ -19,6 +19,7 @@ from scipy.optimize import curve_fit
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
 from statsmodels.tsa.arima.model import ARIMA
+from prophet import Prophet
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_decomposition import PLSRegression
@@ -276,7 +277,7 @@ def plot_gage_rr():
     for i, operator in enumerate(operators):
         operator_df = df[df['Operator'] == operator]; part_means = operator_df.groupby('Part')['Measurement'].mean()
         fig.add_trace(go.Scatter(x=part_means.index, y=part_means.values, mode='lines', line=dict(width=2), name=f'{operator} Mean', showlegend=False, marker_color=fig_box.data[i].marker.color), row=1, col=1)
-    fig_op_box = px.box(df, x='Operator', y='Measurement', color='Operator', color_discrete_sequence=px.colors.qualitative.Plotly, showlegend=False)
+    fig_op_box = px.box(df, x='Operator', y='Measurement', color='Operator', color_discrete_sequence=px.colors.qualitative.Plotly)
     for trace in fig_op_box.data: fig.add_trace(trace, row=1, col=2)
     fig.add_trace(go.Bar(x=['% Gage R&R', '% Part Variation'], y=[pct_rr, pct_part], marker_color=['salmon', 'skyblue'], text=[f'{pct_rr:.1f}%', f'{pct_part:.1f}%'], textposition='auto'), row=2, col=2)
     fig.add_hline(y=10, line_dash="dash", line_color="darkgreen", annotation_text="Acceptable < 10%", annotation_position="bottom right", row=2, col=2)
@@ -603,7 +604,71 @@ def plot_spc_charts():
     fig_p.update_layout(title_text='<b>3. P-Chart (Attribute Data)</b>', yaxis_tickformat=".0%", showlegend=False, xaxis_title="Batch Number", yaxis_title="Proportion Defective")
     
     return fig_imr, fig_xbar, fig_p
+@st.cache_data
+def plot_capability(scenario='Ideal'):
+    """
+    Generates plots for the process capability module based on a scenario.
+    """
+    np.random.seed(42)
+    n = 100
+    LSL, USL, Target = 90, 110, 100
+    
+    # Generate data based on scenario
+    if scenario == 'Ideal':
+        mean, std = 100, 1.5
+        data = np.random.normal(mean, std, n)
+    elif scenario == 'Shifted':
+        mean, std = 104, 1.5
+        data = np.random.normal(mean, std, n)
+    elif scenario == 'Variable':
+        mean, std = 100, 3.5
+        data = np.random.normal(mean, std, n)
+    elif scenario == 'Out of Control':
+        mean, std = 100, 1.5
+        data = np.random.normal(mean, std, n)
+        data[70:] += 6 # Add a shift to make it out of control
+        
+    # --- Control Chart Calculations ---
+    mr = np.abs(np.diff(data))
+    # Use only stable part for limits if out of control
+    limit_data = data[:70] if scenario == 'Out of Control' else data
+    center_line = np.mean(limit_data)
+    mr_mean = np.mean(np.abs(np.diff(limit_data)))
+    sigma_est = mr_mean / 1.128 # d2 for n=2
+    UCL_I, LCL_I = center_line + 3 * sigma_est, center_line - 3 * sigma_est
 
+    # --- Capability Calculation ---
+    if scenario == 'Out of Control':
+        cpk_val = 0 # Invalid
+    else:
+        cpk_upper = (USL - mean) / (3 * std)
+        cpk_lower = (mean - LSL) / (3 * std)
+        cpk_val = min(cpk_upper, cpk_lower)
+
+    # --- Plotting ---
+    fig = make_subplots(
+        rows=2, cols=1, shared_xaxes=False, vertical_spacing=0.15,
+        subplot_titles=("<b>Control Chart (Is the process stable?)</b>", "<b>Capability Histogram (Does it meet specs?)</b>")
+    )
+    # Control Chart
+    fig.add_trace(go.Scatter(x=np.arange(n), y=data, mode='lines+markers', name='Process Data'), row=1, col=1)
+    fig.add_hline(y=center_line, line_dash="dash", line_color="black", row=1, col=1)
+    fig.add_hline(y=UCL_I, line_color="red", row=1, col=1)
+    fig.add_hline(y=LCL_I, line_color="red", row=1, col=1)
+    
+    # Histogram
+    fig.add_trace(go.Histogram(x=data, name='Distribution', nbinsx=20, histnorm='probability density'), row=2, col=1)
+    # Add normal curve overlay
+    x_curve = np.linspace(min(data.min(), LSL-2), max(data.max(), USL+2), 200)
+    y_curve = norm.pdf(x_curve, mean, std)
+    fig.add_trace(go.Scatter(x=x_curve, y=y_curve, mode='lines', name='Process Voice', line=dict(color='blue')), row=2, col=1)
+    
+    # Add Spec Limits
+    fig.add_vline(x=LSL, line_dash="dot", line_color="darkred", annotation_text="LSL", row=2, col=1)
+    fig.add_vline(x=USL, line_dash="dot", line_color="darkred", annotation_text="USL", row=2, col=1)
+
+    fig.update_layout(height=700, showlegend=False)
+    return fig, cpk_val
 @st.cache_data
 def plot_tolerance_intervals():
     np.random.seed(42)
@@ -895,6 +960,123 @@ def plot_clustering():
                      labels={'X': 'Process Parameter 1 (e.g., Temperature)', 'Y': 'Process Parameter 2 (e.g., Pressure)'})
     fig.update_traces(marker=dict(size=8, line=dict(width=1, color='black')))
     return fig
+@st.cache_data
+def plot_method_comparison():
+    """
+    Generates plots for the method comparison module.
+    """
+    np.random.seed(1)
+    # Generate correlated data with proportional and constant bias
+    n_samples = 50
+    true_values = np.linspace(20, 200, n_samples)
+    error_ref = np.random.normal(0, 3, n_samples)
+    error_test = np.random.normal(0, 3, n_samples)
+    
+    # New method (Test) has a constant bias of +2 and proportional bias of 3%
+    ref_method = true_values + error_ref
+    test_method = 2 + true_values * 1.03 + error_test
+    
+    df = pd.DataFrame({'Reference': ref_method, 'Test': test_method})
+
+    # Deming Regression (simplified calculation for plotting)
+    mean_x, mean_y = df['Reference'].mean(), df['Test'].mean()
+    cov_xy = np.cov(df['Reference'], df['Test'])[0, 1]
+    var_x, var_y = df['Reference'].var(ddof=1), df['Test'].var(ddof=1)
+    # Assuming equal variances (lambda=1)
+    deming_slope = ( (var_y - var_x) + np.sqrt((var_y - var_x)**2 + 4 * cov_xy**2) ) / (2 * cov_xy)
+    deming_intercept = mean_y - deming_slope * mean_x
+
+    # Bland-Altman
+    df['Average'] = (df['Reference'] + df['Test']) / 2
+    df['Difference'] = df['Test'] - df['Reference']
+    mean_diff = df['Difference'].mean()
+    std_diff = df['Difference'].std(ddof=1)
+    upper_loa = mean_diff + 1.96 * std_diff
+    lower_loa = mean_diff - 1.96 * std_diff
+    
+    # % Bias
+    df['%Bias'] = (df['Difference'] / df['Reference']) * 100
+
+    # Create plot
+    fig = make_subplots(
+        rows=3, cols=1,
+        subplot_titles=("<b>1. Deming Regression (Agreement)</b>", "<b>2. Bland-Altman Plot (Bias & Limits of Agreement)</b>", "<b>3. Percent Bias Plot</b>"),
+        vertical_spacing=0.15
+    )
+
+    # Deming Plot
+    fig.add_trace(go.Scatter(x=df['Reference'], y=df['Test'], mode='markers', name='Samples'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df['Reference'], y=deming_intercept + deming_slope * df['Reference'], mode='lines', name='Deming Fit', line=dict(color='red')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=[0, 220], y=[0, 220], mode='lines', name='Identity (y=x)', line=dict(color='black', dash='dash')), row=1, col=1)
+    
+    # Bland-Altman Plot
+    fig.add_trace(go.Scatter(x=df['Average'], y=df['Difference'], mode='markers', name='Difference'), row=2, col=1)
+    fig.add_hline(y=mean_diff, line=dict(color='blue', dash='dash'), name='Mean Bias', row=2, col=1)
+    fig.add_hline(y=upper_loa, line=dict(color='red', dash='dash'), name='Upper LoA', row=2, col=1)
+    fig.add_hline(y=lower_loa, line=dict(color='red', dash='dash'), name='Lower LoA', row=2, col=1)
+    
+    # % Bias Plot
+    fig.add_trace(go.Scatter(x=df['Reference'], y=df['%Bias'], mode='markers', name='% Bias'), row=3, col=1)
+    fig.add_hline(y=0, line=dict(color='black', dash='dash'), row=3, col=1)
+    fig.add_hrect(y0=-15, y1=15, fillcolor="green", opacity=0.1, layer="below", line_width=0, row=3, col=1)
+
+    fig.update_layout(height=1000, showlegend=False)
+    fig.update_xaxes(title_text="Reference Method", row=1, col=1); fig.update_yaxes(title_text="Test Method", row=1, col=1)
+    fig.update_xaxes(title_text="Average of Methods", row=2, col=1); fig.update_yaxes(title_text="Difference (Test - Ref)", row=2, col=1)
+    fig.update_xaxes(title_text="Reference Method", row=3, col=1); fig.update_yaxes(title_text="% Bias", row=3, col=1)
+    
+    return fig, deming_slope, deming_intercept, mean_diff, upper_loa, lower_loa
+@st.cache_data
+def plot_bayesian(prior_type):
+    """
+    Generates plots for the Bayesian inference module.
+    """
+    # New QC Data (Likelihood)
+    n_qc, k_qc = 20, 18
+    
+    # Define Priors based on selection
+    if prior_type == "Strong R&D Prior":
+        # Corresponds to ~98 successes in 100 trials
+        a_prior, b_prior = 98, 2
+    elif prior_type == "Skeptical/Regulatory Prior":
+        # Weakly centered around 80%, wide uncertainty
+        a_prior, b_prior = 4, 1
+    else: # "No Prior (Frequentist)"
+        # Uninformative prior
+        a_prior, b_prior = 1, 1
+        
+    # Bayesian Update (Posterior calculation)
+    a_post = a_prior + k_qc
+    b_post = b_prior + (n_qc - k_qc)
+    
+    # Calculate key metrics
+    prior_mean = a_prior / (a_prior + b_prior)
+    mle = k_qc / n_qc
+    posterior_mean = a_post / (a_post + b_post)
+
+    # Plotting
+    x = np.linspace(0, 1, 500)
+    fig = go.Figure()
+
+    # Prior
+    prior_pdf = beta.pdf(x, a_prior, b_prior)
+    fig.add_trace(go.Scatter(x=x, y=prior_pdf, mode='lines', name='Prior', line=dict(color='green', dash='dash')))
+
+    # Likelihood (scaled for visualization)
+    likelihood = beta.pdf(x, k_qc + 1, n_qc - k_qc + 1)
+    fig.add_trace(go.Scatter(x=x, y=likelihood, mode='lines', name='Likelihood (from data)', line=dict(color='red', dash='dot')))
+
+    # Posterior
+    posterior_pdf = beta.pdf(x, a_post, b_post)
+    fig.add_trace(go.Scatter(x=x, y=posterior_pdf, mode='lines', name='Posterior', line=dict(color='blue', width=4), fill='tozeroy'))
+
+    fig.update_layout(
+        title=f"<b>Bayesian Update for Pass Rate ({prior_type})</b>",
+        xaxis_title="True Pass Rate", yaxis_title="Probability Density",
+        legend=dict(x=0.01, y=0.99)
+    )
+    
+    return fig, prior_mean, mle, posterior_mean
 
 @st.cache_data
 def plot_classification_models():
@@ -943,11 +1125,9 @@ def plot_xai_shap():
     # This function uses matplotlib backend for SHAP, so we need to handle image conversion
     plt.style.use('default')
     
-    # Fix for PermissionError: Manually load the dataset from the URL
-    # This avoids shap.datasets.adult() trying to write to a read-only filesystem
+    # This section for loading data directly via URL is already correct and robust.
     github_data_url = "https://github.com/slundberg/shap/raw/master/data/"
     data_url = github_data_url + "adult.data"
-    
     dtypes = [
         ("Age", "float32"), ("Workclass", "category"), ("fnlwgt", "float32"),
         ("Education", "category"), ("Education-Num", "float32"),
@@ -956,40 +1136,41 @@ def plot_xai_shap():
         ("Capital Gain", "float32"), ("Capital Loss", "float32"),
         ("Hours per week", "float32"), ("Country", "category"), ("Target", "category")
     ]
-    
-    raw_data = pd.read_csv(
-        data_url,
-        names=[d[0] for d in dtypes],
-        na_values="?",
-        dtype=dict(dtypes)
-    )
-    
+    raw_data = pd.read_csv(data_url, names=[d[0] for d in dtypes], na_values="?", dtype=dict(dtypes))
     X_display = raw_data.drop("Target", axis=1)
     y = (raw_data["Target"] == " >50K").astype(int)
-    
-    # Factorize categorical columns for the model
     X = X_display.copy()
     for col in X.select_dtypes(include=['category']).columns:
         X[col] = X[col].cat.codes
 
     model = RandomForestClassifier(random_state=42).fit(X, y)
     explainer = shap.Explainer(model, X)
-    # Use a smaller subset for faster explanation in a demo app
     shap_values_obj = explainer(X.iloc[:100]) 
     
-    # Beeswarm plot as an image
+    # --- Beeswarm plot (no changes needed here) ---
     shap.summary_plot(shap_values_obj.values[:,:,1], X.iloc[:100], show=False)
     buf_summary = io.BytesIO()
     plt.savefig(buf_summary, format='png', bbox_inches='tight')
     plt.close()
     buf_summary.seek(0)
     
-    # Force plot as html
-    # Use X_display for interpretable feature names in the plot
-    force_plot_html = shap.force_plot(explainer.expected_value[1], shap_values_obj.values[0,:,1], X_display.iloc[0,:], show=False)
-    html_string = force_plot_html.html()
+    # --- Force plot HTML generation (THIS IS THE FIX) ---
+    # 1. Generate the plot object as before
+    force_plot = shap.force_plot(
+        explainer.expected_value[1], 
+        shap_values_obj.values[0,:,1], 
+        X_display.iloc[0,:], 
+        show=False
+    )
+    
+    # 2. Get the raw HTML from the plot object
+    force_plot_html = force_plot.html()
 
-    return buf_summary, html_string
+    # 3. Create a fully self-contained HTML string by adding the SHAP JS library
+    #    shap.initjs() injects the necessary <script> tag.
+    full_html = f"<html><head>{shap.initjs()}</head><body>{force_plot_html}</body></html>"
+
+    return buf_summary, full_html
     
     # Beeswarm plot as an image
     shap.summary_plot(shap_values_obj.values[:,:,1], X.iloc[:100], show=False)

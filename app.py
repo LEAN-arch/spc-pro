@@ -308,34 +308,6 @@ def plot_chronological_timeline():
         showlegend=False
     )
     return fig
-    # --- Plot 2: CI Simulation ---
-    n_sims = 1000
-    samples = np.random.normal(pop_mean, pop_std, size=(n_sims, n))
-    sample_means = samples.mean(axis=1)
-    sample_stds = samples.std(axis=1, ddof=1)
-    
-    # Using t-distribution for CIs as is proper
-    t_crit = t.ppf(0.975, df=n-1)
-    margin_of_error = t_crit * sample_stds / np.sqrt(n)
-    
-    ci_lowers = sample_means - margin_of_error
-    ci_uppers = sample_means + margin_of_error
-    
-    capture_mask = (ci_lowers <= pop_mean) & (ci_uppers >= pop_mean)
-    capture_count = np.sum(capture_mask)
-    avg_width = np.mean(ci_uppers - ci_lowers)
-    
-    fig2 = go.Figure()
-    # Plot first 100 CIs for visualization
-    for i in range(min(n_sims, 100)):
-        color = 'blue' if capture_mask[i] else 'red'
-        fig2.add_trace(go.Scatter(x=[ci_lowers[i], ci_uppers[i]], y=[i, i], mode='lines', line=dict(color=color, width=2), showlegend=False))
-        fig2.add_trace(go.Scatter(x=[sample_means[i]], y=[i], mode='markers', marker=dict(color=color, size=4), showlegend=False))
-
-    fig2.add_vline(x=pop_mean, line=dict(color='black', dash='dash'), annotation_text="True Mean (μ)")
-    fig2.update_layout(title=f"<b>{min(n_sims, 100)} Simulated 95% Confidence Intervals</b>", yaxis_visible=False)
-    
-    return fig1, fig2, capture_count, n_sims, avg_width
 
 @st.cache_data
 def plot_gage_rr():

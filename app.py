@@ -3116,10 +3116,10 @@ def render_multi_rule():
                 - **The Core Strategic Insight:** This chart shows two *different* problems. A true statistical detective sees both signals and knows there are two distinct issues to solve.
                 """)
             else:
-                verdict, rule = "In-Control", "None"
-                if scenario == 'Large Random Error': verdict, rule = "Reject Run", "1-3s Violation"
-                elif scenario == 'Systematic Shift': verdict, rule = "Reject Run", "2-2s Violation"
-                elif scenario == 'Increased Imprecision': verdict, rule = "Reject Run", "R-4s Violation"
+                verdict, rule = ("In-Control", "None") if scenario == 'Stable' else ("Reject Run", "Unknown")
+                if scenario == 'Large Random Error': rule = "1-3s Violation"
+                elif scenario == 'Systematic Shift': rule = "2-2s Violation"
+                elif scenario == 'Increased Imprecision': rule = "R-4s Violation"
                 
                 st.metric("🕵️ Run Verdict", verdict)
                 st.metric("🚨 Triggered Rule", rule)

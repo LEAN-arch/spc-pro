@@ -3435,49 +3435,49 @@ def render_classification_models():
 # ==============================================================================
 # MAIN APP LOGIC FOR TOOLS PAGE
 # ==============================================================================
-
-# --- Sidebar Navigation ---
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")
     st.markdown("Select a method to explore.")
 
     all_options = {
-        "ACT I: FOUNDATION & CHARACTERIZATION": [
-            "Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", 
-            "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", 
-            "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Causal Inference"
-        ],
-        "ACT II: TRANSFER & STABILITY": [
-            "Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", 
-            "Method Comparison", "Pass/Fail Analysis", "Bayesian Inference"
-        ],
-        "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
-            "Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis",
-            "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)",
-            "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection",
-            "Explainable AI (XAI)", "Advanced AI Concepts"
-        ]
+        "ACT I: FOUNDATION & CHARACTERIZATION": ["Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Causal Inference"],
+        "ACT II: TRANSFER & STABILITY": ["Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", "Method Comparison", "Pass/Fail Analysis", "Bayesian Inference"],
+        "ACT III: LIFECYCLE & PREDICTIVE MGMT": ["Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis", "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts"]
     }
-    
-    options = [item for sublist in all_options.values() for item in sublist]
-    icons = [ICONS.get(opt, "question-circle") for opt in options]
 
-    try:
-        default_idx = options.index(st.session_state.get('method_key', options[0]))
-    except ValueError:
-        default_idx = 0
+    # Get the selection from the previous run. Default to the first tool.
+    last_selection = st.session_state.get('method_key', "Confidence Interval Concept")
 
-    selected_option = option_menu(
-        menu_title=None, options=options, icons=icons,
-        menu_icon="cast", default_index=default_idx,
-        styles={
-            "container": {"padding": "0!important", "background-color": "#fafafa"},
-            "nav-link": {"font-size": "14px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
-            "nav-link-selected": {"background-color": "#0068C9"},
-        }
-    )
-    st.session_state.method_key = selected_option
+    # This will hold the selection from the radio button the user just clicked.
+    current_selection = last_selection
 
+    for i, (act_title, act_tools) in enumerate(all_options.items()):
+        st.sidebar.subheader(act_title)
+        
+        # If the last selection is in this group, its index is used. Otherwise, index is None.
+        try:
+            default_index = act_tools.index(last_selection)
+        except ValueError:
+            default_index = None
+
+        selection = st.sidebar.radio(
+            label=f"act_{i}_radio",
+            options=act_tools,
+            index=default_index,
+            label_visibility="collapsed",
+            key=f"radio_act_{i}" # Unique key for each radio group
+        )
+        
+        # If a selection was made in THIS radio group (meaning default_index was not None),
+        # then the 'selection' variable holds its current value. We update our candidate.
+        if default_index is not None:
+            current_selection = selection
+            
+    # After checking all radio groups, if the user's action resulted in a new selection,
+    # update the session state and rerun the script to reflect the change.
+    if current_selection != last_selection:
+        st.session_state.method_key = current_selection
+        st.rerun()
 # --- Main Content Area Dispatcher ---
 if 'method_key' not in st.session_state:
     st.session_state.method_key = "Confidence Interval Concept"

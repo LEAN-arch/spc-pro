@@ -544,23 +544,58 @@ def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75):
     
     return fig, pct_rr, pct_part
 
-@st.cache_data
-def plot_linearity():
-    np.random.seed(42); nominal = np.array([10, 25, 50, 100, 150, 200, 250]); measured = nominal + np.random.normal(0, nominal * 0.02 + 1) - (nominal / 150)**3
-    X = sm.add_constant(nominal); model = sm.OLS(measured, X).fit(); b, m = model.params; residuals = model.resid; recovery = (measured / nominal) * 100
-    fig = make_subplots(rows=2, cols=2, specs=[[{}, {}], [{"colspan": 2}, None]], subplot_titles=("<b>Linearity Plot</b>", "<b>Residual Plot</b>", "<b>Recovery Plot</b>"), vertical_spacing=0.2)
+# The @st.cache_data decorator is removed to allow for dynamic regeneration.
+def plot_linearity(curvature=-1.0, random_error=1.0, proportional_error=2.0):
+    """
+    Generates dynamic plots for the Linearity module based on user inputs.
+    """
+    np.random.seed(42)
+    nominal = np.array([10, 25, 50, 100, 150, 200, 250])
+    
+    # Simulate data based on sliders
+    # Curvature term: a negative value creates an S-curve typical of saturation
+    curvature_effect = curvature * (nominal / 150)**3
+    
+    # Error term: combination of constant random error and error that grows with concentration
+    error = np.random.normal(0, random_error + nominal * (proportional_error / 100))
+    
+    measured = nominal + curvature_effect + error
+    
+    # Fit OLS model to the dynamic data
+    X = sm.add_constant(nominal)
+    model = sm.OLS(measured, X).fit()
+    residuals = model.resid
+    recovery = (measured / nominal) * 100
+    
+    # --- Plotting ---
+    fig = make_subplots(
+        rows=2, cols=2,
+        specs=[[{}, {}], [{"colspan": 2}, None]],
+        subplot_titles=("<b>Linearity Plot</b>", "<b>Residual Plot</b>", "<b>Recovery Plot</b>"),
+        vertical_spacing=0.2
+    )
+    
+    # Linearity Plot
     fig.add_trace(go.Scatter(x=nominal, y=measured, mode='markers', name='Measured Values', marker=dict(size=10, color='blue'), hovertemplate="Nominal: %{x}<br>Measured: %{y:.2f}<extra></extra>"), row=1, col=1)
     fig.add_trace(go.Scatter(x=nominal, y=model.predict(X), mode='lines', name='Best Fit Line', line=dict(color='red')), row=1, col=1)
     fig.add_trace(go.Scatter(x=[0, 260], y=[0, 260], mode='lines', name='Line of Identity', line=dict(dash='dash', color='black')), row=1, col=1)
+    
+    # Residual Plot
     fig.add_trace(go.Scatter(x=nominal, y=residuals, mode='markers', name='Residuals', marker=dict(size=10, color='green'), hovertemplate="Nominal: %{x}<br>Residual: %{y:.2f}<extra></extra>"), row=1, col=2)
     fig.add_hline(y=0, line_dash="dash", line_color="black", row=1, col=2)
+    
+    # Recovery Plot
     fig.add_trace(go.Scatter(x=nominal, y=recovery, mode='lines+markers', name='Recovery', line=dict(color='purple'), marker=dict(size=10), hovertemplate="Nominal: %{x}<br>Recovery: %{y:.1f}%<extra></extra>"), row=2, col=1)
     fig.add_hrect(y0=80, y1=120, fillcolor="green", opacity=0.1, layer="below", line_width=0, row=2, col=1)
-    fig.add_hline(y=100, line_dash="dash", line_color="black", row=2, col=1); fig.add_hline(y=80, line_dash="dot", line_color="red", row=2, col=1); fig.add_hline(y=120, line_dash="dot", line_color="red", row=2, col=1)
+    fig.add_hline(y=100, line_dash="dash", line_color="black", row=2, col=1)
+    fig.add_hline(y=80, line_dash="dot", line_color="red", row=2, col=1)
+    fig.add_hline(y=120, line_dash="dot", line_color="red", row=2, col=1)
+    
     fig.update_layout(title_text='<b>Assay Linearity and Range Verification Dashboard</b>', title_x=0.5, height=800, showlegend=False)
     fig.update_xaxes(title_text="Nominal Concentration", row=1, col=1); fig.update_yaxes(title_text="Measured Concentration", row=1, col=1)
     fig.update_xaxes(title_text="Nominal Concentration", row=1, col=2); fig.update_yaxes(title_text="Residual (Error)", row=1, col=2)
     fig.update_xaxes(title_text="Nominal Concentration", row=2, col=1); fig.update_yaxes(title_text="% Recovery", range=[min(75, recovery.min()-5), max(125, recovery.max()+5)], row=2, col=1)
+    
     return fig, model
 
 # The @st.cache_data decorator is removed to allow for dynamic regeneration.
@@ -1834,65 +1869,82 @@ def render_gage_rr():
             st.markdown("These are converted to Mean Squares (MS) and then to variance components ($\hat{\sigma}^2$).")
             
 def render_linearity():
-    """Renders the interactive module for Linearity analysis."""
+    """Renders the INTERACTIVE module for Linearity analysis."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To verify that an assay's response is directly and predictably proportional to the known concentration of the analyte across its entire intended operational range.
     
-    **Strategic Application:** This is a cornerstone of quantitative assay validation, mandated by every major regulatory body (FDA, EMA, ICH). It provides the statistical evidence that the assay is not just precise, but **globally accurate** across its reportable range. A method exhibiting non-linearity might be accurate at a central control point but dangerously inaccurate at the specification limits, leading to incorrect batch disposition decisions.
+    **Strategic Application:** This is a cornerstone of quantitative assay validation. A method exhibiting non-linearity might be accurate at a central control point but dangerously inaccurate at the specification limits. **Use the sliders in the sidebar to simulate different types of non-linear behavior and error.**
     """)
+    
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("Linearity Controls")
+    curvature_slider = st.sidebar.slider(
+        "🧬 Curvature Effect", 
+        min_value=-5.0, max_value=5.0, value=-1.0, step=0.5,
+        help="Simulates non-linearity. A negative value creates saturation at high concentrations. A positive value creates expansion. Zero is perfectly linear."
+    )
+    random_error_slider = st.sidebar.slider(
+        "🎲 Random Error (Constant SD)", 
+        min_value=0.1, max_value=5.0, value=1.0, step=0.1,
+        help="The baseline random noise of the assay, constant across all concentrations."
+    )
+    proportional_error_slider = st.sidebar.slider(
+        "📈 Proportional Error (% of Conc.)", 
+        min_value=0.0, max_value=5.0, value=2.0, step=0.25,
+        help="Error that increases with concentration. This creates a 'funnel' or 'megaphone' shape in the residual plot."
+    )
+    
+    # Generate plots using the slider values
+    fig, model = plot_linearity(
+        curvature=curvature_slider,
+        random_error=random_error_slider,
+        proportional_error=proportional_error_slider
+    )
+    
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        fig, model = plot_linearity()
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}", help="Indicates the proportion of variance in the measured values explained by the nominal values. A necessary, but not sufficient, criterion.")
-            st.metric(label="💡 Metric: Slope", value=f"{model.params[1]:.3f}", help="Ideal = 1.0. A slope < 1 indicates signal compression; > 1 indicates expansion.")
-            st.metric(label="💡 Metric: Y-Intercept", value=f"{model.params[0]:.2f}", help="Ideal = 0.0. A non-zero intercept indicates a constant systematic error or background bias.")
-            st.markdown("""
-            - **Linearity Plot:** Data should cluster tightly around the Line of Identity (y=x). Any systematic deviation (e.g., a gentle 'S' curve) suggests non-linearity that R² alone might miss.
-            - **Residual Plot:** The single most powerful diagnostic for linearity. A perfect model shows a random, "shotgun blast" pattern of points centered on zero.
-                - A **curved (U or ∩) pattern** is the classic sign of non-linearity, indicating the straight-line model is inappropriate. This is often due to detector saturation at high concentrations.
-                - A **funnel shape (heteroscedasticity)** indicates that the error increases with concentration. This is common in analytical chemistry and violates a key assumption of Ordinary Least Squares (OLS) regression. The proper technique here is **Weighted Least Squares (WLS) Regression.**
-            - **Recovery Plot:** The practical business-end of the analysis. It translates statistical error into analytical accuracy, answering: "At a given true concentration, what result does my assay report, and by how much is it off?"
+            st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}", help="Indicates the proportion of variance explained by the model. Note how a high R² can hide clear non-linearity!")
+            st.metric(label="💡 Metric: Slope", value=f"{model.params[1]:.3f}", help="Ideal = 1.0.")
+            st.metric(label="💡 Metric: Y-Intercept", value=f"{model.params[0]:.2f}", help="Ideal = 0.0.")
             
-            **The Core Strategic Insight:** A high R², a slope of 1, an intercept of 0, randomly scattered residuals, and recovery within tight limits collectively provide a **verifiable chain of evidence** that the assay is a trustworthy quantitative tool across its entire defined range.
+            st.info("Play with the sliders in the sidebar to see how different errors affect the diagnostic plots.")
+            st.markdown("""
+            - **The Residual Plot is Key:** This is the most sensitive diagnostic tool.
+                - Add **Curvature**: Notice the classic "U-shape" or "inverted U-shape" that appears. This is a dead giveaway that your straight-line model is wrong.
+                - Add **Proportional Error**: Watch the residuals form a "funnel" or "megaphone" shape. This is heteroscedasticity, and it means you should be using Weighted Least Squares (WLS) regression, not OLS.
+            
+            **The Core Strategic Insight:** A high R-squared is **not sufficient** to prove linearity. You must visually inspect the residual plot for hidden patterns. The residual plot tells the true story of your model's fit.
             """)
 
         with tabs[1]:
             st.markdown("These criteria are defined in the validation protocol and must be met to declare the method linear.")
-            st.markdown("- **R-squared (R²):** While common, it is a weak criterion alone. An R² > **0.995** is a typical starting point, but for chromatography (HPLC, GC), R² > **0.999** is often required.")
-            st.markdown("- **Slope:** The 95% confidence interval for the slope must contain 1.0. A common acceptance range for the point estimate is **0.95 to 1.05** for immunoassays, or tighter (**0.98 to 1.02**) for more precise methods.")
-            st.markdown("- **Y-Intercept:** The 95% confidence interval for the intercept must contain 0. This statistically proves the absence of a significant constant bias.")
-            st.markdown("- **Residuals:** There should be no obvious pattern or trend in the residual plot. Formal statistical tests like the **Lack-of-Fit test** can be used to objectively prove linearity (this requires true replicates at each concentration level).")
-            st.markdown("- **Recovery:** The percent recovery at each concentration level must fall within a pre-defined range (e.g., 80% to 120% for bioassays, 99.0% to 101.0% for drug purity assays).")
+            st.markdown("- **R-squared (R²):** Typically > **0.995**, but for high-precision methods (e.g., HPLC), > **0.999** is often required.")
+            st.markdown("- **Slope & Intercept:** The 95% confidence intervals for the slope and intercept should contain 1.0 and 0, respectively.")
+            st.markdown("- **Residuals:** There should be no obvious pattern or trend. A formal **Lack-of-Fit test** can be used for objective proof (requires true replicates at each level).")
+            st.markdown("- **Recovery:** The percent recovery at each concentration level must fall within a pre-defined range (e.g., 80% to 120% for bioassays).")
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The mathematical engine is **Ordinary Least Squares (OLS) Regression**, a cornerstone of statistics developed independently by **Adrien-Marie Legendre (1805)** and **Carl Friedrich Gauss (1809)**. Gauss famously used it to predict the location of the dwarf planet Ceres after it was lost, a triumph of mathematical modeling.
+            The mathematical engine is **Ordinary Least Squares (OLS) Regression**, developed by **Legendre (1805)** and **Gauss (1809)**. The genius of OLS is that it finds the one line that **minimizes the sum of the squared vertical distances (the "residuals")** between the data points and the line.
             
-            The genius of OLS lies in its objective function: to find the line that **minimizes the sum of the squared vertical distances (the "residuals")** between the observed data and the fitted line. Under the assumption of normally distributed errors, the OLS estimates are also the **Maximum Likelihood Estimates (MLE)**, providing a deep theoretical justification for the method.
-
             #### Mathematical Basis
-            The goal is to fit a simple linear model to the calibration data, linking the true concentration ($x$) to the measured response ($y$).
+            The goal is to fit a simple linear model:
             """)
             st.latex("y = \\beta_0 + \\beta_1 x + \\epsilon")
             st.markdown("""
-            - $y$: The measured concentration or instrument signal.
-            - $x$: The nominal (true) concentration of the reference standard.
-            - $\\beta_0$ (Intercept): Represents the assay's **constant systematic error**.
-            - $\\beta_1$ (Slope): Represents the assay's **proportional systematic error** (sensitivity).
-            - $\\epsilon$: The random measurement error.
-
-            The validation hinges on formal statistical tests of the estimated coefficients ($\hat{\beta}_0, \hat{\beta}_1$):
-            - **Hypothesis Test for Slope:** $H_0: \\beta_1 = 1$ (no proportional bias).
-            - **Hypothesis Test for Intercept:** $H_0: \\beta_0 = 0$ (no constant bias).
-            A p-value > 0.05 for these tests supports the claim of linearity and no bias.
+            - $y$: The measured response.
+            - $x$: The nominal (true) concentration.
+            - $\\beta_0$ (Intercept): Constant systematic error.
+            - $\\beta_1$ (Slope): Proportional systematic error.
+            - $\\epsilon$: Random measurement error.
             """)
 
 def render_lod_loq():

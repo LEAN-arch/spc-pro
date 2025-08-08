@@ -563,25 +563,63 @@ def plot_linearity():
     fig.update_xaxes(title_text="Nominal Concentration", row=2, col=1); fig.update_yaxes(title_text="% Recovery", range=[min(75, recovery.min()-5), max(125, recovery.max()+5)], row=2, col=1)
     return fig, model
 
-@st.cache_data
-def plot_lod_loq():
-    np.random.seed(3); blanks_dist = np.random.normal(0.05, 0.01, 20); low_conc_dist = np.random.normal(0.20, 0.02, 20)
-    df_dist = pd.concat([pd.DataFrame({'Signal': blanks_dist, 'Sample Type': 'Blank'}), pd.DataFrame({'Signal': low_conc_dist, 'Sample Type': 'Low Concentration'})])
-    concentrations = np.array([0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 5, 5, 5, 10, 10, 10]); signals = 0.05 + 0.02 * concentrations + np.random.normal(0, 0.01, len(concentrations))
+# The @st.cache_data decorator is removed to allow for dynamic regeneration.
+def plot_lod_loq(slope=0.02, baseline_sd=0.01):
+    """
+    Generates dynamic plots for the LOD & LOQ module based on user inputs.
+    """
+    np.random.seed(3)
+    
+    # --- Signal Distribution Plot ---
+    # The noise level is now controlled by the baseline_sd slider
+    blanks_dist = np.random.normal(0.05, baseline_sd, 20)
+    low_conc_dist = np.random.normal(0.05 + 5 * slope, baseline_sd * 1.5, 20) # Low conc at 5 units
+    
+    df_dist = pd.concat([
+        pd.DataFrame({'Signal': blanks_dist, 'Sample Type': 'Blank'}), 
+        pd.DataFrame({'Signal': low_conc_dist, 'Sample Type': 'Low Concentration'})
+    ])
+    
+    # --- Low-Level Calibration Curve ---
+    concentrations = np.array([0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 5, 5, 5, 10, 10, 10])
+    # The signal response and noise are now controlled by the sliders
+    signals = 0.05 + slope * concentrations + np.random.normal(0, baseline_sd, len(concentrations))
+    
     df_cal = pd.DataFrame({'Concentration': concentrations, 'Signal': signals})
-    X = sm.add_constant(df_cal['Concentration']); model = sm.OLS(df_cal['Signal'], X).fit(); slope = model.params['Concentration']; residual_std_err = np.sqrt(model.mse_resid)
-    LOD, LOQ = (3.3 * residual_std_err) / slope, (10 * residual_std_err) / slope
+    
+    # Fit the model to the dynamically generated data
+    X = sm.add_constant(df_cal['Concentration'])
+    model = sm.OLS(df_cal['Signal'], X).fit()
+    
+    # Use the model's parameters to calculate LOD & LOQ
+    # Note: We use the input baseline_sd for the calculation as it's the "true" noise,
+    # which is more stable than the model's estimate from this small dataset.
+    # The slope from the model is a good estimate of sensitivity.
+    fit_slope = model.params['Concentration'] if model.params['Concentration'] > 0.001 else 0.001
+    
+    LOD = (3.3 * baseline_sd) / fit_slope
+    LOQ = (10 * baseline_sd) / fit_slope
+    
+    # --- Plotting ---
     fig = make_subplots(rows=2, cols=1, subplot_titles=("<b>Signal Distribution at Low End</b>", "<b>Low-Level Calibration Curve</b>"), vertical_spacing=0.2)
+    
     fig_violin = px.violin(df_dist, x='Sample Type', y='Signal', color='Sample Type', box=True, points="all", color_discrete_map={'Blank': 'skyblue', 'Low Concentration': 'lightgreen'})
     for trace in fig_violin.data: fig.add_trace(trace, row=1, col=1)
+    
     fig.add_trace(go.Scatter(x=df_cal['Concentration'], y=df_cal['Signal'], mode='markers', name='Calibration Points', marker=dict(color='darkblue', size=8)), row=2, col=1)
-    x_range = np.linspace(0, df_cal['Concentration'].max(), 100); y_range = model.predict(sm.add_constant(x_range))
+    x_range = np.linspace(0, df_cal['Concentration'].max(), 100)
+    y_range = model.predict(sm.add_constant(x_range))
     fig.add_trace(go.Scatter(x=x_range, y=y_range, mode='lines', name='Regression Line', line=dict(color='red', dash='dash')), row=2, col=1)
-    fig.add_vline(x=LOD, line_dash="dot", line_color="orange", row=2, col=1, annotation_text=f"<b>LOD = {LOD:.2f} ng/mL</b>", annotation_position="top")
-    fig.add_vline(x=LOQ, line_dash="dash", line_color="red", row=2, col=1, annotation_text=f"<b>LOQ = {LOQ:.2f} ng/mL</b>", annotation_position="top")
+    
+    fig.add_vline(x=LOD, line_dash="dot", line_color="orange", row=2, col=1, annotation_text=f"<b>LOD = {LOD:.2f}</b>", annotation_position="top")
+    fig.add_vline(x=LOQ, line_dash="dash", line_color="red", row=2, col=1, annotation_text=f"<b>LOQ = {LOQ:.2f}</b>", annotation_position="top")
+    
     fig.update_layout(title_text='<b>Assay Sensitivity Analysis: LOD & LOQ</b>', title_x=0.5, height=800, showlegend=False)
-    fig.update_yaxes(title_text="Assay Signal (e.g., Absorbance)", row=1, col=1); fig.update_xaxes(title_text="Sample Type", row=1, col=1)
-    fig.update_yaxes(title_text="Assay Signal (e.g., Absorbance)", row=2, col=1); fig.update_xaxes(title_text="Concentration (ng/mL)", row=2, col=1)
+    fig.update_yaxes(title_text="Assay Signal (e.g., Absorbance)", row=1, col=1)
+    fig.update_xaxes(title_text="Sample Type", row=1, col=1)
+    fig.update_yaxes(title_text="Assay Signal (e.g., Absorbance)", row=2, col=1)
+    fig.update_xaxes(title_text="Concentration (ng/mL)", row=2, col=1)
+    
     return fig, LOD, LOQ
 
 def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, interference_effect=8.0):
@@ -1858,65 +1896,69 @@ def render_linearity():
             """)
 
 def render_lod_loq():
-    """Renders the interactive module for Limit of Detection & Quantitation."""
+    """Renders the INTERACTIVE module for Limit of Detection & Quantitation."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To formally establish the absolute lower performance boundaries of a quantitative assay. It determines the lowest analyte concentration an assay can reliably **detect (LOD)** and the lowest concentration it can reliably and accurately **quantify (LOQ)**.
     
-    **Strategic Application:** This is a mission-critical parameter for any assay used to measure trace components. Examples include:
-    - **Impurity Testing:** The LOQ *must* be demonstrably below the specification limit for a potentially harmful impurity in a drug product.
-    - **Early-Stage Disease Diagnosis:** The LOD/LOQ for a cancer biomarker must be low enough to detect the disease at its earliest, most treatable stage.
-    - **Pharmacokinetics (PK):** To properly characterize a drug's elimination phase, the assay LOQ must be low enough to measure the final few datapoints in the concentration-time curve.
-    
-    The **LOD** is a qualitative threshold answering "Is the analyte present?" The **LOQ** is a much higher quantitative bar, answering "What is the concentration, and can I trust the numerical value?"
+    **Strategic Application:** This is a mission-critical parameter for any assay used to measure trace components, such as impurities in a drug product or biomarkers for early-stage disease diagnosis. **Use the sliders in the sidebar to simulate how assay sensitivity and noise impact the final LOD and LOQ.**
     """)
+    
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("LOD & LOQ Controls")
+    slope_slider = st.sidebar.slider(
+        "📈 Assay Sensitivity (Slope)", 
+        min_value=0.005, max_value=0.1, value=0.02, step=0.005, format="%.3f",
+        help="How much the signal increases per unit of concentration. A steeper slope (higher sensitivity) is better."
+    )
+    noise_slider = st.sidebar.slider(
+        "🔇 Baseline Noise (SD)", 
+        min_value=0.001, max_value=0.05, value=0.01, step=0.001, format="%.3f",
+        help="The inherent random noise of the assay at zero concentration. A lower noise floor is better."
+    )
+    
+    # Generate plots using the slider values
+    fig, lod_val, loq_val = plot_lod_loq(slope=slope_slider, baseline_sd=noise_slider)
+    
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        fig, lod_val, loq_val = plot_lod_loq()
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} ng/mL", help="The lowest concentration you can report with confidence in the numerical value.")
-            st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} ng/mL", help="The lowest concentration you can reliably claim is 'present'.")
+            st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} units", help="The lowest concentration you can report with confidence in the numerical value.")
+            st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} units", help="The lowest concentration you can reliably claim is 'present'.")
+            st.info("Play with the sliders in the sidebar to see how assay parameters affect the results!")
             st.markdown("""
-            - **Signal Distribution (Violin Plot):** The distribution of signals from the 'Blank' samples (the noise) must be clearly separated from the distribution of signals from the 'Low Concentration' samples. Significant overlap indicates the assay lacks the fundamental sensitivity required.
-            - **Low-Level Calibration Curve (Regression Plot):** The LOD and LOQ are derived directly from two key parameters of this model:
-                1.  **The Slope (S):** The assay's sensitivity. A steeper slope is better.
-                2.  **The Residual Standard Error (σ):** The inherent noise or imprecision of the assay at the low end. A smaller σ is better.
+            - **Increase `Assay Sensitivity (Slope)`:** As the slope gets steeper, the LOD and LOQ values get **lower (better)**. A highly sensitive assay needs very little analyte to produce a strong signal that can overcome the noise.
+            - **Increase `Baseline Noise (SD)`:** As the noise floor of the assay increases, the LOD and LOQ values get **higher (worse)**. It becomes much harder to distinguish a true low-level signal from random background fluctuations.
 
-            **The Core Strategic Insight:** This analysis defines the **absolute floor of your assay's validated capability**. Claiming a quantitative result below the validated LOQ is scientifically and regulatorily indefensible. It's the difference between seeing a faint star and being able to measure its brightness.
+            **The Core Strategic Insight:** The sensitivity of an assay is a direct battle between its **signal-generating power (Slope)** and its **inherent noise (SD)**. The LOD and LOQ are simply the statistical formalization of this signal-to-noise ratio.
             """)
 
         with tabs[1]:
-            st.markdown("Acceptance criteria are absolute and defined by the assay's intended use.")
             st.markdown("- The primary, non-negotiable criterion is that the experimentally determined **LOQ must be ≤ the lowest concentration that the assay is required to measure** for its specific application (e.g., a release specification for an impurity).")
             st.markdown("- For a concentration to be formally declared the LOQ, it must be experimentally confirmed. This typically involves analyzing 5-6 independent samples at the claimed LOQ concentration and demonstrating that they meet pre-defined criteria for precision and accuracy (e.g., **%CV < 20% and %Recovery between 80-120%** for a bioassay).")
             st.warning("""
             **The LOB, LOD, and LOQ Hierarchy: A Critical Distinction**
             A full characterization involves three distinct limits:
-            - **Limit of Blank (LOB):** The highest measurement expected from a blank sample. (LOB = mean_blank + 1.645 * sd_blank)
-            - **Limit of Detection (LOD):** The lowest concentration whose signal is statistically distinguishable from the LOB. (LOD = LOB + 1.645 * sd_low_conc_sample)
+            - **Limit of Blank (LOB):** The highest measurement expected from a blank sample.
+            - **Limit of Detection (LOD):** The lowest concentration whose signal is statistically distinguishable from the LOB.
             - **Limit of Quantitation (LOQ):** The lowest concentration meeting precision/accuracy requirements, which is almost always higher than the LOD.
-            Confusing these is a common and serious error.
             """)
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The need to define analytical sensitivity is old, but definitions were inconsistent until the **International Council for Harmonisation (ICH)** guideline **ICH Q2(R1) "Validation of Analytical Procedures"** harmonized the definitions and methodologies. This work was heavily influenced by the statistical framework established by **Lloyd Currie at NIST** in his 1968 paper, which established the clear, hypothesis-testing basis for the modern LOB/LOD/LOQ hierarchy.
+            The need to define analytical sensitivity is old, but definitions were inconsistent until the **International Council for Harmonisation (ICH)** guideline **ICH Q2(R1)** harmonized the methodologies. This work was heavily influenced by the statistical framework established by **Lloyd Currie at NIST** in his 1968 paper, which established the clear, hypothesis-testing basis for the modern LOB/LOD/LOQ hierarchy.
 
             #### Mathematical Basis
-            This method is built on the relationship between the assay's signal, its sensitivity (Slope, S), and its noise (standard deviation, σ). The standard deviation σ is most robustly estimated using the **residual standard error** from a regression model fit to low-concentration data.
-
-            - **Limit of Detection (LOD):** The formula is designed to control the risk of false positives and false negatives. The factor 3.3 is an approximation related to a high level of confidence that a signal at this level is not a random fluctuation of the blank.
+            This method is built on the relationship between the assay's signal, its sensitivity (Slope, S), and its noise (standard deviation, σ).
             """)
             st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
-            st.markdown("""
-            - **Limit of Quantitation (LOQ):** This is about measurement quality. It demands a much higher signal-to-noise ratio to ensure the measurement has an acceptable level of uncertainty. The factor of 10 is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.
-            """)
             st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
+            st.markdown("The factor of 10 for LOQ is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.")
 
 def render_method_comparison():
     """Renders the interactive module for Method Comparison."""

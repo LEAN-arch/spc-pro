@@ -1913,30 +1913,83 @@ def render_4pl_regression():
     """Renders the module for 4-Parameter Logistic (4PL) regression."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To accurately model the characteristic sigmoidal (S-shaped) dose-response relationship found in most immunoassays (e.g., ELISA) and biological assays. A straight-line (linear) model is fundamentally incorrect for this type of data.
+    **Purpose:** To accurately model the characteristic sigmoidal (S-shaped) dose-response relationship found in most immunoassays (e.g., ELISA) and biological assays. A straight-line (linear) model is fundamentally incorrect for this type of data, as it fails to capture the lower and upper plateaus of the response.
     
-    **Strategic Application:** This is the workhorse model for potency assays, immunoassays, and any assay where the response has a floor, a ceiling, and a sloped transition between them. The Four-Parameter Logistic (4PL) model allows for the accurate calculation of critical assay parameters:
-    - **EC50 / IC50:** The concentration that produces 50% of the maximal response, a key measure of a drug's potency.
-    - **Quantitation of Unknowns:** By inverting the fitted curve, the model can accurately determine the concentration of unknown samples from their signal response.
-    - **System Suitability:** The fitted parameters (like slope and asymptotes) can be used as system suitability criteria to ensure the assay is performing correctly on a given day.
+    **Strategic Application:** This is the undisputed workhorse model for relative potency assays, immunoassays, and any bioassay where the biological response has a floor, a ceiling, and a sloped transition. The Four-Parameter Logistic (4PL) model is critical for:
+    - **Potency Calculation (EC50/IC50):** Determining the concentration that produces 50% of the maximal response, the single most important measure of a drug's biological activity or an analyte's sensitivity.
+    - **Quantitation of Unknowns:** Inverting the fitted curve to accurately determine the concentration of unknown samples from their signal response. This is the basis for most QC release and clinical sample testing.
+    - **Assay Health Monitoring:** Using the fitted parameters (slope, asymptotes) as system suitability criteria to ensure the assay is performing correctly day-to-day.
     """)
+    
     fig, params = plot_4pl_regression()
     
-    # This entire block was incorrectly indented. It now belongs inside the function.
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
+        
     with col2:
         # Unpack params into named variables for clarity and robustness
         a_fit, b_fit, c_fit, d_fit = params
         
-        st.subheader("Fitted Parameters")
-        st.metric("Upper Asymptote (a)", f"{a_fit:.3f}")
-        st.metric("Hill Slope (b)", f"{b_fit:.3f}")
-        st.metric("EC50 (c)", f"{c_fit:.3f}")
-        st.metric("Lower Asymptote (d)", f"{d_fit:.3f}")
-        st.markdown("**Interpretation:** The 4PL model fits four key parameters to describe the curve's shape. The `EC50` (parameter 'c') is often the most important KPI, representing the potency of the analyte. A good fit is characterized by the red dashed line closely tracking the measured data points and by a high R-squared value for the non-linear fit.")
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🅰️ Upper Asymptote (Max Signal)", value=f"{a_fit:.3f}", help="The maximum possible signal in the assay. Represents reagent saturation.")
+            st.metric(label="🅱️ Hill Slope (Steepness)", value=f"{b_fit:.3f}", help="The steepness of the curve at its midpoint. A steep slope indicates a large change in signal for a small change in concentration.")
+            st.metric(label="🎯 EC50 (Potency)", value=f"{c_fit:.3f} units", help="The concentration that gives a response halfway between min and max. This is the primary KPI for potency.")
+            st.metric(label="🅾️ Lower Asymptote (Min Signal)", value=f"{d_fit:.3f}", help="The signal from background or non-specific binding. The assay 'floor'.")
 
+            st.markdown("""
+            - **The Four Pillars of the Curve:** Each parameter tells a story about the assay's health.
+                - **(a) & (d) Asymptotes:** Define the theoretical dynamic range of the assay. If these values drift over time, it could indicate reagent degradation or changes in non-specific binding.
+                - **(b) Hill Slope:** Reflects the sensitivity of the assay. A shallow slope means a wider, less precise reportable range.
+                - **(c) EC50:** The star of the show. This is your potency result. A lower EC50 often means higher potency.
+            
+            - **Goodness-of-Fit is Visual:** The most important diagnostic is your own eye. The red dashed line must *look* like it's accurately describing the trend in your data points. Don't rely on R-squared alone. Check that the curve fits well at the top and bottom, not just in the middle.
+
+            **The Core Strategic Insight:** The 4PL curve is more than a calculation tool; it's a complete picture of your assay's performance. By monitoring all four parameters over time, you can detect subtle shifts in assay health long before a simple pass/fail result goes out of spec, enabling proactive troubleshooting.
+            """)
+            
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: "Force the Fit"**
+            The goal is to get a good R-squared value, no matter what.
+            
+            - *"My data isn't perfectly S-shaped, so I'll use linear regression on the middle part of the curve."* (This is fundamentally wrong and will bias your results).
+            - *"The model doesn't fit the lowest point well. I'll just delete that point from the dataset."* (This is data manipulation and invalidates the result).
+            - *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated and can be high even for a visibly poor fit, especially with asymptotes).
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Model the Biology, Weight the Variance**
+            The goal is to use a mathematical model that honors the underlying biological/chemical reality of the system.
+            
+            - **Embrace the 'S' Shape:** The sigmoidal curve exists for a reason (e.g., receptor saturation, binding equilibria). The 4PL is designed specifically for this. **Always use a non-linear model for non-linear data.**
+            - **Weight Your Points:** In many assays, the variance is not constant across the range of concentrations (a property called heteroscedasticity). Points at the top of the curve often have more variability than points at the bottom. A good regression algorithm will apply less "weight" to the more variable points, resulting in a much more accurate and robust fit.
+            - **Look at the Residuals:** A good fit has residuals (the errors between the data and the curve) that are randomly scattered around zero. Any clear pattern in the residuals indicates the model is not capturing the data correctly.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The 4PL model is a direct descendant of the **Hill Equation**, published in 1910 by the pioneering British physiologist **Archibald Hill**. He developed the equation to describe the sigmoidal binding curve of oxygen to hemoglobin in the blood. This was one of the first and most successful mathematical descriptions of cooperative binding in biology.
+            
+            In the 1970s and 80s, with the rise of radioimmunoassays (RIAs) and then enzyme-linked immunosorbent assays (ELISAs), scientists needed a robust, generalizable model for their S-shaped data. They adapted the Hill equation into the four-parameter logistic function we use today, adding parameters for the upper and lower asymptotes to account for the physical limits of the assay signal. It is now the industry-standard model for almost all such assays.
+            
+            #### Mathematical Basis
+            The 4PL equation describes the relationship between concentration (`x`) and the measured response (`y`):
+            """)
+            st.latex(r"y = d + \frac{a - d}{1 + (\frac{x}{c})^b}")
+            st.markdown("""
+            - **`y`**: The measured response (e.g., absorbance).
+            - **`x`**: The concentration of the analyte.
+            - **`a`**: The response at infinite concentration (the upper asymptote).
+            - **`d`**: The response at zero concentration (the lower asymptote).
+            - **`c`**: The point of inflection (the EC50 or IC50).
+            - **`b`**: The Hill slope, a measure of steepness.
+            
+            The process of "fitting" is a non-linear regression, where a computer algorithm iteratively adjusts the values of `a, b, c, d` to find the combination that minimizes the total distance (typically the sum of squared errors) between the curve and the actual data points.
+            """)
 # The code below was incorrectly merged. It is now its own separate function.
 def render_roc_curve():
     """Renders the module for Receiver Operating Characteristic (ROC) curve analysis."""

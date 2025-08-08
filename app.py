@@ -1363,6 +1363,7 @@ def render_causal_inference():
 
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
+# THIS SECTION MUST COME AFTER ALL 'render' FUNCTIONS HAVE BEEN DEFINED
 # ==============================================================================
 st.title("🛠️ Biotech V&V Analytics Toolkit")
 st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
@@ -1434,7 +1435,6 @@ with st.sidebar.expander("ACT III: LIFECYCLE & PREDICTIVE MGMT", expanded=True):
     option_menu(None, act3_options, icons=act3_icons, menu_icon="cast", key='act3_menu', on_change=update_method,
                 default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
 
-
 # --- Main Content Area Dispatcher ---
 method_key = st.session_state.method_key
 st.header(f"🔧 {method_key}")
@@ -1480,4 +1480,3 @@ else:
     st.error("Selected module not found. Please select an option from the sidebar.")
     st.session_state.method_key = "Confidence Interval Concept"
     st.rerun()
-

@@ -3608,8 +3608,6 @@ with st.sidebar:
 # --- Main Content Area Dispatcher ---
 # This logic checks the session state and decides what to render.
 view = st.session_state.current_view
-
-# The list of introductory "tools" that all point to the same rendering function
 INTRO_VIEWS = ["The Scientist's Journey", "V&V Strategic Framework", "Project Workflow Timeline"]
 
 if view in INTRO_VIEWS:

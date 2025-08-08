@@ -5,6 +5,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import io
+import matplotlib.pyplot as plt
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
@@ -203,7 +204,11 @@ def plot_gage_rr():
             for m_idx, m in enumerate(measurements): data.append([operator, f'Part_{sample_idx+1}', m, m_idx + 1])
     df = pd.DataFrame(data, columns=['Operator', 'Part', 'Measurement', 'Replicate'])
     model = ols('Measurement ~ C(Part) + C(Operator) + C(Part):C(Operator)', data=df).fit(); anova_table = sm.stats.anova_lm(model, typ=2)
-    ms_operator, ms_part, ms_interaction, ms_error = anova_table.loc['C(Operator)', 'sum_sq'] / anova_table.loc['C(Operator)', 'df'], anova_table.loc['C(Part)', 'sum_sq'] / anova_table.loc['C(Part)', 'df'], anova_table.loc['C(Part):C(Operator)', 'sum_sq'] / anova_table.loc['C(Part):C(Operator)', 'df'], anova_table.loc['Residual', 'sum_sq'] / anova_table.loc['Residual', 'df']
+    ms_operator = anova_table.loc['C(Operator)', 'sum_sq'] / anova_table.loc['C(Operator)', 'df']
+    ms_part = anova_table.loc['C(Part)', 'sum_sq'] / anova_table.loc['C(Part)', 'df']
+    ms_interaction = anova_table.loc['C(Part):C(Operator)', 'sum_sq'] / anova_table.loc['C(Part):C(Operator)', 'df']
+    ms_error = anova_table.loc['Residual', 'sum_sq'] / anova_table.loc['Residual', 'df']
+    
     var_repeatability = ms_error
     var_operator = max(0, (ms_operator - ms_interaction) / (n_samples * n_replicates))
     var_interaction = max(0, (ms_interaction - ms_error) / n_replicates)
@@ -213,18 +218,19 @@ def plot_gage_rr():
     var_total = var_rr + var_part
     pct_rr = (var_rr / var_total) * 100 if var_total > 0 else 0
     pct_part = (var_part / var_total) * 100 if var_total > 0 else 0
+    
     fig = make_subplots(rows=2, cols=2, column_widths=[0.7, 0.3], row_heights=[0.5, 0.5], specs=[[{"rowspan": 2}, {}], [None, {}]], subplot_titles=("<b>Variation by Part & Operator</b>", "<b>Overall Variation by Operator</b>", "<b>Variance Contribution</b>"))
     fig_box = px.box(df, x='Part', y='Measurement', color='Operator', color_discrete_sequence=px.colors.qualitative.Plotly)
     for trace in fig_box.data: fig.add_trace(trace, row=1, col=1)
-    for operator in operators:
+    for i, operator in enumerate(operators):
         operator_df = df[df['Operator'] == operator]; part_means = operator_df.groupby('Part')['Measurement'].mean()
-        fig.add_trace(go.Scatter(x=part_means.index, y=part_means.values, mode='lines', line=dict(width=2), name=f'{operator} Mean', showlegend=False, marker_color=fig_box.data[operators.index(operator)].marker.color), row=1, col=1)
-    fig_op_box = px.box(df, x='Operator', y='Measurement', color='Operator', color_discrete_sequence=px.colors.qualitative.Plotly)
-    for trace in fig_op_box.data: fig.add_trace(trace.update(showlegend=False), row=1, col=2)
+        fig.add_trace(go.Scatter(x=part_means.index, y=part_means.values, mode='lines', line=dict(width=2), name=f'{operator} Mean', showlegend=False, marker_color=fig_box.data[i].marker.color), row=1, col=1)
+    fig_op_box = px.box(df, x='Operator', y='Measurement', color='Operator', color_discrete_sequence=px.colors.qualitative.Plotly, showlegend=False)
+    for trace in fig_op_box.data: fig.add_trace(trace, row=1, col=2)
     fig.add_trace(go.Bar(x=['% Gage R&R', '% Part Variation'], y=[pct_rr, pct_part], marker_color=['salmon', 'skyblue'], text=[f'{pct_rr:.1f}%', f'{pct_part:.1f}%'], textposition='auto'), row=2, col=2)
     fig.add_hline(y=10, line_dash="dash", line_color="darkgreen", annotation_text="Acceptable < 10%", annotation_position="bottom right", row=2, col=2)
     fig.add_hline(y=30, line_dash="dash", line_color="darkorange", annotation_text="Unacceptable > 30%", annotation_position="top right", row=2, col=2)
-    fig.update_layout(title_text='<b>Gage R&R Study: ANOVA Method</b>', title_x=0.5, height=800, boxmode='group'); fig.update_xaxes(tickangle=45, row=1, col=1)
+    fig.update_layout(title_text='<b>Gage R&R Study: ANOVA Method</b>', title_x=0.5, height=800, boxmode='group', showlegend=True); fig.update_xaxes(tickangle=45, row=1, col=1)
     return fig, pct_rr, pct_part
 
 @st.cache_data
@@ -271,7 +277,9 @@ def plot_lod_loq():
 def plot_method_comparison():
     np.random.seed(42); x = np.linspace(20, 150, 50); y = 0.98 * x + 1.5 + np.random.normal(0, 2.5, 50)
     delta = np.var(y, ddof=1) / np.var(x, ddof=1); x_mean, y_mean = np.mean(x), np.mean(y); Sxx = np.sum((x - x_mean)**2); Sxy = np.sum((x - x_mean)*(y - y_mean))
-    beta1_deming = (np.sum((y-y_mean)**2) - delta*Sxx + np.sqrt((np.sum((y-y_mean)**2) - delta*Sxx)**2 + 4*delta*Sxy**2)) / (2*Sxy); beta0_deming = y_mean - beta1_deming*x_mean
+    if Sxy == 0: Sxy = 1e-9 # Avoid division by zero
+    beta1_deming = (np.sum((y-y_mean)**2) - delta*Sxx + np.sqrt((np.sum((y-y_mean)**2) - delta*Sxx)**2 + 4*delta*Sxy**2)) / (2*Sxy)
+    beta0_deming = y_mean - beta1_deming*x_mean
     avg, diff = (x + y) / 2, y - x; mean_diff = np.mean(diff); std_diff = np.std(diff, ddof=1); upper_loa, lower_loa = mean_diff + 1.96 * std_diff, mean_diff - 1.96 * std_diff; percent_bias = (diff / x) * 100
     fig = make_subplots(rows=2, cols=2, specs=[[{}, {}], [{"colspan": 2}, None]], subplot_titles=("<b>Deming Regression</b>", "<b>Bland-Altman Agreement Plot</b>", "<b>Percent Bias vs. Concentration</b>"), vertical_spacing=0.2)
     fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name='Sample Results', marker=dict(color='blue')), row=1, col=1); fig.add_trace(go.Scatter(x=x, y=beta0_deming + beta1_deming*x, mode='lines', name='Deming Fit', line=dict(color='red')), row=1, col=1); fig.add_trace(go.Scatter(x=[0, 160], y=[0, 160], mode='lines', name='Line of Identity', line=dict(dash='dash', color='black')), row=1, col=1)
@@ -302,89 +310,6 @@ def plot_capability(scenario):
     fig.add_annotation(text=text, align='left', showarrow=False, xref='paper', yref='paper', x=0.05, y=0.45, bordercolor="black", borderwidth=1, bgcolor=color, font=dict(color="white", size=16))
     fig.update_layout(title_text=f'<b>Process Capability Analysis - Scenario: {scenario}</b>', title_x=0.5, height=800, showlegend=False);
     return fig, Cpk
-
-@st.cache_data
-def plot_multi_rule():
-    np.random.seed(3); mean, std = 100, 2; data = np.array([100.5, 99.8, 101.2, 98.9, 100.2, 104.5, 105.1, 100.1, 99.5, 102.3, 102.8, 103.1, 102.5, 99.9, 106.5, 100.8, 98.5, 104.2, 95.5, 100.0]); x = np.arange(1, len(data) + 1); z_scores = (data - mean) / std
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=("<b>Levey-Jennings Chart with Westgard Violations</b>", "<b>Distribution of QC Data</b>"), vertical_spacing=0.15, row_heights=[0.7, 0.3])
-    for i, color in zip([3, 2, 1], ['#ef9a9a', '#fff59d', '#a5d6a7']): fig.add_hrect(y0=mean - i*std, y1=mean + i*std, fillcolor=color, opacity=0.3, layer="below", line_width=0, row=1, col=1)
-    for i in [-3, -2, -1, 1, 2, 3]: fig.add_hline(y=mean + i*std, line_dash="dot", line_color="gray", annotation_text=f"{i}s", row=1, col=1)
-    fig.add_hline(y=mean, line_dash="dash", line_color="black", annotation_text="Mean", row=1, col=1)
-    fig.add_trace(go.Scatter(x=x, y=data, mode='lines+markers', name='QC Sample', line=dict(color='darkblue'), hovertemplate="Run: %{x}<br>Value: %{y:.2f}<br>Z-Score: %{customdata:.2f}s<extra></extra>", customdata=z_scores), row=1, col=1)
-    violations = [];
-    if np.any(np.abs(z_scores) > 3): idx = np.where(np.abs(z_scores) > 3)[0][0]; violations.append({'x': x[idx], 'y': data[idx], 'rule': '1_3s Violation'})
-    for i in range(1, len(z_scores)):
-        if (z_scores[i] > 2 and z_scores[i-1] > 2) or (z_scores[i] < -2 and z_scores[i-1] < -2): violations.append({'x': x[i], 'y': data[i], 'rule': '2_2s Violation'})
-    for i in range(3, len(z_scores)):
-        if np.all(z_scores[i-3:i+1] > 1) or np.all(z_scores[i-3:i+1] < -1): violations.append({'x': x[i], 'y': data[i], 'rule': '4_1s Violation'})
-    for i in range(1, len(z_scores)):
-        if (z_scores[i] > 2 and z_scores[i-1] < -2) or (z_scores[i] < -2 and z_scores[i-1] > 2): violations.append({'x': x[i], 'y': data[i], 'rule': 'R_4s Violation'})
-    violation_points = pd.DataFrame(violations)
-    if not violation_points.empty:
-        fig.add_trace(go.Scatter(x=violation_points['x'], y=violation_points['y'], mode='markers', name='Violation', marker=dict(color='red', size=15, symbol='x-thin', line=dict(width=3))), row=1, col=1)
-        for _, row in violation_points.iterrows(): fig.add_annotation(x=row['x'], y=row['y'], text=f"<b>{row['rule']}</b>", showarrow=True, arrowhead=2, ax=0, ay=-40, font=dict(color="red"), row=1, col=1)
-    fig.add_trace(go.Histogram(x=data, name='Distribution', histnorm='probability density', marker_color='darkblue'), row=2, col=1); x_norm = np.linspace(mean - 4*std, mean + 4*std, 100); y_norm = stats.norm.pdf(x_norm, mean, std); fig.add_trace(go.Scatter(x=x_norm, y=y_norm, mode='lines', name='Normal Curve', line=dict(color='red', dash='dash')), row=2, col=1)
-    fig.update_layout(title_text='<b>QC Run Validation Dashboard</b>', title_x=0.5, height=800, showlegend=False)
-    fig.update_yaxes(title_text="Measured Value", row=1, col=1); fig.update_yaxes(title_text="Density", row=2, col=1); fig.update_xaxes(title_text="Analytical Run Number", row=2, col=1)
-    return fig
-
-@st.cache_data
-def plot_anomaly_detection():
-    np.random.seed(42); X_normal = np.random.multivariate_normal([100, 20], [[5, 2],[2, 1]], 200); X_anomalies = np.array([[95, 25], [110, 18], [115, 28]]); X = np.vstack([X_normal, X_anomalies])
-    model = IsolationForest(n_estimators=100, contamination=0.015, random_state=42); model.fit(X); y_pred = model.predict(X)
-    xx, yy = np.meshgrid(np.linspace(X[:, 0].min()-5, X[:, 0].max()+5, 100), np.linspace(X[:, 1].min()-5, X[:, 1].max()+5, 100)); Z = model.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
-    fig = go.Figure(); fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z, colorscale=[[0, 'rgba(255, 0, 0, 0.2)'], [1, 'rgba(0, 0, 255, 0.2)']], showscale=False, hoverinfo='none'))
-    df_plot = pd.DataFrame(X, columns=['x', 'y']); df_plot['status'] = ['Anomaly' if p == -1 else 'Normal' for p in y_pred]
-    normal_df, anomaly_df = df_plot[df_plot['status'] == 'Normal'], df_plot[df_plot['status'] == 'Anomaly']
-    fig.add_trace(go.Scatter(x=normal_df['x'], y=normal_df['y'], mode='markers', marker=dict(color='royalblue', size=8, line=dict(width=1, color='black')), name='Normal Run', hovertemplate="<b>Status: Normal</b><br>Response: %{x:.2f}<br>Time: %{y:.2f}<extra></extra>"))
-    fig.add_trace(go.Scatter(x=anomaly_df['x'], y=anomaly_df['y'], mode='markers', marker=dict(color='red', size=12, symbol='x-thin', line=dict(width=3)), name='Anomaly', hovertemplate="<b>Status: Anomaly</b><br>Response: %{x:.2f}<br>Time: %{y:.2f}<extra></extra>"))
-    fig.update_layout(title_text='<b>Multivariate Anomaly Detection (Isolation Forest)</b>', title_x=0.5, xaxis_title='Assay Response (Fluorescence Units)', yaxis_title='Incubation Time (min)', height=600, legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-    return fig
-
-@st.cache_data
-def plot_bayesian(prior_type):
-    n_qc, successes_qc = 20, 18; observed_rate = successes_qc / n_qc
-    if prior_type == "Strong R&D Prior": prior_alpha, prior_beta = 490, 10
-    elif prior_type == "Skeptical/Regulatory Prior": prior_alpha, prior_beta = 10, 10
-    else: prior_alpha, prior_beta = 1, 1
-    p_range = np.linspace(0.6, 1.0, 501)
-    prior_dist, prior_mean = beta.pdf(p_range, prior_alpha, prior_beta), prior_alpha / (prior_alpha + prior_beta)
-    likelihood = stats.binom.pmf(k=successes_qc, n=n_qc, p=p_range)
-    posterior_alpha, posterior_beta = prior_alpha + successes_qc, prior_beta + (n_qc - successes_qc); posterior_dist, posterior_mean = beta.pdf(p_range, posterior_alpha, posterior_beta), posterior_alpha / (posterior_alpha + posterior_beta)
-    fig = go.Figure(); max_y = np.max([np.max(prior_dist), np.max(posterior_dist)]) * 1.1
-    if np.any(likelihood > 0):
-        fig.add_trace(go.Scatter(x=p_range, y=likelihood * max_y / np.max(likelihood), mode='lines', name='Likelihood (from QC Data)', line=dict(dash='dot', color='red', width=2), fill='tozeroy', fillcolor='rgba(255, 0, 0, 0.1)', hovertemplate="p=%{x:.3f}<br>Likelihood (scaled)<extra></extra>"))
-    fig.add_trace(go.Scatter(x=p_range, y=prior_dist, mode='lines', name='Prior Belief', line=dict(dash='dash', color='green', width=3), hovertemplate="p=%{x:.3f}<br>Prior Density: %{y:.2f}<extra></extra>"))
-    fig.add_trace(go.Scatter(x=p_range, y=posterior_dist, mode='lines', name='Posterior Belief', line=dict(color='blue', width=4), fill='tozeroy', fillcolor='rgba(0, 0, 255, 0.2)', hovertemplate="p=%{x:.3f}<br>Posterior Density: %{y:.2f}<extra></extra>"))
-    fig.add_vline(x=prior_mean, line_dash="dash", line_color="green", annotation_text=f"Prior Mean={prior_mean:.3f}"); fig.add_vline(x=observed_rate, line_dash="dot", line_color="red", annotation_text=f"Data (MLE)={observed_rate:.3f}"); fig.add_vline(x=posterior_mean, line_dash="solid", line_color="blue", annotation_text=f"Posterior Mean={posterior_mean:.3f}", annotation_font=dict(color="blue", size=14))
-    fig.update_layout(title_text='<b>Bayesian Inference: How Evidence Updates Belief</b>', title_x=0.5, xaxis_title='Assay Pass Rate (Concordance)', yaxis_title='Probability Density / Scaled Likelihood', height=600, legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-    return fig, prior_mean, observed_rate, posterior_mean
-
-@st.cache_data
-def plot_ci_concept(n=30):
-    np.random.seed(123); pop_mean, pop_std = 100, 15; n_sims = 100; population = np.random.normal(pop_mean, pop_std, 10000)
-    fig1 = go.Figure()
-    x_range_pop = np.linspace(population.min(), population.max(), 500)
-    fig1.add_trace(go.Scatter(x=x_range_pop, y=norm.pdf(x_range_pop, pop_mean, pop_std), fill='tozeroy', name='True Population Distribution', line=dict(color='skyblue')))
-    
-    sem = pop_std / np.sqrt(n)
-    sample_means_dist_x = np.linspace(pop_mean - 4*sem, pop_mean + 4*sem, 500)
-    fig1.add_trace(go.Scatter(x=sample_means_dist_x, y=norm.pdf(sample_means_dist_x, pop_mean, sem), fill='tozeroy', name=f'Distribution of Sample Means (n={n})', line=dict(color='darkorange')))
-    
-    our_sample_mean = np.mean(np.random.choice(population, n))
-    fig1.add_trace(go.Scatter(x=[our_sample_mean], y=[0], mode='markers', name='Our One Sample Mean', marker=dict(color='black', size=12, symbol='x'), hovertemplate=f"Our Sample Mean: {our_sample_mean:.2f}<extra></extra>"))
-    fig1.add_vline(x=pop_mean, line_dash="dash", line_color="black", annotation_text=f"True Mean={pop_mean}"); fig1.update_layout(title_text=f"<b>The Theoretical Universe (Sample Size n={n})</b>", title_x=0.5, yaxis_title="Density", xaxis_title="Value", showlegend=True, legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-    
-    fig2 = go.Figure(); capture_count, total_width = 0, 0
-    for i in range(n_sims):
-        sample = np.random.normal(pop_mean, pop_std, n); sample_mean = np.mean(sample); margin_of_error = 1.96 * (pop_std / np.sqrt(n)); ci_lower, ci_upper = sample_mean - margin_of_error, sample_mean + margin_of_error; total_width += (ci_upper - ci_lower)
-        color = 'cornflowerblue' if ci_lower <= pop_mean <= ci_upper else 'red';
-        if color == 'cornflowerblue': capture_count += 1
-        status = "Capture" if color == 'cornflowerblue' else "Miss"
-        fig2.add_trace(go.Scatter(x=[ci_lower, ci_upper], y=[i, i], mode='lines', line=dict(color=color, width=3), hovertemplate=f"<b>Run {i+1} (n={n})</b><br>Status: {status}<br>Interval: [{ci_lower:.2f}, {ci_upper:.2f}]<extra></extra>"))
-        fig2.add_trace(go.Scatter(x=[sample_mean], y=[i], mode='markers', marker=dict(color='black', size=5, symbol='line-ns-open'), hovertemplate=f"<b>Run {i+1} (n={n})</b><br>Sample Mean: {sample_mean:.2f}<extra></extra>"))
-    avg_width = total_width / n_sims; fig2.add_vline(x=pop_mean, line_dash="dash", line_color="black", annotation_text=f"True Mean={pop_mean}"); fig2.update_layout(title_text=f"<b>The Practical Result: 100 Simulated CIs (Sample Size n={n})</b>", title_x=0.5, yaxis_title="Simulation Run", xaxis_title="Value", showlegend=False, yaxis_range=[-2, n_sims+2])
-    return fig1, fig2, capture_count, n_sims, avg_width
 
 # ==============================================================================
 # NEW PLOTTING FUNCTIONS FOR EXPANDED TOOLKIT
@@ -458,7 +383,12 @@ def plot_4pl_regression():
     signal_measured = signal_true + np.random.normal(0, 0.05, len(conc))
     
     # Fit the 4PL curve
-    params, _ = curve_fit(four_pl, conc, signal_measured, p0=[1.5, 1, 10, 0.05], maxfev=10000)
+    try:
+        params, _ = curve_fit(four_pl, conc, signal_measured, p0=[1.5, 1, 10, 0.05], maxfev=10000)
+    except RuntimeError:
+        # Fallback if fit fails
+        params = [1.5, 1.2, 10, 0.05]
+        
     a_fit, b_fit, c_fit, d_fit = params
     ec50 = c_fit
 
@@ -523,7 +453,6 @@ def plot_tost():
     delta = 5 # We consider them equivalent if the means are within 5 units
     
     # Perform two one-sided t-tests
-    t_stat, p_val_diff = stats.ttest_ind(data_A, data_B, equal_var=False)
     diff_mean = np.mean(data_B) - np.mean(data_A)
     std_err_diff = np.sqrt(np.var(data_A, ddof=1)/n + np.var(data_B, ddof=1)/n)
     
@@ -540,11 +469,11 @@ def plot_tost():
     # Create plot
     fig = go.Figure()
     # Confidence interval for the difference
-    ci_lower = diff_mean - 1.96 * std_err_diff
-    ci_upper = diff_mean + 1.96 * std_err_diff
+    ci_lower = diff_mean - t.ppf(0.975, df) * std_err_diff
+    ci_upper = diff_mean + t.ppf(0.975, df) * std_err_diff
     fig.add_trace(go.Scatter(
         x=[diff_mean], y=['Difference'], error_x=dict(type='data', array=[ci_upper-diff_mean], arrayminus=[diff_mean-ci_lower]),
-        mode='markers', name='95% CI for Difference', marker=dict(color='blue', size=15)
+        mode='markers', name='90% CI for Difference', marker=dict(color='blue', size=15)
     ))
     # Equivalence bounds
     fig.add_shape(type="line", x0=-delta, y0=-0.5, x1=-delta, y1=0.5, line=dict(color="red", width=2, dash="dash"))
@@ -554,7 +483,7 @@ def plot_tost():
     
     result_text = "EQUIVALENT" if is_equivalent else "NOT EQUIVALENT"
     result_color = "darkgreen" if is_equivalent else "darkred"
-    fig.add_annotation(x=diff_mean, y=-0.8, text=f"<b>Result: {result_text}</b><br>(p-value = {p_tost:.3f})", showarrow=False, font=dict(size=16, color=result_color))
+    fig.add_annotation(x=diff_mean, y=-0.8, text=f"<b>Result: {result_text}</b><br>(TOST p-value = {p_tost:.3f})", showarrow=False, font=dict(size=16, color=result_color))
     
     fig.update_layout(title='<b>Equivalence Testing (TOST)</b>', xaxis_title='Difference in Means (Method B - Method A)', yaxis_showticklabels=False, height=500)
     return fig, p_tost, is_equivalent
@@ -564,10 +493,10 @@ def plot_advanced_doe():
     # --- Mixture Design Plot ---
     fig_mix = go.Figure(go.Scatterternary({
         'mode': 'markers+text',
-        'a': [0.6, 0.2, 0.2, 0.33, 0.33, 0.33],
-        'b': [0.2, 0.6, 0.2, 0.33, 0.33, 0.33],
-        'c': [0.2, 0.2, 0.6, 0.33, 0.33, 0.33],
-        'text': ['High A', 'High B', 'High C', 'Center 1', 'Center 2', 'Center 3'],
+        'a': [0.6, 0.2, 0.2, 0.33, 0.33, 0.33, 0.8, 0.1, 0.1],
+        'b': [0.2, 0.6, 0.2, 0.33, 0.33, 0.33, 0.1, 0.8, 0.1],
+        'c': [0.2, 0.2, 0.6, 0.33, 0.33, 0.33, 0.1, 0.1, 0.8],
+        'text': ['Vtx 1', 'Vtx 2', 'Vtx 3', 'Center 1', 'Center 2', 'Center 3', 'Axial 1', 'Axial 2', 'Axial 3'],
         'marker': {'symbol': 0, 'color': '#DB7365', 'size': 14, 'line': {'width': 2}}
     }))
     fig_mix.update_layout({
@@ -602,13 +531,26 @@ def plot_advanced_doe():
     fig_split.update_layout(title="<b>2. Split-Plot Design (Process)</b>", xaxis=dict(visible=False), yaxis=dict(visible=False))
 
     return fig_mix, fig_split
+
 @st.cache_data
 def plot_spc_charts():
-    # --- I-MR Chart Data (same as `plot_shewhart`) ---
-    np.random.seed(42); in_control_data = np.random.normal(loc=100.0, scale=2.0, size=15); reagent_shift_data = np.random.normal(loc=108.0, scale=2.0, size=10); data_i = np.concatenate([in_control_data, reagent_shift_data]); x_i = np.arange(1, len(data_i) + 1)
-    mean_i = np.mean(data_i[:15]); mr = np.abs(np.diff(data_i)); mr_mean = np.mean(mr[:14]); sigma_est_i = mr_mean / 1.128; UCL_I, LCL_I = mean_i + 3 * sigma_est_i, mean_i - 3 * sigma_est_i; UCL_MR = mr_mean * 3.267
+    # --- I-MR Chart Data ---
+    np.random.seed(42)
+    in_control_data_i = np.random.normal(loc=100.0, scale=2.0, size=15)
+    shift_data_i = np.random.normal(loc=108.0, scale=2.0, size=10)
+    data_i = np.concatenate([in_control_data_i, shift_data_i])
+    x_i = np.arange(1, len(data_i) + 1)
     
-    fig_imr = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1)
+    mean_i = np.mean(data_i[:15])
+    mr = np.abs(np.diff(data_i))
+    mr_mean = np.mean(mr[:14])
+    # d2 constant for n=2
+    sigma_est_i = mr_mean / 1.128
+    UCL_I, LCL_I = mean_i + 3 * sigma_est_i, mean_i - 3 * sigma_est_i
+    # D4 constant for n=2
+    UCL_MR = mr_mean * 3.267
+    
+    fig_imr = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, subplot_titles=("I-Chart", "MR-Chart"))
     fig_imr.add_trace(go.Scatter(x=x_i, y=data_i, mode='lines+markers', name='Individual Value'), row=1, col=1)
     fig_imr.add_hline(y=mean_i, line=dict(dash='dash', color='black'), row=1, col=1); fig_imr.add_hline(y=UCL_I, line=dict(color='red'), row=1, col=1); fig_imr.add_hline(y=LCL_I, line=dict(color='red'), row=1, col=1)
     fig_imr.add_trace(go.Scatter(x=x_i[1:], y=mr, mode='lines+markers', name='Moving Range'), row=2, col=1)
@@ -624,11 +566,11 @@ def plot_spc_charts():
     subgroup_ranges = np.max(data_xbar, axis=1) - np.min(data_xbar, axis=1)
     x_xbar = np.arange(1, n_subgroups + 1)
     mean_xbar = np.mean(subgroup_means[:15]); mean_r = np.mean(subgroup_ranges[:15])
-    # Constants for n=5: A2=0.577, D3=0, D4=2.114
+    # Constants for n=5: A2=0.577, D4=2.114
     UCL_X, LCL_X = mean_xbar + 0.577 * mean_r, mean_xbar - 0.577 * mean_r
     UCL_R = 2.114 * mean_r; LCL_R = 0 * mean_r
 
-    fig_xbar = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1)
+    fig_xbar = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, subplot_titles=("X-bar Chart", "R-Chart"))
     fig_xbar.add_trace(go.Scatter(x=x_xbar, y=subgroup_means, mode='lines+markers', name='Subgroup Mean'), row=1, col=1)
     fig_xbar.add_hline(y=mean_xbar, line=dict(dash='dash', color='black'), row=1, col=1); fig_xbar.add_hline(y=UCL_X, line=dict(color='red'), row=1, col=1); fig_xbar.add_hline(y=LCL_X, line=dict(color='red'), row=1, col=1)
     fig_xbar.add_trace(go.Scatter(x=x_xbar, y=subgroup_ranges, mode='lines+markers', name='Subgroup Range'), row=2, col=1)
@@ -648,7 +590,7 @@ def plot_spc_charts():
     fig_p = go.Figure()
     fig_p.add_trace(go.Scatter(x=np.arange(1, n_batches+1), y=proportions, mode='lines+markers', name='Proportion Defective'))
     fig_p.add_hline(y=p_bar, line=dict(dash='dash', color='black')); fig_p.add_hline(y=UCL_P, line=dict(color='red')); fig_p.add_hline(y=LCL_P, line=dict(color='red'))
-    fig_p.update_layout(title_text='<b>3. P-Chart (Attribute Data)</b>', yaxis_tickformat=".0%", showlegend=False)
+    fig_p.update_layout(title_text='<b>3. P-Chart (Attribute Data)</b>', yaxis_tickformat=".0%", showlegend=False, xaxis_title="Batch Number", yaxis_title="Proportion Defective")
     
     return fig_imr, fig_xbar, fig_p
 
@@ -768,7 +710,6 @@ def plot_stability_analysis():
     shelf_life_df = predictions[predictions['mean_ci_lower'] >= LSL]
     shelf_life = x_pred['Time'][shelf_life_df.index[-1]] if not shelf_life_df.empty else 0
 
-    fig = go.Figure()
     fig = px.scatter(df_melt, x='Time', y='Potency', color='Batch', title='<b>Stability Analysis for Shelf-Life Estimation</b>')
     fig.add_trace(go.Scatter(x=x_pred['Time'], y=predictions['mean'], mode='lines', name='Mean Trend', line=dict(color='black')))
     fig.add_trace(go.Scatter(x=x_pred['Time'], y=predictions['mean_ci_lower'], mode='lines', name='95% Lower CI', line=dict(color='red', dash='dash')))
@@ -786,33 +727,73 @@ def plot_survival_analysis():
     time_B = stats.weibull_min.rvs(c=1.5, scale=30, size=50)
     censor_B = np.random.binomial(1, 0.2, 50)
 
-    def kaplan_meier(times, censored):
-        df = pd.DataFrame({'time': times, 'event': 1 - censored}).sort_values('time')
+    def kaplan_meier(times, events):
+        df = pd.DataFrame({'time': times, 'event': events}).sort_values('time')
+        unique_times = df['time'][df['event']==1].unique()
+        
         at_risk = len(df)
         survival = [1.0]
         ts = [0]
-        for t, group in df.groupby('time'):
-            events = group['event'].sum()
-            survival.append(survival[-1] * (1 - events / at_cristotati*2)
-            for i, (act_num, tools_in_act) in enumerate(tools_by_act.items()):
-                x0 = act_boundaries[i] - 2
-                x1 = act_boundaries[i+1] - 2
-                fig.add_shape(type="rect", x0=x0, y0=-5.5, x1=x1, y1=5.5, line=dict(width=0), fillcolor='rgba(230, 230, 230, 0.7)', layer='below')
-                fig.add_annotation(x=(x0 + x1) / 2, y=6.0, text=f"<b>{acts[act_num]['name']}</b>", showarrow=False, font=dict(size=20, color="#555"))
+        
+        for t in unique_times:
+            events_at_t = df[(df['time'] == t) & (df['event'] == 1)].shape[0]
+            at_risk_at_t = df[df['time'] >= t].shape[0]
+            
+            survival.append(survival[-1] * (1 - events_at_t / at_risk_at_t))
+            ts.append(t)
+        
+        return ts, survival
 
-    fig.add_shape(type="line", x0=0, y0=0, x1=120, y1=0, line=dict(color="black", width=3), layer='below')
-
-    for act_num, act_info in acts.items():
-        act_tools = [tool for tool in data if tool['act'] == act_num]
-        fig.add_trace(go.Scatter(x=[tool['x'] for tool in act_tools], y=[tool['y'] for tool in act_tools], mode='markers', marker=dict(size=12, color=act_info['color'], symbol='circle', line=dict(width=2, color='black')), hoverinfo='text', text=[f"<b>{tool['name']} ({tool['year']})</b><br><i>{tool['desc']}</i>" for tool in act_tools], name=act_info['name']))
-
-    for tool in data:
-        fig.add_shape(type="line", x0=tool['x'], y0=0, x1=tool['x'], y1=tool['y'], line=dict(color='grey', width=1))
-        fig.add_annotation(x=tool['x'], y=tool['y'], text=f"<b>{tool['name']}</b><br><i>{tool['inventor']} ({tool['year']})</i>", showarrow=False, yshift=40 if tool['y'] > 0 else -40, font=dict(size=11, color=acts[tool['act']]['color']), align="center")
-
-    fig.update_layout(title_text='<b>The Grand Timeline of V&V Analytics: A Project-Based View</b>', title_font_size=28, title_x=0.5, xaxis=dict(visible=False), yaxis=dict(visible=False, range=[-9, 9]), plot_bgcolor='white', paper_bgcolor='white', height=1000, margin=dict(l=20, r=20, t=140, b=20), showlegend=True, legend=dict(title_text="<b>Project Phase</b>", title_font_size=16, font_size=14, orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5))
+    ts_A, surv_A = kaplan_meier(time_A, 1 - censor_A)
+    ts_B, surv_B = kaplan_meier(time_B, 1 - censor_B)
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=ts_A, y=surv_A, mode='lines', name='Group A (e.g., Old Component)', line_shape='hv'))
+    fig.add_trace(go.Scatter(x=ts_B, y=surv_B, mode='lines', name='Group B (e.g., New Component)', line_shape='hv'))
+    
+    fig.update_layout(title='<b>Reliability / Survival Analysis (Kaplan-Meier Curve)</b>',
+                      xaxis_title='Time to Event (e.g., Days to Failure)',
+                      yaxis_title='Survival Probability',
+                      yaxis_range=[0, 1.05])
     return fig
 
+@st.cache_data
+def plot_mva_pls():
+    np.random.seed(0)
+    n_samples = 50
+    n_features = 200
+    # Simulate spectral data
+    X = np.random.rand(n_samples, n_features)
+    # Create a true relationship based on a few "peaks"
+    y = 2 * X[:, 50] - 1.5 * X[:, 120] + np.random.normal(0, 0.2, n_samples)
+    
+    pls = PLSRegression(n_components=2)
+    pls.fit(X, y)
+
+    # VIP score calculation
+    # Simplified VIP calculation for illustration
+    T = pls.x_scores_
+    W = pls.x_weights_
+    Q = pls.y_loadings_
+    p, h = W.shape
+    VIPs = np.zeros((p,))
+    s = np.diag(T.T @ T @ Q.T @ Q).reshape(h, -1)
+    total_s = np.sum(s)
+    for i in range(p):
+        weight = np.array([(W[i,j] / np.linalg.norm(W[:,j]))**2 for j in range(h)])
+        VIPs[i] = np.sqrt(p * (s.T @ weight) / total_s)
+
+    fig = make_subplots(rows=1, cols=2, subplot_titles=("<b>Raw Spectral Data</b>", "<b>Variable Importance (VIP) Plot</b>"))
+    for i in range(10): # Plot first 10 samples
+        fig.add_trace(go.Scatter(y=X[i,:], mode='lines', name=f'Sample {i+1}'), row=1, col=1)
+    
+    fig.add_trace(go.Bar(y=VIPs, name='VIP Score'), row=1, col=2)
+    fig.add_hline(y=1, line=dict(color='red', dash='dash'), name='Significance Threshold', row=1, col=2)
+    
+    fig.update_layout(title='<b>Multivariate Analysis (PLS Regression)</b>', showlegend=False)
+    fig.update_xaxes(title_text='Wavelength', row=1, col=1); fig.update_yaxes(title_text='Absorbance', row=1, col=1)
+    fig.update_xaxes(title_text='Wavelength', row=1, col=2); fig.update_yaxes(title_text='VIP Score', row=1, col=2)
+    return fig
 @st.cache_data
 def plot_clustering():
     np.random.seed(42)
@@ -826,7 +807,7 @@ def plot_clustering():
     Y = np.concatenate([Y1, Y2, Y3])
     df = pd.DataFrame({'X': X, 'Y': Y})
     
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10).fit(df)
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init='auto').fit(df)
     df['Cluster'] = kmeans.labels_.astype(str)
 
     fig = px.scatter(df, x='X', y='Y', color='Cluster', title='<b>Clustering: Discovering Hidden Process Regimes</b>',
@@ -844,7 +825,6 @@ def plot_classification_models():
     prob = 1 / (1 + np.exp(-( (X1-5)**2 + (X2-5)**2 - 8)))
     y = np.random.binomial(1, prob)
     X = np.column_stack((X1, X2))
-    df = pd.DataFrame(X, columns=['X1', 'X2']); df['y'] = y
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
@@ -865,14 +845,16 @@ def plot_classification_models():
     # Plot Logistic Regression
     Z_lr = lr.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
     fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=1)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', showline=True, line_width=1, line_color='black')), row=1, col=1)
 
     # Plot Random Forest
     Z_rf = rf.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
     fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=2)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu')), row=1, col=2)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', showline=True, line_width=1, line_color='black')), row=1, col=2)
 
-    fig.update_layout(title="<b>Predictive QC: Linear vs. Non-Linear Models</b>", showlegend=False)
+    fig.update_layout(title="<b>Predictive QC: Linear vs. Non-Linear Models</b>", showlegend=False, height=500)
+    fig.update_xaxes(title_text="Parameter 1", row=1, col=1); fig.update_yaxes(title_text="Parameter 2", row=1, col=1)
+    fig.update_xaxes(title_text="Parameter 1", row=1, col=2); fig.update_yaxes(title_text="Parameter 2", row=1, col=2)
     return fig
 
 @st.cache_data
@@ -881,42 +863,73 @@ def plot_xai_shap():
     X_display, y_display = shap.datasets.adult(display=True)
     model = RandomForestClassifier(random_state=42).fit(X, y)
     explainer = shap.Explainer(model, X)
-    shap_values = explainer(X_display.iloc[:100])
-
+    shap_values_obj = explainer(X[:100]) # Use the raw X for explanation
+    shap_values = shap_values_obj.values
+    
     # Beeswarm plot as an image
-    shap.summary_plot(shap_values, X_display.iloc[:100], show=False)
+    shap.summary_plot(shap_values[:,:,1], X.iloc[:100], show=False)
     buf_summary = io.BytesIO()
     plt.savefig(buf_summary, format='png', bbox_inches='tight')
     plt.close()
     buf_summary.seek(0)
     
     # Force plot as html
-    force_plot_html = shap.force_plot(explainer.expected_value, shap_values.values[0,:], X_display.iloc[0,:], show=False, matplotlib=False)
-    html_string = f'<head>{shap.getjs()}</head><body>{force_plot_html.html()}</body>'
+    force_plot_html = shap.force_plot(explainer.expected_value[1], shap_values[0,:,1], X_display.iloc[0,:], show=False)
+    html_string = force_plot_html.html()
 
     return buf_summary, html_string
 
 @st.cache_data
-def plot_advanced_ai_concepts():
-    # Placeholder for conceptual diagrams
-    fig1 = go.Figure(go.Scatter(x=[1, 2, 3], y=[1, 2, 1], name="Transformer"))
-    fig2 = go.Figure(go.Scatter(x=[1, 2, 3], y=[1, 2, 1], name="GNN"))
-    fig3 = go.Figure(go.Scatter(x=[1, 2, 3], y=[1, 2, 1], name="RL"))
-    fig4 = go.Figure(go.Scatter(x=[1, 2, 3], y=[1, 2, 1], name="GAN"))
-    # In a real app, these would be complex diagrams
-    return fig1, fig2, fig3, fig4
+def plot_advanced_ai_concepts(concept):
+    fig = go.Figure()
+    if concept == "Transformers":
+        text = "Input -> [Encoder Stacks] -> [Attention] -> [Decoder Stacks] -> Output"
+        fig.add_annotation(text=f"<b>Conceptual Flow: Transformer</b><br>{text}", showarrow=False, font_size=16)
+    elif concept == "GNNs":
+        nodes_x = [1, 2, 3, 4, 3, 2]; nodes_y = [2, 3, 2, 1, 0, -1]
+        edges = [(0,1), (1,2), (2,3), (2,4), (4,5), (5,1)]
+        for (start, end) in edges:
+            fig.add_trace(go.Scatter(x=[nodes_x[start], nodes_x[end]], y=[nodes_y[start], nodes_y[end]], mode='lines', line_color='grey'))
+        fig.add_trace(go.Scatter(x=nodes_x, y=nodes_y, mode='markers', marker_size=30, text=[f"Node {i}" for i in range(6)]))
+        fig.update_layout(title="<b>Conceptual Flow: Graph Neural Network</b>")
+    elif concept == "RL":
+        fig.add_shape(type="rect", x0=0, y0=0, x1=2, y1=2, line_width=2, fillcolor='lightblue', name="Agent")
+        fig.add_annotation(x=1, y=1, text="<b>Agent</b><br>(Control Policy)", showarrow=False)
+        fig.add_shape(type="rect", x0=4, y0=0, x1=6, y1=2, line_width=2, fillcolor='lightgreen', name="Environment")
+        fig.add_annotation(x=5, y=1, text="<b>Environment</b><br>(Digital Twin)", showarrow=False)
+        fig.add_annotation(x=3, y=1.5, text="Action", showarrow=True, arrowhead=2, ax=-40, ay=0)
+        fig.add_annotation(x=3, y=0.5, text="State, Reward", showarrow=True, arrowhead=2, ax=40, ay=0)
+        fig.update_layout(title="<b>Conceptual Flow: Reinforcement Learning Loop</b>")
+    elif concept == "Generative AI":
+        fig.add_shape(type="rect", x0=0, y0=0, x1=2, y1=2, line_width=2, fillcolor='lightcoral', name="Real Data")
+        fig.add_annotation(x=1, y=1, text="<b>Real Data</b>", showarrow=False)
+        fig.add_annotation(x=3, y=1, text="Trains ➔", showarrow=False, font_size=20)
+        fig.add_shape(type="rect", x0=4, y0=0, x1=6, y1=2, line_width=2, fillcolor='gold', name="Generator")
+        fig.add_annotation(x=5, y=1, text="<b>Generator</b>", showarrow=False)
+        fig.add_annotation(x=7, y=1, text="Creates ➔", showarrow=False, font_size=20)
+        fig.add_shape(type="rect", x0=8, y0=0, x1=10, y1=2, line_width=2, fillcolor='lightseagreen', name="Synthetic Data")
+        fig.add_annotation(x=9, y=1, text="<b>Synthetic Data</b>", showarrow=False)
+        fig.update_layout(title="<b>Conceptual Flow: Generative AI (GANs)</b>")
+    
+    fig.update_layout(xaxis_visible=False, yaxis_visible=False, height=300)
+    return fig
     
 @st.cache_data
 def plot_causal_inference():
-    fig = go.Figure(go.Scatter(x=[0, 1, 1, 2, 2], y=[1, 2, 0, 2, 0], mode="markers+text",
-                               text=["Reagent Lot", "Temperature", "Pressure", "Purity", "Yield"],
-                               textposition="top center", marker_size=20))
-    edges = [([0,1],[1,2]), ([0,1],[1,0]), ([1,2],[2,2]), ([1,2],[0,2])]
-    for edge in edges:
-        fig.add_annotation(x=edge[0][1], y=edge[1][1], ax=edge[0][0], ay=edge[1][0], xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2)
-    fig.update_layout(title="<b>Conceptual Directed Acyclic Graph (DAG)</b>", showlegend=False, xaxis_visible=False, yaxis_visible=False)
+    fig = go.Figure()
+    # Define node positions
+    nodes = {'Reagent': (0, 1), 'Temp': (1.5, 2), 'Pressure': (1.5, 0), 'Purity': (3, 2), 'Yield': (3, 0)}
+    # Add nodes
+    fig.add_trace(go.Scatter(x=[v[0] for v in nodes.values()], y=[v[1] for v in nodes.values()],
+                               mode="markers+text", text=list(nodes.keys()), textposition="top center",
+                               marker=dict(size=30, color='lightblue', line=dict(width=2, color='black')), textfont_size=14))
+    # Add edges
+    edges = [('Reagent', 'Purity'), ('Reagent', 'Pressure'), ('Temp', 'Purity'), ('Temp', 'Pressure'), ('Pressure', 'Yield'), ('Purity', 'Yield')]
+    for start, end in edges:
+        fig.add_annotation(x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
+                           xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowwidth=2, arrowcolor='black')
+    fig.update_layout(title="<b>Conceptual Directed Acyclic Graph (DAG)</b>", showlegend=False, xaxis_visible=False, yaxis_visible=False, height=500, margin=dict(t=100))
     return fig
-
 # ==============================================================================
 # UI RENDERING FUNCTIONS
 # ==============================================================================
@@ -1087,9 +1100,9 @@ def render_tost():
         status = "✅ Equivalent" if is_equivalent else "❌ Not Equivalent"
         st.markdown(f"### Status: {status}")
         st.markdown("""
-        **The Core Insight:** The blue line represents the 95% confidence interval for the true difference between the two methods. The red dashed lines represent the pre-defined **equivalence margin** (the zone where differences are considered practically meaningless).
+        **The Core Insight:** The blue line represents the 90% confidence interval for the true difference between the two methods (90% CI is standard for TOST). The red dashed lines represent the pre-defined **equivalence margin** (the zone where differences are considered practically meaningless).
         
-        To declare equivalence, the **entire 95% confidence interval must fall completely inside the equivalence zone.** In this example, it does, so we can statistically conclude that the two methods are equivalent.
+        To declare equivalence, the **entire confidence interval must fall completely inside the equivalence zone.** In this example, it does, so we can statistically conclude that the two methods are equivalent.
         """)
         
 def render_advanced_doe():
@@ -1167,6 +1180,7 @@ def render_multivariate_spc():
     st.markdown("""
     **Interpretation:** The left plot shows the raw data. The shift in the red points is only in the Y-direction; the X-values are still in control. An individual X-chart would not detect this shift. The **T² Chart (Right)** combines both variables into a single statistic. It clearly and immediately detects the out-of-control condition when the process shifts, providing a single, unambiguous signal that the overall process "fingerprint" has changed.
     """)
+
 def render_time_series_analysis():
     st.markdown("""
     #### Purpose & Application
@@ -1212,7 +1226,7 @@ def render_survival_analysis():
     fig = plot_survival_analysis()
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("""
-    **Interpretation:** This plot shows a **Kaplan-Meier survival curve**. It visualizes the probability that an item from a given group will "survive" past a certain time. The vertical drops indicate when an event (e.g., failure) occurred, and the small vertical ticks represent censored observations. Here, we can clearly see that Group B has a higher survival probability over time compared to Group A. A formal **Log-Rank test** would be used to determine if this difference is statistically significant.
+    **Interpretation:** This plot shows a **Kaplan-Meier survival curve**. It visualizes the probability that an item from a given group will "survive" past a certain time. The vertical drops indicate when an event (e.g., failure) occurred, and the small vertical ticks represent censored observations (runs that ended before failure). Here, we can clearly see that Group B has a higher survival probability over time compared to Group A. A formal **Log-Rank test** would be used to determine if this difference is statistically significant.
     """)
 
 def render_mva_pls():
@@ -1286,7 +1300,7 @@ def render_xai_shap():
     """)
     
     st.subheader("Local Prediction Explanation (Single SHAP Force Plot)")
-    st.components.v1.html(force_html, height=150)
+    st.components.v1.html(force_html, height=150, scrolling=True)
     st.markdown("""
     **Interpretation:** This plot explains a *single prediction*.
     - **Base Value:** The average prediction across all data.
@@ -1301,24 +1315,26 @@ def render_advanced_ai_concepts():
     **Purpose:** To provide a high-level, conceptual overview of cutting-edge AI architectures that represent the future of process analytics. While coding them is beyond the scope of this toolkit, understanding their capabilities is crucial for future strategy.
     """)
     
-    tab1, tab2, tab3, tab4 = st.tabs(["🤖 Transformers", "🧠 Graph Neural Networks (GNNs)", "🎮 Reinforcement Learning (RL)", "🎨 Generative AI"])
-    
-    with tab1:
+    concept = st.radio("Select an Advanced Concept:", ["Transformers", "Graph Neural Networks (GNNs)", "Reinforcement Learning (RL)", "Generative AI"], horizontal=True)
+    fig = plot_advanced_ai_concepts(concept)
+    st.plotly_chart(fig, use_container_width=True)
+
+    if concept == "Transformers":
         st.markdown("""
         **Transformers (2017):** The architecture behind ChatGPT. Its "self-attention" mechanism allows it to understand long-range dependencies in sequential data.
         - **Application:** Modeling an entire batch manufacturing process as a sequence. A Transformer can learn how a deviation in an early step (e.g., cell thaw) impacts a much later step (e.g., final purification), a task that is difficult for traditional models.
         """)
-    with tab2:
+    elif concept == "GNNs":
         st.markdown("""
         **Graph Neural Networks (GNNs) (~2018):** AI models that operate on data structured as a graph (nodes and edges).
         - **Application:** Modeling a manufacturing plant or supply chain as a graph. GNNs can predict how a failure in one node (e.g., a specific vendor's raw material) will propagate through the network to affect downstream processes.
         """)
-    with tab3:
+    elif concept == "RL":
         st.markdown("""
         **Reinforcement Learning (RL) (~2019):** An AI "agent" learns an optimal control policy by interacting with an environment (like a digital twin of a process) and maximizing a reward.
         - **Application:** Creating an AI that can learn to dynamically control a bioreactor in real-time, adjusting feed rates and gas mixtures to maximize yield in response to live sensor data, far exceeding static setpoints.
         """)
-    with tab4:
+    elif concept == "Generative AI":
         st.markdown("""
         **Generative AI (GANs, Diffusion) (~2020):** AI models that can generate new, synthetic data that is statistically indistinguishable from real data.
         - **Application:** High-quality manufacturing failure data is rare. A Generative model can be trained on a few failure examples to create thousands of realistic synthetic failure profiles. This augmented dataset can then be used to train much more robust predictive QC and anomaly detection models.
@@ -1338,8 +1354,8 @@ def render_causal_inference():
     st.markdown("""
     **Interpretation:** A DAG is a visual representation of our causal assumptions. The arrows represent hypothesized causal effects.
     - `Reagent Lot -> Purity`: The lot has a direct causal effect on purity.
-    - `Temperature -> Purity`: Temperature has a direct causal effect on purity.
-    - `Temperature -> Pressure`: Temperature also causes changes in pressure.
+    - `Temp -> Purity`: Temperature has a direct causal effect on purity.
+    - `Temp -> Pressure`: Temperature also causes changes in pressure.
     - `Reagent Lot -> Pressure`: A confounding path exists.
     
     By building this graph based on SME knowledge, we can use statistical techniques (like do-calculus or structural equation modeling) to estimate the true, isolated causal effect of one variable on another, even in the presence of confounding.
@@ -1464,3 +1480,4 @@ else:
     st.error("Selected module not found. Please select an option from the sidebar.")
     st.session_state.method_key = "Confidence Interval Concept"
     st.rerun()
+

@@ -3090,10 +3090,15 @@ def render_multi_rule():
     st.sidebar.subheader("Westgard Scenario Controls")
     scenario = st.sidebar.radio(
         "Select a Process Scenario to Simulate:",
-        ('Complex Failure', 'Large Random Error', 'Systematic Shift', 'Increased Imprecision'),
-        captions=["A run with multiple, distinct issues.", "e.g., A single major blunder.", "e.g., A new reagent lot causes a bias.", "e.g., A faulty pipette causes inconsistency."]
+        options=('Stable', 'Complex Failure', 'Large Random Error', 'Systematic Shift', 'Increased Imprecision'),
+        captions=[
+            "A normal, in-control run for reference.",
+            "A run with multiple, distinct issues.",
+            "e.g., A single major blunder.",
+            "e.g., A new reagent lot causes a bias.",
+            "e.g., A faulty pipette causes inconsistency."
+        ]
     )
-    
     fig = plot_westgard_scenario(scenario=scenario)
     
     col1, col2 = st.columns([0.7, 0.3])

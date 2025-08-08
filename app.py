@@ -310,6 +310,8 @@ def plot_chronological_timeline():
     return fig
 
 # REPLACE the existing create_toolkit_conceptual_map function with this one.
+# REPLACE the existing create_toolkit_conceptual_map function with this one.
+
 @st.cache_data
 def create_toolkit_conceptual_map():
     """Creates a visually superior, non-overlapping conceptual map with a clean legend."""
@@ -346,29 +348,26 @@ def create_toolkit_conceptual_map():
     nodes = {}
     
     # --- Algorithmic Layout ---
-    # 1. Place all tool nodes (Level 3) with guaranteed spacing
     all_tools_flat = [tool for sublist in sub_structure.values() for tool in sublist]
-    y_coords = np.linspace(len(all_tools_flat) * 1.5, -len(all_tools_flat) * 1.5, len(all_tools_flat))
-    x_positions = [4, 5] # Intercalating x-positions
+    # FIX: Increased the multiplier from 1.5 to 2.2 to add more vertical space
+    y_coords = np.linspace(len(all_tools_flat) * 2.2, -len(all_tools_flat) * 2.2, len(all_tools_flat))
+    x_positions = [4, 5]
     for i, tool_key in enumerate(all_tools_flat):
         nodes[tool_key] = {'x': x_positions[i % 2], 'y': y_coords[i], 'name': tool_key.replace(' (', '\n('), 'origin': tool_origins.get(tool_key)}
 
-    # 2. Place sub-categories (Level 2) based on the average position of their children
     for l2_key, l3_keys in sub_structure.items():
         child_ys = [nodes[child_key]['y'] for child_key in l3_keys]
         nodes[l2_key] = {'x': 2.5, 'y': np.mean(child_ys), 'name': l2_key.replace(' ', '\n'), 'origin': 'Structure'}
 
-    # 3. Place main categories (Level 1) based on the average position of their children
     for l1_key, l2_keys in structure.items():
         child_ys = [nodes[child_key]['y'] for child_key in l2_keys]
         nodes[l1_key] = {'x': 1, 'y': np.mean(child_ys), 'name': l1_key.replace(' ', '\n'), 'origin': 'Structure'}
 
-    # 4. Place the center node
     nodes['CENTER'] = {'x': -0.5, 'y': 0, 'name': 'V&V Analytics\nToolkit', 'origin': 'Structure'}
 
     fig = go.Figure()
 
-    # --- Draw Edges using Shapes (to avoid legend pollution) ---
+    # --- Draw Edges using Shapes ---
     all_edges = [('CENTER', l1) for l1 in structure.keys()] + \
                 [(l1, l2) for l1, l2s in structure.items() for l2 in l2s] + \
                 [(l2, l3) for l2, l3s in sub_structure.items() for l3 in l3s]
@@ -378,7 +377,7 @@ def create_toolkit_conceptual_map():
         x1, y1 = nodes[end_key]['x'], nodes[end_key]['y']
         fig.add_shape(type="line", x0=x0, y0=y0, x1=x1, y1=y1, line=dict(color="lightgrey", width=1.5))
 
-    # --- Draw Nodes by Origin (for a clean legend) ---
+    # --- Draw Nodes by Origin ---
     data_by_origin = {name: {'x': [], 'y': [], 'name': []} for name in origin_colors.keys()}
     for key, data in nodes.items():
         data_by_origin[data['origin']]['x'].append(data['x'])
@@ -389,12 +388,13 @@ def create_toolkit_conceptual_map():
         is_tool = origin_name != 'Structure'
         fig.add_trace(go.Scatter(
             x=data['x'], y=data['y'],
-            mode='markers+text' if is_tool else 'markers', # Text is added via annotations for structural nodes
+            mode='markers+text' if is_tool else 'markers',
             text=data['name'] if is_tool else None,
             textposition="top center",
             textfont=dict(size=12, color='black'),
             marker=dict(
-                size=18 if is_tool else 40,
+                # FIX: Increased the size of the structural nodes (purple boxes)
+                size=18 if is_tool else 70,
                 color=origin_colors[origin_name],
                 symbol='circle' if is_tool else 'square',
                 line=dict(width=2, color='black')
@@ -404,12 +404,14 @@ def create_toolkit_conceptual_map():
             name=origin_name
         ))
         
-    # Add text annotations for structural nodes separately for better control
+    # --- Add text annotations for structural nodes ---
     for key, data in nodes.items():
         if data['origin'] == 'Structure':
             fig.add_annotation(
                 x=data['x'], y=data['y'], text=f"<b>{data['name']}</b>",
-                showarrow=False, font=dict(color='white', size=14 if key=='CENTER' else 12)
+                showarrow=False,
+                # FIX: Increased font size to match the larger boxes
+                font=dict(color='white', size=18 if key=='CENTER' else 16)
             )
 
     fig.update_layout(
@@ -417,8 +419,9 @@ def create_toolkit_conceptual_map():
         showlegend=True,
         legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
         xaxis=dict(visible=False, range=[-1, 6]),
-        yaxis=dict(visible=False, range=[-25, 25]),
-        height=2000, # Tall canvas to ensure no overlaps
+        # FIX: Expanded y-axis range and height to accommodate the new spacing
+        yaxis=dict(visible=False, range=[-35, 35]),
+        height=2400,
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#f0f2f6'

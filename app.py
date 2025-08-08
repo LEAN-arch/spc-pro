@@ -3813,27 +3813,31 @@ def render_classification_models():
 # ==============================================================================
 
 # --- Initialize Session State ---
-# The default view will be the V&V Framework
+# The default view will now be 'Introduction'.
 if 'current_view' not in st.session_state:
-    st.session_state.current_view = 'V&V Strategic Framework'
+    st.session_state.current_view = 'Introduction'
 
 # --- Sidebar Navigation ---
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")
     
-    all_options = {
-        "PROJECT FRAMEWORK": [
-            "The Scientist's Journey",
-            "V&V Strategic Framework",
-            "Project Workflow Timeline"
-        ],
+    # FIX: A single, dedicated button for the introduction/framework page.
+    if st.sidebar.button("🚀 Project Framework", use_container_width=True):
+        st.session_state.current_view = 'Introduction'
+        # We can add a rerun for immediate feedback if needed, but often not necessary.
+        st.rerun()
+
+    st.divider()
+
+    # The dictionary now ONLY contains the tools, grouped by Act.
+    all_tools = {
         "ACT I: FOUNDATION & CHARACTERIZATION": ["Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Causal Inference"],
         "ACT II: TRANSFER & STABILITY": ["Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", "Method Comparison", "Pass/Fail Analysis", "Bayesian Inference"],
         "ACT III: LIFECYCLE & PREDICTIVE MGMT": ["Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis", "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts"]
     }
 
-    # Create a button for each tool, which updates the session state on click
-    for act_title, act_tools in all_options.items():
+    # The loop for creating tool buttons remains the same.
+    for act_title, act_tools in all_tools.items():
         st.subheader(act_title)
         for tool in act_tools:
             if st.button(tool, key=tool, use_container_width=True):
@@ -3841,11 +3845,10 @@ with st.sidebar:
                 st.rerun()
 
 # --- Main Content Area Dispatcher ---
-# This logic checks the session state and decides what to render.
 view = st.session_state.current_view
-INTRO_VIEWS = ["The Scientist's Journey", "V&V Strategic Framework", "Project Workflow Timeline"]
 
-if view in INTRO_VIEWS:
+# FIX: The logic is now much simpler.
+if view == 'Introduction':
     render_introduction_content()
 else:
     # Render the selected tool
@@ -3885,6 +3888,7 @@ else:
     if view in PAGE_DISPATCHER:
         PAGE_DISPATCHER[view]()
     else:
+        # Failsafe if state gets corrupted somehow
         st.error("Error: Could not find the selected tool to render.")
-        st.session_state.current_view = 'V&V Strategic Framework'
+        st.session_state.current_view = 'Introduction'
         st.rerun()

@@ -3937,14 +3937,17 @@ def render_causal_inference():
     #### Purpose & Application: Beyond the Shadow - The Science of "Why"
     **Purpose:** To move beyond mere correlation ("what") and ascend to the level of causation ("why"). While predictive models see shadows on a cave wall (associations), Causal Inference provides the tools to understand the true objects casting them (the underlying causal mechanisms).
     
-    **Strategic Application:** This is the ultimate goal of root cause analysis. By identifying true causal drivers, we can implement Corrective and Preventive Actions (CAPAs) that are far more likely to be effective.
+    **Strategic Application:** This is the ultimate goal of root cause analysis and the foundation of intelligent intervention.
+    - **💡 Effective CAPA:** Why did a batch fail? A predictive model might say high temperature is *associated* with failure. Causal Inference helps determine if high temperature *causes* failure, or if both are driven by a third hidden variable (a "confounder"). This prevents wasting millions on fixing the wrong problem.
+    - **🗺️ Process Cartography:** It allows for the creation of a **Directed Acyclic Graph (DAG)**, which is a formal causal map of your process, documenting scientific understanding and guiding future analysis.
+    - **🔮 "What If" Scenarios:** It provides a framework to answer hypothetical questions like, "What *would* have been the yield if we had kept the temperature at 40°C?" using only observational data.
     """)
     
     st.info("""
     **Interactive Demo:** Use the slider in the sidebar to control the **Confounding Strength** of the `Reagent Lot`. As you increase it, watch the "Naive Correlation" (the orange line) become a terrible estimate of the "True Causal Effect" (the green line). This simulation visually demonstrates how a hidden variable can create a misleading correlation.
     """)
     
-    # --- NEW: Sidebar controls for this specific module ---
+    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("Causal Inference Controls")
     confounding_slider = st.sidebar.slider(
         "🚨 Confounding Strength", 
@@ -3983,15 +3986,19 @@ def render_causal_inference():
             st.success("""
             🟢 **THE GOLDEN RULE: Draw the Map, Find the Path, Block the Backdoors**
             A robust causal analysis follows a disciplined, three-step process.
-            1.  **Draw the Map (Build the DAG):** Encode all your expert knowledge and causal beliefs into a formal DAG.
-            2.  **Find the Path:** Identify the causal path you want to measure (e.g., `Temp -> Purity`).
+            1.  **Draw the Map (Build the DAG):** This is a collaborative effort between data scientists and Subject Matter Experts. You must encode all your domain knowledge and causal beliefs into a formal DAG.
+            2.  **Find the Path:** Clearly identify the causal path you want to measure (e.g., `Temp -> Purity`).
             3.  **Block the Backdoors:** Use the DAG to identify all non-causal "backdoor" paths (confounding). Then, use the appropriate statistical technique (like multiple regression) to "block" these paths, leaving only the true causal effect.
             """)
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin: The Causal Revolution
-            For most of the 20th century, mainstream statistics was deeply allergic to the language of causation. The mantra was "correlation is not causation." This was shattered by the computer scientist and philosopher **Judea Pearl** in the 1980s and 90s. He developed a complete mathematical framework for causal reasoning, introducing the **Directed Acyclic Graph (DAG)** as the primary tool and inventing the **do-calculus** for describing interventions. This work earned him the Turing Award, the highest honor in computer science.
+            #### Historical Context: The Causal Revolution
+            **The Problem:** For most of the 20th century, mainstream statistics was deeply allergic to the language of causation. The mantra, famously drilled into every student, was **"correlation is not causation."** While true, this left a massive void: if correlation isn't the answer, what is? Statisticians were excellent at describing relationships but had no formal language to discuss *why* those relationships existed, leaving a critical gap between data and real-world action.
+            
+            **The "Aha!" Moment:** The revolution was sparked by the computer scientist and philosopher **Judea Pearl** in the 1980s and 90s. His key insight was that the missing ingredient was **structure**. He argued that scientists carry causal models in their heads all the time, and that these models could be formally written down as graphs. He introduced the **Directed Acyclic Graph (DAG)** as the language for this structure. The arrows in a DAG are not mere correlations; they are bold claims about the direction of causal influence.
+            
+            **The Impact:** This was a paradigm shift. By making causal assumptions explicit in a DAG, Pearl developed a complete mathematical framework—including his famous **do-calculus**—to determine if a causal question *could* be answered from observational data, and if so, how. This "Causal Revolution" provided the first-ever rigorous, mathematical language to move from seeing (`P(Y|X)`) to doing (`P(Y|do(X))`), transforming fields from epidemiology to economics. For this work, Judea Pearl was awarded the Turing Award in 2011, the highest honor in computer science.
             """)
 def render_classification_models():
     """Renders the module for Predictive QC (Classification)."""

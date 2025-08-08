@@ -1710,7 +1710,11 @@ def render_core_validation_params():
     **Strategic Application:** These parameters are the non-negotiable pillars of any formal assay validation report. A weakness in any of these three areas is a critical deficiency that can lead to rejected submissions or flawed R&D conclusions. **Use the sliders in the sidebar to simulate different error types and see their impact on the plots.**
     """)
     
-    # --- NEW: Sidebar controls for this specific module ---
+    st.info("""
+    **Interactive Demo:** Now, when you navigate to the "Core Validation Parameters" tool, you will see a new set of dedicated sliders in the sidebar. Changing these sliders will instantly update the three plots, allowing you to build a powerful, hands-on intuition for these critical concepts.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("Core Validation Controls")
     bias_slider = st.sidebar.slider(
         "🎯 Systematic Bias (%)", 
@@ -1805,6 +1809,7 @@ def render_core_validation_params():
             st.markdown("""
             **Specificity is often assessed via Hypothesis Testing:** A Student's t-test compares the means of the "Analyte Only" and "Analyte + Interferent" groups. The null hypothesis ($H_0$) is that the means are equal. A high p-value (e.g., > 0.05) means we fail to reject $H_0$, providing evidence that the interferent has no significant effect.
             """)
+            
 def render_gage_rr():
     """Renders the INTERACTIVE module for Gage R&R."""
     st.markdown("""

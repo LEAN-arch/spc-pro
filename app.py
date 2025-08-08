@@ -2709,6 +2709,15 @@ def render_4pl_regression():
             #### Mathematical Basis
             """)
             st.latex(r"y = d + \frac{a - d}{1 + (\frac{x}{c})^b}")
+            # FIX: Restored the missing markdown block that explains the formula
+            st.markdown("""
+            - **`y`**: The measured response.
+            - **`x`**: The concentration.
+            - **`a`**: Upper asymptote.
+            - **`d`**: Lower asymptote.
+            - **`c`**: EC50 (potency).
+            - **`b`**: Hill slope.
+            """)
 # The code below was incorrectly merged. It is now its own separate function.
 def render_roc_curve():
     """Renders the INTERACTIVE module for Receiver Operating Characteristic (ROC) curve analysis."""

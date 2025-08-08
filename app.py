@@ -1238,12 +1238,14 @@ def render_introduction_content():
 
     st.header("🚀 The V&V Model: A Strategic Framework")
     st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
+    # FIX: This line has been uncommented
     st.plotly_chart(plot_v_model(), use_container_width=True)
     
     st.divider()
     
     st.header("📈 Project Workflow")
     st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value, and are ordered chronologically within each phase.")
+    # FIX: This line has been uncommented
     st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True)
 
 def render_introduction_content():

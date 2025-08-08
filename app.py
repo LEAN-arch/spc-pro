@@ -337,7 +337,7 @@ def create_toolkit_conceptual_map():
         'TIME_SERIES': {'name': 'Time Series Analysis', 'short': 'Time Series<br>Analysis', 'origin': 'Statistics'},
     }
     
-    # FIX: Significantly increased the vertical separation of the Level 1 nodes
+    # FIX: Significantly increased the vertical separation of the Level 1 nodes for clarity
     structure = {
         'STAT_INF': { 'pos': (1.5, 14), 'name': 'Statistical Inference', 'short': 'Statistical<br>Inference', 'children': ['CI', 'TOST', 'BAYES', 'ROC'] },
         'REG_MOD': { 'pos': (1.5, 8), 'name': 'Regression Models', 'short': 'Regression<br>Models', 'children': ['LIN', '4PL', 'STABILITY', 'TIME_SERIES'] },
@@ -355,7 +355,7 @@ def create_toolkit_conceptual_map():
     }
 
     # FIX: Increased the spacing factor to give circles more room
-    vertical_spacing = 2.5
+    vertical_spacing = 2.5 
     for key, val in structure.items():
         nodes[key] = {'name': val['name'], 'short': val['short'], 'pos': val['pos']}
         num_children = len(val['children'])
@@ -380,19 +380,19 @@ def create_toolkit_conceptual_map():
         'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728'
     }
     
-    # FIX: Logic to create a clean legend and draw nodes by group
+    # FIX: This new logic aggregates data before plotting to create a clean legend.
     # 1. Aggregate data by origin first
     data_by_origin = {name: {'x': [], 'y': [], 'short': [], 'full': []} for name in origin_colors.keys()}
     structural_nodes_data = {'x': [], 'y': [], 'short': [], 'full': []}
 
     for key, node_data in nodes.items():
         origin = node_data.get('origin')
-        if origin:
+        if origin: # It's a tool node (circle)
             data_by_origin[origin]['x'].append(node_data['pos'][0])
             data_by_origin[origin]['y'].append(node_data['pos'][1])
             data_by_origin[origin]['short'].append(node_data['short'])
             data_by_origin[origin]['full'].append(node_data['name'])
-        else: # It's a structural node
+        else: # It's a structural node (square)
             structural_nodes_data['x'].append(node_data['pos'][0])
             structural_nodes_data['y'].append(node_data['pos'][1])
             structural_nodes_data['short'].append(node_data['short'])
@@ -400,6 +400,7 @@ def create_toolkit_conceptual_map():
 
     # 2. Draw one trace per origin for a clean legend
     for origin_name, data in data_by_origin.items():
+        if not data['x']: continue # Skip if no tools of this origin exist
         fig.add_trace(go.Scatter(
             x=data['x'], y=data['y'], text=data['short'],
             mode='markers+text', textposition="middle center",
@@ -423,8 +424,8 @@ def create_toolkit_conceptual_map():
         title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
         showlegend=True,
         legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        # FIX: Expanded y-axis range and plot height to accommodate spacing
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.5, 3.5]),
+        # FIX: Expanded y-axis range and plot height to accommodate generous spacing
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-18, 18]),
         height=1600,
         margin=dict(l=20, r=20, t=60, b=20),

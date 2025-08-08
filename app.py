@@ -167,57 +167,6 @@ def plot_act_grouped_timeline():
     fig.update_layout(title_text='<b>The V&V Analytics Toolkit: A Project-Based View</b>', title_font_size=28, title_x=0.5, xaxis=dict(visible=False), yaxis=dict(visible=False, range=[-8, 8]), plot_bgcolor='white', paper_bgcolor='white', height=900, margin=dict(l=20, r=20, t=140, b=20), showlegend=True, legend=dict(title_text="<b>Project Phase</b>", title_font_size=16, font_size=14, orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5))
     return fig
 
-
-@st.cache_data
-def plot_ci_concept(n=30):
-    """
-    Generates plots for the confidence interval concept module.
-    """
-    np.random.seed(42)
-    pop_mean, pop_std = 100, 15
-    
-    # --- Plot 1: Population vs. Sampling Distribution ---
-    x = np.linspace(pop_mean - 4*pop_std, pop_mean + 4*pop_std, 400)
-    pop_dist = norm.pdf(x, pop_mean, pop_std)
-    
-    sampling_dist_std = pop_std / np.sqrt(n)
-    sampling_dist = norm.pdf(x, pop_mean, sampling_dist_std)
-    
-    fig1 = go.Figure()
-    fig1.add_trace(go.Scatter(x=x, y=pop_dist, fill='tozeroy', name='Population Distribution', line=dict(color='skyblue')))
-    fig1.add_trace(go.Scatter(x=x, y=sampling_dist, fill='tozeroy', name=f'Sampling Distribution (n={n})', line=dict(color='orange')))
-    fig1.add_vline(x=pop_mean, line=dict(color='black', dash='dash'), annotation_text="True Mean (μ)")
-    fig1.update_layout(title=f"<b>Population vs. Sampling Distribution of the Mean (n={n})</b>", showlegend=True, legend=dict(x=0.01, y=0.99))
-
-    # --- Plot 2: CI Simulation ---
-    n_sims = 1000
-    samples = np.random.normal(pop_mean, pop_std, size=(n_sims, n))
-    sample_means = samples.mean(axis=1)
-    sample_stds = samples.std(axis=1, ddof=1)
-    
-    # Using t-distribution for CIs as is proper
-    t_crit = t.ppf(0.975, df=n-1)
-    margin_of_error = t_crit * sample_stds / np.sqrt(n)
-    
-    ci_lowers = sample_means - margin_of_error
-    ci_uppers = sample_means + margin_of_error
-    
-    capture_mask = (ci_lowers <= pop_mean) & (ci_uppers >= pop_mean)
-    capture_count = np.sum(capture_mask)
-    avg_width = np.mean(ci_uppers - ci_lowers)
-    
-    fig2 = go.Figure()
-    # Plot first 100 CIs for visualization
-    for i in range(min(n_sims, 100)):
-        color = 'blue' if capture_mask[i] else 'red'
-        fig2.add_trace(go.Scatter(x=[ci_lowers[i], ci_uppers[i]], y=[i, i], mode='lines', line=dict(color=color, width=2), showlegend=False))
-        fig2.add_trace(go.Scatter(x=[sample_means[i]], y=[i], mode='markers', marker=dict(color=color, size=4), showlegend=False))
-
-    fig2.add_vline(x=pop_mean, line=dict(color='black', dash='dash'), annotation_text="True Mean (μ)")
-    fig2.update_layout(title=f"<b>{min(n_sims, 100)} Simulated 95% Confidence Intervals</b>", yaxis_visible=False)
-    
-    return fig1, fig2, capture_count, n_sims, avg_width
-
 @st.cache_data
 def plot_chronological_timeline():
     # Data has been updated with a new 'reason' key for each tool
@@ -305,8 +254,6 @@ def plot_chronological_timeline():
         showlegend=False
     )
     return fig
-
-# REPLACE the existing create_toolkit_conceptual_map function with this one.
 
 @st.cache_data
 def create_toolkit_conceptual_map():
@@ -429,6 +376,7 @@ def create_toolkit_conceptual_map():
         paper_bgcolor='#f0f2f6'
     )
     return fig
+
 @st.cache_data
 def plot_ci_concept(n=30):
     """
@@ -478,6 +426,64 @@ def plot_ci_concept(n=30):
     fig2.update_layout(title=f"<b>{min(n_sims, 100)} Simulated 95% Confidence Intervals</b>", yaxis_visible=False)
     
     return fig1, fig2, capture_count, n_sims, avg_width
+
+
+def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, interference_effect=8.0):
+    """
+    Generates dynamic plots for the core validation module based on user inputs.
+    """
+    # --- 1. Accuracy (Bias) Data ---
+    np.random.seed(42)
+    true_values = np.array([50, 100, 150])
+    # The mean of the measured data is now controlled by the bias slider
+    measured_data = {
+        val: np.random.normal(val * (1 + bias_pct / 100), val * 0.025, 10) for val in true_values
+    }
+    df_accuracy = pd.DataFrame(measured_data)
+    df_accuracy = df_accuracy.melt(var_name='True Value', value_name='Measured Value')
+    
+    fig1 = px.box(df_accuracy, x='True Value', y='Measured Value', 
+                  title='<b>1. Accuracy & Bias Evaluation</b>',
+                  points='all', color_discrete_sequence=['#1f77b4'])
+    for val in true_values:
+        fig1.add_hline(y=val, line_dash="dash", line_color="black", annotation_text=f"True Value={val}", annotation_position="bottom right")
+    fig1.update_layout(xaxis_title="True (Nominal) Concentration", yaxis_title="Measured Concentration")
+
+    # --- 2. Precision Data ---
+    np.random.seed(123)
+    # The standard deviation is now controlled by the precision sliders (%CV)
+    repeatability_std = 100 * (repeat_cv / 100)
+    intermed_std = 100 * (intermed_cv / 100)
+    
+    repeatability = np.random.normal(100, repeatability_std, 30)
+    inter_precision = np.random.normal(100, intermed_std, 30)
+    
+    df_precision = pd.concat([
+        pd.DataFrame({'value': repeatability, 'condition': 'Repeatability'}),
+        pd.DataFrame({'value': inter_precision, 'condition': 'Intermediate Precision'})
+    ])
+    fig2 = px.violin(df_precision, x='condition', y='value', box=True, points="all",
+                     title='<b>2. Precision: Repeatability vs. Intermediate Precision</b>',
+                     labels={'value': 'Measured Value', 'condition': 'Experimental Condition'})
+    
+    # --- 3. Specificity Data ---
+    np.random.seed(2023)
+    analyte = np.random.normal(1.0, 0.05, 15)
+    matrix = np.random.normal(0.02, 0.01, 15)
+    # The signal of the combined sample is now controlled by the interference slider
+    analyte_interference = analyte * (1 + interference_effect / 100)
+    
+    df_specificity = pd.DataFrame({
+        'Analyte Only': analyte,
+        'Matrix Blank': matrix,
+        'Analyte + Interferent': analyte_interference
+    }).melt(var_name='Sample Type', value_name='Signal Response')
+
+    fig3 = px.box(df_specificity, x='Sample Type', y='Signal Response', points='all',
+                  title='<b>3. Specificity & Interference Study</b>')
+    fig3.update_layout(xaxis_title="Sample Composition", yaxis_title="Assay Signal (e.g., Absorbance)")
+
+    return fig1, fig2, fig3
     
 # The @st.cache_data decorator is removed to allow for dynamic regeneration.
 def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75):
@@ -542,60 +548,6 @@ def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75):
     return fig, pct_rr, pct_part
 
 # The @st.cache_data decorator is removed to allow for dynamic regeneration.
-def plot_linearity(curvature=-1.0, random_error=1.0, proportional_error=2.0):
-    """
-    Generates dynamic plots for the Linearity module based on user inputs.
-    """
-    np.random.seed(42)
-    nominal = np.array([10, 25, 50, 100, 150, 200, 250])
-    
-    # Simulate data based on sliders
-    # Curvature term: a negative value creates an S-curve typical of saturation
-    curvature_effect = curvature * (nominal / 150)**3
-    
-    # Error term: combination of constant random error and error that grows with concentration
-    error = np.random.normal(0, random_error + nominal * (proportional_error / 100))
-    
-    measured = nominal + curvature_effect + error
-    
-    # Fit OLS model to the dynamic data
-    X = sm.add_constant(nominal)
-    model = sm.OLS(measured, X).fit()
-    residuals = model.resid
-    recovery = (measured / nominal) * 100
-    
-    # --- Plotting ---
-    fig = make_subplots(
-        rows=2, cols=2,
-        specs=[[{}, {}], [{"colspan": 2}, None]],
-        subplot_titles=("<b>Linearity Plot</b>", "<b>Residual Plot</b>", "<b>Recovery Plot</b>"),
-        vertical_spacing=0.2
-    )
-    
-    # Linearity Plot
-    fig.add_trace(go.Scatter(x=nominal, y=measured, mode='markers', name='Measured Values', marker=dict(size=10, color='blue'), hovertemplate="Nominal: %{x}<br>Measured: %{y:.2f}<extra></extra>"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=nominal, y=model.predict(X), mode='lines', name='Best Fit Line', line=dict(color='red')), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[0, 260], y=[0, 260], mode='lines', name='Line of Identity', line=dict(dash='dash', color='black')), row=1, col=1)
-    
-    # Residual Plot
-    fig.add_trace(go.Scatter(x=nominal, y=residuals, mode='markers', name='Residuals', marker=dict(size=10, color='green'), hovertemplate="Nominal: %{x}<br>Residual: %{y:.2f}<extra></extra>"), row=1, col=2)
-    fig.add_hline(y=0, line_dash="dash", line_color="black", row=1, col=2)
-    
-    # Recovery Plot
-    fig.add_trace(go.Scatter(x=nominal, y=recovery, mode='lines+markers', name='Recovery', line=dict(color='purple'), marker=dict(size=10), hovertemplate="Nominal: %{x}<br>Recovery: %{y:.1f}%<extra></extra>"), row=2, col=1)
-    fig.add_hrect(y0=80, y1=120, fillcolor="green", opacity=0.1, layer="below", line_width=0, row=2, col=1)
-    fig.add_hline(y=100, line_dash="dash", line_color="black", row=2, col=1)
-    fig.add_hline(y=80, line_dash="dot", line_color="red", row=2, col=1)
-    fig.add_hline(y=120, line_dash="dot", line_color="red", row=2, col=1)
-    
-    fig.update_layout(title_text='<b>Assay Linearity and Range Verification Dashboard</b>', title_x=0.5, height=800, showlegend=False)
-    fig.update_xaxes(title_text="Nominal Concentration", row=1, col=1); fig.update_yaxes(title_text="Measured Concentration", row=1, col=1)
-    fig.update_xaxes(title_text="Nominal Concentration", row=1, col=2); fig.update_yaxes(title_text="Residual (Error)", row=1, col=2)
-    fig.update_xaxes(title_text="Nominal Concentration", row=2, col=1); fig.update_yaxes(title_text="% Recovery", range=[min(75, recovery.min()-5), max(125, recovery.max()+5)], row=2, col=1)
-    
-    return fig, model
-
-# The @st.cache_data decorator is removed to allow for dynamic regeneration.
 def plot_lod_loq(slope=0.02, baseline_sd=0.01):
     """
     Generates dynamic plots for the LOD & LOQ module based on user inputs.
@@ -653,63 +605,60 @@ def plot_lod_loq(slope=0.02, baseline_sd=0.01):
     fig.update_xaxes(title_text="Concentration (ng/mL)", row=2, col=1)
     
     return fig, LOD, LOQ
-
-def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, interference_effect=8.0):
+    
+# The @st.cache_data decorator is removed to allow for dynamic regeneration.
+def plot_linearity(curvature=-1.0, random_error=1.0, proportional_error=2.0):
     """
-    Generates dynamic plots for the core validation module based on user inputs.
+    Generates dynamic plots for the Linearity module based on user inputs.
     """
-    # --- 1. Accuracy (Bias) Data ---
     np.random.seed(42)
-    true_values = np.array([50, 100, 150])
-    # The mean of the measured data is now controlled by the bias slider
-    measured_data = {
-        val: np.random.normal(val * (1 + bias_pct / 100), val * 0.025, 10) for val in true_values
-    }
-    df_accuracy = pd.DataFrame(measured_data)
-    df_accuracy = df_accuracy.melt(var_name='True Value', value_name='Measured Value')
+    nominal = np.array([10, 25, 50, 100, 150, 200, 250])
     
-    fig1 = px.box(df_accuracy, x='True Value', y='Measured Value', 
-                  title='<b>1. Accuracy & Bias Evaluation</b>',
-                  points='all', color_discrete_sequence=['#1f77b4'])
-    for val in true_values:
-        fig1.add_hline(y=val, line_dash="dash", line_color="black", annotation_text=f"True Value={val}", annotation_position="bottom right")
-    fig1.update_layout(xaxis_title="True (Nominal) Concentration", yaxis_title="Measured Concentration")
-
-    # --- 2. Precision Data ---
-    np.random.seed(123)
-    # The standard deviation is now controlled by the precision sliders (%CV)
-    repeatability_std = 100 * (repeat_cv / 100)
-    intermed_std = 100 * (intermed_cv / 100)
+    # Simulate data based on sliders
+    # Curvature term: a negative value creates an S-curve typical of saturation
+    curvature_effect = curvature * (nominal / 150)**3
     
-    repeatability = np.random.normal(100, repeatability_std, 30)
-    inter_precision = np.random.normal(100, intermed_std, 30)
+    # Error term: combination of constant random error and error that grows with concentration
+    error = np.random.normal(0, random_error + nominal * (proportional_error / 100))
     
-    df_precision = pd.concat([
-        pd.DataFrame({'value': repeatability, 'condition': 'Repeatability'}),
-        pd.DataFrame({'value': inter_precision, 'condition': 'Intermediate Precision'})
-    ])
-    fig2 = px.violin(df_precision, x='condition', y='value', box=True, points="all",
-                     title='<b>2. Precision: Repeatability vs. Intermediate Precision</b>',
-                     labels={'value': 'Measured Value', 'condition': 'Experimental Condition'})
+    measured = nominal + curvature_effect + error
     
-    # --- 3. Specificity Data ---
-    np.random.seed(2023)
-    analyte = np.random.normal(1.0, 0.05, 15)
-    matrix = np.random.normal(0.02, 0.01, 15)
-    # The signal of the combined sample is now controlled by the interference slider
-    analyte_interference = analyte * (1 + interference_effect / 100)
+    # Fit OLS model to the dynamic data
+    X = sm.add_constant(nominal)
+    model = sm.OLS(measured, X).fit()
+    residuals = model.resid
+    recovery = (measured / nominal) * 100
     
-    df_specificity = pd.DataFrame({
-        'Analyte Only': analyte,
-        'Matrix Blank': matrix,
-        'Analyte + Interferent': analyte_interference
-    }).melt(var_name='Sample Type', value_name='Signal Response')
-
-    fig3 = px.box(df_specificity, x='Sample Type', y='Signal Response', points='all',
-                  title='<b>3. Specificity & Interference Study</b>')
-    fig3.update_layout(xaxis_title="Sample Composition", yaxis_title="Assay Signal (e.g., Absorbance)")
-
-    return fig1, fig2, fig3
+    # --- Plotting ---
+    fig = make_subplots(
+        rows=2, cols=2,
+        specs=[[{}, {}], [{"colspan": 2}, None]],
+        subplot_titles=("<b>Linearity Plot</b>", "<b>Residual Plot</b>", "<b>Recovery Plot</b>"),
+        vertical_spacing=0.2
+    )
+    
+    # Linearity Plot
+    fig.add_trace(go.Scatter(x=nominal, y=measured, mode='markers', name='Measured Values', marker=dict(size=10, color='blue'), hovertemplate="Nominal: %{x}<br>Measured: %{y:.2f}<extra></extra>"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=nominal, y=model.predict(X), mode='lines', name='Best Fit Line', line=dict(color='red')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=[0, 260], y=[0, 260], mode='lines', name='Line of Identity', line=dict(dash='dash', color='black')), row=1, col=1)
+    
+    # Residual Plot
+    fig.add_trace(go.Scatter(x=nominal, y=residuals, mode='markers', name='Residuals', marker=dict(size=10, color='green'), hovertemplate="Nominal: %{x}<br>Residual: %{y:.2f}<extra></extra>"), row=1, col=2)
+    fig.add_hline(y=0, line_dash="dash", line_color="black", row=1, col=2)
+    
+    # Recovery Plot
+    fig.add_trace(go.Scatter(x=nominal, y=recovery, mode='lines+markers', name='Recovery', line=dict(color='purple'), marker=dict(size=10), hovertemplate="Nominal: %{x}<br>Recovery: %{y:.1f}%<extra></extra>"), row=2, col=1)
+    fig.add_hrect(y0=80, y1=120, fillcolor="green", opacity=0.1, layer="below", line_width=0, row=2, col=1)
+    fig.add_hline(y=100, line_dash="dash", line_color="black", row=2, col=1)
+    fig.add_hline(y=80, line_dash="dot", line_color="red", row=2, col=1)
+    fig.add_hline(y=120, line_dash="dot", line_color="red", row=2, col=1)
+    
+    fig.update_layout(title_text='<b>Assay Linearity and Range Verification Dashboard</b>', title_x=0.5, height=800, showlegend=False)
+    fig.update_xaxes(title_text="Nominal Concentration", row=1, col=1); fig.update_yaxes(title_text="Measured Concentration", row=1, col=1)
+    fig.update_xaxes(title_text="Nominal Concentration", row=1, col=2); fig.update_yaxes(title_text="Residual (Error)", row=1, col=2)
+    fig.update_xaxes(title_text="Nominal Concentration", row=2, col=1); fig.update_yaxes(title_text="% Recovery", range=[min(75, recovery.min()-5), max(125, recovery.max()+5)], row=2, col=1)
+    
+    return fig, model
 
 def plot_4pl_regression(a_true=1.5, b_true=1.2, c_true=10.0, d_true=0.05, noise_sd=0.05):
     """
@@ -906,6 +855,64 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
 
     return fig_contour, fig_3d, fig_effects, model.params
 
+def plot_causal_inference(confounding_strength=5.0):
+    """
+    Generates dynamic plots for the Causal Inference module based on user inputs.
+    """
+    # 1. The DAG (same as before, but title is updated)
+    fig_dag = go.Figure()
+    nodes = {'Reagent Lot': (0, 1), 'Temp': (1.5, 2), 'Pressure': (1.5, 0), 'Purity': (3, 2)}
+    fig_dag.add_trace(go.Scatter(x=[v[0] for v in nodes.values()], y=[v[1] for v in nodes.values()],
+                               mode="markers+text", text=list(nodes.keys()), textposition="top center",
+                               marker=dict(size=40, color='lightblue', line=dict(width=2, color='black')), textfont_size=14))
+    edges = [('Reagent Lot', 'Purity'), ('Reagent Lot', 'Temp'), ('Temp', 'Purity'), ('Temp', 'Pressure')]
+    for start, end in edges:
+        fig_dag.add_annotation(x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
+                               xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowwidth=2, arrowcolor='black')
+    fig_dag.update_layout(title="<b>1. The Causal Map (DAG)</b>", showlegend=False, xaxis_visible=False, yaxis_visible=False, height=400, margin=dict(t=50))
+
+    # 2. Simulate data based on the DAG and confounding strength
+    np.random.seed(42)
+    n_samples = 100
+    # The confounder: Reagent Lot (0=Standard, 1=New)
+    reagent_lot = np.random.randint(0, 2, n_samples)
+    # The true causal effect of temperature on purity is fixed at -0.5
+    true_causal_effect = -0.5
+    
+    # Generate data where Reagent Lot affects BOTH Temp and Purity
+    temp = 70 + confounding_strength * reagent_lot + np.random.normal(0, 2, n_samples)
+    purity = 95 + true_causal_effect * (temp - 70) + confounding_strength * reagent_lot + np.random.normal(0, 2, n_samples)
+    
+    df = pd.DataFrame({'Temp': temp, 'Purity': purity, 'ReagentLot': reagent_lot.astype(str)})
+
+    # 3. Calculate effects
+    # Naive (biased) model: Purity ~ Temp
+    naive_model = ols('Purity ~ Temp', data=df).fit()
+    naive_effect = naive_model.params['Temp']
+    
+    # Adjusted (unbiased) model: Purity ~ Temp + ReagentLot
+    adjusted_model = ols('Purity ~ Temp + C(ReagentLot)', data=df).fit()
+    adjusted_effect = adjusted_model.params['Temp']
+
+    # 4. Create the scatter plot
+    fig_scatter = px.scatter(df, x='Temp', y='Purity', color='ReagentLot',
+                             title="<b>2. Confounding in Action</b>",
+                             color_discrete_map={'0': 'blue', '1': 'red'},
+                             labels={'ReagentLot': 'Reagent Lot'})
+    
+    # Add regression lines
+    x_range = np.linspace(df['Temp'].min(), df['Temp'].max(), 2)
+    fig_scatter.add_trace(go.Scatter(x=x_range, y=naive_model.predict({'Temp': x_range}), mode='lines', 
+                                     name='Naive (Biased) Correlation', line=dict(color='orange', width=4, dash='dash')))
+    fig_scatter.add_trace(go.Scatter(x=x_range, y=adjusted_model.params['Intercept'] + adjusted_effect * x_range, mode='lines', 
+                                     name='True Causal Effect (Adjusted)', line=dict(color='darkgreen', width=4)))
+
+    fig_scatter.update_layout(height=500, legend=dict(x=0.01, y=0.99))
+    
+    return fig_dag, fig_scatter, naive_effect, adjusted_effect
+
+#================================================END ACT I ===================================================================================
+    
 def plot_spc_charts(scenario='Stable'):
     """
     Generates dynamic SPC charts based on a selected process scenario.
@@ -980,6 +987,7 @@ def plot_spc_charts(scenario='Stable'):
     fig_p.update_layout(title_text='<b>3. P-Chart</b>', yaxis_tickformat=".0%", showlegend=False, xaxis_title="Batch Number", yaxis_title="Proportion Defective")
     
     return fig_imr, fig_xbar, fig_p
+    
 @st.cache_data
 def plot_capability(scenario='Ideal'):
     """
@@ -1045,6 +1053,7 @@ def plot_capability(scenario='Ideal'):
 
     fig.update_layout(height=700, showlegend=False)
     return fig, cpk_val
+
 def plot_tolerance_intervals(n=30, coverage_pct=99.0):
     """
     Generates dynamic plots for the Tolerance Interval module based on user inputs.
@@ -1089,6 +1098,207 @@ def plot_tolerance_intervals(n=30, coverage_pct=99.0):
                       xaxis_title="Measured Value", yaxis_title="Density", showlegend=False)
     
     return fig, ci, ti
+
+def plot_method_comparison(constant_bias=2.0, proportional_bias=3.0, random_error_sd=3.0):
+    """
+    Generates dynamic plots for the method comparison module based on user inputs.
+    """
+    np.random.seed(1)
+    n_samples = 50
+    true_values = np.linspace(20, 200, n_samples)
+    
+    # Simulate data based on the slider inputs
+    error_ref = np.random.normal(0, random_error_sd, n_samples)
+    error_test = np.random.normal(0, random_error_sd, n_samples)
+    
+    ref_method = true_values + error_ref
+    # The 'Test' method's results are a function of the true value and the biases
+    test_method = constant_bias + true_values * (1 + proportional_bias / 100) + error_test
+    
+    df = pd.DataFrame({'Reference': ref_method, 'Test': test_method})
+
+    # Deming Regression (simplified calculation for plotting)
+    mean_x, mean_y = df['Reference'].mean(), df['Test'].mean()
+    cov_xy = np.cov(df['Reference'], df['Test'])[0, 1]
+    var_x, var_y = df['Reference'].var(ddof=1), df['Test'].var(ddof=1)
+    lambda_val = var_y / var_x if var_x > 0 else 1.0 # Ratio of variances
+    deming_slope = ( (var_y - lambda_val*var_x) + np.sqrt((var_y - lambda_val*var_x)**2 + 4 * lambda_val * cov_xy**2) ) / (2 * cov_xy)
+    deming_intercept = mean_y - deming_slope * mean_x
+
+    # Bland-Altman
+    df['Average'] = (df['Reference'] + df['Test']) / 2
+    df['Difference'] = df['Test'] - df['Reference']
+    mean_diff = df['Difference'].mean()
+    std_diff = df['Difference'].std(ddof=1)
+    upper_loa = mean_diff + 1.96 * std_diff
+    lower_loa = mean_diff - 1.96 * std_diff
+    
+    # % Bias
+    df['%Bias'] = (df['Difference'] / df['Reference']) * 100
+
+    # --- Plotting ---
+    fig = make_subplots(
+        rows=3, cols=1,
+        subplot_titles=("<b>1. Deming Regression</b>", "<b>2. Bland-Altman Plot</b>", "<b>3. Percent Bias Plot</b>"),
+        vertical_spacing=0.15
+    )
+
+    # Deming Plot
+    fig.add_trace(go.Scatter(x=df['Reference'], y=df['Test'], mode='markers', name='Samples'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df['Reference'], y=deming_intercept + deming_slope * df['Reference'], mode='lines', name='Deming Fit', line=dict(color='red')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=[0, 220], y=[0, 220], mode='lines', name='Identity (y=x)', line=dict(color='black', dash='dash')), row=1, col=1)
+    
+    # Bland-Altman Plot
+    fig.add_trace(go.Scatter(x=df['Average'], y=df['Difference'], mode='markers', name='Difference'), row=2, col=1)
+    fig.add_hline(y=mean_diff, line=dict(color='blue', dash='dash'), name='Mean Bias', row=2, col=1, annotation_text=f"Bias: {mean_diff:.2f}")
+    fig.add_hline(y=upper_loa, line=dict(color='red', dash='dash'), name='Upper LoA', row=2, col=1, annotation_text=f"Upper LoA: {upper_loa:.2f}")
+    fig.add_hline(y=lower_loa, line=dict(color='red', dash='dash'), name='Lower LoA', row=2, col=1, annotation_text=f"Lower LoA: {lower_loa:.2f}")
+    
+    # % Bias Plot
+    fig.add_trace(go.Scatter(x=df['Reference'], y=df['%Bias'], mode='markers', name='% Bias'), row=3, col=1)
+    fig.add_hline(y=0, line=dict(color='black', dash='dash'), row=3, col=1)
+    fig.add_hrect(y0=-15, y1=15, fillcolor="green", opacity=0.1, layer="below", line_width=0, row=3, col=1)
+
+    fig.update_layout(height=1000, showlegend=False)
+    fig.update_xaxes(title_text="Reference Method", row=1, col=1); fig.update_yaxes(title_text="Test Method", row=1, col=1)
+    fig.update_xaxes(title_text="Average of Methods", row=2, col=1); fig.update_yaxes(title_text="Difference (Test - Ref)", row=2, col=1)
+    fig.update_xaxes(title_text="Reference Method", row=3, col=1); fig.update_yaxes(title_text="% Bias", row=3, col=1)
+    
+    return fig, deming_slope, deming_intercept, mean_diff, upper_loa, lower_loa
+
+@st.cache_data
+def plot_bayesian(prior_type):
+    """
+    Generates plots for the Bayesian inference module.
+    """
+    # New QC Data (Likelihood)
+    n_qc, k_qc = 20, 18
+    
+    # Define Priors based on selection
+    if prior_type == "Strong R&D Prior":
+        # Corresponds to ~98 successes in 100 trials
+        a_prior, b_prior = 98, 2
+    elif prior_type == "Skeptical/Regulatory Prior":
+        # Weakly centered around 80%, wide uncertainty
+        a_prior, b_prior = 4, 1
+    else: # "No Prior (Frequentist)"
+        # Uninformative prior
+        a_prior, b_prior = 1, 1
+        
+    # Bayesian Update (Posterior calculation)
+    a_post = a_prior + k_qc
+    b_post = b_prior + (n_qc - k_qc)
+    
+    # Calculate key metrics
+    prior_mean = a_prior / (a_prior + b_prior)
+    mle = k_qc / n_qc
+    posterior_mean = a_post / (a_post + b_post)
+
+    # Plotting
+    x = np.linspace(0, 1, 500)
+    fig = go.Figure()
+
+    # Prior
+    prior_pdf = beta.pdf(x, a_prior, b_prior)
+    fig.add_trace(go.Scatter(x=x, y=prior_pdf, mode='lines', name='Prior', line=dict(color='green', dash='dash')))
+
+    # Likelihood (scaled for visualization)
+    likelihood = beta.pdf(x, k_qc + 1, n_qc - k_qc + 1)
+    fig.add_trace(go.Scatter(x=x, y=likelihood, mode='lines', name='Likelihood (from data)', line=dict(color='red', dash='dot')))
+
+    # Posterior
+    posterior_pdf = beta.pdf(x, a_post, b_post)
+    fig.add_trace(go.Scatter(x=x, y=posterior_pdf, mode='lines', name='Posterior', line=dict(color='blue', width=4), fill='tozeroy'))
+
+    fig.update_layout(
+        title=f"<b>Bayesian Update for Pass Rate ({prior_type})</b>",
+        xaxis_title="True Pass Rate", yaxis_title="Probability Density",
+        legend=dict(x=0.01, y=0.99)
+    )
+    
+    return fig, prior_mean, mle, posterior_mean
+
+##===============================================================END ACT II ===================================================================
+
+def plot_westgard_scenario(scenario='Stable'):
+    """
+    Generates a dynamic Westgard chart based on a selected process scenario.
+    """
+    np.random.seed(42)
+    n_points = 25
+    # Generate stable, in-control base data
+    data = np.random.normal(100, 2, n_points)
+    
+    # Use the first 10 points to establish "historical" control limits
+    mean, std = np.mean(data[:10]), np.std(data[:10], ddof=1)
+    
+    # Inject a special cause based on the selected scenario
+    if scenario == 'Large Random Error':
+        data[15] = 107.5 # A single, large blunder (triggers 1-3s)
+    elif scenario == 'Systematic Shift':
+        data[18:] += 4.5 # A sudden, sustained bias (triggers 2-2s)
+    elif scenario == 'Increased Imprecision':
+        # Two points far apart (triggers R-4s)
+        data[20] = 105 
+        data[21] = 95
+
+    # --- Plotting ---
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=np.arange(1, n_points + 1), y=data, mode='lines+markers', name='Control Data', line=dict(color='#636EFA'), marker=dict(size=8)))
+    
+    # Add SD lines
+    for i in range(-3, 4):
+        if i == 0:
+            fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean')
+        else:
+            fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), annotation_text=f'{i} SD')
+    
+    # Add rule violation annotations based on the scenario
+    if scenario == 'Large Random Error':
+        fig.add_annotation(x=16, y=107.5, text="<b>🚨 1-3s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=-40, ay=-40, font=dict(color="red"))
+    elif scenario == 'Systematic Shift':
+        fig.add_annotation(x=20, y=104.5, text="<b>🧐 2-2s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=40, ay=-40, font=dict(color="orange"))
+    elif scenario == 'Increased Imprecision':
+        fig.add_annotation(x=21.5, y=100, text="<b>🔭 R-4s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=0, ay=-60, font=dict(color="purple"))
+        
+    fig.update_layout(title=f"<b>Westgard Rules: {scenario} Scenario</b>",
+                      xaxis_title="Measurement Number", yaxis_title="Control Value",
+                      legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+    return fig
+    
+
+
+@st.cache_data
+def plot_multivariate_spc():
+    np.random.seed(42)
+    # In-control data
+    mean_vec = [10, 20]
+    cov_mat = [[1, 0.8], [0.8, 1]]
+    in_control = np.random.multivariate_normal(mean_vec, cov_mat, 20)
+    # Out-of-control data
+    out_of_control = np.random.multivariate_normal([10, 22.5], cov_mat, 10) # Shift in Y
+    data = np.vstack([in_control, out_of_control])
+    
+    # Calculate T-squared
+    S_inv = np.linalg.inv(np.cov(in_control.T))
+    t_squared = [((obs - mean_vec).T @ S_inv @ (obs - mean_vec)) for obs in data]
+    
+    # UCL for T-squared (approximate)
+    p = 2; n = len(in_control)
+    UCL = ((p * (n+1) * (n-1)) / (n*n - n*p)) * stats.f.ppf(0.99, p, n-p)
+    
+    fig = make_subplots(rows=1, cols=2, subplot_titles=("<b>Process Data (Temp vs. Pressure)</b>", "<b>Hotelling's T² Control Chart</b>"))
+    fig.add_trace(go.Scatter(x=data[:n,0], y=data[:n,1], mode='markers', name='In-Control'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=data[n:,0], y=data[n:,1], mode='markers', name='Out-of-Control', marker=dict(color='red')), row=1, col=1)
+    
+    fig.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=t_squared, mode='lines+markers', name="T² Statistic"), row=1, col=2)
+    fig.add_hline(y=UCL, line=dict(color='red', dash='dash'), name='UCL', row=1, col=2)
+    
+    fig.update_layout(title="<b>Multivariate SPC (Hotelling's T²)</b>", height=500, showlegend=False)
+    fig.update_xaxes(title_text="Temperature (°C)", row=1, col=1); fig.update_yaxes(title_text="Pressure (PSI)", row=1, col=1)
+    fig.update_xaxes(title_text="Batch Number", row=1, col=2); fig.update_yaxes(title_text="T² Statistic", row=1, col=2)
+    return fig
+
 @st.cache_data
 def plot_wilson(successes, n_samples):
     """
@@ -1146,36 +1356,6 @@ def plot_wilson(successes, n_samples):
 
     return fig1, fig2
 
-@st.cache_data
-def plot_multivariate_spc():
-    np.random.seed(42)
-    # In-control data
-    mean_vec = [10, 20]
-    cov_mat = [[1, 0.8], [0.8, 1]]
-    in_control = np.random.multivariate_normal(mean_vec, cov_mat, 20)
-    # Out-of-control data
-    out_of_control = np.random.multivariate_normal([10, 22.5], cov_mat, 10) # Shift in Y
-    data = np.vstack([in_control, out_of_control])
-    
-    # Calculate T-squared
-    S_inv = np.linalg.inv(np.cov(in_control.T))
-    t_squared = [((obs - mean_vec).T @ S_inv @ (obs - mean_vec)) for obs in data]
-    
-    # UCL for T-squared (approximate)
-    p = 2; n = len(in_control)
-    UCL = ((p * (n+1) * (n-1)) / (n*n - n*p)) * stats.f.ppf(0.99, p, n-p)
-    
-    fig = make_subplots(rows=1, cols=2, subplot_titles=("<b>Process Data (Temp vs. Pressure)</b>", "<b>Hotelling's T² Control Chart</b>"))
-    fig.add_trace(go.Scatter(x=data[:n,0], y=data[:n,1], mode='markers', name='In-Control'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=data[n:,0], y=data[n:,1], mode='markers', name='Out-of-Control', marker=dict(color='red')), row=1, col=1)
-    
-    fig.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=t_squared, mode='lines+markers', name="T² Statistic"), row=1, col=2)
-    fig.add_hline(y=UCL, line=dict(color='red', dash='dash'), name='UCL', row=1, col=2)
-    
-    fig.update_layout(title="<b>Multivariate SPC (Hotelling's T²)</b>", height=500, showlegend=False)
-    fig.update_xaxes(title_text="Temperature (°C)", row=1, col=1); fig.update_yaxes(title_text="Pressure (PSI)", row=1, col=1)
-    fig.update_xaxes(title_text="Batch Number", row=1, col=2); fig.update_yaxes(title_text="T² Statistic", row=1, col=2)
-    return fig
 
 @st.cache_data
 def plot_time_series_analysis():
@@ -1349,123 +1529,48 @@ def plot_clustering():
                      labels={'X': 'Process Parameter 1 (e.g., Temperature)', 'Y': 'Process Parameter 2 (e.g., Pressure)'})
     fig.update_traces(marker=dict(size=8, line=dict(width=1, color='black')))
     return fig
-def plot_method_comparison(constant_bias=2.0, proportional_bias=3.0, random_error_sd=3.0):
-    """
-    Generates dynamic plots for the method comparison module based on user inputs.
-    """
-    np.random.seed(1)
-    n_samples = 50
-    true_values = np.linspace(20, 200, n_samples)
-    
-    # Simulate data based on the slider inputs
-    error_ref = np.random.normal(0, random_error_sd, n_samples)
-    error_test = np.random.normal(0, random_error_sd, n_samples)
-    
-    ref_method = true_values + error_ref
-    # The 'Test' method's results are a function of the true value and the biases
-    test_method = constant_bias + true_values * (1 + proportional_bias / 100) + error_test
-    
-    df = pd.DataFrame({'Reference': ref_method, 'Test': test_method})
 
-    # Deming Regression (simplified calculation for plotting)
-    mean_x, mean_y = df['Reference'].mean(), df['Test'].mean()
-    cov_xy = np.cov(df['Reference'], df['Test'])[0, 1]
-    var_x, var_y = df['Reference'].var(ddof=1), df['Test'].var(ddof=1)
-    lambda_val = var_y / var_x if var_x > 0 else 1.0 # Ratio of variances
-    deming_slope = ( (var_y - lambda_val*var_x) + np.sqrt((var_y - lambda_val*var_x)**2 + 4 * lambda_val * cov_xy**2) ) / (2 * cov_xy)
-    deming_intercept = mean_y - deming_slope * mean_x
-
-    # Bland-Altman
-    df['Average'] = (df['Reference'] + df['Test']) / 2
-    df['Difference'] = df['Test'] - df['Reference']
-    mean_diff = df['Difference'].mean()
-    std_diff = df['Difference'].std(ddof=1)
-    upper_loa = mean_diff + 1.96 * std_diff
-    lower_loa = mean_diff - 1.96 * std_diff
-    
-    # % Bias
-    df['%Bias'] = (df['Difference'] / df['Reference']) * 100
-
-    # --- Plotting ---
-    fig = make_subplots(
-        rows=3, cols=1,
-        subplot_titles=("<b>1. Deming Regression</b>", "<b>2. Bland-Altman Plot</b>", "<b>3. Percent Bias Plot</b>"),
-        vertical_spacing=0.15
-    )
-
-    # Deming Plot
-    fig.add_trace(go.Scatter(x=df['Reference'], y=df['Test'], mode='markers', name='Samples'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df['Reference'], y=deming_intercept + deming_slope * df['Reference'], mode='lines', name='Deming Fit', line=dict(color='red')), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[0, 220], y=[0, 220], mode='lines', name='Identity (y=x)', line=dict(color='black', dash='dash')), row=1, col=1)
-    
-    # Bland-Altman Plot
-    fig.add_trace(go.Scatter(x=df['Average'], y=df['Difference'], mode='markers', name='Difference'), row=2, col=1)
-    fig.add_hline(y=mean_diff, line=dict(color='blue', dash='dash'), name='Mean Bias', row=2, col=1, annotation_text=f"Bias: {mean_diff:.2f}")
-    fig.add_hline(y=upper_loa, line=dict(color='red', dash='dash'), name='Upper LoA', row=2, col=1, annotation_text=f"Upper LoA: {upper_loa:.2f}")
-    fig.add_hline(y=lower_loa, line=dict(color='red', dash='dash'), name='Lower LoA', row=2, col=1, annotation_text=f"Lower LoA: {lower_loa:.2f}")
-    
-    # % Bias Plot
-    fig.add_trace(go.Scatter(x=df['Reference'], y=df['%Bias'], mode='markers', name='% Bias'), row=3, col=1)
-    fig.add_hline(y=0, line=dict(color='black', dash='dash'), row=3, col=1)
-    fig.add_hrect(y0=-15, y1=15, fillcolor="green", opacity=0.1, layer="below", line_width=0, row=3, col=1)
-
-    fig.update_layout(height=1000, showlegend=False)
-    fig.update_xaxes(title_text="Reference Method", row=1, col=1); fig.update_yaxes(title_text="Test Method", row=1, col=1)
-    fig.update_xaxes(title_text="Average of Methods", row=2, col=1); fig.update_yaxes(title_text="Difference (Test - Ref)", row=2, col=1)
-    fig.update_xaxes(title_text="Reference Method", row=3, col=1); fig.update_yaxes(title_text="% Bias", row=3, col=1)
-    
-    return fig, deming_slope, deming_intercept, mean_diff, upper_loa, lower_loa
 @st.cache_data
-def plot_bayesian(prior_type):
-    """
-    Generates plots for the Bayesian inference module.
-    """
-    # New QC Data (Likelihood)
-    n_qc, k_qc = 20, 18
+def plot_classification_models():
+    np.random.seed(1)
+    n_points = 200
+    X1 = np.random.uniform(0, 10, n_points)
+    X2 = np.random.uniform(0, 10, n_points)
+    # Create a non-linear relationship
+    prob = 1 / (1 + np.exp(-( (X1-5)**2 + (X2-5)**2 - 8)))
+    y = np.random.binomial(1, prob)
+    X = np.column_stack((X1, X2))
     
-    # Define Priors based on selection
-    if prior_type == "Strong R&D Prior":
-        # Corresponds to ~98 successes in 100 trials
-        a_prior, b_prior = 98, 2
-    elif prior_type == "Skeptical/Regulatory Prior":
-        # Weakly centered around 80%, wide uncertainty
-        a_prior, b_prior = 4, 1
-    else: # "No Prior (Frequentist)"
-        # Uninformative prior
-        a_prior, b_prior = 1, 1
-        
-    # Bayesian Update (Posterior calculation)
-    a_post = a_prior + k_qc
-    b_post = b_prior + (n_qc - k_qc)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    # Logistic Regression
+    lr = LogisticRegression().fit(X_train, y_train)
+    lr_score = lr.score(X_test, y_test)
+
+    # Random Forest
+    rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
+    rf_score = rf.score(X_test, y_test)
+
+    # Create meshgrid for decision boundary
+    xx, yy = np.meshgrid(np.linspace(0, 10, 100), np.linspace(0, 10, 100))
     
-    # Calculate key metrics
-    prior_mean = a_prior / (a_prior + b_prior)
-    mle = k_qc / n_qc
-    posterior_mean = a_post / (a_post + b_post)
+    fig = make_subplots(rows=1, cols=2, subplot_titles=(f'<b>Logistic Regression (Accuracy: {lr_score:.2%})</b>', 
+                                                       f'<b>Random Forest (Accuracy: {rf_score:.2%})</b>'))
 
-    # Plotting
-    x = np.linspace(0, 1, 500)
-    fig = go.Figure()
+    # Plot Logistic Regression
+    Z_lr = lr.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+    fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=1)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', line=dict(width=1, color='black'))), row=1, col=1)
 
-    # Prior
-    prior_pdf = beta.pdf(x, a_prior, b_prior)
-    fig.add_trace(go.Scatter(x=x, y=prior_pdf, mode='lines', name='Prior', line=dict(color='green', dash='dash')))
+    # Plot Random Forest
+    Z_rf = rf.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+    fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=2)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', line=dict(width=1, color='black'))), row=1, col=2)
 
-    # Likelihood (scaled for visualization)
-    likelihood = beta.pdf(x, k_qc + 1, n_qc - k_qc + 1)
-    fig.add_trace(go.Scatter(x=x, y=likelihood, mode='lines', name='Likelihood (from data)', line=dict(color='red', dash='dot')))
-
-    # Posterior
-    posterior_pdf = beta.pdf(x, a_post, b_post)
-    fig.add_trace(go.Scatter(x=x, y=posterior_pdf, mode='lines', name='Posterior', line=dict(color='blue', width=4), fill='tozeroy'))
-
-    fig.update_layout(
-        title=f"<b>Bayesian Update for Pass Rate ({prior_type})</b>",
-        xaxis_title="True Pass Rate", yaxis_title="Probability Density",
-        legend=dict(x=0.01, y=0.99)
-    )
-    
-    return fig, prior_mean, mle, posterior_mean
+    fig.update_layout(title="<b>Predictive QC: Linear vs. Non-Linear Models</b>", showlegend=False, height=500)
+    fig.update_xaxes(title_text="Parameter 1", row=1, col=1); fig.update_yaxes(title_text="Parameter 2", row=1, col=1)
+    fig.update_xaxes(title_text="Parameter 1", row=1, col=2); fig.update_yaxes(title_text="Parameter 2", row=1, col=2)
+    return fig
 
 def wilson_score_interval(p_hat, n, z=1.96):
     # This helper function remains the same, but it's good to keep it near the plotting function.
@@ -1528,47 +1633,6 @@ def plot_binomial_intervals(successes, n_samples):
 
     return fig1, fig2
     
-@st.cache_data
-def plot_classification_models():
-    np.random.seed(1)
-    n_points = 200
-    X1 = np.random.uniform(0, 10, n_points)
-    X2 = np.random.uniform(0, 10, n_points)
-    # Create a non-linear relationship
-    prob = 1 / (1 + np.exp(-( (X1-5)**2 + (X2-5)**2 - 8)))
-    y = np.random.binomial(1, prob)
-    X = np.column_stack((X1, X2))
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
-    # Logistic Regression
-    lr = LogisticRegression().fit(X_train, y_train)
-    lr_score = lr.score(X_test, y_test)
-
-    # Random Forest
-    rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-    rf_score = rf.score(X_test, y_test)
-
-    # Create meshgrid for decision boundary
-    xx, yy = np.meshgrid(np.linspace(0, 10, 100), np.linspace(0, 10, 100))
-    
-    fig = make_subplots(rows=1, cols=2, subplot_titles=(f'<b>Logistic Regression (Accuracy: {lr_score:.2%})</b>', 
-                                                       f'<b>Random Forest (Accuracy: {rf_score:.2%})</b>'))
-
-    # Plot Logistic Regression
-    Z_lr = lr.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
-    fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=1)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', line=dict(width=1, color='black'))), row=1, col=1)
-
-    # Plot Random Forest
-    Z_rf = rf.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
-    fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=2)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', line=dict(width=1, color='black'))), row=1, col=2)
-
-    fig.update_layout(title="<b>Predictive QC: Linear vs. Non-Linear Models</b>", showlegend=False, height=500)
-    fig.update_xaxes(title_text="Parameter 1", row=1, col=1); fig.update_yaxes(title_text="Parameter 2", row=1, col=1)
-    fig.update_xaxes(title_text="Parameter 1", row=1, col=2); fig.update_yaxes(title_text="Parameter 2", row=1, col=2)
-    return fig
 
 @st.cache_data
 def plot_xai_shap():
@@ -1670,61 +1734,7 @@ def plot_advanced_ai_concepts(concept):
     fig.update_layout(xaxis_visible=False, yaxis_visible=False, height=300, showlegend=False)
     return fig
     
-def plot_causal_inference(confounding_strength=5.0):
-    """
-    Generates dynamic plots for the Causal Inference module based on user inputs.
-    """
-    # 1. The DAG (same as before, but title is updated)
-    fig_dag = go.Figure()
-    nodes = {'Reagent Lot': (0, 1), 'Temp': (1.5, 2), 'Pressure': (1.5, 0), 'Purity': (3, 2)}
-    fig_dag.add_trace(go.Scatter(x=[v[0] for v in nodes.values()], y=[v[1] for v in nodes.values()],
-                               mode="markers+text", text=list(nodes.keys()), textposition="top center",
-                               marker=dict(size=40, color='lightblue', line=dict(width=2, color='black')), textfont_size=14))
-    edges = [('Reagent Lot', 'Purity'), ('Reagent Lot', 'Temp'), ('Temp', 'Purity'), ('Temp', 'Pressure')]
-    for start, end in edges:
-        fig_dag.add_annotation(x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
-                               xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowwidth=2, arrowcolor='black')
-    fig_dag.update_layout(title="<b>1. The Causal Map (DAG)</b>", showlegend=False, xaxis_visible=False, yaxis_visible=False, height=400, margin=dict(t=50))
 
-    # 2. Simulate data based on the DAG and confounding strength
-    np.random.seed(42)
-    n_samples = 100
-    # The confounder: Reagent Lot (0=Standard, 1=New)
-    reagent_lot = np.random.randint(0, 2, n_samples)
-    # The true causal effect of temperature on purity is fixed at -0.5
-    true_causal_effect = -0.5
-    
-    # Generate data where Reagent Lot affects BOTH Temp and Purity
-    temp = 70 + confounding_strength * reagent_lot + np.random.normal(0, 2, n_samples)
-    purity = 95 + true_causal_effect * (temp - 70) + confounding_strength * reagent_lot + np.random.normal(0, 2, n_samples)
-    
-    df = pd.DataFrame({'Temp': temp, 'Purity': purity, 'ReagentLot': reagent_lot.astype(str)})
-
-    # 3. Calculate effects
-    # Naive (biased) model: Purity ~ Temp
-    naive_model = ols('Purity ~ Temp', data=df).fit()
-    naive_effect = naive_model.params['Temp']
-    
-    # Adjusted (unbiased) model: Purity ~ Temp + ReagentLot
-    adjusted_model = ols('Purity ~ Temp + C(ReagentLot)', data=df).fit()
-    adjusted_effect = adjusted_model.params['Temp']
-
-    # 4. Create the scatter plot
-    fig_scatter = px.scatter(df, x='Temp', y='Purity', color='ReagentLot',
-                             title="<b>2. Confounding in Action</b>",
-                             color_discrete_map={'0': 'blue', '1': 'red'},
-                             labels={'ReagentLot': 'Reagent Lot'})
-    
-    # Add regression lines
-    x_range = np.linspace(df['Temp'].min(), df['Temp'].max(), 2)
-    fig_scatter.add_trace(go.Scatter(x=x_range, y=naive_model.predict({'Temp': x_range}), mode='lines', 
-                                     name='Naive (Biased) Correlation', line=dict(color='orange', width=4, dash='dash')))
-    fig_scatter.add_trace(go.Scatter(x=x_range, y=adjusted_model.params['Intercept'] + adjusted_effect * x_range, mode='lines', 
-                                     name='True Causal Effect (Adjusted)', line=dict(color='darkgreen', width=4)))
-
-    fig_scatter.update_layout(height=500, legend=dict(x=0.01, y=0.99))
-    
-    return fig_dag, fig_scatter, naive_effect, adjusted_effect
 
 # ==============================================================================
 # ALL UI RENDERING FUNCTIONS
@@ -2028,7 +2038,76 @@ def render_gage_rr():
             """)
             st.latex(r"SS_{Total} = SS_{Part} + SS_{Operator} + SS_{Part \times Operator} + SS_{Error}")
             st.markdown("These are converted to Mean Squares (MS) and then to variance components ($\hat{\sigma}^2$).")
-            
+
+def render_lod_loq():
+    """Renders the INTERACTIVE module for Limit of Detection & Quantitation."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To formally establish the absolute lower performance boundaries of a quantitative assay. It determines the lowest analyte concentration an assay can reliably **detect (LOD)** and the lowest concentration it can reliably and accurately **quantify (LOQ)**.
+    
+    **Strategic Application:** This is a mission-critical parameter for any assay used to measure trace components, such as impurities in a drug product or biomarkers for early-stage disease diagnosis. **Use the sliders in the sidebar to simulate how assay sensitivity and noise impact the final LOD and LOQ.**
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Now, when you select the "LOD & LOQ" tool, a new set of dedicated sliders will appear in the sidebar. You can dynamically change the assay's slope and noise to see in real-time how these fundamental characteristics drive the final LOD and LOQ results.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
+    st.sidebar.subheader("LOD & LOQ Controls")
+    slope_slider = st.sidebar.slider(
+        "📈 Assay Sensitivity (Slope)", 
+        min_value=0.005, max_value=0.1, value=0.02, step=0.005, format="%.3f",
+        help="How much the signal increases per unit of concentration. A steeper slope (higher sensitivity) is better."
+    )
+    noise_slider = st.sidebar.slider(
+        "🔇 Baseline Noise (SD)", 
+        min_value=0.001, max_value=0.05, value=0.01, step=0.001, format="%.3f",
+        help="The inherent random noise of the assay at zero concentration. A lower noise floor is better."
+    )
+    
+    # Generate plots using the slider values
+    fig, lod_val, loq_val = plot_lod_loq(slope=slope_slider, baseline_sd=noise_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} units", help="The lowest concentration you can report with confidence in the numerical value.")
+            st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} units", help="The lowest concentration you can reliably claim is 'present'.")
+            st.info("Play with the sliders in the sidebar to see how assay parameters affect the results!")
+            st.markdown("""
+            - **Increase `Assay Sensitivity (Slope)`:** As the slope gets steeper, the LOD and LOQ values get **lower (better)**. A highly sensitive assay needs very little analyte to produce a strong signal that can overcome the noise.
+            - **Increase `Baseline Noise (SD)`:** As the noise floor of the assay increases, the LOD and LOQ values get **higher (worse)**. It becomes much harder to distinguish a true low-level signal from random background fluctuations.
+
+            **The Core Strategic Insight:** The sensitivity of an assay is a direct battle between its **signal-generating power (Slope)** and its **inherent noise (SD)**. The LOD and LOQ are simply the statistical formalization of this signal-to-noise ratio.
+            """)
+
+        with tabs[1]:
+            st.markdown("- The primary, non-negotiable criterion is that the experimentally determined **LOQ must be ≤ the lowest concentration that the assay is required to measure** for its specific application (e.g., a release specification for an impurity).")
+            st.markdown("- For a concentration to be formally declared the LOQ, it must be experimentally confirmed. This typically involves analyzing 5-6 independent samples at the claimed LOQ concentration and demonstrating that they meet pre-defined criteria for precision and accuracy (e.g., **%CV < 20% and %Recovery between 80-120%** for a bioassay).")
+            st.warning("""
+            **The LOB, LOD, and LOQ Hierarchy: A Critical Distinction**
+            A full characterization involves three distinct limits:
+            - **Limit of Blank (LOB):** The highest measurement expected from a blank sample.
+            - **Limit of Detection (LOD):** The lowest concentration whose signal is statistically distinguishable from the LOB.
+            - **Limit of Quantitation (LOQ):** The lowest concentration meeting precision/accuracy requirements, which is almost always higher than the LOD.
+            """)
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The need to define analytical sensitivity is old, but definitions were inconsistent until the **International Council for Harmonisation (ICH)** guideline **ICH Q2(R1)** harmonized the methodologies. This work was heavily influenced by the statistical framework established by **Lloyd Currie at NIST** in his 1968 paper, which established the clear, hypothesis-testing basis for the modern LOB/LOD/LOQ hierarchy.
+
+            #### Mathematical Basis
+            This method is built on the relationship between the assay's signal, its sensitivity (Slope, S), and its noise (standard deviation, σ).
+            """)
+            st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
+            st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
+            st.markdown("The factor of 10 for LOQ is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.")
+
 def render_linearity():
     """Renders the INTERACTIVE module for Linearity analysis."""
     st.markdown("""
@@ -2112,702 +2191,6 @@ def render_linearity():
             - $\\epsilon$: Random measurement error.
             """)
 # REPLACE the existing render_lod_loq function with this one.
-
-def render_lod_loq():
-    """Renders the INTERACTIVE module for Limit of Detection & Quantitation."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To formally establish the absolute lower performance boundaries of a quantitative assay. It determines the lowest analyte concentration an assay can reliably **detect (LOD)** and the lowest concentration it can reliably and accurately **quantify (LOQ)**.
-    
-    **Strategic Application:** This is a mission-critical parameter for any assay used to measure trace components, such as impurities in a drug product or biomarkers for early-stage disease diagnosis. **Use the sliders in the sidebar to simulate how assay sensitivity and noise impact the final LOD and LOQ.**
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Now, when you select the "LOD & LOQ" tool, a new set of dedicated sliders will appear in the sidebar. You can dynamically change the assay's slope and noise to see in real-time how these fundamental characteristics drive the final LOD and LOQ results.
-    """)
-    
-    # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("LOD & LOQ Controls")
-    slope_slider = st.sidebar.slider(
-        "📈 Assay Sensitivity (Slope)", 
-        min_value=0.005, max_value=0.1, value=0.02, step=0.005, format="%.3f",
-        help="How much the signal increases per unit of concentration. A steeper slope (higher sensitivity) is better."
-    )
-    noise_slider = st.sidebar.slider(
-        "🔇 Baseline Noise (SD)", 
-        min_value=0.001, max_value=0.05, value=0.01, step=0.001, format="%.3f",
-        help="The inherent random noise of the assay at zero concentration. A lower noise floor is better."
-    )
-    
-    # Generate plots using the slider values
-    fig, lod_val, loq_val = plot_lod_loq(slope=slope_slider, baseline_sd=noise_slider)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
-        with tabs[0]:
-            st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} units", help="The lowest concentration you can report with confidence in the numerical value.")
-            st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} units", help="The lowest concentration you can reliably claim is 'present'.")
-            st.info("Play with the sliders in the sidebar to see how assay parameters affect the results!")
-            st.markdown("""
-            - **Increase `Assay Sensitivity (Slope)`:** As the slope gets steeper, the LOD and LOQ values get **lower (better)**. A highly sensitive assay needs very little analyte to produce a strong signal that can overcome the noise.
-            - **Increase `Baseline Noise (SD)`:** As the noise floor of the assay increases, the LOD and LOQ values get **higher (worse)**. It becomes much harder to distinguish a true low-level signal from random background fluctuations.
-
-            **The Core Strategic Insight:** The sensitivity of an assay is a direct battle between its **signal-generating power (Slope)** and its **inherent noise (SD)**. The LOD and LOQ are simply the statistical formalization of this signal-to-noise ratio.
-            """)
-
-        with tabs[1]:
-            st.markdown("- The primary, non-negotiable criterion is that the experimentally determined **LOQ must be ≤ the lowest concentration that the assay is required to measure** for its specific application (e.g., a release specification for an impurity).")
-            st.markdown("- For a concentration to be formally declared the LOQ, it must be experimentally confirmed. This typically involves analyzing 5-6 independent samples at the claimed LOQ concentration and demonstrating that they meet pre-defined criteria for precision and accuracy (e.g., **%CV < 20% and %Recovery between 80-120%** for a bioassay).")
-            st.warning("""
-            **The LOB, LOD, and LOQ Hierarchy: A Critical Distinction**
-            A full characterization involves three distinct limits:
-            - **Limit of Blank (LOB):** The highest measurement expected from a blank sample.
-            - **Limit of Detection (LOD):** The lowest concentration whose signal is statistically distinguishable from the LOB.
-            - **Limit of Quantitation (LOQ):** The lowest concentration meeting precision/accuracy requirements, which is almost always higher than the LOD.
-            """)
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            The need to define analytical sensitivity is old, but definitions were inconsistent until the **International Council for Harmonisation (ICH)** guideline **ICH Q2(R1)** harmonized the methodologies. This work was heavily influenced by the statistical framework established by **Lloyd Currie at NIST** in his 1968 paper, which established the clear, hypothesis-testing basis for the modern LOB/LOD/LOQ hierarchy.
-
-            #### Mathematical Basis
-            This method is built on the relationship between the assay's signal, its sensitivity (Slope, S), and its noise (standard deviation, σ).
-            """)
-            st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
-            st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
-            st.markdown("The factor of 10 for LOQ is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.")
-def render_method_comparison():
-    """Renders the INTERACTIVE module for Method Comparison."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To formally assess and quantify the degree of agreement and systemic bias between two different measurement methods intended to measure the same quantity.
-    
-    **Strategic Application:** This study is the "crucible" of method transfer, validation, or replacement. It answers the critical business and regulatory question: “Do these two methods produce the same result, for the same sample, within medically or technically acceptable limits?”
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to simulate different types of disagreement between a "Test" method and a "Reference" method. See in real-time how each diagnostic plot (Deming, Bland-Altman, %Bias) reveals a different aspect of the problem, helping you build a deep intuition for method comparison statistics.
-    """)
-    
-    # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("Method Comparison Controls")
-    constant_bias_slider = st.sidebar.slider(
-        "⚖️ Constant Bias", 
-        min_value=-10.0, max_value=10.0, value=2.0, step=0.5,
-        help="A fixed offset where the Test method reads consistently higher (+) or lower (-) than the Reference method across the entire range."
-    )
-    proportional_bias_slider = st.sidebar.slider(
-        "📈 Proportional Bias (%)", 
-        min_value=-10.0, max_value=10.0, value=3.0, step=0.5,
-        help="A concentration-dependent error. A positive value means the Test method reads progressively higher than the Reference at high concentrations."
-    )
-    random_error_slider = st.sidebar.slider(
-        "🎲 Random Error (SD)", 
-        min_value=0.5, max_value=10.0, value=3.0, step=0.5,
-        help="The imprecision or 'noise' of the methods. Higher error widens the Limits of Agreement on the Bland-Altman plot."
-    )
-
-    # Generate plots using the slider values
-    fig, slope, intercept, bias, ua, la = plot_method_comparison(
-        constant_bias=constant_bias_slider,
-        proportional_bias=proportional_bias_slider,
-        random_error_sd=random_error_slider
-    )
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
-        
-        with tabs[0]:
-            st.metric(label="📈 Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference.")
-            st.metric(label="💡 Deming Slope", value=f"{slope:.3f}", help="Ideal = 1.0. Measures proportional bias.")
-            st.metric(label="💡 Deming Intercept", value=f"{intercept:.2f}", help="Ideal = 0.0. Measures constant bias.")
-            
-            st.info("Play with the sliders in the sidebar and observe the plots!")
-            st.markdown("""
-            - **Add `Constant Bias`:** The Deming line shifts up/down but stays parallel to the identity line. The Bland-Altman plot's mean bias line moves away from zero.
-            - **Add `Proportional Bias`:** The Deming line *rotates* away from the identity line. The Bland-Altman and %Bias plots now show a clear trend, a major red flag.
-            - **Increase `Random Error`:** The points scatter more widely. This has little effect on the average bias but dramatically **widens the Limits of Agreement**, making the methods less interchangeable.
-            """)
-
-        with tabs[1]:
-            st.markdown("Acceptance criteria must be pre-defined and clinically/technically justified.")
-            st.markdown("- **Deming Regression:** The 95% confidence interval for the **slope must contain 1.0**, and the 95% CI for the **intercept must contain 0**.")
-            st.markdown(f"- **Bland-Altman:** The primary criterion is that the **95% Limits of Agreement (`{la:.2f}` to `{ua:.2f}`) must be clinically or technically acceptable**.")
-            st.error("""
-            **The Correlation Catastrophe:** Never use the correlation coefficient (R²) to assess agreement. Two methods can be perfectly correlated (R²=1.0) but have a huge bias (e.g., one method always reads twice as high).
-            """)
-
-        with tabs[2]:
-            # FIX: Restored the full, detailed content for this tab
-            st.markdown("""
-            #### Historical Context & Origin
-            For decades, scientists committed a cardinal sin: using **Ordinary Least Squares (OLS) regression** and the **correlation coefficient (r)** to compare methods. This is flawed because OLS assumes the x-axis (reference method) is measured without error, an impossibility.
-            
-            - **Deming's Correction:** While known to statisticians, **W. Edwards Deming** championed this type of regression in the 1940s. It correctly assumes both methods have measurement error, providing an unbiased estimate of the true relationship. **Passing-Bablok regression** is a robust non-parametric alternative.
-            
-            - **The Bland-Altman Revolution:** A 1986 paper in *The Lancet* by **J. Martin Bland and Douglas G. Altman** ruthlessly exposed the misuse of correlation and proposed their brilliantly simple alternative. Instead of plotting Y vs. X, they plotted the **Difference (Y-X) vs. the Average ((Y+X)/2)**. This directly visualizes the magnitude and patterns of disagreement and is now the undisputed gold standard.
-            
-            #### Mathematical Basis
-            **Deming Regression:** OLS minimizes the sum of squared vertical distances. Deming regression minimizes the sum of squared distances from the points to the line, weighted by the ratio of the error variances of the two methods.
-            
-            **Bland-Altman Plot:** This is a graphical analysis. The key metrics are the **mean difference (bias)**, $\bar{d}$, and the **standard deviation of the differences**, $s_d$. The 95% Limits of Agreement (LoA) are calculated assuming the differences are approximately normally distributed:
-            """)
-            st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
-            st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
-def render_capability():
-    """Renders the interactive module for Process Capability (Cpk)."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To quantitatively determine if a process, once proven to be in a state of statistical control, is **capable** of consistently producing output that meets pre-defined specification limits (USL/LSL).
-    
-    **Strategic Application:** This is the ultimate verdict on process performance, often the final gate in a process validation or technology transfer. It directly answers the critical business question: "Is our process good enough to reliably meet customer or regulatory requirements with a high degree of confidence?" 
-    - A high capability index (Cpk) provides objective, statistical evidence that the process is robust, predictable, and delivers high quality.
-    - A low Cpk is a clear signal that the process requires fundamental improvement, either by **re-centering the process mean** or by **reducing the process variation**.
-    
-    In many ways, achieving a high Cpk is the statistical equivalent of "mission accomplished" for a process development or transfer team.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate four common real-world process states. Observe how the control chart (stability), the histogram's position relative to the spec limits, and the final Cpk value (capability) change for each scenario. This demonstrates the critical principle that a process must be stable *before* its capability can be meaningfully assessed.
-    """)
-
-    scenario = st.sidebar.radio("Select Process Scenario:", ('Ideal', 'Shifted', 'Variable', 'Out of Control'))
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        fig, cpk_val = plot_capability(scenario)
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
-        with tabs[0]:
-            st.metric(label="📈 KPI: Process Capability (Cpk)", value=f"{cpk_val:.2f}" if scenario != 'Out of Control' else "INVALID", help="Measures how well the process fits within the spec limits, accounting for centering. Higher is better.")
-            st.markdown("""
-            - **The Mantra: Control Before Capability.** The control chart (top plot) is a prerequisite. The Cpk metric is only statistically valid and meaningful if the process is stable and in-control. The 'Out of Control' scenario yields an **INVALID** Cpk because an unstable process has no single, predictable "voice" to measure.
-            - **The Key Insight: Control ≠ Capability.** A process can be perfectly in-control (predictable) but not capable (producing bad product). 
-                - The **'Shifted'** scenario shows a process that is precise but inaccurate.
-                - The **'Variable'** scenario shows a process that is centered but imprecise.
-            Both are in control, but both have a poor Cpk.
-            """)
-        with tabs[1]:
-            st.markdown("These are industry-standard benchmarks, often required by customers, especially in automotive and aerospace. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
-            st.markdown("- `Cpk < 1.00`: Process is **not capable**.")
-            st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**.")
-            st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable** (a '4-sigma' quality level).")
-            st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** (approaching 'Six Sigma').")
-            st.markdown("- `Cpk ≥ 2.00`: Process has achieved **Six Sigma capability**.")
-
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            The concept of comparing process output to specification limits is old, but the formalization into capability indices originated in the Japanese manufacturing industry in the 1970s as a core part of Total Quality Management (TQM).
-            
-            However, it was the **Six Sigma** initiative, pioneered by engineer Bill Smith at **Motorola in the 1980s**, that catapulted Cpk to global prominence. The 'Six Sigma' concept was born: a process so capable that the nearest specification limit is at least six standard deviations away from the process mean. Cpk became the standard metric for measuring progress toward this ambitious goal.
-            
-            #### Mathematical Basis
-            Capability analysis is a direct comparison between the **"Voice of the Customer"** (the allowable spread, USL - LSL) and the **"Voice of the Process"** (the actual, natural spread, conventionally 6σ).
-
-            - **Cp (Potential Capability):** Measures if the process is narrow enough, ignoring centering.
-            """)
-            st.latex(r"C_p = \frac{USL - LSL}{6\hat{\sigma}}")
-            st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit.")
-            st.latex(r"C_{pk} = \min \left( \frac{USL - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - LSL}{3\hat{\sigma}} \right)")
-
-def render_pass_fail():
-    """Renders the INTERACTIVE module for Pass/Fail (Binomial Proportion) analysis."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To accurately calculate and critically compare confidence intervals for a binomial proportion, which is the underlying statistic for any pass/fail, present/absent, or concordant/discordant outcome.
-    
-    **Strategic Application:** This is essential for the validation of **qualitative assays** or for agreement studies. The goal is to prove, with a high degree of statistical confidence, that the assay's success rate is above a required performance threshold. The critical challenge, especially with small sample sizes, is that simple textbook methods for calculating confidence intervals (the 'Wald' interval) are dangerously inaccurate.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to simulate the results of a validation study (e.g., comparing a new test to a gold standard). Observe how sample size and the number of successes dramatically affect the confidence in your result, and see why the 'Wald' interval should almost never be used.
-    """)
-    
-    # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("Pass/Fail Controls")
-    n_samples_slider = st.sidebar.slider("Number of Validation Samples (n)", 1, 100, 30, key='wilson_n')
-    successes_slider = st.sidebar.slider("Concordant Results (Successes)", 0, n_samples_slider, int(n_samples_slider * 0.95), key='wilson_s')
-    
-    # Generate plots using the slider values
-    fig1_intervals, fig2_coverage = plot_binomial_intervals(successes_slider, n_samples_slider)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig1_intervals, use_container_width=True)
-        st.plotly_chart(fig2_coverage, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
-        
-        with tabs[0]:
-            st.metric(label="📈 KPI: Observed Rate", value=f"{(successes_slider/n_samples_slider if n_samples_slider > 0 else 0):.2%}", help="The point estimate. Insufficient without a confidence interval.")
-            
-            st.info("Play with the sliders in the sidebar and observe the plots!")
-            st.markdown("""
-            - **CI Comparison (Top Plot):** This plot reveals the dramatic differences between interval methods. 
-                - Set the sliders to a perfect score (e.g., 30/30). The **Wald interval collapses to zero width**, an absurd claim of perfect knowledge from a small sample. The Wilson and Clopper-Pearson intervals give a much more honest, wider range.
-                - Set the sliders to a low sample size (e.g., 5/5). The Wald interval gives a nonsensical range that goes above 100%!
-            - **Coverage Probability (Bottom Plot):** This shows *why* the Wald interval is so bad. Its actual probability of capturing the true value (the red line) is often far below the promised 95% level. The Wilson interval (blue) is much more reliable.
-
-            **The Core Strategic Insight:** Never use the standard Wald (or "Normal Approximation") interval for important decisions. The **Wilson Score interval** provides the best balance of accuracy and interval width for most applications. The **Clopper-Pearson** is the most conservative ("exact") choice, often preferred in regulatory submissions for its guaranteed coverage.
-            """)
-        with tabs[1]:
-            st.markdown("- **The Golden Rule of Binomial Acceptance:** The acceptance criterion must **always be based on the lower bound of the confidence interval**, never on the point estimate.")
-            st.markdown("- **Example Criterion:** 'The lower bound of the 95% **Wilson Score** (or Clopper-Pearson) confidence interval for the concordance rate must be greater than or equal to the target of 90%.'")
-            st.markdown("- **Sample Size Implication:** This tool powerfully demonstrates why larger sample sizes are needed for high-confidence claims. With a small `n`, even a perfect result (e.g., 20/20 successes) may have a lower confidence bound that fails to meet a high target (like 95%), forcing the study to be repeated with more samples.")
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            For much of the 20th century, the simple **Wald interval** (named after Abraham Wald) was taught in introductory statistics classes. However, its poor performance was well-known. A famous 1998 paper by Brown, Cai, and DasGupta comprehensively documented its failures and advocated for superior alternatives.
-            
-            The **Wilson Score Interval** (1927) and the **Clopper-Pearson Interval** (1934) were created to solve this problem.
-            - The **Clopper-Pearson** interval is an "exact" method derived from the binomial distribution. It guarantees coverage will never be less than the nominal level, making it conservative (wider).
-            - The **Wilson Score** interval is derived by inverting the score test. Its average coverage probability is much closer to the nominal 95% level, making it more accurate and less conservative in practice.
-            """)
-            
-            # --- FIX: SEPARATED EACH FUNCTION CALL ---
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The Wald interval is simply:")
-            st.latex(r"\hat{p} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}")
-            st.markdown("The Wilson Score interval's superior formula is:")
-            st.latex(r"CI_{\text{Wilson}} = \frac{1}{1 + z_{\alpha/2}^2/n} \left( \hat{p} + \frac{z_{\alpha/2}^2}{2n} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z_{\alpha/2}^2}{4n^2}} \right)")
-            st.markdown("Notice it adds pseudo-successes and failures ($z_{\alpha/2}^2/2$), pulling the center away from 0 or 1. This is what gives it such good performance where the Wald interval fails catastrophically.")
-            
-
-def render_bayesian():
-    """Renders the interactive module for Bayesian Inference."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To employ Bayesian inference to formally and quantitatively synthesize existing knowledge (a **Prior** belief) with new experimental data (the **Likelihood**) to arrive at an updated, more robust conclusion (the **Posterior** belief).
-    
-    **Strategic Application:** This is a paradigm-shifting tool for driving efficient, knowledge-based validation and decision-making. In a traditional (Frequentist) world, every study starts from a blank slate. In the Bayesian world, we can formally leverage what we already know. This is powerful for:
-    - **Accelerating Tech Transfer:** Use data from an R&D validation study to form a **strong, informative prior**. This allows the receiving QC lab to demonstrate success with a smaller confirmation study, saving time and resources.
-    - **Adaptive Clinical Trials:** Data from an interim analysis can serve as a prior for the final analysis, allowing trials to be stopped early.
-    - **Quantifying Belief & Risk:** It provides a natural framework to answer the question: "Given what we already knew, and what this new data shows, what is the probability that the pass rate is actually above 95%?"
-    """)
-    st.info("""
-    **Interactive Demo:** Use the **Prior Belief** radio buttons in the sidebar to simulate how different levels of existing knowledge impact your conclusions. Observe how the final **Posterior (blue curve)** is always a weighted compromise between your initial **Prior (green curve)** and the new **Data (red curve)**. A strong prior will be very influential, while a weak or non-informative prior lets the new data speak for itself.
-    """)
-    prior_type_bayes = st.sidebar.radio("Select Prior Belief:", ("Strong R&D Prior", "No Prior (Frequentist)", "Skeptical/Regulatory Prior"))
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        fig, prior_mean, mle, posterior_mean = plot_bayesian(prior_type_bayes)
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
-        with tabs[0]:
-            st.metric(label="📈 KPI: Posterior Mean Rate", value=f"{posterior_mean:.3f}", help="The final, data-informed belief; a weighted average of the prior and the data.")
-            st.metric(label="💡 Prior Mean Rate", value=f"{prior_mean:.3f}", help="The initial belief *before* seeing the new QC data.")
-            st.metric(label="💡 Data-only Estimate (MLE)", value=f"{mle:.3f}", help="The evidence from the new QC data alone (the frequentist result).")
-            st.markdown("""
-            - **Prior (Green Dashed):** Our initial belief about the pass rate. A **Strong Prior** is tall and narrow, representing high confidence from historical data. A **Skeptical Prior** is wide and flat, representing uncertainty.
-            - **Likelihood (Red Dotted):** The "voice of the new data." This is the evidence from our new QC runs. Note that it is not a probability distribution.
-            - **Posterior (Blue Solid):** The final, updated belief. The posterior is always a **compromise** between the prior and the likelihood, weighted by their respective certainties (the narrowness of their distributions).
-
-            **The Core Strategic Insight:** This simulation demonstrates Bayesian updating in action.
-             - With a **Strong R&D Prior**, the new (and slightly worse) QC data barely moves our final belief. The strong prior evidence dominates the small new sample.
-             - With a **Skeptical Prior**, our final belief is a true compromise between the skeptical starting point and the new data.
-             - With **No Prior**, the posterior is determined almost entirely by the data, and the result mirrors the frequentist conclusion.
-            This framework provides a transparent and logical way to cumulate knowledge over time.
-            """)
-        with tabs[1]:
-            st.markdown("- The acceptance criterion is framed in terms of the **posterior distribution** and is probabilistic.")
-            st.markdown("- **Example Criterion 1 (Probability Statement):** 'There must be at least a 95% probability that the true pass rate is greater than 90%.' This is calculated by finding the area under the blue posterior curve to the right of the 0.90 threshold.")
-            st.markdown("- **Example Criterion 2 (Credible Interval):** 'The lower bound of the **95% Credible Interval** (the central 95% of the blue posterior distribution) must be above the target of 90%.'")
-            st.warning("**The Prior is Critical:** The choice of prior is the most controversial and important part of a Bayesian analysis. In a regulated setting, the prior must be transparent, justified by historical data, and pre-specified in the validation protocol. An unsubstantiated, overly optimistic prior would be a major red flag for an auditor.")
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            The underlying theorem was conceived by the Reverend **Thomas Bayes** in the 1740s. However, for nearly 200 years, Bayesian inference remained a philosophical curiosity, largely overshadowed by the Frequentist school. This was due to philosophical objections to the subjective nature of priors and the computational difficulty of calculating the posterior distribution.
-            
-            The **"Bayesian Revolution"** began in the late 20th century, driven by powerful computers and simulation algorithms like **Markov Chain Monte Carlo (MCMC)**. These methods allowed scientists to approximate the posterior distribution for incredibly complex models, making Bayesian methods practical for the first time.
-            
-            #### Mathematical Basis
-            Bayes' Theorem is elegantly simple:
-            """)
-            st.latex(r"P(\theta|D) = \frac{P(D|\theta) \cdot P(\theta)}{P(D)}")
-            st.markdown(r"In words: **Posterior = (Likelihood × Prior) / Evidence**")
-            st.markdown(r"""
-            - $P(\theta|D)$ (Posterior): The probability of our parameter $\theta$ (e.g., the true pass rate) given the new Data D.
-            - $P(D|\theta)$ (Likelihood): The probability of observing our Data D, given a specific value of the parameter $\theta$.
-            - $P(\theta)$ (Prior): Our initial belief about the distribution of the parameter $\theta$.
-            
-            For binomial data, the **Beta distribution** is a **conjugate prior**. This means if you start with a Beta prior and have a binomial likelihood, your posterior will also be a Beta distribution.
-            - If Prior is Beta($\alpha_{prior}, \beta_{prior}$)
-            - And Data is $k$ successes in $n$ trials:
-            - Then the Posterior is simply Beta($\alpha_{prior} + k, \beta_{prior} + n - k$).
-            The $\alpha$ and $\beta$ parameters can be thought of as "pseudo-counts" of prior successes and failures, which are simply added to the new observed counts.
-            """)
-
-def render_multi_rule():
-    """Renders the module for Multi-Rule SPC (Westgard Rules)."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To serve as a high-sensitivity "security system" for your assay. Instead of one simple alarm, this system uses a combination of rules to detect specific types of problems, catching subtle shifts and drifts long before a catastrophic failure occurs. It dramatically increases the probability of detecting true errors while minimizing false alarms.
-    
-    **Strategic Application:** This is the gold standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors (a point outside ±3 SD), the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes:
-    - **Systematic Errors (Bias/Shifts):** Like a miscalibrated instrument. Detected by rules like `2-2s`, `4-1s`, or `10-x`.
-    - **Random Errors (Imprecision):** Like a sloppy pipetting technique. Detected primarily by the `1-3s` and `R-4s` rules.
-
-    Implementing these rules prevents the release of bad data, which is the cornerstone of ensuring patient safety and product quality. It's the difference between a simple smoke detector and an advanced security system with motion sensors, heat sensors, and tripwires.
-    """)
-    
-    fig = plot_westgard_chart() # Assumes this function returns a chart with rule violations
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
-        with tabs[0]:
-            st.metric(label="🕵️ Run Verdict", value="Out-of-Control", help="The overall judgment on the analytical run based on the triggered rules.")
-            st.metric(label="🚨 Triggered Rule", value="2-2s Violation", help="The specific rule that caused the 'Out-of-Control' signal.")
-            
-            st.markdown("""
-            **The Detective's Toolkit (Common Rules):**
-            - 🚨 **1-3s Rule:** One point is beyond 3 standard deviations. This is a "smoking gun" – a major, often random, error occurred. **Likely Culprit:** Big blunder like wrong reagent, major instrument failure, or calculation error.
-            
-            - 🧐 **2-2s Rule (Warning):** Two consecutive points are on the same side of the mean and beyond 2 standard deviations. This is your first major clue of a **systematic error** or bias. **Likely Culprit:** A new lot of calibrator or reagent has caused a shift.
-            
-            - 🕵️ **4-1s Rule:** Four consecutive points are on the same side of the mean and beyond 1 standard deviation. This detects a smaller, but persistent, shift. **Likely Culprit:** Minor instrument drift or subtle degradation of a standard.
-            
-            - 🔭 **R-4s Rule:** The range between two consecutive points exceeds 4 standard deviations. This detects a sudden increase in **random error** or imprecision. **Likely Culprit:** Inconsistent pipetting, instrument instability (e.g., fluctuating temperature).
-
-            **The Core Strategic Insight:** The multi-rule system gives you a **diagnostic-level** understanding of your assay's health. It doesn't just tell you *that* something is wrong, it gives you a powerful clue as to *what* is wrong, dramatically speeding up your investigation and corrective action.
-            """)
-
-        with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
-            This operator sees any alarm, immediately discards the run, and starts over from scratch without thinking.
-            
-            - They see a `2-2s` warning and panic, treating it the same as a `1-3s` failure.
-            - They don't use the specific rule (`4-1s` vs `R-4s`) to guide their troubleshooting.
-            - They might re-run the control sample over and over, hoping to get a "pass," which is a serious compliance violation known as "testing into compliance."
-            
-            This approach is inefficient, costly, and completely misses the diagnostic power of the rules.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: The Rule is the First Clue**
-            The goal is to treat the specific rule violation as the starting point of a targeted investigation.
-            
-            - **Think like a detective:** "The chart shows a `4-1s` violation. This suggests a small, systematic shift. The first thing I should check is the calibration curve or the expiration date of my reagents, not my pipetting technique."
-            - **Respect the Hierarchy:** A `1-3s` rule violation typically means "Stop, reject the run." A `2-2s` or `4-1s` might mean "Accept the run, but investigate immediately as a trend is developing."
-            
-            This diagnostic mindset transforms the control chart from a simple pass/fail tool into the most important troubleshooting guide in the lab.
-            """)
-
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            The story of multi-rule charts is a brilliant fusion of two eras. First came **Dr. Walter A. Shewhart** at Bell Labs in the 1920s. He invented the foundational control chart (the ±3 SD limits) to improve the reliability of telephone network components. This was the birth of Statistical Process Control (SPC).
-            
-            Fast forward to the 1970s. **Dr. James O. Westgard**, a professor of pathology and laboratory medicine at the University of Wisconsin, faced a different problem: ensuring the daily reliability of clinical laboratory tests that decided patient diagnoses. He found that Shewhart's single `1-3s` rule wasn't sensitive enough to catch the subtle drifts common in complex biochemical assays.
-            
-            In a landmark 1981 paper, Westgard and his colleagues proposed a system of multiple rules to be applied simultaneously. These "Westgard Rules" were specifically designed to have a high probability of detecting medically important errors, while keeping the rate of false alarms low. This gave lab technicians a powerful, statistically-backed system for making daily accept/reject decisions, and it rapidly became the global standard in clinical chemistry and beyond.
-            
-            #### Mathematical Basis
-            The rule notation is a simple shorthand:
-            """)
-            st.latex(r"A_{BC}")
-            st.markdown("""
-            - **`A`**: The number of control points.
-            - **`B`**: The standard deviation limit (the "B"oundary).
-            - **`C`**: The control material or run (often implied as the last C points).
-            
-            **Examples:**
-            - **`1-3s`**: **1** point exceeds the **3s** (3 standard deviation) limit.
-            - **`2-2s`**: **2** consecutive points exceed the **2s** limit on the same side of the mean.
-            - **`R-4s`**: The **R**ange between 2 consecutive points exceeds **4s**.
-            """)
-    
-    # Placeholder for the plotting function
-    # In a real app, this function would generate data and check Westgard rule violations
-
-def render_westgard_rules_interactive():
-    """Renders the interactive module for Multi-Rule SPC (Westgard Rules)."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To serve as a high-sensitivity "security system" for your assay. Instead of one simple alarm, this system uses a combination of rules to detect specific types of problems, catching subtle shifts and drifts long before a catastrophic failure occurs. It dramatically increases the probability of detecting true errors while minimizing false alarms.
-    
-    **Strategic Application:** This is the gold standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors (a point outside ±3 SD), the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes:
-    - **Systematic Errors (Bias/Shifts):** Like a miscalibrated instrument. Detected by rules like `2-2s`, `4-1s`, or `10-x`.
-    - **Random Errors (Imprecision):** Like a sloppy pipetting technique. Detected primarily by the `1-3s` and `R-4s` rules.
-
-    Implementing these rules prevents the release of bad data, which is the cornerstone of ensuring patient safety and product quality. It's the difference between a simple smoke detector and an advanced security system with motion sensors, heat sensors, and tripwires.
-    """)
-    
-    # The user's plotting function, nested for clarity
-    def plot_westgard_chart_with_violations():
-        np.random.seed(45)
-        data = np.random.normal(100, 2, 20)
-        data[10] = 107  # 1-3s violation
-        data[14:16] = [105, 105.5] # 2-2s violation
-        mean, std = 100, 2
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=data, mode='lines+markers', name='Control Data', line=dict(color='#636EFA'), marker=dict(size=8)))
-        
-        # Add SD lines
-        for i in range(-3, 4):
-            if i == 0:
-                fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean', annotation_position="bottom right")
-            else:
-                fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), 
-                              annotation_text=f'{i} SD', annotation_position="bottom right")
-        
-        # Highlight violations shown on the chart
-        fig.add_annotation(x=11, y=107, text="<b>🚨 1-3s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=-40, ay=-40, font=dict(color="red"))
-        fig.add_annotation(x=15.5, y=105.5, text="<b>🧐 2-2s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=40, ay=-40, font=dict(color="orange"))
-        
-        fig.update_layout(title="<b>Statistical Detective at Work: A Multi-Rule Control Chart</b>",
-                          xaxis_title="Measurement Number", yaxis_title="Control Value",
-                          legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-        return fig
-
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        fig = plot_westgard_chart_with_violations()
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
-        with tabs[0]:
-            st.metric(label="🕵️ Run Verdict", value="Reject Run", help="The 1-3s rule is a mandatory rejection rule.")
-            st.metric(label="🚨 Primary Cause", value="1-3s Violation", help="A 'smoking gun' event. This rule alone is sufficient to reject the run.")
-            st.metric(label="🧐 Secondary Evidence", value="2-2s Violation", help="This suggests a systematic error is also present in the system.")
-            
-            st.markdown("""
-            **The Detective's Findings on this Chart:**
-            - 🚨 **The Smoking Gun (Point 11):** The `1-3s` violation is a clear, unambiguous signal of a major problem. It could be a large random error (e.g., air bubble in a pipette) or a significant one-time event. This rule alone forces the rejection of the run.
-            
-            - 🧐 **The Developing Pattern (Points 15-16):** The `2-2s` violation is a classic sign of **systematic error**. The process has shifted high. This suggests a different problem from the one at point 11. Perhaps a new reagent lot was introduced after point 14, causing a consistent positive bias.
-            
-            - **The Core Strategic Insight:** This chart shows two *different* problems. A simple lab investigation might stop after finding the cause of the `1-3s` error. A true statistical detective sees the `2-2s` signal and knows there is a deeper, more persistent issue to solve as well. This prevents future failures.
-            """)
-
-        with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
-            This operator sees the alarms, immediately discards the run, and starts over from scratch without thinking.
-            
-            - *"My control failed. I'll just run it again."* (Without investigating *why* it failed, the problem will likely recur).
-            - They might fixate on the big `1-3s` error and completely miss the more subtle but equally important `2-2s` shift.
-            - They might re-run the control sample over and over, hoping to get a "pass," which is a serious compliance violation known as "testing into compliance."
-            
-            This approach is inefficient, costly, and guarantees that underlying process problems will fester.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: The Rule is the First Clue**
-            The goal is to treat the specific rule violation as the starting point of a targeted investigation.
-            
-            - **Think like a detective:** "The chart shows a `1-3s` violation AND a `2-2s` violation. These are likely separate issues. The `1-3s` could be a one-off blunder. The `2-2s` suggests a calibration or reagent problem. I need to investigate both."
-            - **Document Everything:** The investigation, the root cause, and the corrective action for each rule violation must be documented. This is a regulatory expectation and a crucial part of process knowledge.
-            
-            This diagnostic mindset transforms the control chart from a simple pass/fail tool into the most important troubleshooting guide in the lab.
-            """)
-
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            The story of multi-rule charts is a brilliant fusion of two eras. First came **Dr. Walter A. Shewhart** at Bell Labs in the 1920s. He invented the foundational control chart (the ±3 SD limits) to improve the reliability of telephone network components. This was the birth of Statistical Process Control (SPC).
-            
-            Fast forward to the 1970s. **Dr. James O. Westgard**, a professor at the University of Wisconsin, faced a different problem: ensuring the daily reliability of clinical laboratory tests that decided patient diagnoses. He found that Shewhart's single `1-3s` rule wasn't sensitive enough to catch the subtle drifts common in complex biochemical assays.
-            
-            In a landmark 1981 paper, Westgard and his colleagues proposed a system of multiple rules to be applied simultaneously. These "Westgard Rules" were specifically designed to have a high probability of detecting medically important errors, while keeping the rate of false alarms low. This gave lab technicians a powerful, statistically-backed system for making daily accept/reject decisions, and it rapidly became the global standard in clinical chemistry and beyond.
-            
-            #### Mathematical Basis
-            The rule notation is a simple shorthand: **A<sub>L</sub>**, where `A` is the number of points and `L` is the limit.
-            
-            - **`1-3s`**: **1** point exceeds the **3s** (3 standard deviation) limit.
-            - **`2-2s`**: **2** consecutive points exceed the **2s** limit on the same side of the mean.
-            - **`R-4s`**: The **R**ange between 2 consecutive points exceeds **4s**.
-            """)
-            
-def render_spc_charts():
-    """Renders the INTERACTIVE module for Statistical Process Control (SPC) charts."""
-    st.markdown("""
-    #### Purpose & Application: The Voice of the Process
-    **Purpose:** To serve as an **EKG for your process**—a real-time heartbeat monitor that visualizes its stability. The goal is to distinguish between two fundamental types of variation:
-    - **Common Cause Variation:** The natural, random "static" or "noise" inherent to a stable process. It's predictable.
-    - **Special Cause Variation:** A signal that something has changed or gone wrong. It's unpredictable and requires investigation.
-    
-    **Strategic Application:** SPC is the bedrock of modern quality control. These charts provide an objective, data-driven answer to the critical question: "Is my process stable and behaving as expected?" They are used to prevent defects, reduce waste, and provide the evidence needed to justify (or reject) process changes.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the controls in the sidebar to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
-    """)
-    
-    # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("SPC Scenario Controls")
-    scenario = st.sidebar.radio(
-        "Select a Process Scenario to Simulate:",
-        ('Stable', 'Sudden Shift', 'Gradual Trend', 'Increased Variability'),
-        captions=[
-            "Process is behaving normally.",
-            "e.g., A new raw material lot is introduced.",
-            "e.g., An instrument is slowly drifting out of calibration.",
-            "e.g., An operator becomes less consistent."
-        ]
-    )
-
-    # Generate plots based on the selected scenario
-    fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
-    
-    st.subheader(f"Analysis & Interpretation: {scenario} Process")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-
-    with tabs[0]:
-        st.info("💡 Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
-
-        with st.expander("Indivduals & Moving Range (I-MR) Chart", expanded=True):
-            st.plotly_chart(fig_imr, use_container_width=True)
-            st.markdown("- **Interpretation:** The I-chart tracks the process center, while the MR-chart tracks short-term variability. **Both** must be stable. An out-of-control MR chart is a leading indicator of future problems.")
-
-        with st.expander("X-bar & Range (X̄-R) Chart", expanded=True):
-            st.plotly_chart(fig_xbar, use_container_width=True)
-            st.markdown("- **Interpretation:** The X-bar chart tracks variation *between* subgroups and is extremely sensitive to small shifts. The R-chart tracks variation *within* subgroups, a measure of process consistency.")
-        
-        with st.expander("Proportion (P) Chart", expanded=True):
-            st.plotly_chart(fig_p, use_container_width=True)
-            st.markdown("- **Interpretation:** This chart tracks the proportion of defects. The control limits become tighter for larger batches, reflecting increased statistical certainty.")
-
-    with tabs[1]:
-        st.error("""
-        🔴 **THE INCORRECT APPROACH: "Process Tampering"**
-        This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
-        
-        - *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
-        - *"This point is below the mean, I'll adjust the flow rate up."*
-        
-        Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.
-        """)
-        st.success("""
-        🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
-        The control chart's signal dictates one of two paths:
-        1.  **Process is IN-CONTROL (only common cause variation):**
-            - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).
-        2.  **Process is OUT-OF-CONTROL (a special cause is present):**
-            - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.
-        """)
-
-    with tabs[2]:
-        # FIX: Replaced the old content with your new, more detailed version.
-        st.markdown("""
-        #### Historical Context & Origin
-        The control chart was invented by the brilliant American physicist and engineer **Dr. Walter A. Shewhart** while working at Bell Telephone Laboratories in the 1920s. The challenge was immense: manufacturing millions of components for the new national telephone network required unprecedented levels of consistency. How could you know if a variation in a vacuum tube's performance was just normal fluctuation or a sign of a real production problem?
-
-        Shewhart's genius was in his 1924 memo where he introduced the first control chart. He was the first to formally articulate the critical distinction between **common cause** and **special cause** variation. He realized that as long as a process only exhibited common cause variation, it was stable and predictable. The purpose of the control chart was to provide a simple, graphical tool to detect the moment a special cause entered the system. This idea was the birth of modern Statistical Process Control and laid the foundation for the 20th-century quality revolution.
-
-        #### Mathematical Basis
-        The control limits on a Shewhart chart are famously set at ±3 standard deviations from the center line.
-        """)
-        st.latex(r"\text{Control Limits} = \text{Center Line} \pm 3 \times (\text{Standard Deviation of the Plotted Statistic})")
-        st.markdown("""
-        - **Why 3-Sigma?** Shewhart chose this value for sound economic and statistical reasons. For a normally distributed process, 99.73% of all data points will naturally fall within these limits.
-        - **Minimizing False Alarms:** This means there's only a 0.27% chance of a point falling outside the limits purely by chance. This makes the chart robust; when you get a signal, you can be very confident it's real and not just random noise. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
-        """)
-def render_tolerance_intervals():
-    """Renders the INTERACTIVE module for Tolerance Intervals."""
-    st.markdown("""
-    #### Purpose & Application: The Quality Engineer's Secret Weapon
-    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process.
-    
-    **Strategic Application:** This is often the most critical statistical interval in manufacturing. It directly answers the high-stakes question: **"Based on this sample, what is the range where we can expect almost all of our individual product units to fall?"**
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to explore the trade-offs in tolerance intervals. This simulation demonstrates how sample size and the desired quality guarantee (coverage) directly impact the calculated interval, which in turn affects process specifications and batch release decisions.
-    """)
-    
-    # --- NEW: Sidebar controls for this specific module ---
-    st.sidebar.subheader("Tolerance Interval Controls")
-    n_slider = st.sidebar.slider(
-        "🔬 Sample Size (n)", 
-        min_value=10, max_value=200, value=30, step=10,
-        help="The number of samples collected. More samples lead to a narrower, more reliable interval."
-    )
-    coverage_slider = st.sidebar.select_slider(
-        "🎯 Desired Population Coverage",
-        options=[90.0, 95.0, 99.0, 99.9],
-        value=99.0,
-        help="The 'quality promise'. What percentage of all future parts do you want this interval to contain? A higher promise requires a wider interval."
-    )
-
-    # Generate plots using the slider values
-    fig, ci, ti = plot_tolerance_intervals(n=n_slider, coverage_pct=coverage_slider)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
-        with tabs[0]:
-            st.metric(label="🎯 Desired Coverage", value=f"{coverage_slider:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
-            st.metric(label="📏 Resulting Tolerance Interval", value=f"[{ti[0]:.1f}, {ti[1]:.1f}]", help="The final calculated range. Note how much wider it is than the CI.")
-            
-            st.info("Play with the sliders in the sidebar and observe the results!")
-            st.markdown("""
-            - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
-            - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
-            """)
-
-        with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The Confidence Interval Fallacy**
-            - A manager sees that the 95% **Confidence Interval** for the mean is [99.9, 100.1] and their product specification is [95, 105]. They declare victory, believing all their product is in spec.
-            - **The Flaw:** They've proven the *average* is in spec, but have made no claim about the *individuals*. If process variation is high, many parts could still be out of spec.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Use the Right Interval for the Right Question**
-            - **Question 1: "Where is my long-term process average located?"**
-              - **Correct Tool:** ✅ **Confidence Interval**.
-            - **Question 2: "Will the individual units I produce meet the customer's specification?"**
-              - **Correct Tool:** ✅ **Tolerance Interval**.
-              
-            Never use a confidence interval to make a statement about where individual values are expected to fall.
-            """)
-
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: The Surviving Bomber Problem
-            The development of tolerance intervals is credited to the brilliant mathematician **Abraham Wald** during World War II. He is famous for the "surviving bombers" problem: when analyzing bullet holes on returning planes, the military wanted to reinforce the most-hit areas. Wald's revolutionary insight was that they should reinforce the areas with **no bullet holes**—because planes hit there never made it back.
-            
-            This ability to reason about an entire population from a limited sample is the same thinking behind the tolerance interval. Wald developed the statistical theory to allow engineers to make a reliable claim about **all** manufactured parts based on a **small sample**, a critical need for mass-producing interchangeable military hardware.
-            
-            #### Mathematical Basis
-            """)
-            st.latex(r"\text{TI} = \bar{x} \pm k \cdot s")
-            st.markdown("""
-            - **`k`**: The **k-factor** is the magic ingredient. It is a special value that depends on **three** inputs: the sample size (`n`), the desired population coverage (e.g., 99%), and the desired confidence level (e.g., 95%). This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation.
-            """)
 def render_4pl_regression():
     """Renders the INTERACTIVE module for 4-Parameter Logistic (4PL) regression."""
     st.markdown("""
@@ -2976,6 +2359,7 @@ def render_roc_curve():
             The curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)**.
             """)
             st.latex(r"\text{Sensitivity} = \frac{TP}{TP + FN} \quad , \quad \text{Specificity} = \frac{TN}{TN + FP}")
+
 def render_tost():
     """Renders the INTERACTIVE module for Two One-Sided Tests (TOST) for equivalence."""
     st.markdown("""
@@ -3069,6 +2453,811 @@ def render_tost():
             """)
             st.latex(r"H_{01}: \mu_{Test} - \mu_{Ref} \leq -\Delta \quad , \quad H_{02}: \mu_{Test} - \mu_{Ref} \geq +\Delta")
             st.markdown("You must reject **both** of these null hypotheses to conclude that the true difference lies within the equivalence margin `[-Δ, +Δ]`.")
+
+def render_assay_robustness_doe():
+    """Renders the comprehensive, interactive module for Assay Robustness (DOE/RSM)."""
+    st.markdown("""
+    #### Purpose & Application: Process Cartography - The GPS for Optimization
+    **Purpose:** To create a detailed topographical map of your process landscape. This analysis moves beyond simple robustness checks to full **process optimization**, using **Response Surface Methodology (RSM)** to model curvature and find the true "peak of the mountain."
+    
+    **Strategic Application:** This is the statistical engine for Quality by Design (QbD) and process characterization. By developing a predictive model, you can:
+    - **Find Optimal Conditions:** Identify the exact settings that maximize yield, efficacy, or any other Critical Quality Attribute (CQA).
+    - **Define a Design Space:** Create a multi-dimensional "safe operating zone" where the process is guaranteed to produce acceptable results. This is highly valued by regulatory agencies.
+    - **Minimize Variability:** Find a "robust plateau" on the response surface where performance is not only high, but also insensitive to small variations in input parameters.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the process expert. Use the sliders in the sidebar to define the "true" physics of a virtual assay. The plots will show how a DOE/RSM experiment can uncover this underlying response surface, allowing you to find the optimal operating conditions.
+    """)
+    
+    # --- Sidebar controls ---
+    st.sidebar.subheader("DOE / RSM Controls")
+    st.sidebar.markdown("**Linear & Interaction Effects**")
+    ph_slider = st.sidebar.slider("🧬 pH Main Effect", -10.0, 10.0, 2.0, 1.0, help="The 'true' linear impact of pH. A high value 'tilts' the surface along the pH axis.")
+    temp_slider = st.sidebar.slider("🌡️ Temperature Main Effect", -10.0, 10.0, 5.0, 1.0, help="The 'true' linear impact of Temperature. A high value 'tilts' the surface along the Temp axis.")
+    interaction_slider = st.sidebar.slider("🔄 pH x Temp Interaction Effect", -10.0, 10.0, 0.0, 1.0, help="The 'true' interaction. A non-zero value 'twists' the surface, creating a rising ridge.")
+    
+    st.sidebar.markdown("**Curvature (Quadratic) Effects**")
+    ph_quad_slider = st.sidebar.slider("🧬 pH Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley). This is the key to optimization.")
+    temp_quad_slider = st.sidebar.slider("🌡️ Temperature Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley).")
+
+    st.sidebar.markdown("**Experimental Noise**")
+    noise_slider = st.sidebar.slider("🎲 Random Noise (SD)", 0.1, 5.0, 1.0, 0.1, help="The inherent variability of the assay. High noise can hide the true effects.")
+    
+    # Generate plots
+    fig_contour, fig_3d, fig_effects, params = plot_doe_robustness(
+        ph_effect=ph_slider, temp_effect=temp_slider, interaction_effect=interaction_slider,
+        ph_quad_effect=ph_quad_slider, temp_quad_effect=temp_quad_slider, noise_sd=noise_slider
+    )
+    
+    st.header("Response Surface Plots")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig_contour, use_container_width=True)
+    with col2:
+        st.plotly_chart(fig_3d, use_container_width=True)
+
+    st.header("Effect Plots & Interpretation")
+    col3, col4 = st.columns([0.7, 0.3])
+    with col3:
+        st.plotly_chart(fig_effects, use_container_width=True)
+    with col4:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            # Find the optimal settings from the model predictions
+            pred_z = fig_3d.data[0].z
+            max_idx = np.unravel_index(np.argmax(pred_z), pred_z.shape)
+            opt_temp = fig_3d.data[0].y[max_idx[0]]
+            opt_ph = fig_3d.data[0].x[max_idx[1]]
+            max_response = np.max(pred_z)
+
+            st.metric("Predicted Optimal pH", f"{opt_ph:.2f}")
+            st.metric("Predicted Optimal Temp", f"{opt_temp:.2f}")
+            st.metric("Predicted Max Response", f"{max_response:.1f} units")
+            
+            st.info("Play with the sliders and observe how the 'true' physics you define are reflected in the plots!")
+            st.markdown("""
+            - **Linear Effects:** Increasing a `Main Effect` slider is like **tilting the entire surface**. A high positive value for Temperature makes the response universally higher at high temperatures.
+            - **Interaction Effects:** A non-zero `Interaction Effect` **twists the surface**, creating a "rising ridge." The effect of pH is now different at high vs. low temperatures. The lines in the Interaction Plot become non-parallel.
+            - **Curvature Effects:** The `Curvature` sliders are the key to optimization. Setting them to negative values creates a **peak or dome** in the 3D surface, which corresponds to the "bullseye" of concentric circles in the 2D contour plot. This is the optimal zone you are trying to find.
+            - **Noise:** Increasing `Random Noise` makes the red data points scatter further from the true underlying surface, making it harder for the model to accurately map the landscape.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: One-Factor-at-a-Time (OFAT)**
+            Imagine trying to find the highest point on a mountain by only walking in straight lines, first due North-South, then due East-West. You will almost certainly end up on a ridge or a local hill, convinced it's the summit, while the true peak was just a few steps to the northeast.
+            
+            - **The Flaw:** This is what OFAT does. It is statistically inefficient and, more importantly, it is **guaranteed to miss the true optimum** if any interaction between the factors exists.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Map the Entire Territory at Once (DOE/RSM)**
+            By testing factors in combination using a dedicated design (like a Central Composite Design), you send out scouts to explore the entire landscape simultaneously. This allows you to:
+            1.  **Be Highly Efficient:** Gain more information from fewer experimental runs compared to OFAT.
+            2.  **Understand the Terrain:** Uncover and quantify critical interaction and curvature effects that describe the true shape of the process space.
+            3.  **Find the True Peak:** Develop a predictive mathematical model that acts as a GPS, guiding you directly to the optimal operating conditions.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            - **The Genesis (1920s):** DOE was invented by **Sir Ronald A. Fisher** to screen for important factors in agriculture. His factorial designs were brilliant for figuring out *which* factors mattered.
+            - **The Optimization Revolution (1950s):** The post-war chemical industry boom created a new need: not just to know *which* factors mattered, but *how to find their optimal settings*. **George Box** and K.B. Wilson developed **Response Surface Methodology (RSM)** to solve this. They created efficient new designs, like the Central Composite Design (CCD) shown here, which cleverly add "axial" points to a factorial design. These extra points allow for the fitting of a **quadratic model**, which is the key to modeling curvature and finding the "peak of the mountain." This moved DOE from simple screening to true, powerful optimization.
+            
+            #### Mathematical Basis
+            RSM typically fits a second-order (quadratic) model to the experimental data:
+            """)
+            st.latex(r"Y = \beta_0 + \beta_1X_1 + \beta_2X_2 + \beta_{11}X_1^2 + \beta_{22}X_2^2 + \beta_{12}X_1X_2 + \epsilon")
+            st.markdown(r"""
+            - $\beta_0$: The intercept or baseline response.
+            - $\beta_1, \beta_2$: The **linear main effects** (the tilt of the surface).
+            - $\beta_{11}, \beta_{22}$: The **quadratic effects** (the curvature or "hill/bowl" shape).
+            - $\beta_{12}$: The **interaction effect** (the twist of the surface).
+            - $\epsilon$: The random experimental error.
+            """)
+
+def render_causal_inference():
+    """Renders the INTERACTIVE module for Causal Inference."""
+    st.markdown("""
+    #### Purpose & Application: Beyond the Shadow - The Science of "Why"
+    **Purpose:** To move beyond mere correlation ("what") and ascend to the level of causation ("why"). While predictive models see shadows on a cave wall (associations), Causal Inference provides the tools to understand the true objects casting them (the underlying causal mechanisms).
+    
+    **Strategic Application:** This is the ultimate goal of root cause analysis and the foundation of intelligent intervention.
+    - **💡 Effective CAPA:** Why did a batch fail? A predictive model might say high temperature is *associated* with failure. Causal Inference helps determine if high temperature *causes* failure, or if both are driven by a third hidden variable (a "confounder"). This prevents wasting millions on fixing the wrong problem.
+    - **🗺️ Process Cartography:** It allows for the creation of a **Directed Acyclic Graph (DAG)**, which is a formal causal map of your process, documenting scientific understanding and guiding future analysis.
+    - **🔮 "What If" Scenarios:** It provides a framework to answer hypothetical questions like, "What *would* have been the yield if we had kept the temperature at 40°C?" using only observational data.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the slider in the sidebar to control the **Confounding Strength** of the `Reagent Lot`. As you increase it, watch the "Naive Correlation" (the orange line) become a terrible estimate of the "True Causal Effect" (the green line). This simulation visually demonstrates how a hidden variable can create a misleading correlation.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
+    st.sidebar.subheader("Causal Inference Controls")
+    confounding_slider = st.sidebar.slider(
+        "🚨 Confounding Strength", 
+        min_value=0.0, max_value=10.0, value=5.0, step=0.5,
+        help="How strongly the 'Reagent Lot' affects BOTH Temperature and Purity. At 0, the naive correlation equals the true causal effect."
+    )
+    
+    # Generate plots using the slider value
+    fig_dag, fig_scatter, naive_effect, adjusted_effect = plot_causal_inference(confounding_strength=confounding_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig_dag, use_container_width=True)
+        st.plotly_chart(fig_scatter, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="Biased Estimate (Naive Correlation)", value=f"{naive_effect:.3f}", help="The effect you would conclude by just plotting Purity vs. Temp. This is misleading!")
+            st.metric(label="Unbiased Estimate (True Causal Effect)", value=f"{adjusted_effect:.3f}", help="The true effect of Temp on Purity after adjusting for the confounder. Note how this stays stable.")
+
+            st.info("Play with the 'Confounding Strength' slider and watch the metrics and plots!")
+            st.markdown("""
+            - **The DAG (Top Plot):** This is our "causal map." It shows that `Reagent Lot` is a **common cause** of both `Temp` and `Purity`, creating a "backdoor" path that biases the `Temp -> Purity` relationship.
+            - **The Scatter Plot:** As you increase `Confounding Strength`, the orange line (naive correlation) becomes a worse and worse estimate of the green line (the true causal effect). The data points separate into two clouds (one for each reagent lot), and the naive model incorrectly draws a line through them. The adjusted model correctly finds the true, steeper negative trend *within* each group.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The Correlation Trap**
+            - An analyst observes that ice cream sales are highly correlated with shark attacks. They recommend banning ice cream to improve beach safety.
+            - **The Flaw:** They failed to account for a confounder: **Hot Weather.** Hot weather causes more people to buy ice cream AND causes more people to go swimming. Causal inference provides the tools to mathematically "control for" the weather to see that ice cream has no real effect.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Draw the Map, Find the Path, Block the Backdoors**
+            A robust causal analysis follows a disciplined, three-step process.
+            1.  **Draw the Map (Build the DAG):** This is a collaborative effort between data scientists and Subject Matter Experts. You must encode all your domain knowledge and causal beliefs into a formal DAG.
+            2.  **Find the Path:** Clearly identify the causal path you want to measure (e.g., `Temp -> Purity`).
+            3.  **Block the Backdoors:** Use the DAG to identify all non-causal "backdoor" paths (confounding). Then, use the appropriate statistical technique (like multiple regression) to "block" these paths, leaving only the true causal effect.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context: The Causal Revolution
+            **The Problem:** For most of the 20th century, mainstream statistics was deeply allergic to the language of causation. The mantra, famously drilled into every student, was **"correlation is not causation."** While true, this left a massive void: if correlation isn't the answer, what is? Statisticians were excellent at describing relationships but had no formal language to discuss *why* those relationships existed, leaving a critical gap between data and real-world action.
+            
+            **The "Aha!" Moment:** The revolution was sparked by the computer scientist and philosopher **Judea Pearl** in the 1980s and 90s. His key insight was that the missing ingredient was **structure**. He argued that scientists carry causal models in their heads all the time, and that these models could be formally written down as graphs. He introduced the **Directed Acyclic Graph (DAG)** as the language for this structure. The arrows in a DAG are not mere correlations; they are bold claims about the direction of causal influence.
+            
+            **The Impact:** This was a paradigm shift. By making causal assumptions explicit in a DAG, Pearl developed a complete mathematical framework—including his famous **do-calculus**—to determine if a causal question *could* be answered from observational data, and if so, how. This "Causal Revolution" provided the first-ever rigorous, mathematical language to move from seeing (`P(Y|X)`) to doing (`P(Y|do(X))`), transforming fields from epidemiology to economics. For this work, Judea Pearl was awarded the Turing Award in 2011, the highest honor in computer science.
+            """)
+##=======================================================END ACT I ========================================================================================================================================
+def render_spc_charts():
+    """Renders the INTERACTIVE module for Statistical Process Control (SPC) charts."""
+    st.markdown("""
+    #### Purpose & Application: The Voice of the Process
+    **Purpose:** To serve as an **EKG for your process**—a real-time heartbeat monitor that visualizes its stability. The goal is to distinguish between two fundamental types of variation:
+    - **Common Cause Variation:** The natural, random "static" or "noise" inherent to a stable process. It's predictable.
+    - **Special Cause Variation:** A signal that something has changed or gone wrong. It's unpredictable and requires investigation.
+    
+    **Strategic Application:** SPC is the bedrock of modern quality control. These charts provide an objective, data-driven answer to the critical question: "Is my process stable and behaving as expected?" They are used to prevent defects, reduce waste, and provide the evidence needed to justify (or reject) process changes.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the controls in the sidebar to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
+    st.sidebar.subheader("SPC Scenario Controls")
+    scenario = st.sidebar.radio(
+        "Select a Process Scenario to Simulate:",
+        ('Stable', 'Sudden Shift', 'Gradual Trend', 'Increased Variability'),
+        captions=[
+            "Process is behaving normally.",
+            "e.g., A new raw material lot is introduced.",
+            "e.g., An instrument is slowly drifting out of calibration.",
+            "e.g., An operator becomes less consistent."
+        ]
+    )
+
+    # Generate plots based on the selected scenario
+    fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
+    
+    st.subheader(f"Analysis & Interpretation: {scenario} Process")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+
+    with tabs[0]:
+        st.info("💡 Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
+
+        with st.expander("Indivduals & Moving Range (I-MR) Chart", expanded=True):
+            st.plotly_chart(fig_imr, use_container_width=True)
+            st.markdown("- **Interpretation:** The I-chart tracks the process center, while the MR-chart tracks short-term variability. **Both** must be stable. An out-of-control MR chart is a leading indicator of future problems.")
+
+        with st.expander("X-bar & Range (X̄-R) Chart", expanded=True):
+            st.plotly_chart(fig_xbar, use_container_width=True)
+            st.markdown("- **Interpretation:** The X-bar chart tracks variation *between* subgroups and is extremely sensitive to small shifts. The R-chart tracks variation *within* subgroups, a measure of process consistency.")
+        
+        with st.expander("Proportion (P) Chart", expanded=True):
+            st.plotly_chart(fig_p, use_container_width=True)
+            st.markdown("- **Interpretation:** This chart tracks the proportion of defects. The control limits become tighter for larger batches, reflecting increased statistical certainty.")
+
+    with tabs[1]:
+        st.error("""
+        🔴 **THE INCORRECT APPROACH: "Process Tampering"**
+        This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
+        
+        - *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
+        - *"This point is below the mean, I'll adjust the flow rate up."*
+        
+        Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.
+        """)
+        st.success("""
+        🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
+        The control chart's signal dictates one of two paths:
+        1.  **Process is IN-CONTROL (only common cause variation):**
+            - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).
+        2.  **Process is OUT-OF-CONTROL (a special cause is present):**
+            - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.
+        """)
+
+    with tabs[2]:
+        # FIX: Replaced the old content with your new, more detailed version.
+        st.markdown("""
+        #### Historical Context & Origin
+        The control chart was invented by the brilliant American physicist and engineer **Dr. Walter A. Shewhart** while working at Bell Telephone Laboratories in the 1920s. The challenge was immense: manufacturing millions of components for the new national telephone network required unprecedented levels of consistency. How could you know if a variation in a vacuum tube's performance was just normal fluctuation or a sign of a real production problem?
+
+        Shewhart's genius was in his 1924 memo where he introduced the first control chart. He was the first to formally articulate the critical distinction between **common cause** and **special cause** variation. He realized that as long as a process only exhibited common cause variation, it was stable and predictable. The purpose of the control chart was to provide a simple, graphical tool to detect the moment a special cause entered the system. This idea was the birth of modern Statistical Process Control and laid the foundation for the 20th-century quality revolution.
+
+        #### Mathematical Basis
+        The control limits on a Shewhart chart are famously set at ±3 standard deviations from the center line.
+        """)
+        st.latex(r"\text{Control Limits} = \text{Center Line} \pm 3 \times (\text{Standard Deviation of the Plotted Statistic})")
+        st.markdown("""
+        - **Why 3-Sigma?** Shewhart chose this value for sound economic and statistical reasons. For a normally distributed process, 99.73% of all data points will naturally fall within these limits.
+        - **Minimizing False Alarms:** This means there's only a 0.27% chance of a point falling outside the limits purely by chance. This makes the chart robust; when you get a signal, you can be very confident it's real and not just random noise. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
+        """)
+
+def render_capability():
+    """Renders the interactive module for Process Capability (Cpk)."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To quantitatively determine if a process, once proven to be in a state of statistical control, is **capable** of consistently producing output that meets pre-defined specification limits (USL/LSL).
+    
+    **Strategic Application:** This is the ultimate verdict on process performance, often the final gate in a process validation or technology transfer. It directly answers the critical business question: "Is our process good enough to reliably meet customer or regulatory requirements with a high degree of confidence?" 
+    - A high capability index (Cpk) provides objective, statistical evidence that the process is robust, predictable, and delivers high quality.
+    - A low Cpk is a clear signal that the process requires fundamental improvement, either by **re-centering the process mean** or by **reducing the process variation**.
+    
+    In many ways, achieving a high Cpk is the statistical equivalent of "mission accomplished" for a process development or transfer team.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate four common real-world process states. Observe how the control chart (stability), the histogram's position relative to the spec limits, and the final Cpk value (capability) change for each scenario. This demonstrates the critical principle that a process must be stable *before* its capability can be meaningfully assessed.
+    """)
+
+    scenario = st.sidebar.radio("Select Process Scenario:", ('Ideal', 'Shifted', 'Variable', 'Out of Control'))
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, cpk_val = plot_capability(scenario)
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Process Capability (Cpk)", value=f"{cpk_val:.2f}" if scenario != 'Out of Control' else "INVALID", help="Measures how well the process fits within the spec limits, accounting for centering. Higher is better.")
+            st.markdown("""
+            - **The Mantra: Control Before Capability.** The control chart (top plot) is a prerequisite. The Cpk metric is only statistically valid and meaningful if the process is stable and in-control. The 'Out of Control' scenario yields an **INVALID** Cpk because an unstable process has no single, predictable "voice" to measure.
+            - **The Key Insight: Control ≠ Capability.** A process can be perfectly in-control (predictable) but not capable (producing bad product). 
+                - The **'Shifted'** scenario shows a process that is precise but inaccurate.
+                - The **'Variable'** scenario shows a process that is centered but imprecise.
+            Both are in control, but both have a poor Cpk.
+            """)
+        with tabs[1]:
+            st.markdown("These are industry-standard benchmarks, often required by customers, especially in automotive and aerospace. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
+            st.markdown("- `Cpk < 1.00`: Process is **not capable**.")
+            st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**.")
+            st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable** (a '4-sigma' quality level).")
+            st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** (approaching 'Six Sigma').")
+            st.markdown("- `Cpk ≥ 2.00`: Process has achieved **Six Sigma capability**.")
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The concept of comparing process output to specification limits is old, but the formalization into capability indices originated in the Japanese manufacturing industry in the 1970s as a core part of Total Quality Management (TQM).
+            
+            However, it was the **Six Sigma** initiative, pioneered by engineer Bill Smith at **Motorola in the 1980s**, that catapulted Cpk to global prominence. The 'Six Sigma' concept was born: a process so capable that the nearest specification limit is at least six standard deviations away from the process mean. Cpk became the standard metric for measuring progress toward this ambitious goal.
+            
+            #### Mathematical Basis
+            Capability analysis is a direct comparison between the **"Voice of the Customer"** (the allowable spread, USL - LSL) and the **"Voice of the Process"** (the actual, natural spread, conventionally 6σ).
+
+            - **Cp (Potential Capability):** Measures if the process is narrow enough, ignoring centering.
+            """)
+            st.latex(r"C_p = \frac{USL - LSL}{6\hat{\sigma}}")
+            st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit.")
+            st.latex(r"C_{pk} = \min \left( \frac{USL - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - LSL}{3\hat{\sigma}} \right)")
+
+def render_tolerance_intervals():
+    """Renders the INTERACTIVE module for Tolerance Intervals."""
+    st.markdown("""
+    #### Purpose & Application: The Quality Engineer's Secret Weapon
+    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process.
+    
+    **Strategic Application:** This is often the most critical statistical interval in manufacturing. It directly answers the high-stakes question: **"Based on this sample, what is the range where we can expect almost all of our individual product units to fall?"**
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to explore the trade-offs in tolerance intervals. This simulation demonstrates how sample size and the desired quality guarantee (coverage) directly impact the calculated interval, which in turn affects process specifications and batch release decisions.
+    """)
+    
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("Tolerance Interval Controls")
+    n_slider = st.sidebar.slider(
+        "🔬 Sample Size (n)", 
+        min_value=10, max_value=200, value=30, step=10,
+        help="The number of samples collected. More samples lead to a narrower, more reliable interval."
+    )
+    coverage_slider = st.sidebar.select_slider(
+        "🎯 Desired Population Coverage",
+        options=[90.0, 95.0, 99.0, 99.9],
+        value=99.0,
+        help="The 'quality promise'. What percentage of all future parts do you want this interval to contain? A higher promise requires a wider interval."
+    )
+
+    # Generate plots using the slider values
+    fig, ci, ti = plot_tolerance_intervals(n=n_slider, coverage_pct=coverage_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🎯 Desired Coverage", value=f"{coverage_slider:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
+            st.metric(label="📏 Resulting Tolerance Interval", value=f"[{ti[0]:.1f}, {ti[1]:.1f}]", help="The final calculated range. Note how much wider it is than the CI.")
+            
+            st.info("Play with the sliders in the sidebar and observe the results!")
+            st.markdown("""
+            - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
+            - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The Confidence Interval Fallacy**
+            - A manager sees that the 95% **Confidence Interval** for the mean is [99.9, 100.1] and their product specification is [95, 105]. They declare victory, believing all their product is in spec.
+            - **The Flaw:** They've proven the *average* is in spec, but have made no claim about the *individuals*. If process variation is high, many parts could still be out of spec.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Use the Right Interval for the Right Question**
+            - **Question 1: "Where is my long-term process average located?"**
+              - **Correct Tool:** ✅ **Confidence Interval**.
+            - **Question 2: "Will the individual units I produce meet the customer's specification?"**
+              - **Correct Tool:** ✅ **Tolerance Interval**.
+              
+            Never use a confidence interval to make a statement about where individual values are expected to fall.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context: The Surviving Bomber Problem
+            The development of tolerance intervals is credited to the brilliant mathematician **Abraham Wald** during World War II. He is famous for the "surviving bombers" problem: when analyzing bullet holes on returning planes, the military wanted to reinforce the most-hit areas. Wald's revolutionary insight was that they should reinforce the areas with **no bullet holes**—because planes hit there never made it back.
+            
+            This ability to reason about an entire population from a limited sample is the same thinking behind the tolerance interval. Wald developed the statistical theory to allow engineers to make a reliable claim about **all** manufactured parts based on a **small sample**, a critical need for mass-producing interchangeable military hardware.
+            
+            #### Mathematical Basis
+            """)
+            st.latex(r"\text{TI} = \bar{x} \pm k \cdot s")
+            st.markdown("""
+            - **`k`**: The **k-factor** is the magic ingredient. It is a special value that depends on **three** inputs: the sample size (`n`), the desired population coverage (e.g., 99%), and the desired confidence level (e.g., 95%). This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation.
+            """)
+
+def render_method_comparison():
+    """Renders the INTERACTIVE module for Method Comparison."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To formally assess and quantify the degree of agreement and systemic bias between two different measurement methods intended to measure the same quantity.
+    
+    **Strategic Application:** This study is the "crucible" of method transfer, validation, or replacement. It answers the critical business and regulatory question: “Do these two methods produce the same result, for the same sample, within medically or technically acceptable limits?”
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to simulate different types of disagreement between a "Test" method and a "Reference" method. See in real-time how each diagnostic plot (Deming, Bland-Altman, %Bias) reveals a different aspect of the problem, helping you build a deep intuition for method comparison statistics.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
+    st.sidebar.subheader("Method Comparison Controls")
+    constant_bias_slider = st.sidebar.slider(
+        "⚖️ Constant Bias", 
+        min_value=-10.0, max_value=10.0, value=2.0, step=0.5,
+        help="A fixed offset where the Test method reads consistently higher (+) or lower (-) than the Reference method across the entire range."
+    )
+    proportional_bias_slider = st.sidebar.slider(
+        "📈 Proportional Bias (%)", 
+        min_value=-10.0, max_value=10.0, value=3.0, step=0.5,
+        help="A concentration-dependent error. A positive value means the Test method reads progressively higher than the Reference at high concentrations."
+    )
+    random_error_slider = st.sidebar.slider(
+        "🎲 Random Error (SD)", 
+        min_value=0.5, max_value=10.0, value=3.0, step=0.5,
+        help="The imprecision or 'noise' of the methods. Higher error widens the Limits of Agreement on the Bland-Altman plot."
+    )
+
+    # Generate plots using the slider values
+    fig, slope, intercept, bias, ua, la = plot_method_comparison(
+        constant_bias=constant_bias_slider,
+        proportional_bias=proportional_bias_slider,
+        random_error_sd=random_error_slider
+    )
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="📈 Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference.")
+            st.metric(label="💡 Deming Slope", value=f"{slope:.3f}", help="Ideal = 1.0. Measures proportional bias.")
+            st.metric(label="💡 Deming Intercept", value=f"{intercept:.2f}", help="Ideal = 0.0. Measures constant bias.")
+            
+            st.info("Play with the sliders in the sidebar and observe the plots!")
+            st.markdown("""
+            - **Add `Constant Bias`:** The Deming line shifts up/down but stays parallel to the identity line. The Bland-Altman plot's mean bias line moves away from zero.
+            - **Add `Proportional Bias`:** The Deming line *rotates* away from the identity line. The Bland-Altman and %Bias plots now show a clear trend, a major red flag.
+            - **Increase `Random Error`:** The points scatter more widely. This has little effect on the average bias but dramatically **widens the Limits of Agreement**, making the methods less interchangeable.
+            """)
+
+        with tabs[1]:
+            st.markdown("Acceptance criteria must be pre-defined and clinically/technically justified.")
+            st.markdown("- **Deming Regression:** The 95% confidence interval for the **slope must contain 1.0**, and the 95% CI for the **intercept must contain 0**.")
+            st.markdown(f"- **Bland-Altman:** The primary criterion is that the **95% Limits of Agreement (`{la:.2f}` to `{ua:.2f}`) must be clinically or technically acceptable**.")
+            st.error("""
+            **The Correlation Catastrophe:** Never use the correlation coefficient (R²) to assess agreement. Two methods can be perfectly correlated (R²=1.0) but have a huge bias (e.g., one method always reads twice as high).
+            """)
+
+        with tabs[2]:
+            # FIX: Restored the full, detailed content for this tab
+            st.markdown("""
+            #### Historical Context & Origin
+            For decades, scientists committed a cardinal sin: using **Ordinary Least Squares (OLS) regression** and the **correlation coefficient (r)** to compare methods. This is flawed because OLS assumes the x-axis (reference method) is measured without error, an impossibility.
+            
+            - **Deming's Correction:** While known to statisticians, **W. Edwards Deming** championed this type of regression in the 1940s. It correctly assumes both methods have measurement error, providing an unbiased estimate of the true relationship. **Passing-Bablok regression** is a robust non-parametric alternative.
+            
+            - **The Bland-Altman Revolution:** A 1986 paper in *The Lancet* by **J. Martin Bland and Douglas G. Altman** ruthlessly exposed the misuse of correlation and proposed their brilliantly simple alternative. Instead of plotting Y vs. X, they plotted the **Difference (Y-X) vs. the Average ((Y+X)/2)**. This directly visualizes the magnitude and patterns of disagreement and is now the undisputed gold standard.
+            
+            #### Mathematical Basis
+            **Deming Regression:** OLS minimizes the sum of squared vertical distances. Deming regression minimizes the sum of squared distances from the points to the line, weighted by the ratio of the error variances of the two methods.
+            
+            **Bland-Altman Plot:** This is a graphical analysis. The key metrics are the **mean difference (bias)**, $\bar{d}$, and the **standard deviation of the differences**, $s_d$. The 95% Limits of Agreement (LoA) are calculated assuming the differences are approximately normally distributed:
+            """)
+            st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
+            st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
+
+def render_pass_fail():
+    """Renders the INTERACTIVE module for Pass/Fail (Binomial Proportion) analysis."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To accurately calculate and critically compare confidence intervals for a binomial proportion, which is the underlying statistic for any pass/fail, present/absent, or concordant/discordant outcome.
+    
+    **Strategic Application:** This is essential for the validation of **qualitative assays** or for agreement studies. The goal is to prove, with a high degree of statistical confidence, that the assay's success rate is above a required performance threshold. The critical challenge, especially with small sample sizes, is that simple textbook methods for calculating confidence intervals (the 'Wald' interval) are dangerously inaccurate.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to simulate the results of a validation study (e.g., comparing a new test to a gold standard). Observe how sample size and the number of successes dramatically affect the confidence in your result, and see why the 'Wald' interval should almost never be used.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
+    st.sidebar.subheader("Pass/Fail Controls")
+    n_samples_slider = st.sidebar.slider("Number of Validation Samples (n)", 1, 100, 30, key='wilson_n')
+    successes_slider = st.sidebar.slider("Concordant Results (Successes)", 0, n_samples_slider, int(n_samples_slider * 0.95), key='wilson_s')
+    
+    # Generate plots using the slider values
+    fig1_intervals, fig2_coverage = plot_binomial_intervals(successes_slider, n_samples_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig1_intervals, use_container_width=True)
+        st.plotly_chart(fig2_coverage, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="📈 KPI: Observed Rate", value=f"{(successes_slider/n_samples_slider if n_samples_slider > 0 else 0):.2%}", help="The point estimate. Insufficient without a confidence interval.")
+            
+            st.info("Play with the sliders in the sidebar and observe the plots!")
+            st.markdown("""
+            - **CI Comparison (Top Plot):** This plot reveals the dramatic differences between interval methods. 
+                - Set the sliders to a perfect score (e.g., 30/30). The **Wald interval collapses to zero width**, an absurd claim of perfect knowledge from a small sample. The Wilson and Clopper-Pearson intervals give a much more honest, wider range.
+                - Set the sliders to a low sample size (e.g., 5/5). The Wald interval gives a nonsensical range that goes above 100%!
+            - **Coverage Probability (Bottom Plot):** This shows *why* the Wald interval is so bad. Its actual probability of capturing the true value (the red line) is often far below the promised 95% level. The Wilson interval (blue) is much more reliable.
+
+            **The Core Strategic Insight:** Never use the standard Wald (or "Normal Approximation") interval for important decisions. The **Wilson Score interval** provides the best balance of accuracy and interval width for most applications. The **Clopper-Pearson** is the most conservative ("exact") choice, often preferred in regulatory submissions for its guaranteed coverage.
+            """)
+        with tabs[1]:
+            st.markdown("- **The Golden Rule of Binomial Acceptance:** The acceptance criterion must **always be based on the lower bound of the confidence interval**, never on the point estimate.")
+            st.markdown("- **Example Criterion:** 'The lower bound of the 95% **Wilson Score** (or Clopper-Pearson) confidence interval for the concordance rate must be greater than or equal to the target of 90%.'")
+            st.markdown("- **Sample Size Implication:** This tool powerfully demonstrates why larger sample sizes are needed for high-confidence claims. With a small `n`, even a perfect result (e.g., 20/20 successes) may have a lower confidence bound that fails to meet a high target (like 95%), forcing the study to be repeated with more samples.")
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            For much of the 20th century, the simple **Wald interval** (named after Abraham Wald) was taught in introductory statistics classes. However, its poor performance was well-known. A famous 1998 paper by Brown, Cai, and DasGupta comprehensively documented its failures and advocated for superior alternatives.
+            
+            The **Wilson Score Interval** (1927) and the **Clopper-Pearson Interval** (1934) were created to solve this problem.
+            - The **Clopper-Pearson** interval is an "exact" method derived from the binomial distribution. It guarantees coverage will never be less than the nominal level, making it conservative (wider).
+            - The **Wilson Score** interval is derived by inverting the score test. Its average coverage probability is much closer to the nominal 95% level, making it more accurate and less conservative in practice.
+            """)
+            
+            # --- FIX: SEPARATED EACH FUNCTION CALL ---
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The Wald interval is simply:")
+            st.latex(r"\hat{p} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}")
+            st.markdown("The Wilson Score interval's superior formula is:")
+            st.latex(r"CI_{\text{Wilson}} = \frac{1}{1 + z_{\alpha/2}^2/n} \left( \hat{p} + \frac{z_{\alpha/2}^2}{2n} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z_{\alpha/2}^2}{4n^2}} \right)")
+            st.markdown("Notice it adds pseudo-successes and failures ($z_{\alpha/2}^2/2$), pulling the center away from 0 or 1. This is what gives it such good performance where the Wald interval fails catastrophically.")
+            
+def render_bayesian():
+    """Renders the interactive module for Bayesian Inference."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To employ Bayesian inference to formally and quantitatively synthesize existing knowledge (a **Prior** belief) with new experimental data (the **Likelihood**) to arrive at an updated, more robust conclusion (the **Posterior** belief).
+    
+    **Strategic Application:** This is a paradigm-shifting tool for driving efficient, knowledge-based validation and decision-making. In a traditional (Frequentist) world, every study starts from a blank slate. In the Bayesian world, we can formally leverage what we already know. This is powerful for:
+    - **Accelerating Tech Transfer:** Use data from an R&D validation study to form a **strong, informative prior**. This allows the receiving QC lab to demonstrate success with a smaller confirmation study, saving time and resources.
+    - **Adaptive Clinical Trials:** Data from an interim analysis can serve as a prior for the final analysis, allowing trials to be stopped early.
+    - **Quantifying Belief & Risk:** It provides a natural framework to answer the question: "Given what we already knew, and what this new data shows, what is the probability that the pass rate is actually above 95%?"
+    """)
+    st.info("""
+    **Interactive Demo:** Use the **Prior Belief** radio buttons in the sidebar to simulate how different levels of existing knowledge impact your conclusions. Observe how the final **Posterior (blue curve)** is always a weighted compromise between your initial **Prior (green curve)** and the new **Data (red curve)**. A strong prior will be very influential, while a weak or non-informative prior lets the new data speak for itself.
+    """)
+    prior_type_bayes = st.sidebar.radio("Select Prior Belief:", ("Strong R&D Prior", "No Prior (Frequentist)", "Skeptical/Regulatory Prior"))
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, prior_mean, mle, posterior_mean = plot_bayesian(prior_type_bayes)
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Posterior Mean Rate", value=f"{posterior_mean:.3f}", help="The final, data-informed belief; a weighted average of the prior and the data.")
+            st.metric(label="💡 Prior Mean Rate", value=f"{prior_mean:.3f}", help="The initial belief *before* seeing the new QC data.")
+            st.metric(label="💡 Data-only Estimate (MLE)", value=f"{mle:.3f}", help="The evidence from the new QC data alone (the frequentist result).")
+            st.markdown("""
+            - **Prior (Green Dashed):** Our initial belief about the pass rate. A **Strong Prior** is tall and narrow, representing high confidence from historical data. A **Skeptical Prior** is wide and flat, representing uncertainty.
+            - **Likelihood (Red Dotted):** The "voice of the new data." This is the evidence from our new QC runs. Note that it is not a probability distribution.
+            - **Posterior (Blue Solid):** The final, updated belief. The posterior is always a **compromise** between the prior and the likelihood, weighted by their respective certainties (the narrowness of their distributions).
+
+            **The Core Strategic Insight:** This simulation demonstrates Bayesian updating in action.
+             - With a **Strong R&D Prior**, the new (and slightly worse) QC data barely moves our final belief. The strong prior evidence dominates the small new sample.
+             - With a **Skeptical Prior**, our final belief is a true compromise between the skeptical starting point and the new data.
+             - With **No Prior**, the posterior is determined almost entirely by the data, and the result mirrors the frequentist conclusion.
+            This framework provides a transparent and logical way to cumulate knowledge over time.
+            """)
+        with tabs[1]:
+            st.markdown("- The acceptance criterion is framed in terms of the **posterior distribution** and is probabilistic.")
+            st.markdown("- **Example Criterion 1 (Probability Statement):** 'There must be at least a 95% probability that the true pass rate is greater than 90%.' This is calculated by finding the area under the blue posterior curve to the right of the 0.90 threshold.")
+            st.markdown("- **Example Criterion 2 (Credible Interval):** 'The lower bound of the **95% Credible Interval** (the central 95% of the blue posterior distribution) must be above the target of 90%.'")
+            st.warning("**The Prior is Critical:** The choice of prior is the most controversial and important part of a Bayesian analysis. In a regulated setting, the prior must be transparent, justified by historical data, and pre-specified in the validation protocol. An unsubstantiated, overly optimistic prior would be a major red flag for an auditor.")
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The underlying theorem was conceived by the Reverend **Thomas Bayes** in the 1740s. However, for nearly 200 years, Bayesian inference remained a philosophical curiosity, largely overshadowed by the Frequentist school. This was due to philosophical objections to the subjective nature of priors and the computational difficulty of calculating the posterior distribution.
+            
+            The **"Bayesian Revolution"** began in the late 20th century, driven by powerful computers and simulation algorithms like **Markov Chain Monte Carlo (MCMC)**. These methods allowed scientists to approximate the posterior distribution for incredibly complex models, making Bayesian methods practical for the first time.
+            
+            #### Mathematical Basis
+            Bayes' Theorem is elegantly simple:
+            """)
+            st.latex(r"P(\theta|D) = \frac{P(D|\theta) \cdot P(\theta)}{P(D)}")
+            st.markdown(r"In words: **Posterior = (Likelihood × Prior) / Evidence**")
+            st.markdown(r"""
+            - $P(\theta|D)$ (Posterior): The probability of our parameter $\theta$ (e.g., the true pass rate) given the new Data D.
+            - $P(D|\theta)$ (Likelihood): The probability of observing our Data D, given a specific value of the parameter $\theta$.
+            - $P(\theta)$ (Prior): Our initial belief about the distribution of the parameter $\theta$.
+            
+            For binomial data, the **Beta distribution** is a **conjugate prior**. This means if you start with a Beta prior and have a binomial likelihood, your posterior will also be a Beta distribution.
+            - If Prior is Beta($\alpha_{prior}, \beta_{prior}$)
+            - And Data is $k$ successes in $n$ trials:
+            - Then the Posterior is simply Beta($\alpha_{prior} + k, \beta_{prior} + n - k$).
+            The $\alpha$ and $\beta$ parameters can be thought of as "pseudo-counts" of prior successes and failures, which are simply added to the new observed counts.
+            """)
+
+##=================================================================== END ACT II ========================================================================================================================
+
+def render_westgard_rules_interactive():
+    """Renders the interactive module for Multi-Rule SPC (Westgard Rules)."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To serve as a high-sensitivity "security system" for your assay. Instead of one simple alarm, this system uses a combination of rules to detect specific types of problems, catching subtle shifts and drifts long before a catastrophic failure occurs. It dramatically increases the probability of detecting true errors while minimizing false alarms.
+    
+    **Strategic Application:** This is the gold standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors (a point outside ±3 SD), the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes:
+    - **Systematic Errors (Bias/Shifts):** Like a miscalibrated instrument. Detected by rules like `2-2s`, `4-1s`, or `10-x`.
+    - **Random Errors (Imprecision):** Like a sloppy pipetting technique. Detected primarily by the `1-3s` and `R-4s` rules.
+
+    Implementing these rules prevents the release of bad data, which is the cornerstone of ensuring patient safety and product quality. It's the difference between a simple smoke detector and an advanced security system with motion sensors, heat sensors, and tripwires.
+    """)
+    
+    # The user's plotting function, nested for clarity
+    def plot_westgard_chart_with_violations():
+        np.random.seed(45)
+        data = np.random.normal(100, 2, 20)
+        data[10] = 107  # 1-3s violation
+        data[14:16] = [105, 105.5] # 2-2s violation
+        mean, std = 100, 2
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=data, mode='lines+markers', name='Control Data', line=dict(color='#636EFA'), marker=dict(size=8)))
+        
+        # Add SD lines
+        for i in range(-3, 4):
+            if i == 0:
+                fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean', annotation_position="bottom right")
+            else:
+                fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), 
+                              annotation_text=f'{i} SD', annotation_position="bottom right")
+        
+        # Highlight violations shown on the chart
+        fig.add_annotation(x=11, y=107, text="<b>🚨 1-3s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=-40, ay=-40, font=dict(color="red"))
+        fig.add_annotation(x=15.5, y=105.5, text="<b>🧐 2-2s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=40, ay=-40, font=dict(color="orange"))
+        
+        fig.update_layout(title="<b>Statistical Detective at Work: A Multi-Rule Control Chart</b>",
+                          xaxis_title="Measurement Number", yaxis_title="Control Value",
+                          legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+        return fig
+
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig = plot_westgard_chart_with_violations()
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🕵️ Run Verdict", value="Reject Run", help="The 1-3s rule is a mandatory rejection rule.")
+            st.metric(label="🚨 Primary Cause", value="1-3s Violation", help="A 'smoking gun' event. This rule alone is sufficient to reject the run.")
+            st.metric(label="🧐 Secondary Evidence", value="2-2s Violation", help="This suggests a systematic error is also present in the system.")
+            
+            st.markdown("""
+            **The Detective's Findings on this Chart:**
+            - 🚨 **The Smoking Gun (Point 11):** The `1-3s` violation is a clear, unambiguous signal of a major problem. It could be a large random error (e.g., air bubble in a pipette) or a significant one-time event. This rule alone forces the rejection of the run.
+            
+            - 🧐 **The Developing Pattern (Points 15-16):** The `2-2s` violation is a classic sign of **systematic error**. The process has shifted high. This suggests a different problem from the one at point 11. Perhaps a new reagent lot was introduced after point 14, causing a consistent positive bias.
+            
+            - **The Core Strategic Insight:** This chart shows two *different* problems. A simple lab investigation might stop after finding the cause of the `1-3s` error. A true statistical detective sees the `2-2s` signal and knows there is a deeper, more persistent issue to solve as well. This prevents future failures.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
+            This operator sees the alarms, immediately discards the run, and starts over from scratch without thinking.
+            
+            - *"My control failed. I'll just run it again."* (Without investigating *why* it failed, the problem will likely recur).
+            - They might fixate on the big `1-3s` error and completely miss the more subtle but equally important `2-2s` shift.
+            - They might re-run the control sample over and over, hoping to get a "pass," which is a serious compliance violation known as "testing into compliance."
+            
+            This approach is inefficient, costly, and guarantees that underlying process problems will fester.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: The Rule is the First Clue**
+            The goal is to treat the specific rule violation as the starting point of a targeted investigation.
+            
+            - **Think like a detective:** "The chart shows a `1-3s` violation AND a `2-2s` violation. These are likely separate issues. The `1-3s` could be a one-off blunder. The `2-2s` suggests a calibration or reagent problem. I need to investigate both."
+            - **Document Everything:** The investigation, the root cause, and the corrective action for each rule violation must be documented. This is a regulatory expectation and a crucial part of process knowledge.
+            
+            This diagnostic mindset transforms the control chart from a simple pass/fail tool into the most important troubleshooting guide in the lab.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The story of multi-rule charts is a brilliant fusion of two eras. First came **Dr. Walter A. Shewhart** at Bell Labs in the 1920s. He invented the foundational control chart (the ±3 SD limits) to improve the reliability of telephone network components. This was the birth of Statistical Process Control (SPC).
+            
+            Fast forward to the 1970s. **Dr. James O. Westgard**, a professor at the University of Wisconsin, faced a different problem: ensuring the daily reliability of clinical laboratory tests that decided patient diagnoses. He found that Shewhart's single `1-3s` rule wasn't sensitive enough to catch the subtle drifts common in complex biochemical assays.
+            
+            In a landmark 1981 paper, Westgard and his colleagues proposed a system of multiple rules to be applied simultaneously. These "Westgard Rules" were specifically designed to have a high probability of detecting medically important errors, while keeping the rate of false alarms low. This gave lab technicians a powerful, statistically-backed system for making daily accept/reject decisions, and it rapidly became the global standard in clinical chemistry and beyond.
+            
+            #### Mathematical Basis
+            The rule notation is a simple shorthand: **A<sub>L</sub>**, where `A` is the number of points and `L` is the limit.
+            
+            - **`1-3s`**: **1** point exceeds the **3s** (3 standard deviation) limit.
+            - **`2-2s`**: **2** consecutive points exceed the **2s** limit on the same side of the mean.
+            - **`R-4s`**: The **R**ange between 2 consecutive points exceeds **4s**.
+            """)
+
+def render_multi_rule():
+    """Renders the module for Multi-Rule SPC (Westgard Rules)."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To serve as a high-sensitivity "security system" for your assay. Instead of one simple alarm, this system uses a combination of rules to detect specific types of problems, catching subtle shifts and drifts long before a catastrophic failure occurs. It dramatically increases the probability of detecting true errors while minimizing false alarms.
+    
+    **Strategic Application:** This is the gold standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors (a point outside ±3 SD), the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes:
+    - **Systematic Errors (Bias/Shifts):** Like a miscalibrated instrument. Detected by rules like `2-2s`, `4-1s`, or `10-x`.
+    - **Random Errors (Imprecision):** Like a sloppy pipetting technique. Detected primarily by the `1-3s` and `R-4s` rules.
+
+    Implementing these rules prevents the release of bad data, which is the cornerstone of ensuring patient safety and product quality. It's the difference between a simple smoke detector and an advanced security system with motion sensors, heat sensors, and tripwires.
+    """)
+    
+    fig = plot_westgard_chart() # Assumes this function returns a chart with rule violations
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🕵️ Run Verdict", value="Out-of-Control", help="The overall judgment on the analytical run based on the triggered rules.")
+            st.metric(label="🚨 Triggered Rule", value="2-2s Violation", help="The specific rule that caused the 'Out-of-Control' signal.")
+            
+            st.markdown("""
+            **The Detective's Toolkit (Common Rules):**
+            - 🚨 **1-3s Rule:** One point is beyond 3 standard deviations. This is a "smoking gun" – a major, often random, error occurred. **Likely Culprit:** Big blunder like wrong reagent, major instrument failure, or calculation error.
+            
+            - 🧐 **2-2s Rule (Warning):** Two consecutive points are on the same side of the mean and beyond 2 standard deviations. This is your first major clue of a **systematic error** or bias. **Likely Culprit:** A new lot of calibrator or reagent has caused a shift.
+            
+            - 🕵️ **4-1s Rule:** Four consecutive points are on the same side of the mean and beyond 1 standard deviation. This detects a smaller, but persistent, shift. **Likely Culprit:** Minor instrument drift or subtle degradation of a standard.
+            
+            - 🔭 **R-4s Rule:** The range between two consecutive points exceeds 4 standard deviations. This detects a sudden increase in **random error** or imprecision. **Likely Culprit:** Inconsistent pipetting, instrument instability (e.g., fluctuating temperature).
+
+            **The Core Strategic Insight:** The multi-rule system gives you a **diagnostic-level** understanding of your assay's health. It doesn't just tell you *that* something is wrong, it gives you a powerful clue as to *what* is wrong, dramatically speeding up your investigation and corrective action.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
+            This operator sees any alarm, immediately discards the run, and starts over from scratch without thinking.
+            
+            - They see a `2-2s` warning and panic, treating it the same as a `1-3s` failure.
+            - They don't use the specific rule (`4-1s` vs `R-4s`) to guide their troubleshooting.
+            - They might re-run the control sample over and over, hoping to get a "pass," which is a serious compliance violation known as "testing into compliance."
+            
+            This approach is inefficient, costly, and completely misses the diagnostic power of the rules.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: The Rule is the First Clue**
+            The goal is to treat the specific rule violation as the starting point of a targeted investigation.
+            
+            - **Think like a detective:** "The chart shows a `4-1s` violation. This suggests a small, systematic shift. The first thing I should check is the calibration curve or the expiration date of my reagents, not my pipetting technique."
+            - **Respect the Hierarchy:** A `1-3s` rule violation typically means "Stop, reject the run." A `2-2s` or `4-1s` might mean "Accept the run, but investigate immediately as a trend is developing."
+            
+            This diagnostic mindset transforms the control chart from a simple pass/fail tool into the most important troubleshooting guide in the lab.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The story of multi-rule charts is a brilliant fusion of two eras. First came **Dr. Walter A. Shewhart** at Bell Labs in the 1920s. He invented the foundational control chart (the ±3 SD limits) to improve the reliability of telephone network components. This was the birth of Statistical Process Control (SPC).
+            
+            Fast forward to the 1970s. **Dr. James O. Westgard**, a professor of pathology and laboratory medicine at the University of Wisconsin, faced a different problem: ensuring the daily reliability of clinical laboratory tests that decided patient diagnoses. He found that Shewhart's single `1-3s` rule wasn't sensitive enough to catch the subtle drifts common in complex biochemical assays.
+            
+            In a landmark 1981 paper, Westgard and his colleagues proposed a system of multiple rules to be applied simultaneously. These "Westgard Rules" were specifically designed to have a high probability of detecting medically important errors, while keeping the rate of false alarms low. This gave lab technicians a powerful, statistically-backed system for making daily accept/reject decisions, and it rapidly became the global standard in clinical chemistry and beyond.
+            
+            #### Mathematical Basis
+            The rule notation is a simple shorthand:
+            """)
+            st.latex(r"A_{BC}")
+            st.markdown("""
+            - **`A`**: The number of control points.
+            - **`B`**: The standard deviation limit (the "B"oundary).
+            - **`C`**: The control material or run (often implied as the last C points).
+            
+            **Examples:**
+            - **`1-3s`**: **1** point exceeds the **3s** (3 standard deviation) limit.
+            - **`2-2s`**: **2** consecutive points exceed the **2s** limit on the same side of the mean.
+            - **`R-4s`**: The **R**ange between 2 consecutive points exceeds **4s**.
+            """)
+    
+    # Placeholder for the plotting function
+    # In a real app, this function would generate data and check Westgard rule violations
             
 def render_ewma_cusum():
     """Renders the module for small shift detection charts (EWMA/CUSUM)."""
@@ -3295,110 +3484,6 @@ def render_anomaly_detection():
             2.  Each "question" in a tree is a random split on a random feature (e.g., "Is temperature > 50?").
             3.  It counts the number of questions (the path length) it takes to uniquely identify each point.
             4.  **The Result:** Points in the heart of the normal cluster are hard to isolate and require many questions. Anomalous points are isolated very quickly with few questions. The algorithm calculates an "anomaly score" based on the average path length across all the trees in the forest.
-            """)
-    
-def render_assay_robustness_doe():
-    """Renders the comprehensive, interactive module for Assay Robustness (DOE/RSM)."""
-    st.markdown("""
-    #### Purpose & Application: Process Cartography - The GPS for Optimization
-    **Purpose:** To create a detailed topographical map of your process landscape. This analysis moves beyond simple robustness checks to full **process optimization**, using **Response Surface Methodology (RSM)** to model curvature and find the true "peak of the mountain."
-    
-    **Strategic Application:** This is the statistical engine for Quality by Design (QbD) and process characterization. By developing a predictive model, you can:
-    - **Find Optimal Conditions:** Identify the exact settings that maximize yield, efficacy, or any other Critical Quality Attribute (CQA).
-    - **Define a Design Space:** Create a multi-dimensional "safe operating zone" where the process is guaranteed to produce acceptable results. This is highly valued by regulatory agencies.
-    - **Minimize Variability:** Find a "robust plateau" on the response surface where performance is not only high, but also insensitive to small variations in input parameters.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** You are the process expert. Use the sliders in the sidebar to define the "true" physics of a virtual assay. The plots will show how a DOE/RSM experiment can uncover this underlying response surface, allowing you to find the optimal operating conditions.
-    """)
-    
-    # --- Sidebar controls ---
-    st.sidebar.subheader("DOE / RSM Controls")
-    st.sidebar.markdown("**Linear & Interaction Effects**")
-    ph_slider = st.sidebar.slider("🧬 pH Main Effect", -10.0, 10.0, 2.0, 1.0, help="The 'true' linear impact of pH. A high value 'tilts' the surface along the pH axis.")
-    temp_slider = st.sidebar.slider("🌡️ Temperature Main Effect", -10.0, 10.0, 5.0, 1.0, help="The 'true' linear impact of Temperature. A high value 'tilts' the surface along the Temp axis.")
-    interaction_slider = st.sidebar.slider("🔄 pH x Temp Interaction Effect", -10.0, 10.0, 0.0, 1.0, help="The 'true' interaction. A non-zero value 'twists' the surface, creating a rising ridge.")
-    
-    st.sidebar.markdown("**Curvature (Quadratic) Effects**")
-    ph_quad_slider = st.sidebar.slider("🧬 pH Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley). This is the key to optimization.")
-    temp_quad_slider = st.sidebar.slider("🌡️ Temperature Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley).")
-
-    st.sidebar.markdown("**Experimental Noise**")
-    noise_slider = st.sidebar.slider("🎲 Random Noise (SD)", 0.1, 5.0, 1.0, 0.1, help="The inherent variability of the assay. High noise can hide the true effects.")
-    
-    # Generate plots
-    fig_contour, fig_3d, fig_effects, params = plot_doe_robustness(
-        ph_effect=ph_slider, temp_effect=temp_slider, interaction_effect=interaction_slider,
-        ph_quad_effect=ph_quad_slider, temp_quad_effect=temp_quad_slider, noise_sd=noise_slider
-    )
-    
-    st.header("Response Surface Plots")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(fig_contour, use_container_width=True)
-    with col2:
-        st.plotly_chart(fig_3d, use_container_width=True)
-
-    st.header("Effect Plots & Interpretation")
-    col3, col4 = st.columns([0.7, 0.3])
-    with col3:
-        st.plotly_chart(fig_effects, use_container_width=True)
-    with col4:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
-        with tabs[0]:
-            # Find the optimal settings from the model predictions
-            pred_z = fig_3d.data[0].z
-            max_idx = np.unravel_index(np.argmax(pred_z), pred_z.shape)
-            opt_temp = fig_3d.data[0].y[max_idx[0]]
-            opt_ph = fig_3d.data[0].x[max_idx[1]]
-            max_response = np.max(pred_z)
-
-            st.metric("Predicted Optimal pH", f"{opt_ph:.2f}")
-            st.metric("Predicted Optimal Temp", f"{opt_temp:.2f}")
-            st.metric("Predicted Max Response", f"{max_response:.1f} units")
-            
-            st.info("Play with the sliders and observe how the 'true' physics you define are reflected in the plots!")
-            st.markdown("""
-            - **Linear Effects:** Increasing a `Main Effect` slider is like **tilting the entire surface**. A high positive value for Temperature makes the response universally higher at high temperatures.
-            - **Interaction Effects:** A non-zero `Interaction Effect` **twists the surface**, creating a "rising ridge." The effect of pH is now different at high vs. low temperatures. The lines in the Interaction Plot become non-parallel.
-            - **Curvature Effects:** The `Curvature` sliders are the key to optimization. Setting them to negative values creates a **peak or dome** in the 3D surface, which corresponds to the "bullseye" of concentric circles in the 2D contour plot. This is the optimal zone you are trying to find.
-            - **Noise:** Increasing `Random Noise` makes the red data points scatter further from the true underlying surface, making it harder for the model to accurately map the landscape.
-            """)
-
-        with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: One-Factor-at-a-Time (OFAT)**
-            Imagine trying to find the highest point on a mountain by only walking in straight lines, first due North-South, then due East-West. You will almost certainly end up on a ridge or a local hill, convinced it's the summit, while the true peak was just a few steps to the northeast.
-            
-            - **The Flaw:** This is what OFAT does. It is statistically inefficient and, more importantly, it is **guaranteed to miss the true optimum** if any interaction between the factors exists.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Map the Entire Territory at Once (DOE/RSM)**
-            By testing factors in combination using a dedicated design (like a Central Composite Design), you send out scouts to explore the entire landscape simultaneously. This allows you to:
-            1.  **Be Highly Efficient:** Gain more information from fewer experimental runs compared to OFAT.
-            2.  **Understand the Terrain:** Uncover and quantify critical interaction and curvature effects that describe the true shape of the process space.
-            3.  **Find the True Peak:** Develop a predictive mathematical model that acts as a GPS, guiding you directly to the optimal operating conditions.
-            """)
-
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            - **The Genesis (1920s):** DOE was invented by **Sir Ronald A. Fisher** to screen for important factors in agriculture. His factorial designs were brilliant for figuring out *which* factors mattered.
-            - **The Optimization Revolution (1950s):** The post-war chemical industry boom created a new need: not just to know *which* factors mattered, but *how to find their optimal settings*. **George Box** and K.B. Wilson developed **Response Surface Methodology (RSM)** to solve this. They created efficient new designs, like the Central Composite Design (CCD) shown here, which cleverly add "axial" points to a factorial design. These extra points allow for the fitting of a **quadratic model**, which is the key to modeling curvature and finding the "peak of the mountain." This moved DOE from simple screening to true, powerful optimization.
-            
-            #### Mathematical Basis
-            RSM typically fits a second-order (quadratic) model to the experimental data:
-            """)
-            st.latex(r"Y = \beta_0 + \beta_1X_1 + \beta_2X_2 + \beta_{11}X_1^2 + \beta_{22}X_2^2 + \beta_{12}X_1X_2 + \epsilon")
-            st.markdown(r"""
-            - $\beta_0$: The intercept or baseline response.
-            - $\beta_1, \beta_2$: The **linear main effects** (the tilt of the surface).
-            - $\beta_{11}, \beta_{22}$: The **quadratic effects** (the curvature or "hill/bowl" shape).
-            - $\beta_{12}$: The **interaction effect** (the twist of the surface).
-            - $\epsilon$: The random experimental error.
             """)
 
 def render_stability_analysis():
@@ -4054,76 +4139,6 @@ def render_advanced_ai_concepts():
         fig = plot_advanced_ai_concepts(concept)
         st.plotly_chart(fig, use_container_width=True)
 
-def render_causal_inference():
-    """Renders the INTERACTIVE module for Causal Inference."""
-    st.markdown("""
-    #### Purpose & Application: Beyond the Shadow - The Science of "Why"
-    **Purpose:** To move beyond mere correlation ("what") and ascend to the level of causation ("why"). While predictive models see shadows on a cave wall (associations), Causal Inference provides the tools to understand the true objects casting them (the underlying causal mechanisms).
-    
-    **Strategic Application:** This is the ultimate goal of root cause analysis and the foundation of intelligent intervention.
-    - **💡 Effective CAPA:** Why did a batch fail? A predictive model might say high temperature is *associated* with failure. Causal Inference helps determine if high temperature *causes* failure, or if both are driven by a third hidden variable (a "confounder"). This prevents wasting millions on fixing the wrong problem.
-    - **🗺️ Process Cartography:** It allows for the creation of a **Directed Acyclic Graph (DAG)**, which is a formal causal map of your process, documenting scientific understanding and guiding future analysis.
-    - **🔮 "What If" Scenarios:** It provides a framework to answer hypothetical questions like, "What *would* have been the yield if we had kept the temperature at 40°C?" using only observational data.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the slider in the sidebar to control the **Confounding Strength** of the `Reagent Lot`. As you increase it, watch the "Naive Correlation" (the orange line) become a terrible estimate of the "True Causal Effect" (the green line). This simulation visually demonstrates how a hidden variable can create a misleading correlation.
-    """)
-    
-    # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("Causal Inference Controls")
-    confounding_slider = st.sidebar.slider(
-        "🚨 Confounding Strength", 
-        min_value=0.0, max_value=10.0, value=5.0, step=0.5,
-        help="How strongly the 'Reagent Lot' affects BOTH Temperature and Purity. At 0, the naive correlation equals the true causal effect."
-    )
-    
-    # Generate plots using the slider value
-    fig_dag, fig_scatter, naive_effect, adjusted_effect = plot_causal_inference(confounding_strength=confounding_slider)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig_dag, use_container_width=True)
-        st.plotly_chart(fig_scatter, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
-        with tabs[0]:
-            st.metric(label="Biased Estimate (Naive Correlation)", value=f"{naive_effect:.3f}", help="The effect you would conclude by just plotting Purity vs. Temp. This is misleading!")
-            st.metric(label="Unbiased Estimate (True Causal Effect)", value=f"{adjusted_effect:.3f}", help="The true effect of Temp on Purity after adjusting for the confounder. Note how this stays stable.")
-
-            st.info("Play with the 'Confounding Strength' slider and watch the metrics and plots!")
-            st.markdown("""
-            - **The DAG (Top Plot):** This is our "causal map." It shows that `Reagent Lot` is a **common cause** of both `Temp` and `Purity`, creating a "backdoor" path that biases the `Temp -> Purity` relationship.
-            - **The Scatter Plot:** As you increase `Confounding Strength`, the orange line (naive correlation) becomes a worse and worse estimate of the green line (the true causal effect). The data points separate into two clouds (one for each reagent lot), and the naive model incorrectly draws a line through them. The adjusted model correctly finds the true, steeper negative trend *within* each group.
-            """)
-
-        with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The Correlation Trap**
-            - An analyst observes that ice cream sales are highly correlated with shark attacks. They recommend banning ice cream to improve beach safety.
-            - **The Flaw:** They failed to account for a confounder: **Hot Weather.** Hot weather causes more people to buy ice cream AND causes more people to go swimming. Causal inference provides the tools to mathematically "control for" the weather to see that ice cream has no real effect.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Draw the Map, Find the Path, Block the Backdoors**
-            A robust causal analysis follows a disciplined, three-step process.
-            1.  **Draw the Map (Build the DAG):** This is a collaborative effort between data scientists and Subject Matter Experts. You must encode all your domain knowledge and causal beliefs into a formal DAG.
-            2.  **Find the Path:** Clearly identify the causal path you want to measure (e.g., `Temp -> Purity`).
-            3.  **Block the Backdoors:** Use the DAG to identify all non-causal "backdoor" paths (confounding). Then, use the appropriate statistical technique (like multiple regression) to "block" these paths, leaving only the true causal effect.
-            """)
-
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: The Causal Revolution
-            **The Problem:** For most of the 20th century, mainstream statistics was deeply allergic to the language of causation. The mantra, famously drilled into every student, was **"correlation is not causation."** While true, this left a massive void: if correlation isn't the answer, what is? Statisticians were excellent at describing relationships but had no formal language to discuss *why* those relationships existed, leaving a critical gap between data and real-world action.
-            
-            **The "Aha!" Moment:** The revolution was sparked by the computer scientist and philosopher **Judea Pearl** in the 1980s and 90s. His key insight was that the missing ingredient was **structure**. He argued that scientists carry causal models in their heads all the time, and that these models could be formally written down as graphs. He introduced the **Directed Acyclic Graph (DAG)** as the language for this structure. The arrows in a DAG are not mere correlations; they are bold claims about the direction of causal influence.
-            
-            **The Impact:** This was a paradigm shift. By making causal assumptions explicit in a DAG, Pearl developed a complete mathematical framework—including his famous **do-calculus**—to determine if a causal question *could* be answered from observational data, and if so, how. This "Causal Revolution" provided the first-ever rigorous, mathematical language to move from seeing (`P(Y|X)`) to doing (`P(Y|do(X))`), transforming fields from epidemiology to economics. For this work, Judea Pearl was awarded the Turing Award in 2011, the highest honor in computer science.
-            """)
-            
 def render_classification_models():
     """Renders the module for Predictive QC (Classification)."""
     st.markdown("""

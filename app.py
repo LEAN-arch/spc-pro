@@ -1223,49 +1223,48 @@ def plot_bayesian(prior_type):
 ##=======================================================================================END ACT II ===============================================================================================
 ##=================================================================================================================================================================================================
 def plot_westgard_scenario(scenario='Stable'):
-    """
-    Generates a dynamic Westgard chart based on a selected process scenario.
-    """
+    """Generates a dynamic, high-quality Westgard chart based on a selected process scenario."""
     np.random.seed(42)
     n_points = 25
-    # Generate stable, in-control base data
     data = np.random.normal(100, 2, n_points)
-    
-    # Use the first 10 points to establish "historical" control limits
     mean, std = np.mean(data[:10]), np.std(data[:10], ddof=1)
-    
-    # Inject a special cause based on the selected scenario
-    if scenario == 'Large Random Error':
-        data[15] = 107.5 # A single, large blunder (triggers 1-3s)
-    elif scenario == 'Systematic Shift':
-        data[18:] += 4.5 # A sudden, sustained bias (triggers 2-2s)
-    elif scenario == 'Increased Imprecision':
-        # Two points far apart (triggers R-4s)
-        data[20] = 105 
-        data[21] = 95
 
-    # --- Plotting ---
+    if scenario == 'Large Random Error': data[15] = 107.5
+    elif scenario == 'Systematic Shift': data[18:] += 4.5
+    elif scenario == 'Increased Imprecision': data[20], data[21] = 105, 95
+    elif scenario == 'Complex Failure':
+        np.random.seed(45); data = np.random.normal(100, 2, n_points)
+        data[10], data[14:16] = 107, [105, 105.5]
+        
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=np.arange(1, n_points + 1), y=data, mode='lines+markers', name='Control Data', line=dict(color='#636EFA'), marker=dict(size=8)))
     
-    # Add SD lines
-    for i in range(-3, 4):
-        if i == 0:
-            fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean')
-        else:
-            fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), annotation_text=f'{i} SD')
-    
-    # Add rule violation annotations based on the scenario
+    # Add shaded regions for control zones
+    fig.add_hrect(y0=mean - 3*std, y1=mean + 3*std, line_width=0, fillcolor='rgba(255, 165, 0, 0.1)', layer='below', name='±3σ Zone')
+    fig.add_hrect(y0=mean - 2*std, y1=mean + 2*std, line_width=0, fillcolor='rgba(0, 128, 0, 0.1)', layer='below', name='±2σ Zone')
+    fig.add_hrect(y0=mean - 1*std, y1=mean + 1*std, line_width=0, fillcolor='rgba(0, 128, 0, 0.1)', layer='below', name='±1σ Zone')
+
+    # Add SD lines with labels
+    for i in [-3, -2, -1, 1, 2, 3]:
+        fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), annotation_text=f"{'+' if i > 0 else ''}{i}σ", annotation_position="bottom right")
+    fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean', annotation_position="bottom right")
+
+    # Add data trace
+    fig.add_trace(go.Scatter(x=np.arange(1, n_points + 1), y=data, mode='lines+markers', name='Control Data', line=dict(color='#636EFA', width=3), marker=dict(size=10, symbol='circle', line=dict(width=2, color='black'))))
+
+    # Add violation annotations
     if scenario == 'Large Random Error':
-        fig.add_annotation(x=16, y=107.5, text="<b>🚨 1-3s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=-40, ay=-40, font=dict(color="red"))
+        fig.add_trace(go.Scatter(x=[16], y=[107.5], mode='markers', marker=dict(color='red', size=16, symbol='diamond', line=dict(width=2, color='black')), name='1-3s Violation'))
     elif scenario == 'Systematic Shift':
-        fig.add_annotation(x=20, y=104.5, text="<b>🧐 2-2s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=40, ay=-40, font=dict(color="orange"))
+        fig.add_trace(go.Scatter(x=[19, 20], y=data[18:20], mode='markers', marker=dict(color='orange', size=16, symbol='diamond', line=dict(width=2, color='black')), name='2-2s Violation'))
     elif scenario == 'Increased Imprecision':
-        fig.add_annotation(x=21.5, y=100, text="<b>🔭 R-4s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=0, ay=-60, font=dict(color="purple"))
+        fig.add_trace(go.Scatter(x=[21, 22], y=data[20:22], mode='markers', marker=dict(color='purple', size=16, symbol='diamond', line=dict(width=2, color='black')), name='R-4s Violation'))
+    elif scenario == 'Complex Failure':
+        fig.add_trace(go.Scatter(x=[11], y=[107], mode='markers', marker=dict(color='red', size=16, symbol='diamond', line=dict(width=2, color='black')), name='1-3s Violation'))
+        fig.add_trace(go.Scatter(x=[15, 16], y=[105, 105.5], mode='markers', marker=dict(color='orange', size=16, symbol='diamond', line=dict(width=2, color='black')), name='2-2s Violation'))
         
     fig.update_layout(title=f"<b>Westgard Rules: {scenario} Scenario</b>",
                       xaxis_title="Measurement Number", yaxis_title="Control Value",
-                      legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+                      showlegend=False, height=600)
     return fig
     
 
@@ -3075,34 +3074,23 @@ def render_bayesian():
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================
 def render_multi_rule():
-    """Renders the INTERACTIVE module for Multi-Rule SPC (Westgard Rules)."""
-    # FIX: Restored the detailed, high-value introductory text.
+    """Renders the comprehensive, interactive module for Multi-Rule SPC (Westgard Rules)."""
     st.markdown("""
-    #### Purpose & Application
+    #### Purpose & Application: The Statistical Detective
     **Purpose:** To serve as a high-sensitivity "security system" for your assay. Instead of one simple alarm, this system uses a combination of rules to detect specific types of problems, catching subtle shifts and drifts long before a catastrophic failure occurs. It dramatically increases the probability of detecting true errors while minimizing false alarms.
     
-    **Strategic Application:** This is the gold standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors (a point outside ±3 SD), the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes:
-    - **Systematic Errors (Bias/Shifts):** Like a miscalibrated instrument. Detected by rules like `2-2s`, `4-1s`, or `10-x`.
-    - **Random Errors (Imprecision):** Like a sloppy pipetting technique. Detected primarily by the `1-3s` and `R-4s` rules.
-
-    Implementing these rules prevents the release of bad data, which is the cornerstone of ensuring patient safety and product quality. It's the difference between a simple smoke detector and an advanced security system with motion sensors, heat sensors, and tripwires.
+    **Strategic Application:** This is the global standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors, the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes. Implementing these rules prevents the release of bad data, which is the cornerstone of ensuring patient safety and product quality.
     """)
     
     st.info("""
     **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate common assay failures. Observe how the control chart changes and which specific Westgard rule is triggered, helping you learn to diagnose problems from your QC data.
     """)
     
-    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("Westgard Scenario Controls")
     scenario = st.sidebar.radio(
         "Select a Process Scenario to Simulate:",
         ('Complex Failure', 'Large Random Error', 'Systematic Shift', 'Increased Imprecision'),
-        captions=[
-            "A run with multiple, distinct issues.",
-            "e.g., A single major blunder.",
-            "e.g., A new reagent lot causes a bias.",
-            "e.g., A faulty pipette causes inconsistency."
-        ]
+        captions=["A run with multiple, distinct issues.", "e.g., A single major blunder.", "e.g., A new reagent lot causes a bias.", "e.g., A faulty pipette causes inconsistency."]
     )
     
     fig = plot_westgard_scenario(scenario=scenario)
@@ -3116,16 +3104,15 @@ def render_multi_rule():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            # FIX: Restored the detailed, dynamic content for the Key Insights tab.
             if scenario == 'Complex Failure':
-                st.metric(label="🕵️ Run Verdict", value="Reject Run", help="The 1-3s rule is a mandatory rejection rule.")
-                st.metric(label="🚨 Primary Cause", value="1-3s Violation", help="A 'smoking gun' event. This rule alone is sufficient to reject the run.")
-                st.metric(label="🧐 Secondary Evidence", value="2-2s Violation", help="This suggests a systematic error is also present in the system.")
+                st.metric("🕵️ Run Verdict", "Reject Run")
+                st.metric("🚨 Primary Cause", "1-3s Violation")
+                st.metric("🧐 Secondary Evidence", "2-2s Violation")
                 st.markdown("""
                 **The Detective's Findings on this Chart:**
-                - 🚨 **The Smoking Gun (Point 11):** The `1-3s` violation is a clear, unambiguous signal of a major problem. It could be a large random error (e.g., air bubble in a pipette) or a significant one-time event. This rule alone forces the rejection of the run.
-                - 🧐 **The Developing Pattern (Points 15-16):** The `2-2s` violation is a classic sign of **systematic error**. The process has shifted high. This suggests a different problem from the one at point 11. Perhaps a new reagent lot was introduced after point 14, causing a consistent positive bias.
-                - **The Core Strategic Insight:** This chart shows two *different* problems. A simple lab investigation might stop after finding the cause of the `1-3s` error. A true statistical detective sees the `2-2s` signal and knows there is a deeper, more persistent issue to solve as well. This prevents future failures.
+                - 🚨 **The Smoking Gun:** The `1-3s` violation is a clear, unambiguous signal of a major problem. This rule alone forces the rejection of the run.
+                - 🧐 **The Developing Pattern:** The `2-2s` violation is a classic sign of **systematic error**. The process has shifted high.
+                - **The Core Strategic Insight:** This chart shows two *different* problems. A true statistical detective sees both signals and knows there are two distinct issues to solve.
                 """)
             else:
                 verdict, rule = "In-Control", "None"
@@ -3133,54 +3120,49 @@ def render_multi_rule():
                 elif scenario == 'Systematic Shift': verdict, rule = "Reject Run", "2-2s Violation"
                 elif scenario == 'Increased Imprecision': verdict, rule = "Reject Run", "R-4s Violation"
                 
-                st.metric(label="🕵️ Run Verdict", value=verdict)
-                st.metric(label="🚨 Triggered Rule", value=rule)
-                st.markdown("""
-                **The Detective's Toolkit (Common Rules):**
-                - 🚨 **1-3s Rule:** A "smoking gun" – a major **random error**.
-                - 🧐 **2-2s Rule:** A classic sign of a **systematic error** (bias).
-                - 🔭 **R-4s Rule:** Detects a sudden increase in **random error** (imprecision).
-                - 🕵️ **4-1s Rule:** Detects a smaller, persistent systematic shift.
-                """)
+                st.metric("🕵️ Run Verdict", verdict)
+                st.metric("🚨 Triggered Rule", rule)
+                st.markdown(f"The simulation for **{scenario}** triggered the **{rule}** rule. Refer to the table below for a detailed diagnosis.")
+
+            st.markdown("""
+            ---
+            **The Detective's Rulebook:**
+            | Rule Name | Definition | Error Detected | Typical Cause |
+            | :--- | :--- | :--- | :--- |
+            | **1-3s** | 1 point > 3σ | Random Error (blunder) | Calculation error, wrong reagent, air bubble |
+            | **2-2s** | 2 consecutive points > 2σ (same side) | Systematic Error (shift) | New calibrator/reagent lot, instrument issue |
+            | **R-4s** | Range between 2 consecutive points > 4σ | Random Error (imprecision) | Inconsistent pipetting, instrument instability |
+            | **4-1s** | 4 consecutive points > 1σ (same side) | Systematic Error (drift) | Minor reagent degradation, slow drift |
+            | **10-x** | 10 consecutive points on same side of mean | Systematic Error (bias) | Small, persistent bias in the system |
+            """)
 
         with tabs[1]:
-            # FIX: Restored the detailed, high-value Golden Rule content.
             st.error("""
             🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
-            This operator sees the alarms, immediately discards the run, and starts over from scratch without thinking.
-            
-            - *"My control failed. I'll just run it again."* (Without investigating *why* it failed, the problem will likely recur).
-            - They might fixate on the big `1-3s` error and completely miss the more subtle but equally important `2-2s` shift.
-            - They might re-run the control sample over and over, hoping to get a "pass," which is a serious compliance violation known as "testing into compliance."
-            
-            This approach is inefficient, costly, and guarantees that underlying process problems will fester.
+            This operator sees any alarm, immediately discards the run, and starts over without thinking.
+            - They don't use the specific rule (`2-2s` vs `R-4s`) to guide their troubleshooting.
+            - They might engage in "testing into compliance" by re-running a control until it passes, a serious compliance violation.
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: The Rule is the First Clue**
             The goal is to treat the specific rule violation as the starting point of a targeted investigation.
-            
-            - **Think like a detective:** "The chart shows a `1-3s` violation AND a `2-2s` violation. These are likely separate issues. The `1-3s` could be a one-off blunder. The `2-2s` suggests a calibration or reagent problem. I need to investigate both."
-            - **Document Everything:** The investigation, the root cause, and the corrective action for each rule violation must be documented. This is a regulatory expectation and a crucial part of process knowledge.
-            
-            This diagnostic mindset transforms the control chart from a simple pass/fail tool into the most important troubleshooting guide in the lab.
+            - **Think like a detective:** "The chart shows a `2-2s` violation. This suggests a systematic shift. I should check my calibrators and reagents first, not my pipetting technique."
+            - **Document Everything:** The investigation, the root cause, and the corrective action for each rule violation must be documented.
             """)
 
         with tabs[2]:
-            # FIX: Restored the detailed, high-value Theory & History content.
             st.markdown("""
-            #### Historical Context & Origin
-            The story of multi-rule charts is a brilliant fusion of two eras. First came **Dr. Walter A. Shewhart** at Bell Labs in the 1920s. He invented the foundational control chart (the ±3 SD limits) to improve the reliability of telephone network components. This was the birth of Statistical Process Control (SPC).
+            #### Historical Context: From the Factory Floor to the Hospital Bed
+            **The Problem:** In the 1920s, the Western Electric company was a manufacturing behemoth, but quality was a nightmare. Engineers were lost in a "fog" of data, constantly "tampering" with the process based on random noise, often making things worse.
             
-            Fast forward to the 1970s. **Dr. James O. Westgard**, a professor at the University of Wisconsin, faced a different problem: ensuring the daily reliability of clinical laboratory tests that decided patient diagnoses. He found that Shewhart's single `1-3s` rule wasn't sensitive enough to catch the subtle drifts common in complex biochemical assays.
+            **The "Aha!" Moment (Shewhart):** A physicist at Bell Labs, **Dr. Walter A. Shewhart**, had the revolutionary insight to distinguish between "common cause" and "special cause" variation. He invented the control chart to provide a simple, graphical tool to detect the moment a special cause entered the system. The ±3σ limits were chosen for sound economic reasons: to minimize the cost of both false alarms and missed signals.
             
-            In a landmark 1981 paper, Westgard and his colleagues proposed a system of multiple rules to be applied simultaneously. These "Westgard Rules" were specifically designed to have a high probability of detecting medically important errors, while keeping the rate of false alarms low. This gave lab technicians a powerful, statistically-backed system for making daily accept/reject decisions, and it rapidly became the global standard in clinical chemistry and beyond.
-            
+            **The Evolution (Westgard):** Fast forward to the 1970s. **Dr. James O. Westgard** recognized that in clinical labs, where patient lives are at stake, the cost of a missed signal is far higher. He found that Shewhart's single `1-3s` rule wasn't sensitive enough to catch the subtle drifts that could lead to a misdiagnosis. In 1981, he proposed his multi-rule system, an "intelligent" combination of rules designed to maximize the probability of error detection ($P_{ed}$) while maintaining a low probability of false rejection ($P_{fr}$). This engineering trade-off made the system the global standard for medical laboratories.
+
             #### Mathematical Basis
-            The rule notation is a simple shorthand: **A<sub>L</sub>**, where `A` is the number of points and `L` is the limit.
-            
-            - **`1-3s`**: **1** point exceeds the **3s** (3 standard deviation) limit.
-            - **`2-2s`**: **2** consecutive points exceed the **2s** limit on the same side of the mean.
-            - **`R-4s`**: The **R**ange between 2 consecutive points exceeds **4s**.
+            The logic is built on the properties of the normal distribution. For a stable process:
+            - A point outside **±3σ** is a rare event (occurs ~1 in 370 times by chance). This is a high-confidence signal, hence the **1-3s** rejection rule.
+            - A point outside **±2σ** is more common (~1 in 22 times). Seeing *two in a row* on the same side, however, is much rarer ($1/22 \times 1/22 \times 1/2 \approx$ 1 in 968). This makes the **2-2s** rule a powerful detector of systematic shifts with a low false alarm rate.
             """)
             
 def render_ewma_cusum():

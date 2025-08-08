@@ -909,65 +909,78 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
 
     return fig_contour, fig_3d, fig_effects, model.params
 
-@st.cache_data
-def plot_spc_charts():
-    # --- I-MR Chart Data ---
+def plot_spc_charts(scenario='Stable'):
+    """
+    Generates dynamic SPC charts based on a selected process scenario.
+    """
     np.random.seed(42)
-    in_control_data_i = np.random.normal(loc=100.0, scale=2.0, size=15)
-    shift_data_i = np.random.normal(loc=108.0, scale=2.0, size=10)
-    data_i = np.concatenate([in_control_data_i, shift_data_i])
-    x_i = np.arange(1, len(data_i) + 1)
+    n_points = 25
     
-    mean_i = np.mean(data_i[:15])
+    # --- Generate Base Data ---
+    data_i = np.random.normal(loc=100.0, scale=2.0, size=n_points)
+    data_xbar = np.random.normal(loc=100, scale=5, size=(n_points, 5))
+    data_p_defects = np.random.binomial(n=200, p=0.02, size=n_points)
+    
+    # --- Inject Special Cause based on Scenario ---
+    if scenario == 'Sudden Shift':
+        data_i[15:] += 8
+        data_xbar[15:, :] += 6
+        data_p_defects[15:] = np.random.binomial(n=200, p=0.08, size=10)
+    elif scenario == 'Gradual Trend':
+        trend = np.linspace(0, 10, n_points)
+        data_i += trend
+        data_xbar += trend[:, np.newaxis]
+        data_p_defects += np.random.binomial(n=200, p=trend/200, size=n_points)
+    elif scenario == 'Increased Variability':
+        data_i[15:] = np.random.normal(loc=100.0, scale=6.0, size=10)
+        data_xbar[15:, :] = np.random.normal(loc=100, scale=15, size=(10, 5))
+        data_p_defects[15:] = np.random.binomial(n=200, p=0.02, size=10) # Less obvious on p-chart
+
+    # --- I-MR Chart ---
+    x_i = np.arange(1, len(data_i) + 1)
+    limit_data_i = data_i[:15] if scenario != 'Stable' else data_i
+    mean_i = np.mean(limit_data_i)
     mr = np.abs(np.diff(data_i))
-    mr_mean = np.mean(mr[:14])
-    # d2 constant for n=2
+    mr_mean = np.mean(np.abs(np.diff(limit_data_i)))
     sigma_est_i = mr_mean / 1.128
     UCL_I, LCL_I = mean_i + 3 * sigma_est_i, mean_i - 3 * sigma_est_i
-    # D4 constant for n=2
     UCL_MR = mr_mean * 3.267
     
     fig_imr = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, subplot_titles=("I-Chart", "MR-Chart"))
-    fig_imr.add_trace(go.Scatter(x=x_i, y=data_i, mode='lines+markers', name='Individual Value'), row=1, col=1)
+    fig_imr.add_trace(go.Scatter(x=x_i, y=data_i, mode='lines+markers', name='Value'), row=1, col=1)
     fig_imr.add_hline(y=mean_i, line=dict(dash='dash', color='black'), row=1, col=1); fig_imr.add_hline(y=UCL_I, line=dict(color='red'), row=1, col=1); fig_imr.add_hline(y=LCL_I, line=dict(color='red'), row=1, col=1)
-    fig_imr.add_trace(go.Scatter(x=x_i[1:], y=mr, mode='lines+markers', name='Moving Range'), row=2, col=1)
+    fig_imr.add_trace(go.Scatter(x=x_i[1:], y=mr, mode='lines+markers', name='Range'), row=2, col=1)
     fig_imr.add_hline(y=mr_mean, line=dict(dash='dash', color='black'), row=2, col=1); fig_imr.add_hline(y=UCL_MR, line=dict(color='red'), row=2, col=1)
-    fig_imr.update_layout(title_text='<b>1. I-MR Chart (Individual Measurements)</b>', showlegend=False)
+    fig_imr.update_layout(title_text='<b>1. I-MR Chart</b>', showlegend=False)
     
-    # --- X-bar & R Chart Data ---
-    np.random.seed(30)
-    n_subgroups, subgroup_size = 20, 5
-    data_xbar = np.random.normal(loc=100, scale=5, size=(n_subgroups, subgroup_size))
-    data_xbar[15:, :] += 6 # Shift after subgroup 15
+    # --- X-bar & R Chart ---
     subgroup_means = np.mean(data_xbar, axis=1)
     subgroup_ranges = np.max(data_xbar, axis=1) - np.min(data_xbar, axis=1)
-    x_xbar = np.arange(1, n_subgroups + 1)
-    mean_xbar = np.mean(subgroup_means[:15]); mean_r = np.mean(subgroup_ranges[:15])
-    # Constants for n=5: A2=0.577, D4=2.114
+    x_xbar = np.arange(1, n_points + 1)
+    limit_data_xbar_means = subgroup_means[:15] if scenario != 'Stable' else subgroup_means
+    limit_data_xbar_ranges = subgroup_ranges[:15] if scenario != 'Stable' else subgroup_ranges
+    mean_xbar, mean_r = np.mean(limit_data_xbar_means), np.mean(limit_data_xbar_ranges)
     UCL_X, LCL_X = mean_xbar + 0.577 * mean_r, mean_xbar - 0.577 * mean_r
     UCL_R = 2.114 * mean_r; LCL_R = 0 * mean_r
 
     fig_xbar = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, subplot_titles=("X-bar Chart", "R-Chart"))
-    fig_xbar.add_trace(go.Scatter(x=x_xbar, y=subgroup_means, mode='lines+markers', name='Subgroup Mean'), row=1, col=1)
+    fig_xbar.add_trace(go.Scatter(x=x_xbar, y=subgroup_means, mode='lines+markers'), row=1, col=1)
     fig_xbar.add_hline(y=mean_xbar, line=dict(dash='dash', color='black'), row=1, col=1); fig_xbar.add_hline(y=UCL_X, line=dict(color='red'), row=1, col=1); fig_xbar.add_hline(y=LCL_X, line=dict(color='red'), row=1, col=1)
-    fig_xbar.add_trace(go.Scatter(x=x_xbar, y=subgroup_ranges, mode='lines+markers', name='Subgroup Range'), row=2, col=1)
+    fig_xbar.add_trace(go.Scatter(x=x_xbar, y=subgroup_ranges, mode='lines+markers'), row=2, col=1)
     fig_xbar.add_hline(y=mean_r, line=dict(dash='dash', color='black'), row=2, col=1); fig_xbar.add_hline(y=UCL_R, line=dict(color='red'), row=2, col=1)
-    fig_xbar.update_layout(title_text='<b>2. X-bar & R Chart (Subgrouped Data)</b>', showlegend=False)
+    fig_xbar.update_layout(title_text='<b>2. X-bar & R Chart</b>', showlegend=False)
 
-    # --- P-Chart Data ---
-    np.random.seed(10)
-    n_batches = 25; batch_size = 200
-    p_true = np.concatenate([np.full(15, 0.02), np.full(10, 0.08)]) # Proportion of defects
-    defects = np.random.binomial(n=batch_size, p=p_true)
-    proportions = defects / batch_size
-    p_bar = np.mean(proportions[:15])
-    sigma_p = np.sqrt(p_bar * (1-p_bar) / batch_size)
+    # --- P-Chart ---
+    proportions = data_p_defects / 200
+    limit_data_p = proportions[:15] if scenario != 'Stable' else proportions
+    p_bar = np.mean(limit_data_p)
+    sigma_p = np.sqrt(p_bar * (1-p_bar) / 200)
     UCL_P, LCL_P = p_bar + 3 * sigma_p, max(0, p_bar - 3 * sigma_p)
 
     fig_p = go.Figure()
-    fig_p.add_trace(go.Scatter(x=np.arange(1, n_batches+1), y=proportions, mode='lines+markers', name='Proportion Defective'))
+    fig_p.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=proportions, mode='lines+markers'))
     fig_p.add_hline(y=p_bar, line=dict(dash='dash', color='black')); fig_p.add_hline(y=UCL_P, line=dict(color='red')); fig_p.add_hline(y=LCL_P, line=dict(color='red'))
-    fig_p.update_layout(title_text='<b>3. P-Chart (Attribute Data)</b>', yaxis_tickformat=".0%", showlegend=False, xaxis_title="Batch Number", yaxis_title="Proportion Defective")
+    fig_p.update_layout(title_text='<b>3. P-Chart</b>', yaxis_tickformat=".0%", showlegend=False, xaxis_title="Batch Number", yaxis_title="Proportion Defective")
     
     return fig_imr, fig_xbar, fig_p
 @st.cache_data
@@ -2518,55 +2531,53 @@ def render_westgard_rules_interactive():
             """)
             
 def render_spc_charts():
-    """Renders the module for Statistical Process Control (SPC) charts."""
+    """Renders the INTERACTIVE module for Statistical Process Control (SPC) charts."""
     st.markdown("""
-    #### Purpose & Application
+    #### Purpose & Application: The Voice of the Process
     **Purpose:** To serve as an **EKG for your process**—a real-time heartbeat monitor that visualizes its stability. The goal is to distinguish between two fundamental types of variation:
     - **Common Cause Variation:** The natural, random "static" or "noise" inherent to a stable process. It's predictable.
     - **Special Cause Variation:** A signal that something has changed or gone wrong. It's unpredictable and requires investigation.
     
-    **Strategic Application:** SPC is the bedrock of modern quality control and process improvement. These charts provide an objective, data-driven answer to the critical question: "Is my process stable and behaving as expected?" They are used to prevent defects, reduce waste, and provide the evidence needed to justify (or reject) process changes. Acting on this "voice of the process" is a core competency of any high-performing manufacturing or lab operation.
+    **Strategic Application:** SPC is the bedrock of modern quality control. These charts provide an objective, data-driven answer to the critical question: "Is my process stable and behaving as expected?" They are used to prevent defects, reduce waste, and provide the evidence needed to justify (or reject) process changes.
     """)
     
-    # Assume this function returns the three necessary SPC charts
-    fig_imr, fig_xbar, fig_p = plot_spc_charts()
+    st.info("""
+    **Interactive Demo:** Use the controls in the sidebar to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
+    """)
     
-    st.subheader("Analysis & Interpretation: The Process EKG")
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("SPC Scenario Controls")
+    scenario = st.sidebar.radio(
+        "Select a Process Scenario to Simulate:",
+        ('Stable', 'Sudden Shift', 'Gradual Trend', 'Increased Variability'),
+        captions=[
+            "Process is behaving normally.",
+            "e.g., A new raw material lot is introduced.",
+            "e.g., An instrument is slowly drifting out of calibration.",
+            "e.g., An operator becomes less consistent."
+        ]
+    )
+
+    # Generate plots based on the selected scenario
+    fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
+    
+    st.subheader(f"Analysis & Interpretation: {scenario} Process")
     tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
     with tabs[0]:
-        st.info("💡 **Pro-Tip:** Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
+        st.info("💡 Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
 
-        with st.expander("Indivduals & Moving Range (I-MR) Chart: The Solo Performer", expanded=True):
-            st.metric("Process Capability (Cpk)", "1.15", help="A measure of how well the process fits within its specification limits. Cpk > 1.33 is often a target.")
+        with st.expander("Indivduals & Moving Range (I-MR) Chart", expanded=True):
             st.plotly_chart(fig_imr, use_container_width=True)
-            st.markdown("""
-            - **Use Case:** For tracking individual measurements when you can't group data (e.g., daily pH of a single bioreactor, weekly yield of one large batch).
-            - **Interpretation:** This is a two-part story:
-                - **Individuals (I) Chart (Top):** Tracks the process center. It asks, "Is the process on target?"
-                - **Moving Range (MR) Chart (Bottom):** Tracks the short-term variability or 'jitter'. It asks, "Is the process consistency stable?"
-            - **Strategic Insight:** **Both charts must be in-control.** A stable process has both a stable average AND stable variability. An out-of-control MR chart is often a leading indicator of future problems on the I-chart.
-            """)
+            st.markdown("- **Interpretation:** The I-chart tracks the process center, while the MR-chart tracks short-term variability. **Both** must be stable. An out-of-control MR chart is a leading indicator of future problems.")
 
-        with st.expander("X-bar & Range (X̄-R) Chart: The Team Average"):
-            st.metric("Process Capability (Cpk)", "1.68", help="A Cpk calculated from a subgrouped chart is generally more reliable.")
+        with st.expander("X-bar & Range (X̄-R) Chart", expanded=True):
             st.plotly_chart(fig_xbar, use_container_width=True)
-            st.markdown("""
-            - **Use Case:** The gold standard for continuous data collected in small, rational subgroups (e.g., measuring 5 vials from the filler every hour).
-            - **Interpretation:** This is a more powerful two-part story:
-                - **X-bar (X̄) Chart (Top):** Tracks the average *between* subgroups. Thanks to the Central Limit Theorem, it's extremely sensitive to small shifts in the process mean.
-                - **Range (R) Chart (Bottom):** Tracks the average variation *within* each subgroup. It asks, "Is the short-term process precision consistent?"
-            - **Strategic Insight:** The X-bar chart is your high-powered microscope for detecting process shifts. The R-chart tells you if something has fundamentally changed about your process's inherent consistency.
-            """)
+            st.markdown("- **Interpretation:** The X-bar chart tracks variation *between* subgroups and is extremely sensitive to small shifts. The R-chart tracks variation *within* subgroups, a measure of process consistency.")
         
-        with st.expander("Proportion (P) Chart: The Team's Score"):
-            st.metric("Average Defect Rate", "1.2%", help="The overall process performance being tracked.")
+        with st.expander("Proportion (P) Chart", expanded=True):
             st.plotly_chart(fig_p, use_container_width=True)
-            st.markdown("""
-            - **Use Case:** For "Go/No-Go" attribute data. You're not measuring, you're counting: the proportion (or percent) of non-conforming items per lot (e.g., percent of failed tablet inspections).
-            - **Interpretation:** This chart tracks the proportion of defects over time.
-            - **Strategic Insight:** Notice the control limits are not constant! They become tighter for larger subgroups (batches). This is a feature, not a bug. It reflects the statistical reality that you have more confidence in a percentage from a large batch than a small one. It's the most honest way to track yields and failure rates.
-            """)
+            st.markdown("- **Interpretation:** This chart tracks the proportion of defects. The control limits become tighter for larger batches, reflecting increased statistical certainty.")
 
     with tabs[1]:
         st.error("""
@@ -2580,31 +2591,21 @@ def render_spc_charts():
         """)
         st.success("""
         🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
-        The control chart dictates one of two paths, with no in-between:
-        
-        1.  **If all points are within control limits and show no patterns (Process is IN-CONTROL):**
-            - **Your Action:** Leave the process alone! Your job is not to chase individual data points. To improve, you must work on changing the fundamental system (e.g., better equipment, new materials, improved training).
-        
-        2.  **If a point goes outside the control limits or a clear pattern emerges (Process is OUT-OF-CONTROL):**
+        The control chart's signal dictates one of two paths:
+        1.  **Process is IN-CONTROL (only common cause variation):**
+            - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).
+        2.  **Process is OUT-OF-CONTROL (a special cause is present):**
             - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.
-        
-        This discipline—to act on signals but ignore the noise—is the entire philosophy of SPC.
         """)
 
     with tabs[2]:
         st.markdown("""
-        #### Historical Context & Origin
-        The control chart was invented by the brilliant American physicist and engineer **Dr. Walter A. Shewhart** while working at Bell Telephone Laboratories in the 1920s. The challenge was immense: manufacturing millions of components for the new national telephone network required unprecedented levels of consistency. How could you know if a variation in a vacuum tube's performance was just normal fluctuation or a sign of a real production problem?
+        #### Historical Context: The Invention that Saved Manufacturing
+        **The Problem:** In the 1920s, the Western Electric company was a manufacturing behemoth, producing millions of components for the Bell Telephone network. But quality was a nightmare. Parts were inconsistent, causing costly failures. Engineers were lost in the "fog" of data, unable to tell if a variation was a genuine problem or just random noise. They were constantly "tampering" with the process, making things worse.
+
+        **The "Aha!" Moment:** A brilliant physicist and engineer at Bell Labs, **Dr. Walter A. Shewhart**, had a revolutionary insight. In a now-famous 1924 memo, he was the first to formally articulate the critical distinction between **"common cause"** and **"special cause"** variation. He realized that as long as a process only exhibited common cause variation, it was stable, predictable, and "in a state of statistical control." The goal was not to eliminate all variation, but to eliminate the *unpredictable* special causes.
         
-        Shewhart's genius was in his 1924 memo where he introduced the first control chart. He was the first to formally articulate the critical distinction between **common cause** and **special cause** variation. He realized that as long as a process only exhibited common cause variation, it was stable and predictable. The purpose of the control chart was to provide a simple, graphical tool to detect the moment a special cause entered the system. This idea was the birth of modern Statistical Process Control and laid the foundation for the 20th-century quality revolution.
-        
-        #### Mathematical Basis
-        The control limits on a Shewhart chart are famously set at ±3 standard deviations from the center line.
-        """)
-        st.latex(r"\text{Control Limits} = \text{Center Line} \pm 3 \times (\text{Standard Deviation of the Plotted Statistic})")
-        st.markdown("""
-        - **Why 3-Sigma?** Shewhart chose this value for sound economic and statistical reasons. For a normally distributed process, 99.73% of all data points will naturally fall within these limits.
-        - **Minimizing False Alarms:** This means there's only a 0.27% chance of a point falling outside the limits purely by chance. This makes the chart robust; when you get a signal, you can be very confident it's real and not just random noise. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
+        **The Impact:** Shewhart invented the **control chart** as a simple, graphical tool to achieve this. The famous ±3 sigma limits were not arbitrary; Shewhart chose them for sound economic reasons, striking a perfect balance between being sensitive to real problems and not causing "fire drills" for false alarms. This single invention was the birth of modern Statistical Process Control (SPC) and laid the foundation for the 20th-century quality revolution led by his protégé, W. Edwards Deming.
         """)
 def render_tolerance_intervals():
     """Renders the module for Tolerance Intervals."""

@@ -311,57 +311,57 @@ def plot_chronological_timeline():
 
 @st.cache_data
 def create_toolkit_conceptual_map():
-    """Creates an improved conceptual map with algorithmic spacing to prevent overlap."""
+    """Creates an improved conceptual map with algorithmic spacing and color-coding by origin."""
     
-    # Define the nodes with a new structure for easier algorithmic placement
-    # { 'LEVEL_1_KEY': {'pos': (x, y), 'name': '...', 'short': '...', 'children': ['TOOL_1', 'TOOL_2']}, ... }
-    # { 'TOOL_KEY': {'name': '...', 'short': '...'}, ... }
+    # Define the data structure for tools, now including their intellectual origin
+    tools = {
+        'CI': {'name': 'Confidence Interval Concept', 'short': 'Confidence<br>Intervals', 'origin': 'Statistics'},
+        'TOST': {'name': 'Equivalence Testing (TOST)', 'short': 'Equivalence<br>Testing (TOST)', 'origin': 'Biostatistics'},
+        'BAYES': {'name': 'Bayesian Inference', 'short': 'Bayesian<br>Inference', 'origin': 'Statistics'},
+        'LIN': {'name': 'Linearity & Range', 'short': 'Linearity<br>& Range', 'origin': 'Statistics'},
+        '4PL': {'name': 'Non-Linear Regression (4PL/5PL)', 'short': 'Non-Linear<br>Regression', 'origin': 'Biostatistics'},
+        'STABILITY': {'name': 'Stability Analysis (Shelf-Life)', 'short': 'Stability<br>Analysis', 'origin': 'Biostatistics'},
+        'GAGE': {'name': 'Gage R&R / VCA', 'short': 'Gage R&R<br>/ VCA', 'origin': 'Industrial Quality Control'},
+        'METH_COMP': {'name': 'Method Comparison', 'short': 'Method<br>Comparison', 'origin': 'Biostatistics'},
+        'SPC_CHART': {'name': 'Process Stability (SPC)', 'short': 'Process<br>Stability (SPC)', 'origin': 'Industrial Quality Control'},
+        'SMALL_SHIFT': {'name': 'Small Shift Detection', 'short': 'Small Shift<br>Detection', 'origin': 'Industrial Quality Control'},
+        'MV_SPC': {'name': 'Multivariate SPC', 'short': 'Multivariate<br>SPC', 'origin': 'Industrial Quality Control'},
+        'CAPA': {'name': 'Process Capability (Cpk)', 'short': 'Process<br>Capability (Cpk)', 'origin': 'Industrial Quality Control'},
+        'TOL_INT': {'name': 'Tolerance Intervals', 'short': 'Tolerance<br>Intervals', 'origin': 'Statistics'},
+        'SURVIVAL': {'name': 'Reliability / Survival Analysis', 'short': 'Reliability /<br>Survival Analysis', 'origin': 'Biostatistics'},
+        'PRED_QC': {'name': 'Predictive QC (Classification)', 'short': 'Predictive QC<br>(Classification)', 'origin': 'Data Science / ML'},
+        'XAI': {'name': 'Explainable AI (XAI)', 'short': 'Explainable AI<br>(XAI)', 'origin': 'Data Science / ML'},
+        'ANOMALY': {'name': 'Anomaly Detection', 'short': 'Anomaly<br>Detection', 'origin': 'Data Science / ML'},
+        'CLUSTER': {'name': 'Clustering (Unsupervised)', 'short': 'Clustering<br>(Unsupervised)', 'origin': 'Data Science / ML'},
+        # Adding missing tools to the map
+        'ROC': {'name': 'ROC Curve Analysis', 'short': 'ROC Curve<br>Analysis', 'origin': 'Statistics'},
+        'MVA': {'name': 'Multivariate Analysis (MVA)', 'short': 'Multivariate<br>Analysis (MVA)', 'origin': 'Data Science / ML'},
+        'TIME_SERIES': {'name': 'Time Series Analysis', 'short': 'Time Series<br>Analysis', 'origin': 'Statistics'},
+    }
     
     structure = {
-        'STAT_INF': { 'pos': (1.5, 9), 'name': 'Statistical Inference', 'short': 'Statistical<br>Inference', 'children': ['CI', 'TOST', 'BAYES'] },
-        'REG_MOD': { 'pos': (1.5, 5.5), 'name': 'Regression Models', 'short': 'Regression<br>Models', 'children': ['LIN', '4PL', 'STABILITY'] },
-        'MSA': { 'pos': (1.5, 2.5), 'name': 'Measurement Systems Analysis', 'short': 'Measurement<br>Systems Analysis', 'children': ['GAGE', 'METH_COMP'] },
-        'SPC': { 'pos': (1.5, -0.5), 'name': 'Statistical Process Control', 'short': 'Statistical<br>Process Control', 'children': ['SPC_CHART', 'SMALL_SHIFT', 'MV_SPC'] },
-        'VALIDATION': { 'pos': (1.5, -4), 'name': 'Validation & Lifecycle', 'short': 'Validation &<br>Lifecycle', 'children': ['CAPA', 'TOL_INT', 'SURVIVAL'] },
-        'PRED_MOD': { 'pos': (1.5, -7), 'name': 'Predictive Modeling', 'short': 'Predictive<br>Modeling', 'children': ['PRED_QC', 'XAI'] },
-        'UNSUP_LRN': { 'pos': (1.5, -10), 'name': 'Unsupervised Learning', 'short': 'Unsupervised<br>Learning', 'children': ['ANOMALY', 'CLUSTER'] }
+        'STAT_INF': { 'pos': (1.5, 9), 'name': 'Statistical Inference', 'short': 'Statistical<br>Inference', 'children': ['CI', 'TOST', 'BAYES', 'ROC'] },
+        'REG_MOD': { 'pos': (1.5, 5), 'name': 'Regression Models', 'short': 'Regression<br>Models', 'children': ['LIN', '4PL', 'STABILITY', 'TIME_SERIES'] },
+        'MSA': { 'pos': (1.5, 2), 'name': 'Measurement Systems Analysis', 'short': 'Measurement<br>Systems Analysis', 'children': ['GAGE', 'METH_COMP'] },
+        'SPC': { 'pos': (1.5, -1), 'name': 'Statistical Process Control', 'short': 'Statistical<br>Process Control', 'children': ['SPC_CHART', 'SMALL_SHIFT', 'MV_SPC'] },
+        'VALIDATION': { 'pos': (1.5, -4.5), 'name': 'Validation & Lifecycle', 'short': 'Validation &<br>Lifecycle', 'children': ['CAPA', 'TOL_INT', 'SURVIVAL'] },
+        'PRED_MOD': { 'pos': (1.5, -7.5), 'name': 'Predictive Modeling', 'short': 'Predictive<br>Modeling', 'children': ['PRED_QC', 'XAI', 'MVA'] },
+        'UNSUP_LRN': { 'pos': (1.5, -10.5), 'name': 'Unsupervised Learning', 'short': 'Unsupervised<br>Learning', 'children': ['ANOMALY', 'CLUSTER'] }
     }
-
-    tools = {
-        'CI': {'name': 'Confidence Interval Concept', 'short': 'Confidence<br>Intervals'},
-        'TOST': {'name': 'Equivalence Testing (TOST)', 'short': 'Equivalence<br>Testing (TOST)'},
-        'BAYES': {'name': 'Bayesian Inference', 'short': 'Bayesian<br>Inference'},
-        'LIN': {'name': 'Linearity & Range', 'short': 'Linearity<br>& Range'},
-        '4PL': {'name': 'Non-Linear Regression (4PL/5PL)', 'short': 'Non-Linear<br>Regression'},
-        'STABILITY': {'name': 'Stability Analysis (Shelf-Life)', 'short': 'Stability<br>Analysis'},
-        'GAGE': {'name': 'Gage R&R / VCA', 'short': 'Gage R&R<br>/ VCA'},
-        'METH_COMP': {'name': 'Method Comparison', 'short': 'Method<br>Comparison'},
-        'SPC_CHART': {'name': 'Process Stability (SPC)', 'short': 'Process<br>Stability (SPC)'},
-        'SMALL_SHIFT': {'name': 'Small Shift Detection', 'short': 'Small Shift<br>Detection'},
-        'MV_SPC': {'name': 'Multivariate SPC', 'short': 'Multivariate<br>SPC'},
-        'CAPA': {'name': 'Process Capability (Cpk)', 'short': 'Process<br>Capability (Cpk)'},
-        'TOL_INT': {'name': 'Tolerance Intervals', 'short': 'Tolerance<br>Intervals'},
-        'SURVIVAL': {'name': 'Reliability / Survival Analysis', 'short': 'Reliability /<br>Survival Analysis'},
-        'PRED_QC': {'name': 'Predictive QC (Classification)', 'short': 'Predictive QC<br>(Classification)'},
-        'XAI': {'name': 'Explainable AI (XAI)', 'short': 'Explainable AI<br>(XAI)'},
-        'ANOMALY': {'name': 'Anomaly Detection', 'short': 'Anomaly<br>Detection'},
-        'CLUSTER': {'name': 'Clustering (Unsupervised)', 'short': 'Clustering<br>(Unsupervised)'}
-    }
-
+    
     nodes = {
-        'FOUND_STATS': {'name': 'Foundational Statistics', 'short': 'Foundational<br>Statistics', 'pos': (0, 7.25)},
-        'PROC_QC': {'name': 'Process & Quality Control', 'short': 'Process &<br>Quality Control', 'pos': (0, -0.75)},
-        'ADV_ANALYTICS': {'name': 'Advanced Analytics (ML/AI)', 'short': 'Advanced Analytics<br>(ML/AI)', 'pos': (0, -8.5)},
+        'FOUND_STATS': {'name': 'Foundational Statistics', 'short': 'Foundational<br>Statistics', 'pos': (0, 7)},
+        'PROC_QC': {'name': 'Process & Quality Control', 'short': 'Process &<br>Quality Control', 'pos': (0, -1.75)},
+        'ADV_ANALYTICS': {'name': 'Advanced Analytics (ML/AI)', 'short': 'Advanced Analytics<br>(ML/AI)', 'pos': (0, -9)},
     }
 
-    # Algorithmically add positions for Level 1 and Level 2 nodes
-    vertical_spacing = 1.2 # Controls the space between tool circles
+    vertical_spacing = 1.3
     for key, val in structure.items():
         nodes[key] = {'name': val['name'], 'short': val['short'], 'pos': val['pos']}
         num_children = len(val['children'])
         start_y = val['pos'][1] - (num_children - 1) / 2.0 * vertical_spacing
         for i, child_key in enumerate(val['children']):
-            nodes[child_key] = {'name': tools[child_key]['name'], 'short': tools[child_key]['short'], 'pos': (3, start_y + i * vertical_spacing)}
+            nodes[child_key] = {'name': tools[child_key]['name'], 'short': tools[child_key]['short'], 'pos': (3, start_y + i * vertical_spacing), 'origin': tools[child_key]['origin']}
 
     edges = [
         ('FOUND_STATS', 'STAT_INF'), ('FOUND_STATS', 'REG_MOD'),
@@ -373,38 +373,54 @@ def create_toolkit_conceptual_map():
 
     for start, end in edges:
         fig.add_trace(go.Scatter(
-            x=[nodes[start]['pos'][0], nodes[end]['pos'][0]],
-            y=[nodes[start]['pos'][1], nodes[end]['pos'][1]],
+            x=[nodes[start]['pos'][0], nodes[end]['pos'][0]], y=[nodes[start]['pos'][1], nodes[end]['pos'][1]],
             mode='lines', line=dict(color='lightgrey', width=2), hoverinfo='none'
         ))
 
-    node_x = [v['pos'][0] for v in nodes.values()]
-    node_y = [v['pos'][1] for v in nodes.values()]
-    short_text = [v['short'] for v in nodes.values()]
-    full_text = [v['name'] for v in nodes.values()]
+    # Define colors for origins
+    origin_colors = {
+        'Statistics': '#1f77b4',  # Muted Blue
+        'Biostatistics': '#2ca02c',  # Cooked Asparagus Green
+        'Industrial Quality Control': '#ff7f0e',  # Safety Orange
+        'Data Science / ML': '#d62728',  # Brick Red
+    }
     
-    node_colors = []
-    for x in node_x:
-        if x == 0: node_colors.append('#004d40')
-        elif x == 1.5: node_colors.append('#00897b')
-        else: node_colors.append('#4db6ac')
-
+    # Draw structural nodes separately (Levels 0 and 1)
+    structural_nodes = {k: v for k, v in nodes.items() if 'origin' not in v}
     fig.add_trace(go.Scatter(
-        x=node_x, y=node_y, text=short_text,
-        mode='markers+text',
-        textposition="middle center",
-        marker=dict(size=85, color=node_colors, symbol='circle', line=dict(width=2, color='black')),
+        x=[v['pos'][0] for v in structural_nodes.values()],
+        y=[v['pos'][1] for v in structural_nodes.values()],
+        text=[v['short'] for v in structural_nodes.values()],
+        mode='markers+text', textposition="middle center",
+        marker=dict(size=85, color='#636EFA', symbol='square', line=dict(width=2, color='black')),
         textfont=dict(size=11, color='white', family="Arial"),
-        hovertext=full_text,
-        hoverinfo='text'
+        hovertext=[v['name'] for v in structural_nodes.values()], hoverinfo='text',
+        showlegend=False
     ))
+
+    # Draw tool nodes (Level 2) grouped by origin to create a legend
+    for origin_name, color in origin_colors.items():
+        origin_nodes = {k: v for k, v in nodes.items() if v.get('origin') == origin_name}
+        if not origin_nodes: continue
+        
+        fig.add_trace(go.Scatter(
+            x=[v['pos'][0] for v in origin_nodes.values()],
+            y=[v['pos'][1] for v in origin_nodes.values()],
+            text=[v['short'] for v in origin_nodes.values()],
+            mode='markers+text', textposition="middle center",
+            marker=dict(size=85, color=color, symbol='circle', line=dict(width=2, color='black')),
+            textfont=dict(size=11, color='white', family="Arial"),
+            hovertext=[v['name'] for v in origin_nodes.values()], hoverinfo='text',
+            name=origin_name # This name creates the legend entry
+        ))
 
     fig.update_layout(
         title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
-        showlegend=False,
+        showlegend=True,
+        legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.6)'),
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-11.5, 11.5]),
-        height=1200, # Increased height to accommodate spacing
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-12.5, 12.5]),
+        height=1200,
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#f0f2f6'

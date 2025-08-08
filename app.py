@@ -1238,47 +1238,13 @@ def render_introduction_content():
 
     st.header("🚀 The V&V Model: A Strategic Framework")
     st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
-    # FIX: This line has been uncommented
     st.plotly_chart(plot_v_model(), use_container_width=True)
     
     st.divider()
     
     st.header("📈 Project Workflow")
     st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value, and are ordered chronologically within each phase.")
-    # FIX: This line has been uncommented
     st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True)
-
-def render_introduction_content():
-    """Renders the three introductory sections as a single page."""
-    st.title("🛠️ Biotech V&V Analytics Toolkit")
-    st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
-    st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
-    st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
-    
-    st.header("📖 The Scientist's/Engineer's Journey: A Three-Act Story")
-    st.markdown("""The journey from a novel idea to a robust, routine process can be viewed as a three-act story, with each act presenting unique analytical challenges. The toolkit is structured to follow that narrative.""")
-    act1, act2, act3 = st.columns(3)
-    with act1: 
-        st.subheader("Act I: Foundation & Characterization")
-        st.markdown("Before a method or process can be trusted, its fundamental capabilities, limitations, and sensitivities must be deeply understood. This is the act of building a solid, data-driven foundation.")
-    with act2: 
-        st.subheader("Act II: Transfer & Stability")
-        st.markdown("Here, the method faces its crucible. It must prove its performance in a new environment—a new lab, a new scale, a new team. This act is about demonstrating stability and equivalence.")
-    with act3: 
-        st.subheader("Act III: The Guardian (Lifecycle Management)")
-        st.markdown("Once live, the journey isn't over. This final act is about continuous guardianship: monitoring process health, detecting subtle drifts, and using advanced analytics to predict and prevent future failures.")
-    
-    st.divider()
-
-    st.header("🚀 The V&V Model: A Strategic Framework")
-    st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
-    # st.plotly_chart(plot_v_model(), use_container_width=True) # Assuming plot_v_model is defined
-    
-    st.divider()
-    
-    st.header("📈 Project Workflow")
-    st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value, and are ordered chronologically within each phase.")
-    # st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True) # Assuming plot_act_grouped_timeline is defined
 
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)

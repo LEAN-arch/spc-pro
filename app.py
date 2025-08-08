@@ -2545,7 +2545,7 @@ def render_spc_charts():
     **Interactive Demo:** Use the controls in the sidebar to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
     """)
     
-    # --- NEW: Sidebar controls for this specific module ---
+    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("SPC Scenario Controls")
     scenario = st.sidebar.radio(
         "Select a Process Scenario to Simulate:",
@@ -2599,13 +2599,20 @@ def render_spc_charts():
         """)
 
     with tabs[2]:
+        # FIX: Replaced the old content with your new, more detailed version.
         st.markdown("""
-        #### Historical Context: The Invention that Saved Manufacturing
-        **The Problem:** In the 1920s, the Western Electric company was a manufacturing behemoth, producing millions of components for the Bell Telephone network. But quality was a nightmare. Parts were inconsistent, causing costly failures. Engineers were lost in the "fog" of data, unable to tell if a variation was a genuine problem or just random noise. They were constantly "tampering" with the process, making things worse.
+        #### Historical Context & Origin
+        The control chart was invented by the brilliant American physicist and engineer **Dr. Walter A. Shewhart** while working at Bell Telephone Laboratories in the 1920s. The challenge was immense: manufacturing millions of components for the new national telephone network required unprecedented levels of consistency. How could you know if a variation in a vacuum tube's performance was just normal fluctuation or a sign of a real production problem?
 
-        **The "Aha!" Moment:** A brilliant physicist and engineer at Bell Labs, **Dr. Walter A. Shewhart**, had a revolutionary insight. In a now-famous 1924 memo, he was the first to formally articulate the critical distinction between **"common cause"** and **"special cause"** variation. He realized that as long as a process only exhibited common cause variation, it was stable, predictable, and "in a state of statistical control." The goal was not to eliminate all variation, but to eliminate the *unpredictable* special causes.
-        
-        **The Impact:** Shewhart invented the **control chart** as a simple, graphical tool to achieve this. The famous ±3 sigma limits were not arbitrary; Shewhart chose them for sound economic reasons, striking a perfect balance between being sensitive to real problems and not causing "fire drills" for false alarms. This single invention was the birth of modern Statistical Process Control (SPC) and laid the foundation for the 20th-century quality revolution led by his protégé, W. Edwards Deming.
+        Shewhart's genius was in his 1924 memo where he introduced the first control chart. He was the first to formally articulate the critical distinction between **common cause** and **special cause** variation. He realized that as long as a process only exhibited common cause variation, it was stable and predictable. The purpose of the control chart was to provide a simple, graphical tool to detect the moment a special cause entered the system. This idea was the birth of modern Statistical Process Control and laid the foundation for the 20th-century quality revolution.
+
+        #### Mathematical Basis
+        The control limits on a Shewhart chart are famously set at ±3 standard deviations from the center line.
+        """)
+        st.latex(r"\text{Control Limits} = \text{Center Line} \pm 3 \times (\text{Standard Deviation of the Plotted Statistic})")
+        st.markdown("""
+        - **Why 3-Sigma?** Shewhart chose this value for sound economic and statistical reasons. For a normally distributed process, 99.73% of all data points will naturally fall within these limits.
+        - **Minimizing False Alarms:** This means there's only a 0.27% chance of a point falling outside the limits purely by chance. This makes the chart robust; when you get a signal, you can be very confident it's real and not just random noise. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
         """)
 def render_tolerance_intervals():
     """Renders the module for Tolerance Intervals."""

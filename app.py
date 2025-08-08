@@ -1509,7 +1509,7 @@ def render_introduction_content():
 
     st.header("🗺️ Conceptual Map of Tools")
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
-    st.graphviz_chart(create_toolkit_conceptual_map())
+    st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
 
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)

@@ -4097,7 +4097,7 @@ else:
         "Non-Linear Regression (4PL/5PL)": render_4pl_regression,
         "ROC Curve Analysis": render_roc_curve,
         "Equivalence Testing (TOST)": render_tost,
-        "Assay Robustness (DOE)": render_advanced_doe,
+        "Assay Robustness (DOE)": render_assay_robustness_doe, ,
         "Causal Inference": render_causal_inference,
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,

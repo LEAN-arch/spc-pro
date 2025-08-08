@@ -311,36 +311,33 @@ def plot_chronological_timeline():
 
 # REPLACE the existing create_toolkit_conceptual_map function with this one.
 @st.cache_data
-@st.cache_data
 def create_toolkit_conceptual_map():
-    """Creates a visually appealing, large-format radial map with no overlaps."""
-    
-    # Data structure for tools and their origins (no changes here)
+    """Creates a visually appealing, fast, and non-overlapping conceptual map using Graphviz."""
+    import graphviz
+
+    # Define the data structure
     structure = {
         'Foundational Statistics': {
-            'origin': 'Structure',
-            'children': {
-                'Statistical Inference': {'origin': 'Structure', 'children': ['Confidence Interval Concept', 'Equivalence Testing (TOST)', 'Bayesian Inference', 'ROC Curve Analysis']},
-                'Regression Models': {'origin': 'Structure', 'children': ['Linearity & Range', 'Non-Linear Regression (4PL/5PL)', 'Stability Analysis (Shelf-Life)', 'Time Series Analysis']}
-            }
+            'children': ['Statistical Inference', 'Regression Models']
         },
         'Process & Quality Control': {
-            'origin': 'Structure',
-            'children': {
-                'Measurement Systems Analysis': {'origin': 'Structure', 'children': ['Gage R&R / VCA', 'Method Comparison']},
-                'Statistical Process Control': {'origin': 'Structure', 'children': ['Process Stability (SPC)', 'Small Shift Detection', 'Multivariate SPC']},
-                'Validation & Lifecycle': {'origin': 'Structure', 'children': ['Process Capability (Cpk)', 'Tolerance Intervals', 'Reliability / Survival Analysis']}
-            }
+            'children': ['Measurement Systems Analysis', 'Statistical Process Control', 'Validation & Lifecycle']
         },
         'Advanced Analytics (ML/AI)': {
-            'origin': 'Structure',
-            'children': {
-                'Predictive Modeling': {'origin': 'Structure', 'children': ['Predictive QC (Classification)', 'Explainable AI (XAI)', 'Multivariate Analysis (MVA)']},
-                'Unsupervised Learning': {'origin': 'Structure', 'children': ['Anomaly Detection', 'Clustering (Unsupervised)']}
-            }
+            'children': ['Predictive Modeling', 'Unsupervised Learning']
         }
     }
     
+    sub_structure = {
+        'Statistical Inference': ['Confidence Interval Concept', 'Equivalence Testing (TOST)', 'Bayesian Inference', 'ROC Curve Analysis'],
+        'Regression Models': ['Linearity & Range', 'Non-Linear Regression (4PL/5PL)', 'Stability Analysis (Shelf-Life)', 'Time Series Analysis'],
+        'Measurement Systems Analysis': ['Gage R&R / VCA', 'Method Comparison'],
+        'Statistical Process Control': ['Process Stability (SPC)', 'Small Shift Detection', 'Multivariate SPC'],
+        'Validation & Lifecycle': ['Process Capability (Cpk)', 'Tolerance Intervals', 'Reliability / Survival Analysis'],
+        'Predictive Modeling': ['Predictive QC (Classification)', 'Explainable AI (XAI)', 'Multivariate Analysis (MVA)'],
+        'Unsupervised Learning': ['Anomaly Detection', 'Clustering (Unsupervised)']
+    }
+
     tool_origins = {
         'Confidence Interval Concept': 'Statistics', 'Equivalence Testing (TOST)': 'Biostatistics', 'Bayesian Inference': 'Statistics', 'ROC Curve Analysis': 'Statistics',
         'Linearity & Range': 'Statistics', 'Non-Linear Regression (4PL/5PL)': 'Biostatistics', 'Stability Analysis (Shelf-Life)': 'Biostatistics', 'Time Series Analysis': 'Statistics',
@@ -350,88 +347,42 @@ def create_toolkit_conceptual_map():
         'Predictive QC (Classification)': 'Data Science / ML', 'Explainable AI (XAI)': 'Data Science / ML', 'Multivariate Analysis (MVA)': 'Data Science / ML',
         'Anomaly Detection': 'Data Science / ML', 'Clustering (Unsupervised)': 'Data Science / ML'
     }
-    
+
     origin_colors = {
         'Statistics': '#1f77b4', 'Biostatistics': '#2ca02c',
         'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728',
-        'Structure': '#6A5ACD'
     }
 
-    # --- Algorithmic Layout Calculation (no changes to the algorithm itself) ---
-    nodes = {}
-    edges = []
-    center_node = "V&V Analytics<br>Toolkit"
-    nodes[center_node] = {'x': 0, 'y': 0, 'name': center_node, 'origin': 'Structure', 'size': 35}
+    dot = graphviz.Digraph(comment='V&V Toolkit Map')
+    dot.attr(rankdir='LR', splines='spline', overlap='false', nodesep='0.6', ranksep='2.5')
+    dot.attr('node', shape='box', style='rounded,filled', fontname='Arial', fontsize='12')
+    
+    # Create a subgraph for the legend
+    with dot.subgraph(name='cluster_legend') as c:
+        c.attr(label='Tool Origin', style='rounded', color='lightgrey')
+        for origin, color in origin_colors.items():
+            c.node(origin, style='filled', fillcolor=color, fontcolor='white', shape='circle')
+        # Create invisible edges to order the legend items
+        keys = list(origin_colors.keys())
+        for i in range(len(keys) - 1):
+            c.edge(keys[i], keys[i+1], style='invis')
 
-    r1, r2, r3 = 2.0, 4.0, 6.0
-    level1_keys = list(structure.keys())
-    for i, key in enumerate(level1_keys):
-        angle = (i / len(level1_keys)) * 2 * np.pi
-        nodes[key] = {'x': r1 * np.cos(angle), 'y': r1 * np.sin(angle), 'name': key.replace(' ', '<br>'), 'origin': 'Structure', 'size': 25}
-        edges.append((center_node, key))
+    # Create the nodes and edges for the main map
+    dot.node('CENTER', 'V&V Analytics\nToolkit', shape='doubleoctagon', style='filled', fillcolor='#6A5ACD', fontcolor='white', fontsize='16')
 
-        level2_keys = list(structure[key]['children'].keys())
-        for j, sub_key in enumerate(level2_keys):
-            angle_offset = (j - (len(level2_keys) - 1) / 2) * 0.25
-            sub_angle = angle + angle_offset
-            nodes[sub_key] = {'x': r2 * np.cos(sub_angle), 'y': r2 * np.sin(sub_angle), 'name': sub_key.replace(' ', '<br>'), 'origin': 'Structure', 'size': 20}
-            edges.append((key, sub_key))
-
-            level3_keys = structure[key]['children'][sub_key]['children']
-            for k, tool_key in enumerate(level3_keys):
-                angle_offset2 = (k - (len(level3_keys) - 1) / 2) * 0.12
-                tool_angle = sub_angle + angle_offset2
-                nodes[tool_key] = {'x': r3 * np.cos(tool_angle), 'y': r3 * np.sin(tool_angle), 'name': tool_key.replace(' ', '<br>'), 'origin': tool_origins.get(tool_key, 'Structure'), 'size': 15}
-                edges.append((sub_key, tool_key))
-
-    fig = go.Figure()
-
-    for start_key, end_key in edges:
-        x0, y0 = nodes[start_key]['x'], nodes[start_key]['y']
-        x1, y1 = nodes[end_key]['x'], nodes[end_key]['y']
-        cx, cy = (x0 + x1) / 2 + (y1 - y0) * 0.1, (y0 + y1) / 2 - (x1 - x0) * 0.1
-        fig.add_shape(type="path", path=f"M {x0},{y0} Q {cx},{cy} {x1},{y1}", line_color="lightgrey", line_width=1.5)
-
-    data_by_origin = {name: {'x': [], 'y': [], 'name': [], 'size': []} for name in origin_colors.keys()}
-    for key, data in nodes.items():
-        data_by_origin[data['origin']]['x'].append(data['x'])
-        data_by_origin[data['origin']]['y'].append(data['y'])
-        data_by_origin[data['origin']]['name'].append(data['name'])
-        data_by_origin[data['origin']]['size'].append(data['size'])
-        
-    for origin_name, data in data_by_origin.items():
-        is_structure = origin_name == 'Structure'
-        fig.add_trace(go.Scatter(
-            x=data['x'], y=data['y'], text=data['name'],
-            mode='markers+text',
-            textposition='middle center',
-            marker=dict(
-                # FIX: Substantially increased marker size multiplier
-                size=[s * 4.5 for s in data['size']],
-                color=origin_colors[origin_name],
-                symbol='square' if is_structure else 'circle',
-                line=dict(width=2, color='black' if is_structure else origin_colors[origin_name])
-            ),
-            # FIX: Substantially increased font size (smaller divisor = bigger font)
-            textfont=dict(size=[s / 1.5 for s in data['size']], color='white'),
-            hoverinfo='text', hovertext=data['name'],
-            name=origin_name,
-            showlegend=not is_structure
-        ))
-
-    fig.update_layout(
-        title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
-        showlegend=True,
-        legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
-        # FIX: Expanded axis range and plot height for the larger figures
-        xaxis=dict(visible=False, range=[-8.5, 8.5]),
-        yaxis=dict(visible=False, range=[-8.5, 8.5]),
-        height=1600,
-        margin=dict(l=20, r=20, t=60, b=20),
-        plot_bgcolor='#FFFFFF',
-        paper_bgcolor='#f0f2f6'
-    )
-    return fig
+    for l1_key, l1_val in structure.items():
+        dot.node(l1_key, l1_key.replace(' (', '\n('), style='filled', fillcolor='#6A5ACD', fontcolor='white', fontsize='14')
+        dot.edge('CENTER', l1_key)
+        for l2_key in l1_val['children']:
+            dot.node(l2_key, l2_key.replace(' ', '\n'), style='filled', fillcolor='#6A5ACD', fontcolor='white')
+            dot.edge(l1_key, l2_key)
+            for l3_key in sub_structure[l2_key]:
+                origin = tool_origins.get(l3_key, 'Statistics')
+                color = origin_colors.get(origin, '#1f77b4')
+                dot.node(l3_key, l3_key.replace(' (', '\n(').replace(' /', '\n/'), shape='circle', style='filled', fillcolor=color, fontcolor='white')
+                dot.edge(l2_key, l3_key)
+    
+    return dot
 
 
 @st.cache_data
@@ -1518,7 +1469,7 @@ def render_introduction_content():
 
     st.header("🗺️ Conceptual Map of Tools")
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
-    st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
+    st.graphviz_chart(create_toolkit_conceptual_map())
 
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)

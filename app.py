@@ -714,28 +714,29 @@ def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, in
 
     return fig1, fig2, fig3
 
-@st.cache_data
-def plot_4pl_regression():
+def plot_4pl_regression(a_true=1.5, b_true=1.2, c_true=10.0, d_true=0.05, noise_sd=0.05):
+    """
+    Generates dynamic plots for the 4PL regression module based on user inputs.
+    """
     # 4PL logistic function
     def four_pl(x, a, b, c, d):
         return d + (a - d) / (1 + (x / c)**b)
 
-    # Generate realistic sigmoidal data
+    # Generate data based on the "true" parameters from the sliders
     np.random.seed(42)
     conc = np.logspace(-2, 3, 15)
-    a_true, b_true, c_true, d_true = 1.5, 1.2, 10, 0.05 # True parameters
     signal_true = four_pl(conc, a_true, b_true, c_true, d_true)
-    signal_measured = signal_true + np.random.normal(0, 0.05, len(conc))
+    signal_measured = signal_true + np.random.normal(0, noise_sd, len(conc))
     
-    # Fit the 4PL curve
+    # Fit the 4PL curve to the noisy data
     try:
-        params, _ = curve_fit(four_pl, conc, signal_measured, p0=[1.5, 1, 10, 0.05], maxfev=10000)
+        # Use the true parameters as a good starting guess (p0) for the fit
+        params, _ = curve_fit(four_pl, conc, signal_measured, p0=[a_true, b_true, c_true, d_true], maxfev=10000)
     except RuntimeError:
-        # Fallback if fit fails
-        params = [1.5, 1.2, 10, 0.05]
+        # Fallback if fit fails, which is rare with a good p0
+        params = [a_true, b_true, c_true, d_true]
         
     a_fit, b_fit, c_fit, d_fit = params
-    ec50 = c_fit
 
     # Create plot
     fig = go.Figure()
@@ -744,16 +745,16 @@ def plot_4pl_regression():
     y_fit = four_pl(x_fit, *params)
     fig.add_trace(go.Scatter(x=x_fit, y=y_fit, mode='lines', name='4PL Fit', line=dict(color='red', dash='dash')))
     
-    # Add annotations for key parameters
+    # Add annotations for key fitted parameters
     fig.add_hline(y=d_fit, line_dash='dot', annotation_text=f"Lower Asymptote (d) = {d_fit:.2f}")
     fig.add_hline(y=a_fit, line_dash='dot', annotation_text=f"Upper Asymptote (a) = {a_fit:.2f}")
-    fig.add_vline(x=ec50, line_dash='dot', annotation_text=f"EC50 (c) = {ec50:.2f}")
+    fig.add_vline(x=c_fit, line_dash='dot', annotation_text=f"EC50 (c) = {c_fit:.2f}")
     
     fig.update_layout(title_text='<b>Non-Linear Regression: 4-Parameter Logistic (4PL) Fit</b>',
                       xaxis_type="log", xaxis_title="Concentration (log scale)",
                       yaxis_title="Signal Response", legend=dict(x=0.01, y=0.99))
     return fig, params
-
+    
 @st.cache_data
 def plot_roc_curve():
     np.random.seed(0)
@@ -2601,85 +2602,98 @@ def render_tolerance_intervals():
             """)
 
 def render_4pl_regression():
-    """Renders the module for 4-Parameter Logistic (4PL) regression."""
+    """Renders the INTERACTIVE module for 4-Parameter Logistic (4PL) regression."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To accurately model the characteristic sigmoidal (S-shaped) dose-response relationship found in most immunoassays (e.g., ELISA) and biological assays. A straight-line (linear) model is fundamentally incorrect for this type of data, as it fails to capture the lower and upper plateaus of the response.
+    **Purpose:** To accurately model the characteristic sigmoidal (S-shaped) dose-response relationship found in most immunoassays (e.g., ELISA) and biological assays.
     
-    **Strategic Application:** This is the undisputed workhorse model for relative potency assays, immunoassays, and any bioassay where the biological response has a floor, a ceiling, and a sloped transition. The Four-Parameter Logistic (4PL) model is critical for:
-    - **Potency Calculation (EC50/IC50):** Determining the concentration that produces 50% of the maximal response, the single most important measure of a drug's biological activity or an analyte's sensitivity.
-    - **Quantitation of Unknowns:** Inverting the fitted curve to accurately determine the concentration of unknown samples from their signal response. This is the basis for most QC release and clinical sample testing.
-    - **Assay Health Monitoring:** Using the fitted parameters (slope, asymptotes) as system suitability criteria to ensure the assay is performing correctly day-to-day.
+    **Strategic Application:** This is the workhorse model for potency assays and immunoassays. The 4PL model allows for the accurate calculation of critical assay parameters like the EC50. **Use the sliders in the sidebar to control the "true" shape of the curve and see how the curve-fitting algorithm performs.**
     """)
     
-    fig, params = plot_4pl_regression()
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("4PL Curve Controls")
+    d_slider = st.sidebar.slider(
+        "🅾️ Lower Asymptote (d)", min_value=0.0, max_value=0.5, value=0.05, step=0.01,
+        help="The 'floor' of the assay signal, often representing background noise."
+    )
+    a_slider = st.sidebar.slider(
+        "🅰️ Upper Asymptote (a)", min_value=1.0, max_value=3.0, value=1.5, step=0.1,
+        help="The 'ceiling' of the assay signal, representing saturation."
+    )
+    c_slider = st.sidebar.slider(
+        "🎯 Potency / EC50 (c)", min_value=1.0, max_value=100.0, value=10.0, step=1.0,
+        help="The concentration at the curve's midpoint. A lower EC50 means higher potency."
+    )
+    b_slider = st.sidebar.slider(
+        "🅱️ Hill Slope (b)", min_value=0.5, max_value=5.0, value=1.2, step=0.1,
+        help="The steepness of the curve. A steeper slope often means a more sensitive assay."
+    )
+    
+    # Generate plots using the slider values
+    fig, params = plot_4pl_regression(
+        a_true=a_slider, 
+        b_true=b_slider, 
+        c_true=c_slider, 
+        d_true=d_slider
+    )
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
-        # Unpack params into named variables for clarity and robustness
         a_fit, b_fit, c_fit, d_fit = params
         
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="🅰️ Upper Asymptote (Max Signal)", value=f"{a_fit:.3f}", help="The maximum possible signal in the assay. Represents reagent saturation.")
-            st.metric(label="🅱️ Hill Slope (Steepness)", value=f"{b_fit:.3f}", help="The steepness of the curve at its midpoint. A steep slope indicates a large change in signal for a small change in concentration.")
-            st.metric(label="🎯 EC50 (Potency)", value=f"{c_fit:.3f} units", help="The concentration that gives a response halfway between min and max. This is the primary KPI for potency.")
-            st.metric(label="🅾️ Lower Asymptote (Min Signal)", value=f"{d_fit:.3f}", help="The signal from background or non-specific binding. The assay 'floor'.")
-
-            st.markdown("""
-            - **The Four Pillars of the Curve:** Each parameter tells a story about the assay's health.
-                - **(a) & (d) Asymptotes:** Define the theoretical dynamic range of the assay. If these values drift over time, it could indicate reagent degradation or changes in non-specific binding.
-                - **(b) Hill Slope:** Reflects the sensitivity of the assay. A shallow slope means a wider, less precise reportable range.
-                - **(c) EC50:** The star of the show. This is your potency result. A lower EC50 often means higher potency.
+            st.metric(label="🅰️ Fitted Upper Asymptote (a)", value=f"{a_fit:.3f}")
+            st.metric(label="🅱️ Fitted Hill Slope (b)", value=f"{b_fit:.3f}")
+            st.metric(label="🎯 Fitted EC50 (c)", value=f"{c_fit:.3f} units")
+            st.metric(label="🅾️ Fitted Lower Asymptote (d)", value=f"{d_fit:.3f}")
             
-            - **Goodness-of-Fit is Visual:** The most important diagnostic is your own eye. The red dashed line must *look* like it's accurately describing the trend in your data points. Don't rely on R-squared alone. Check that the curve fits well at the top and bottom, not just in the middle.
-
-            **The Core Strategic Insight:** The 4PL curve is more than a calculation tool; it's a complete picture of your assay's performance. By monitoring all four parameters over time, you can detect subtle shifts in assay health long before a simple pass/fail result goes out of spec, enabling proactive troubleshooting.
+            st.info("Play with the sliders in the sidebar to change the true curve and see how the fitted parameters (above) respond!")
+            st.markdown("""
+            - **Asymptotes (a & d):** These sliders control the dynamic range of your assay. A larger gap between them means a wider measurement window.
+            - **EC50 (c):** This is your main potency result. Moving this slider shifts the entire curve left or right.
+            - **Hill Slope (b):** This slider controls the steepness. A very steep slope (high `b`) makes the assay highly sensitive in a narrow range. A shallow slope (low `b`) creates a wider, but less precise, reportable range.
+            
+            **The Core Strategic Insight:** The 4PL curve is more than a calculation tool; it's a complete picture of your assay's performance. By monitoring all four parameters over time, you can detect subtle shifts in assay health long before a simple pass/fail result goes out of spec.
             """)
             
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: "Force the Fit"**
-            The goal is to get a good R-squared value, no matter what.
-            
             - *"My data isn't perfectly S-shaped, so I'll use linear regression on the middle part of the curve."* (This is fundamentally wrong and will bias your results).
-            - *"The model doesn't fit the lowest point well. I'll just delete that point from the dataset."* (This is data manipulation and invalidates the result).
-            - *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated and can be high even for a visibly poor fit, especially with asymptotes).
+            - *"The model doesn't fit the lowest point well. I'll just delete that point."* (This is data manipulation and invalidates the result).
+            - *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated and can be high even for a visibly poor fit).
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: Model the Biology, Weight the Variance**
             The goal is to use a mathematical model that honors the underlying biological/chemical reality of the system.
             
-            - **Embrace the 'S' Shape:** The sigmoidal curve exists for a reason (e.g., receptor saturation, binding equilibria). The 4PL is designed specifically for this. **Always use a non-linear model for non-linear data.**
-            - **Weight Your Points:** In many assays, the variance is not constant across the range of concentrations (a property called heteroscedasticity). Points at the top of the curve often have more variability than points at the bottom. A good regression algorithm will apply less "weight" to the more variable points, resulting in a much more accurate and robust fit.
+            - **Embrace the 'S' Shape:** The sigmoidal curve exists for a reason (e.g., receptor saturation). The 4PL is designed specifically for this. **Always use a non-linear model for non-linear data.**
+            - **Weight Your Points:** In many assays, the variance is not constant across the range of concentrations (heteroscedasticity). A good regression algorithm will apply less "weight" to the more variable points, resulting in a much more accurate and robust fit.
             - **Look at the Residuals:** A good fit has residuals (the errors between the data and the curve) that are randomly scattered around zero. Any clear pattern in the residuals indicates the model is not capturing the data correctly.
             """)
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The 4PL model is a direct descendant of the **Hill Equation**, published in 1910 by the pioneering British physiologist **Archibald Hill**. He developed the equation to describe the sigmoidal binding curve of oxygen to hemoglobin in the blood. This was one of the first and most successful mathematical descriptions of cooperative binding in biology.
-            
-            In the 1970s and 80s, with the rise of radioimmunoassays (RIAs) and then enzyme-linked immunosorbent assays (ELISAs), scientists needed a robust, generalizable model for their S-shaped data. They adapted the Hill equation into the four-parameter logistic function we use today, adding parameters for the upper and lower asymptotes to account for the physical limits of the assay signal. It is now the industry-standard model for almost all such assays.
+            The 4PL model is a direct descendant of the **Hill Equation**, published in 1910 by **Archibald Hill** to describe the sigmoidal binding curve of oxygen to hemoglobin. In the 1970s and 80s, with the rise of ELISAs, scientists adapted the Hill equation into the four-parameter logistic function we use today.
             
             #### Mathematical Basis
             The 4PL equation describes the relationship between concentration (`x`) and the measured response (`y`):
             """)
             st.latex(r"y = d + \frac{a - d}{1 + (\frac{x}{c})^b}")
             st.markdown("""
-            - **`y`**: The measured response (e.g., absorbance).
-            - **`x`**: The concentration of the analyte.
-            - **`a`**: The response at infinite concentration (the upper asymptote).
-            - **`d`**: The response at zero concentration (the lower asymptote).
-            - **`c`**: The point of inflection (the EC50 or IC50).
-            - **`b`**: The Hill slope, a measure of steepness.
-            
-            The process of "fitting" is a non-linear regression, where a computer algorithm iteratively adjusts the values of `a, b, c, d` to find the combination that minimizes the total distance (typically the sum of squared errors) between the curve and the actual data points.
+            - **`y`**: The measured response.
+            - **`x`**: The concentration.
+            - **`a`**: Upper asymptote.
+            - **`d`**: Lower asymptote.
+            - **`c`**: EC50 (potency).
+            - **`b`**: Hill slope.
             """)
 # The code below was incorrectly merged. It is now its own separate function.
 def render_roc_curve():

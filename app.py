@@ -560,15 +560,16 @@ def plot_lod_loq():
     fig.update_yaxes(title_text="Assay Signal (e.g., Absorbance)", row=2, col=1); fig.update_xaxes(title_text="Concentration (ng/mL)", row=2, col=1)
     return fig, LOD, LOQ
 
-@st.cache_data
-def plot_core_validation_params():
+def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, interference_effect=8.0):
+    """
+    Generates dynamic plots for the core validation module based on user inputs.
+    """
     # --- 1. Accuracy (Bias) Data ---
     np.random.seed(42)
     true_values = np.array([50, 100, 150])
+    # The mean of the measured data is now controlled by the bias slider
     measured_data = {
-        50: np.random.normal(51.5, 2.5, 10),
-        100: np.random.normal(102, 3.5, 10),
-        150: np.random.normal(152.5, 4.5, 10)
+        val: np.random.normal(val * (1 + bias_pct / 100), val * 0.025, 10) for val in true_values
     }
     df_accuracy = pd.DataFrame(measured_data)
     df_accuracy = df_accuracy.melt(var_name='True Value', value_name='Measured Value')
@@ -582,11 +583,13 @@ def plot_core_validation_params():
 
     # --- 2. Precision Data ---
     np.random.seed(123)
-    repeatability = np.random.normal(100, 1.5, 20)
-    inter_precision = np.concatenate([
-        np.random.normal(99, 2.5, 15), # Day 1, Analyst A
-        np.random.normal(101, 2.5, 15)  # Day 2, Analyst B
-    ])
+    # The standard deviation is now controlled by the precision sliders (%CV)
+    repeatability_std = 100 * (repeat_cv / 100)
+    intermed_std = 100 * (intermed_cv / 100)
+    
+    repeatability = np.random.normal(100, repeatability_std, 30)
+    inter_precision = np.random.normal(100, intermed_std, 30)
+    
     df_precision = pd.concat([
         pd.DataFrame({'value': repeatability, 'condition': 'Repeatability'}),
         pd.DataFrame({'value': inter_precision, 'condition': 'Intermediate Precision'})
@@ -599,8 +602,8 @@ def plot_core_validation_params():
     np.random.seed(2023)
     analyte = np.random.normal(1.0, 0.05, 15)
     matrix = np.random.normal(0.02, 0.01, 15)
-    interference = np.random.normal(0.08, 0.03, 15)
-    analyte_interference = analyte + interference
+    # The signal of the combined sample is now controlled by the interference slider
+    analyte_interference = analyte * (1 + interference_effect / 100)
     
     df_specificity = pd.DataFrame({
         'Analyte Only': analyte,
@@ -1588,20 +1591,48 @@ def render_ci_concept():
             st.latex(r"CI = \bar{x} \pm t_{\alpha/2, n-1} \frac{s}{\sqrt{n}}")
 
 def render_core_validation_params():
-    """Renders the module for core validation parameters (Accuracy, Precision, Specificity)."""
+    """Renders the INTERACTIVE module for core validation parameters."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To formally establish the fundamental performance characteristics of an analytical method as required by global regulatory guidelines like ICH Q2(R1). This module deconstructs the "big three" pillars of method validation:
-    - **🎯 Accuracy (Bias):** How close are your measurements to the *real* value? Think of it as hitting the bullseye.
-    - **🏹 Precision (Random Error):** How consistent are your measurements with each other? Think of it as the tightness of your arrow grouping.
+    - **🎯 Accuracy (Bias):** How close are your measurements to the *real* value?
+    - **🏹 Precision (Random Error):** How consistent are your measurements with each other?
     - **🔬 Specificity (Selectivity):** Can your method find the target analyte in a crowded room, ignoring all the imposters?
 
-    **Strategic Application:** These parameters are the non-negotiable pillars of any formal assay validation report submitted to regulatory bodies like the FDA or EMA. They provide the objective evidence that the method is the bedrock of product quality and patient safety. A weakness in any of these three areas is a critical deficiency that can lead to rejected submissions, product recalls, or flawed R&D conclusions. This isn't just a statistical exercise; it's the license to operate.
+    **Strategic Application:** These parameters are the non-negotiable pillars of any formal assay validation report. A weakness in any of these three areas is a critical deficiency that can lead to rejected submissions or flawed R&D conclusions. **Use the sliders in the sidebar to simulate different error types and see their impact on the plots.**
     """)
     
-    # The plot generation function would be called here.
-    # We assume it returns three figures for demonstration.
-    fig1, fig2, fig3 = plot_core_validation_params()
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("Core Validation Controls")
+    bias_slider = st.sidebar.slider(
+        "🎯 Systematic Bias (%)", 
+        min_value=-10.0, max_value=10.0, value=1.5, step=0.5,
+        help="Simulates a constant positive or negative bias in the accuracy study. Watch the box plots shift."
+    )
+    repeat_cv_slider = st.sidebar.slider(
+        "🏹 Repeatability %CV", 
+        min_value=0.5, max_value=10.0, value=1.5, step=0.5,
+        help="Simulates the best-case random error (intra-assay precision). Watch the 'Repeatability' violin width."
+    )
+    # Ensure intermediate precision is always worse than or equal to repeatability
+    intermed_cv_slider = st.sidebar.slider(
+        "🏹 Intermediate Precision %CV", 
+        min_value=repeat_cv_slider, max_value=20.0, value=max(2.5, repeat_cv_slider), step=0.5,
+        help="Simulates real-world random error (inter-assay). A large gap from repeatability indicates poor robustness."
+    )
+    interference_slider = st.sidebar.slider(
+        "🔬 Interference Effect (%)", 
+        min_value=-20.0, max_value=20.0, value=8.0, step=1.0,
+        help="Simulates an interferent that falsely increases (+) or decreases (-) the analyte signal."
+    )
+    
+    # Generate plots using the slider values
+    fig1, fig2, fig3 = plot_core_validation_params(
+        bias_pct=bias_slider, 
+        repeat_cv=repeat_cv_slider, 
+        intermed_cv=intermed_cv_slider, 
+        interference_effect=interference_slider
+    )
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -1614,20 +1645,15 @@ def render_core_validation_params():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="🎯 Accuracy KPI: Mean % Recovery", value="99.2%", help="The key metric for accuracy. Regulators typically look for this to be within 80-120% for biotech assays or 98-102% for small molecules.")
-            st.metric(label="🏹 Precision KPI: Max %CV", value="< 8%", help="The key metric for precision. Lower is better. A common acceptance criterion for intermediate precision is <15-20%.")
-            st.metric(label="🔬 Specificity KPI: Interference Test", value="Pass (p > 0.05)", help="A non-significant p-value in a t-test between 'Analyte' and 'Analyte + Interferent' is the goal.")
-            
+            st.info("Play with the sliders in the sidebar to see how different sources of error affect the results!")
             st.markdown("""
-            - **Accuracy (Top Plot):** This plot reveals **bias**. The goal is for the center of each box plot to sit on the dashed 'True Value' line. The distance between the center and that line is the systematic error. A method can be precise but wildly inaccurate.
+            - **Accuracy Plot:** As you increase the **Systematic Bias** slider, watch the center of the box plots drift away from the black 'True Value' lines. This visually demonstrates what bias looks like.
             
-            - **Precision (Middle Plot):** This plot reveals **random error**. The 'violins' show the data spread.
-                - **Repeatability:** Is the 'best-case' spread. A tight violin is good.
-                - **Intermediate Precision:** Is the 'real-world' spread, accounting for different days, analysts, etc. It will always be wider than repeatability. The key question is: *by how much*? A large increase signals the method is not robust.
+            - **Precision Plot:** The **%CV sliders** control the width (spread) of the violin plots. Notice that Intermediate Precision must always be equal to or worse (wider) than Repeatability. A large gap between the two signals that the method is not robust to day-to-day changes.
             
-            - **Specificity (Bottom Plot):** This plot tests for **interference**. The "Analyte + Interferent" bar must be statistically identical to the "Analyte Only" bar. If it's different, your method can't distinguish your target from other components, making it unfit for real samples.
+            - **Specificity Plot:** The **Interference Effect** slider directly moves the 'Analyte + Interferent' box plot. A perfect assay would have this slider at 0%, making the two boxes identical. A large effect, positive or negative, indicates a failed specificity study.
 
-            **The Core Strategic Insight:** Accuracy, Precision, and Specificity are not independent checkboxes. They form an interconnected triangle of evidence. A non-specific method can never be truly accurate. A highly imprecise method makes it impossible to reliably assess accuracy. The goal of validation is to present a holistic, data-driven argument that the method is **fit for its intended purpose.**
+            **The Core Strategic Insight:** This simulation shows that validation is a process of hunting for and quantifying different types of error. Accuracy is about finding *bias*, Precision is about characterizing *random error*, and Specificity is about eliminating *interference error*.
             """)
 
         with tabs[1]:
@@ -1671,7 +1697,6 @@ def render_core_validation_params():
             st.markdown("""
             **Specificity is often assessed via Hypothesis Testing:** A Student's t-test compares the means of the "Analyte Only" and "Analyte + Interferent" groups. The null hypothesis ($H_0$) is that the means are equal. A high p-value (e.g., > 0.05) means we fail to reject $H_0$, providing evidence that the interferent has no significant effect.
             """)
-
 def render_gage_rr():
     """Renders the interactive module for Gage R&R."""
     st.markdown("""

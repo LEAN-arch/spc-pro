@@ -567,7 +567,7 @@ def render_gage_rr():
             st.latex(r"\hat{\sigma}^2_{Reproducibility} = \hat{\sigma}^2_{Operator} + \hat{\sigma}^2_{Interaction}")
             st.latex(r"\text{where } \hat{\sigma}^2_{Operator} = \frac{MS_{Operator} - MS_{Interaction}}{n_{parts} \cdot n_{replicates}} \text{ and } \hat{\sigma}^2_{Interaction} = \frac{MS_{Interaction} - MS_{Error}}{n_{replicates}}")
             st.warning("**Negative Variance Components:** It is mathematically possible for the formulas above to yield a negative variance for the Operator or Interaction term (if, for example, MS_Interaction > MS_Operator). This is a statistical artifact. The correct interpretation is that the true variance component is zero, and it should be set to zero for calculating the final %R&R.")
-        
+
 def render_linearity():
     st.markdown("""
     #### Purpose & Application
@@ -689,7 +689,6 @@ def render_lod_loq():
             - **Limit of Quantitation (LOQ):** This is not about detection, but about **measurement quality**. It demands a much higher signal-to-noise ratio to ensure that the measurement is not only detectable but also has an acceptable level of uncertainty (precision and accuracy). The factor of 10 is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.
             """)
             st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
-
 def render_method_comparison():
     st.markdown("""
     #### Purpose & Application
@@ -852,7 +851,6 @@ def render_shewhart():
             st.markdown("- **MR-Chart Limits:** The limits for the moving range chart are also derived from $\overline{MR}$ and statistical constants to detect unusual spikes in short-term volatility.")
             st.latex(r"UCL_{MR} = D_4 \overline{MR} \quad (\text{where } D_4 \approx 3.267)")
             st.latex(r"LCL_{MR} = D_3 \overline{MR} \quad (\text{where } D_3 = 0 \text{ for n < 7})")
-
 def render_ewma_cusum():
     st.markdown("""
     #### Purpose & Application
@@ -1030,9 +1028,12 @@ def render_capability():
 def render_anomaly_detection():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To leverage machine learning to detect complex, multivariate anomalies that traditional univariate control charts would miss.
+    **Purpose:** To leverage unsupervised machine learning to detect novel, complex, and multivariate anomalies that traditional, rule-based univariate control charts are fundamentally blind to.
     
-    **Application:** This is a critical tool for uncovering the “ghost in the machine.” An operator might confirm that every individual parameter is within specification, yet an ML model can flag a run as anomalous due to an unusual combination of otherwise acceptable inputs. This capability is essential for detecting subtle, emerging failure modes that traditional rule-based systems might overlook—enhancing process awareness and proactive quality control.
+    **Strategic Application:** This is a crucial tool for **proactive process monitoring and deviation investigation** in complex systems like bioreactors, multi-step chemical syntheses, or mass spectrometry analyses. An operator might confirm that every individual parameter (temperature, pH, pressure, flow rate) is within its established univariate control limits, yet the process could still be in an anomalous state due to a previously unseen *combination* of these parameters. This ML model acts as a "digital Subject Matter Expert," flagging these subtle, combinatorial deviations. It's a powerful tool for:
+    - **Detecting emerging, unknown failure modes ("unknown unknowns").**
+    - **Identifying the multivariate "golden batch" profile.**
+    - **Accelerating root cause analysis** for unexplained process failures by pinpointing exactly when the process began to deviate from its normal multi-dimensional "fingerprint."
     """)
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -1041,29 +1042,43 @@ def render_anomaly_detection():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Rules", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Anomalies Detected", value="3", help="Number of points flagged by the model.")
-            st.markdown("- **The Plot:** The blue shaded area represents the model's learned 'normal' operating space. Points outside this area are flagged as anomalies (red).")
-            st.markdown("- **The Key Insight:** The anomalous points are not necessarily extreme on any single axis. Their *combination* is what makes them unusual, a pattern that is nearly impossible for a human or a simple control chart to detect.")
-            st.markdown("**The Core Insight:** This is a proactive monitoring tool that moves beyond simple rule-based alarms to a holistic assessment of process health, enabling the detection of previously unknown problems.")
+            st.metric(label="📈 KPI: Anomalies Detected", value="3", help="Number of data points flagged by the model as being statistically unusual relative to the historical norm.")
+            st.markdown("""
+            - **The Plot:** The blue shaded area represents the model's learned definition of 'normal' multidimensional operating space. Points falling outside this boundary are flagged as anomalies (red 'X'). The contour lines show the gradient of the anomaly score—the further a point is from the dense blue region, the more anomalous it is.
+            - **The Key Insight:** The power of this method is that the anomalous points are not necessarily extreme on any single axis. For example, the anomaly at `(95, 25)` is not the lowest response or the highest time, but its *combination* is unusual and falls in a low-density "valley" of the data cloud. A traditional control chart for 'Response' and 'Time' would not have flagged this point.
+
+            **The Core Strategic Insight:** This approach moves monitoring from a one-dimensional, rule-based system to a holistic, multi-dimensional assessment of process health. It is an "unsupervised" method, meaning it learns what is normal directly from your historical data without needing pre-labeled examples of failures. This allows it to discover **previously unknown failure modes**, acting as a powerful safety net and an early-warning system for problems that have no precedent.
+            """)
         with tabs[1]:
-            st.markdown("- This is an exploratory and monitoring tool. There is no hard 'pass/fail' rule during validation.")
-            st.markdown("- The primary rule is that any point flagged as an **anomaly must be investigated** by Subject Matter Experts (SMEs) to determine the root cause and assess its impact on product quality. It serves as an input to a deviation or non-conformance investigation.")
+            st.markdown("- **This is an exploratory and monitoring tool, not a pass/fail criterion for product release.** It is a core component of a modern Process Analytical Technology (PAT) or Continued Process Verification (CPV) program under FDA guidance.")
+            st.markdown("- The primary rule is that any point flagged as an **anomaly must trigger an automated alert and a formal SME investigation**. The goal is to determine the root cause of the anomaly and assess its potential impact on product quality. It is an input to the quality system, not a replacement for it.")
+            st.markdown("- **Model Tuning:** The key parameter is `contamination`, which is an estimate of the proportion of anomalies in the training data. This sets the sensitivity of the model. It should be set to a low value (e.g., 0.01 to 0.05) and justified based on historical process knowledge.")
+            st.info("**Deployment Strategy:** In a validated environment, the model is first trained on a large dataset of "good" historical batches. It is then deployed in a "read-only" or "monitoring" mode. When it flags an anomaly, that batch is subjected to extra scrutiny and testing. Over time, as certain types of anomalies are confirmed to be linked to failures, the model's outputs can gain more weight in decision-making.")
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The **Isolation Forest** algorithm was proposed by Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou in a groundbreaking 2008 paper. It represented a fundamental shift in how to think about anomaly detection. Previous methods were often "density-based," trying to define what a "normal" region looks like. The authors of Isolation Forest flipped the problem on its head with a simple but powerful observation: **anomalies are "few and different."** Because they are different, they should be easier to *isolate*. This counter-intuitive approach proved to be both highly effective and computationally efficient.
+            The **Isolation Forest** algorithm, proposed by Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou in a groundbreaking 2008 ICDM paper, represented a paradigm shift in anomaly detection. Previous methods were often "density-based" (like DBSCAN) or "distance-based" (like k-Nearest Neighbors), which involved complex calculations to define what a "normal" region looks like. These methods often fail in high-dimensional spaces due to the **"curse of dimensionality,"** where distances between all points start to look similar.
+            
+            The authors of Isolation Forest flipped the problem on its head with a simple but profound observation: **anomalies are "few and different."** This means they should be easier to *isolate* from the rest of the data points than normal points are. This elegant, counter-intuitive approach proved to be surprisingly effective, computationally efficient, and less sensitive to the curse of dimensionality, making it a go-to algorithm for modern anomaly detection.
             
             #### Mathematical Basis
-            The core idea is that if you randomly partition a dataset, anomalies will be isolated in fewer steps than normal points. The algorithm builds an ensemble of "Isolation Trees" (iTrees) by recursively partitioning the data with random splits. Anomalous points, being different, will require fewer partitions and will therefore have a much shorter average path length from the root to the leaf. The anomaly score is derived from this average path length.
+            The core mechanism is brilliantly simple. The algorithm builds an ensemble of "Isolation Trees" (iTrees). Each tree is built by recursively partitioning the data with random splits on random features.
+            - A **normal point**, being in a dense region with many similar points, will require many random splits to be isolated into its own leaf node. It will have a **long average path length** across all trees in the forest.
+            - An **anomalous point**, being "different" and in a sparse region, will be isolated very quickly with few splits. It will have a **short average path length**.
+
+            The anomaly score $s(x, n)$ for a point $x$ from a sample of size $n$ is derived from its average path length $E(h(x))$ across all the iTrees in the forest.
             """)
             st.latex(r"s(x, n) = 2^{-\frac{E(h(x))}{c(n)}}")
+            st.markdown("Where $c(n)$ is a normalization factor representing the average path length of an unsuccessful search in a Binary Search Tree. A score close to 1 indicates a definite anomaly, while a score much smaller than 0.5 indicates a normal point.")
 
 def render_predictive_qc():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To move from *reactive* quality control (detecting a failure after it happens) to *proactive* failure prevention using supervised machine learning.
+    **Purpose:** To build a supervised machine learning model that moves quality control from being *reactive* (detecting a failure after it has occurred) to being **proactive and predictive** (forecasting the probability of failure *before* a run is started).
     
-    **Application:** This is a predictive decision-support tool designed to reduce waste and improve right-first-time rates. Before committing costly reagents and valuable instrument time, the model evaluates key starting conditions—such as reagent age, instrument warm-up time, and environmental factors—to estimate the likelihood of a successful run. If the model detects a high probability of failure, it can trigger a preemptive alert, enabling the operator to take corrective action before the run proceeds.
+    **Strategic Application:** This is a high-value application of machine learning in operations, directly impacting efficiency, cost, and "Right First Time" (RFT) rates. Before committing expensive, single-use reagents and valuable instrument time, this model acts as a "pre-flight check." It evaluates key initial process parameters (e.g., reagent age, raw material lot purity, operator certification, ambient temperature) to predict the likelihood of the run failing to meet its quality specifications.
+    - **High-Risk Alert:** If the model predicts a high probability of failure, it can trigger a preemptive alert, allowing the operator to take corrective action (e.g., use a newer reagent, recalibrate the instrument) *before* starting the run. This prevents a costly Out-of-Specification (OOS) event.
+    - **Resource Optimization:** For runs with a very low predicted probability of failure, quality control testing could potentially be reduced (e.g., via a skip-lot testing program), freeing up valuable lab capacity. This is a key concept in Real-Time Release Testing (RTRT).
     """)
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -1072,93 +1087,145 @@ def render_predictive_qc():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Rules", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Predictive Risk Profiling", value="Enabled")
-            st.markdown("- **Decision Boundary Plot (left):** This is the model's 'risk map.' The color gradient shows the predicted probability of failure, from low (green) to high (red).")
-            st.markdown("- **Probability Distribution Plot (right):** This is the model's report card. It shows the predicted failure probabilities for runs that actually passed (green distribution) versus runs that actually failed (red distribution).")
-            st.markdown("**The Core Insight:** A clear separation between the green and red distributions proves that the model has learned the hidden patterns that lead to failure and can reliably distinguish a good run from a bad one before it's too late.")
+            st.metric(label="📈 KPI: Predictive Risk Profiling", value="Enabled", help="The model provides a risk score for each potential run based on its inputs.")
+            st.markdown("""
+            - **Decision Boundary Risk Map (left):** This is the model's 'risk map' or 'operating envelope'. The color gradient shows the predicted probability of failure for any combination of the input parameters. The model has learned that runs with old reagents *and* high temperatures are in the high-risk 'red zone'.
+            - **Probability Distribution Plot (right):** This is the model's performance report card. It shows the model's predicted failure probabilities for runs that we know (from historical data) actually passed versus those that actually failed. **A clear separation between the green (Pass) and red (Fail) distributions is the goal.** It proves that the model can reliably distinguish between the characteristics of a good run and a bad one. Overlap between the distributions represents the model's uncertainty or error rate.
+
+            **The Core Strategic Insight:** This model digitizes and automates the intuition of an experienced senior scientist. It learns the subtle, hidden patterns in the input parameters that lead to failure. It allows an organization to move from forensics (figuring out why a run failed) to prognostics (preventing the failure from ever happening).
+            """)
         with tabs[1]:
-            st.markdown("- A risk threshold is established based on the model and business needs (e.g., 'If P(Fail) > 20%, flag run for review').")
-            st.markdown("- The model's performance (e.g., accuracy, sensitivity, specificity) must be formally validated and documented via a confusion matrix and ROC analysis before use in a regulated environment.")
+            st.markdown("- **Risk Threshold:** A risk threshold must be established based on a cost-benefit analysis and the risk tolerance of the organization (e.g., "If Predicted P(Fail) > 30%, flag the run for mandatory SME review before proceeding"). This threshold directly controls the trade-off between false alarms and missed failures.")
+            st.markdown("- **Formal Model Validation (per GAMP 5):** Before use in a GxP environment, the ML model must be rigorously validated like any other piece of software or equipment. This involves documenting its performance using metrics derived from a dedicated test dataset:")
+            st.markdown("  - **Confusion Matrix:** Shows the raw counts of True Positives, True Negatives, False Positives (Type I Error), and False Negatives (Type II Error).")
+            st.markdown("  - **ROC Curve & AUC:** The Receiver Operating Characteristic (ROC) curve plots the model's sensitivity vs. its false positive rate. The Area Under the Curve (AUC) provides a single metric of overall performance (AUC > 0.8 is often considered good; > 0.9 is excellent).")
+            st.markdown("- **Model Lifecycle Management:** The model is not static. It must be periodically monitored for **model drift** and retrained as new process data becomes available and the process itself evolves. A formal plan for model maintenance is a regulatory expectation.")
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            **Logistic regression** is a statistical model developed by the brilliant British statistician **Sir David Cox in 1958**. Its origins lie in the need to model the probability of a binary event. While linear regression predicts a continuous value, this doesn't make sense for probabilities, which must be constrained between 0 and 1. Cox's breakthrough was to use the **logistic function (or sigmoid function)** to "squash" the output of a linear equation into this [0, 1] range. Its power lies in its **interpretability**, making it a foundational and still widely used algorithm.
+            **Logistic Regression** is a workhorse statistical model developed by the brilliant British statistician **Sir David Cox in 1958**. It was created to solve a common problem: how to predict the probability of a binary (Yes/No, Pass/Fail) outcome. Standard linear regression is unsuitable because its output is unbounded and can produce nonsensical probabilities like -20% or 150%.
+            
+            Cox's elegant solution was to use the **logistic function (also known as the sigmoid function)** to "squash" the output of a standard linear equation into the required [0, 1] probability range. The model's power comes from its simplicity and, most importantly, its **interpretability**. The coefficients of a logistic regression model directly tell you the effect of each input variable on the **log-odds** of the outcome, making it a transparent "white-box" model, which is highly desirable in regulated industries where model explainability is paramount.
             
             #### Mathematical Basis
-            The model creates a linear combination of the input features ($x$), called the **log-odds** or **logit** ($z$), and passes it through the sigmoid function, $\sigma(z)$, to transform it into a probability.
+            The model first creates a linear combination of the input features ($x_i$), which is called the **log-odds** or **logit** ($z$). This is the "linear regression" part.
             """)
-            st.latex(r"z = \beta_0 + \beta_1 x_1 + \beta_2 x_2 \quad , \quad P(y=1|x) = \sigma(z) = \frac{1}{1 + e^{-z}}")
-            st.markdown("The decision boundary is the line where the predicted probability is exactly 0.5 (i.e., where $z=0$).")
-
+            st.latex(r"z = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \dots + \beta_n x_n")
+            st.markdown("""
+            This unbounded logit value is then transformed into a probability $P$ using the standard logistic (sigmoid) function, $\sigma(z)$.
+            """)
+            st.latex(r"P(y=1|x) = \sigma(z) = \frac{1}{1 + e^{-z}}")
+            st.markdown("The coefficients ($\beta_i$) are found by a process called **Maximum Likelihood Estimation**, which finds the coefficient values that maximize the probability of observing the actual outcomes in the training data. The decision boundary shown on the plot is the line or surface where the predicted probability is exactly 0.5, which corresponds to where the logit $z=0$.")
 def render_forecasting():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To use a time series model to forecast the future performance of assay controls, enabling proactive management instead of reactive problem-solving.
+    **Purpose:** To leverage a modern time series model to forecast the future performance and behavior of key process parameters or quality controls, enabling proactive and strategic management instead of reactive problem-solving.
     
-    **Application:** This is a powerful forecasting tool that enables proactive quality and operations management. By predicting the future trajectory of key controls, the system can identify issues before they occur—such as signaling that a reagent lot may begin to fail in three weeks, or that an instrument is likely to require recalibration next month. This transforms maintenance, inventory planning, and quality oversight from reactive or scheduled tasks into intelligent, data-driven strategies.
+    **Strategic Application:** This AI-powered tool transforms quality and operations management from being reactive or calendar-based to being **predictive and condition-based**. By providing a statistically sound forecast of a control's trajectory, the system can identify future problems before they occur. This enables:
+    - **Proactive Maintenance & Calibration:** "The model predicts the instrument's calibration control will drift out of spec in 4 weeks. Let's schedule maintenance for week 3." This avoids an OOS investigation and instrument downtime.
+    - **Intelligent Inventory Management:** "This reagent lot's performance is forecasted to decline rapidly. Let's order a new lot now and plan the crossover validation study to ensure a seamless transition."
+    - **Improved Planning & Root Cause Analysis:** "The model shows a strong seasonal effect in the summer months. Let's allocate extra engineering support during that period." The changepoint detection can also pinpoint the exact date a process problem started, dramatically speeding up an investigation.
+    This approach minimizes downtime, reduces fire-fighting, and optimizes resource allocation.
     """)
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         fig1_fc, fig2_fc, fig3_fc = plot_forecasting()
-        st.plotly_chart(fig1_fc, use_container_width=True); st.plotly_chart(fig2_fc, use_container_width=True); st.plotly_chart(fig3_fc, use_container_width=True)
+        st.plotly_chart(fig1_fc, use_container_width=True)
+        st.plotly_chart(fig2_fc, use_container_width=True)
+        st.plotly_chart(fig3_fc, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Rules", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Forecast Status", value="Future Breach Predicted", help="The model predicts the spec limit will be crossed.")
-            st.markdown("- **Forecast Plot (Top):** Shows the historical data (dots), the model's prediction (blue line), and the confidence interval (blue band).\n- **Trend & Changepoints (Middle):** This is the most powerful diagnostic plot. It shows the underlying long-term trend and red dashed lines where the model detected a significant shift.\n- **Seasonality (Bottom):** Shows predictable yearly patterns.")
-            st.markdown("**The Core Insight:** This analysis provides a roadmap for the future, telling you *when* a problem is likely to occur and *why* (is it a long-term trend or a seasonal effect?).")
+            st.metric(label="📈 KPI: Forecast Status", value="Future Breach Predicted", help="The model's forecast interval crosses a known specification limit within the forecast horizon.")
+            st.markdown("""
+            - **Forecast Plot (Top):** Shows the historical data (black dots), the model's one-step-ahead fit (dark blue line), and the future forecast with its uncertainty interval (light blue band). The key output is the diamond marker, indicating the point where the upper uncertainty bound is predicted to breach the specification limit.
+            - **Trend & Changepoints (Middle):** This is the most powerful diagnostic plot for understanding the process's long-term behavior. It extracts the underlying trend, filtering out seasonality and noise. The red dashed lines are **changepoints** automatically detected by the model, indicating dates where the growth rate of the trend fundamentally changed. These are critical clues for process investigation.
+            - **Seasonality (Bottom):** This plot extracts the predictable, repeating patterns within the data (e.g., a yearly cycle). Understanding seasonality can help distinguish true process drifts from normal, expected fluctuations.
+
+            **The Core Strategic Insight:** This analysis decomposes your complex time series into its fundamental, interpretable components: Trend, Seasonality, and Events. This provides a roadmap for the future, telling you not just *what* might happen, but giving you strong clues as to *why*. The detected changepoint around mid-2022 is a prime example, pointing to a specific time when the process fundamentally changed for the better or worse, such as when a new piece of equipment was installed or a new SOP was implemented.
+            """)
         with tabs[1]:
-            st.markdown("- A **'Proactive Alert'** should be triggered if the 80% forecast interval (`yhat_upper`) is predicted to cross a specification limit within the defined forecast horizon (e.g., the next 4-6 weeks).\n- Any automatically detected **changepoint** should be investigated and correlated with historical batch records or lab events to understand its root cause.")
+            st.markdown("- **Proactive Alert Threshold:** An alert should be triggered if the **80% or 95% forecast confidence interval** (`yhat_upper` or `yhat_lower`) is predicted to cross a specification limit within a defined, actionable forecast horizon (e.g., the next 4-8 weeks).")
+            st.markdown("- **Changepoint Investigation:** Any automatically detected changepoint must be treated as a significant event. A formal investigation should be launched to correlate the date of the changepoint with historical batch records, maintenance logs, or personnel changes to identify the root cause. This is a powerful tool for Continued Process Verification (CPV).")
+            st.markdown("- **Model Monitoring:** The model's forecast accuracy (e.g., using Mean Absolute Percentage Error - MAPE on a hold-out test set) should be tracked over time. A significant degradation in accuracy indicates the process dynamics have changed, and the model needs to be retrained.")
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            **Prophet**, developed by **Facebook's Core Data Science team in 2017**, was created to produce high-quality forecasts at scale with minimal manual effort. Traditional methods like ARIMA often require deep statistical knowledge and struggle with common business data features like multiple seasonalities and shifting trends. Prophet was designed from the ground up to handle these features automatically by framing forecasting as a curve-fitting exercise.
+            **Prophet**, developed and open-sourced by **Facebook's Core Data Science team in 2017**, was a direct response to the challenges of producing high-quality business forecasts at scale. Traditional statistical methods like **ARIMA** (AutoRegressive Integrated Moving Average) or **Exponential Smoothing** are powerful but often require significant manual effort, deep statistical expertise for tuning (e.g., interpreting ACF/PACF plots), and struggle with common business data features like multiple seasonalities, shifting trends, and missing data.
+            
+            Prophet's developers took a different approach, framing forecasting as a **generalized additive model (GAM)** curve-fitting problem, which is much more intuitive and automatic. It was designed from the ground up to be robust, easy to use, and to handle the messy realities of real-world business time series data, democratizing the ability to create reliable forecasts without requiring a PhD in statistics.
             
             #### Mathematical Basis
-            Prophet is a **decomposable time series model** which models the time series as a combination of distinct components:
+            Prophet is a **decomposable time series model**, which models the time series $y(t)$ as a sum of three main components plus an error term:
             """)
             st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
-            st.markdown("- **$g(t)$ is the trend function** (piecewise linear).\n- **$s(t)$ is the seasonality function** (modeled with a Fourier series).\n- **$h(t)$ is the holidays/events function.**\n The model is fit within a Bayesian framework to produce uncertainty intervals.")
+            st.markdown("""
+            - **$g(t)$ is the trend function.** Prophet models this with a piecewise linear or logistic growth curve. It automatically selects potential changepoints and uses a sparse prior on the rate changes, which prevents overfitting while allowing flexibility.
+            - **$s(t)$ is the seasonality function.** This component models periodic changes (e.g., weekly, yearly). Prophet cleverly uses a flexible **Fourier series** to model seasonality. For a yearly seasonality, it's a sum of sines and cosines: $s(t) = \sum_{n=1}^{N}(a_n \cos(\frac{2\pi n t}{365.25}) + b_n \sin(\frac{2\pi n t}{365.25}))$.
+            - **$h(t)$ is the holidays/events function.** This allows the user to provide a custom list of special events that are modeled as additional regressors.
+            - **$\epsilon_t$ is the error term,** assumed to be normally distributed noise.
 
+            The entire model is fit within a Bayesian framework using Stan (a probabilistic programming language), which allows it to produce realistic uncertainty intervals for the forecast and all of its components.
+            """)
+        
 def render_pass_fail():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To accurately calculate and compare confidence intervals for a binomial proportion (e.g., pass/fail, concordant/discordant).
+    **Purpose:** To accurately calculate and critically compare confidence intervals for a binomial proportion, which is the underlying statistic for any pass/fail, present/absent, or concordant/discordant outcome.
     
-    **Application:** Essential for validating qualitative assays. This proves, with a high degree of confidence, that the assay's success rate (e.g., concordance with a reference method) is above a certain threshold. Choosing the wrong statistical method here can lead to dangerously misleading conclusions, especially with the small sample sizes common in validation studies.
+    **Strategic Application:** This is essential for the validation of **qualitative assays** or for agreement studies in method transfers. The goal is to prove, with a high degree of statistical confidence, that the assay's success rate (e.g., >95% concordance with a reference method, or >99% sensitivity/specificity) is above a required performance threshold. 
+    
+    The critical challenge, especially with the small sample sizes typical in validation studies (n=30 is common), is that the simple, textbook methods for calculating confidence intervals (the 'Wald' interval) are dangerously inaccurate and misleading. Choosing the wrong statistical method can lead to falsely concluding a method is acceptable when it is not, a major regulatory and quality risk. This tool demonstrates why a rigorous approach is non-negotiable.
     """)
     n_samples_wilson = st.sidebar.slider("Number of Validation Samples (n)", 1, 100, 30, key='wilson_n')
     successes_wilson = st.sidebar.slider("Concordant Results", 0, n_samples_wilson, int(n_samples_wilson * 0.95), key='wilson_s')
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         fig1_wilson, fig2_wilson = plot_wilson(successes_wilson, n_samples_wilson)
-        st.plotly_chart(fig1_wilson, use_container_width=True); st.plotly_chart(fig2_wilson, use_container_width=True)
+        st.plotly_chart(fig1_wilson, use_container_width=True)
+        st.plotly_chart(fig2_wilson, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Observed Rate", value=f"{(successes_wilson/n_samples_wilson if n_samples_wilson > 0 else 0):.2%}")
-            st.markdown("- **CI Comparison (Top):** Shows that the unreliable 'Wald' interval can be dangerously narrow.\n- **Coverage Probability (Bottom):** The Wald interval's coverage (red) is terrible, giving a false sense of precision. The Wilson and Clopper-Pearson intervals are much more reliable.")
-            st.markdown("**The Core Insight:** Never use the standard Wald interval for important decisions. The Wilson Score interval provides the best balance of accuracy and width.")
+            st.metric(label="📈 KPI: Observed Rate", value=f"{(successes_wilson/n_samples_wilson if n_samples_wilson > 0 else 0):.2%}", help="The point estimate of the success rate. This value alone is insufficient without a confidence interval.")
+            st.markdown("""
+            - **CI Comparison (Top):** This plot reveals the dramatic differences between interval methods. Note how the 'Wald' interval is often much narrower, giving a false sense of precision. At the extremes (e.g., 30/30 successes), the Wald interval collapses to a width of zero, which is statistically indefensible.
+            - **Coverage Probability (Bottom):** This is the crucial diagnostic plot. It shows the *actual* probability that an interval, calculated at a given true proportion, will contain that true proportion.
+                - The **Wald interval (red)** is a disaster. Its actual coverage plummets to near zero at the extremes and is wildly erratic everywhere else. It consistently fails to meet the nominal 95% level.
+                - The **Wilson and Clopper-Pearson intervals (blue/green)** are far superior. Their coverage probability is always at or above the nominal 95% level, making them reliable and conservative.
+
+            **The Core Strategic Insight:** Never use the standard Wald (or "Normal Approximation") interval for important decisions, especially with sample sizes under 100. It is systematically wrong and will lead to overconfidence. The **Wilson Score interval** provides the best balance of accuracy and interval width for most applications. The **Clopper-Pearson** is the most conservative ("exact") choice, often preferred in regulatory submissions for its guaranteed coverage, which can make it easier to defend.
+            """)
         with tabs[1]:
-            st.markdown("- **Acceptance Criterion:** 'The lower bound of the 95% **Wilson Score** (or Clopper-Pearson) confidence interval must be greater than or equal to the target concordance rate' (e.g., 90%).")
+            st.markdown("- **The Golden Rule of Binomial Acceptance:** The acceptance criterion must **always be based on the lower bound of the confidence interval**, never on the point estimate.")
+            st.markdown("- **Example Criterion:** 'The lower bound of the 95% **Wilson Score** (or Clopper-Pearson) confidence interval for the concordance rate must be greater than or equal to the target of 90%.'")
+            st.markdown("- **Sample Size Implication:** This interactive tool powerfully demonstrates why larger sample sizes are needed for high-confidence claims. With a small `n`, even a perfect result (e.g., 20/20 successes) may have a lower confidence bound that fails to meet a high target (like 95%), forcing the study to be repeated with more samples. This tool can be used to plan the required `n` to achieve a desired lower bound.")
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The **Wilson Score Interval (1927)** and **Clopper-Pearson Interval (1934)** were developed to fix the known poor performance of the simpler Wald interval, especially for small sample sizes or proportions near 0 or 1. The Wilson interval inverts the score test, while the Clopper-Pearson is an "exact" method based on the binomial distribution, making it more conservative.
+            For much of the 20th century, the simple **Wald interval** (named after Abraham Wald) was taught in introductory statistics classes due to its simplicity. However, its poor performance was well-known to statisticians. A famous 1998 paper by Brown, Cai, and DasGupta, titled "Interval Estimation for a Binomial Proportion," comprehensively documented the Wald interval's failures and strongly advocated for the use of superior alternatives. This paper is a classic in the field and effectively killed the Wald interval's credibility for serious work.
+            
+            The **Wilson Score Interval**, developed by Edwin Bidwell Wilson in 1927, and the **Clopper-Pearson Interval**, developed by C. J. Clopper and Egon Pearson in 1934, were created to solve this problem.
+            - The **Clopper-Pearson** interval is called an "exact" method because it is derived directly from the quantiles of the binomial distribution. It guarantees that the coverage probability will never be less than the nominal level (e.g., 95%). This guarantee makes it conservative (i.e., wider than necessary on average).
+            - The **Wilson Score** interval is derived by inverting the score test, a more sophisticated statistical test. It does not have the strict guarantee of the Clopper-Pearson, but its average coverage probability is much closer to the nominal 95% level, making it more accurate and less conservative in practice.
             
             #### Mathematical Basis
-            The Wilson Score interval is the solution to a quadratic equation that results from inverting the score test, which is why it is more complex but far superior to the simple Wald formula.
+            The Wald interval is simply $\hat{p} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$. The Wilson Score interval, however, is the solution to a quadratic equation derived from inverting the score test for a proportion. This results in its more complex, but far superior, formula:
             """)
-            st.latex(r"\frac{1}{1 + z^2/n} \left( \hat{p} + \frac{z^2}{2n} \pm z \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}} \right)")
-
+            st.latex(r"CI_{Wilson} = \frac{1}{1 + z^2/n} \left( \hat{p} + \frac{z^2}{2n} \pm z \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}} \right)")
+            st.markdown("Notice the 'smoothing' effect: it pulls the center of the interval away from 0 or 1 and towards 0.5 by adding pseudo-successes and failures ($z^2/2$). This is what gives it such good performance near the boundaries where the Wald interval fails catastrophically.")
+            
 def render_bayesian():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To formally combine existing knowledge (the 'Prior') with new experimental data (the 'Likelihood') to arrive at an updated, more robust conclusion (the 'Posterior').
+    **Purpose:** To employ Bayesian inference to formally and quantitatively synthesize existing knowledge (a **Prior** belief) with new experimental data (the **Likelihood**) to arrive at an updated, more robust conclusion (the **Posterior** belief).
     
-    **Application:** This is a key tool for driving efficient, knowledge-informed validation. It allows teams to leverage prior data from R&D to design smaller, more targeted validation studies at the QC site, reducing redundancy and accelerating tech transfer. It answers: "Given what we already knew, what does this new data tell us now?"
+    **Strategic Application:** This is a paradigm-shifting tool for driving efficient, knowledge-based validation and decision-making. In a traditional (Frequentist) world, every study starts from a blank slate of ignorance. In the Bayesian world, we can formally and transparently leverage what we already know. This is particularly powerful for:
+    - **Accelerating Tech Transfer:** We can use the extensive data from an R&D validation study to form a **strong, informative prior**. This allows the receiving QC lab to demonstrate success with a smaller, more targeted confirmation study, saving significant time and resources.
+    - **Adaptive Clinical Trials:** Data from an interim analysis can serve as a prior for the final analysis, allowing trials to be stopped early for success or futility.
+    - **Quantifying Belief & Risk:** It provides a natural framework to answer the question business leaders and scientists actually ask: "Given what we already knew, and what this new data shows, what is the probability that the pass rate is actually above 95%?" This is a question a frequentist confidence interval cannot answer.
     """)
     prior_type_bayes = st.sidebar.radio("Select Prior Belief:", ("Strong R&D Prior", "No Prior (Frequentist)", "Skeptical/Regulatory Prior"))
     col1, col2 = st.columns([0.7, 0.3])
@@ -1169,55 +1236,113 @@ def render_bayesian():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ Acceptance Criteria", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Posterior Mean Rate", value=f"{posterior_mean:.3f}", help="The final, data-informed belief.")
-            st.metric(label="💡 Prior Mean Rate", value=f"{prior_mean:.3f}", help="The initial belief before seeing the new data.")
-            st.metric(label="💡 Data-only Estimate (MLE)", value=f"{mle:.3f}", help="The evidence from the new data alone.")
-            st.markdown("- **Prior (Green):** Our initial belief.\n- **Likelihood (Red):** The 'voice of the data.'\n- **Posterior (Blue):** The final, updated belief—a weighted compromise between the Prior and the Likelihood.")
-            st.markdown("**The Key Insight:** With a strong prior, our belief barely moves. With a skeptical prior, the new data almost completely dictates our final belief. This is Bayesian updating in action.")
+            st.metric(label="📈 KPI: Posterior Mean Rate", value=f"{posterior_mean:.3f}", help="The final, data-informed belief; a weighted average of the prior and the data.")
+            st.metric(label="💡 Prior Mean Rate", value=f"{prior_mean:.3f}", help="The initial belief *before* seeing the new QC data.")
+            st.metric(label="💡 Data-only Estimate (MLE)", value=f"{mle:.3f}", help="The evidence from the new QC data alone (the frequentist result).")
+            st.markdown("""
+            - **Prior (Green Dashed):** Our initial belief about the pass rate. A **Strong Prior** is tall and narrow, representing high confidence. A **Skeptical Prior** is wide and flat, representing uncertainty. The **No Prior** case uses a uniform "uninformative" prior, letting the data speak for itself.
+            - **Likelihood (Red Dotted):** The "voice of the new data." This is the evidence from our 20 QC runs. Note that it is not a probability distribution.
+            - **Posterior (Blue Solid):** The final, updated belief. The posterior is always a **compromise** between the prior and the likelihood, weighted by their respective certainties (the narrowness of their distributions).
+
+            **The Core Strategic Insight:** This simulation demonstrates Bayesian updating in action.
+             - With a **Strong R&D Prior**, the new (and slightly worse) QC data barely moves our final belief. The strong prior evidence dominates the small new sample.
+             - With a **Skeptical Prior**, our final belief is a true compromise between the skeptical starting point and the new data.
+             - With **No Prior**, the posterior is determined almost entirely by the data, and the result mirrors the frequentist conclusion.
+            This framework provides a transparent and logical way to cumulate knowledge over time.
+            """)
         with tabs[1]:
-            st.markdown("- The **95% credible interval** (the central 95% of the blue posterior distribution) must be entirely above the target (e.g., 90%).\n- This approach allows for demonstrating success with smaller sample sizes if a strong, justifiable prior is used.")
+            st.markdown("- The acceptance criterion is framed in terms of the **posterior distribution** and is probabilistic.")
+            st.markdown("- **Example Criterion 1 (Probability Statement):** 'There must be at least a 95% probability that the true pass rate is greater than 90%.' This is calculated by finding the area under the blue posterior curve to the right of the 0.90 threshold.")
+            st.markdown("- **Example Criterion 2 (Credible Interval):** 'The lower bound of the **95% Credible Interval** (the central 95% of the blue posterior distribution) must be above the target of 90%.'")
+            st.warning("**The Prior is Critical:** The choice of prior is the most controversial and important part of a Bayesian analysis. In a regulated setting, the prior must be transparent, justified by historical data, and pre-specified in the validation protocol. An unsubstantiated, overly optimistic prior would be a major red flag for an auditor.")
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            Based on **Bayes' Theorem** (conceived by Rev. Thomas Bayes in the 1740s), this framework remained a theoretical curiosity for centuries due to computational complexity. The "Bayesian revolution" began in the late 20th century with the development of computational techniques like **Markov Chain Monte Carlo (MCMC)**, which allow computers to approximate the posterior distribution for complex models.
+            The underlying theorem was conceived by the Reverend **Thomas Bayes** in the 1740s and published posthumously by Richard Price. However, for nearly 200 years, Bayesian inference remained a philosophical curiosity, largely overshadowed by the "Frequentist" school of thought championed by figures like R.A. Fisher and Jerzy Neyman. There were two main reasons for this: philosophical objections to the subjective nature of priors, and, more practically, the computational difficulty of calculating the posterior distribution for all but the simplest problems.
+            
+            The **"Bayesian Revolution"** began in the late 20th century, driven by the rise of powerful computers and the development of sophisticated simulation algorithms like **Markov Chain Monte Carlo (MCMC)**. These methods allowed scientists to approximate the posterior distribution for incredibly complex models, making Bayesian methods practical for the first time. It is now a co-equal paradigm in statistics and the dominant approach in many fields of machine learning.
             
             #### Mathematical Basis
-            For binomial data, the **Beta distribution** is a **conjugate prior** for the binomial likelihood. This means if you start with a Beta prior and get binomial data, your posterior is also a Beta distribution, making the math simple.
-            - If Prior is Beta($\\alpha, \\beta$) and Data is $k$ successes in $n$ trials:
-            - The Posterior is Beta($\\alpha + k, \\beta + n - k$).
+            Bayes' Theorem is elegantly simple:
+            """)
+            st.latex(r"P(\theta|D) = \frac{P(D|\theta) \cdot P(\theta)}{P(D)}")
+            st.markdown(r"In words: **Posterior Probability = (Likelihood × Prior Probability) / Evidence**")
+            st.markdown(r"""
+            - $P(\theta|D)$ (Posterior): The probability of our parameter $\theta$ (e.g., the true pass rate) given the new Data D. This is what we want to compute.
+            - $P(D|\theta)$ (Likelihood): The probability of observing our Data D, given a specific value of the parameter $\theta$.
+            - $P(\theta)$ (Prior): Our initial belief about the distribution of the parameter $\theta$ before seeing the data.
+            
+            For binomial data (pass/fail), there is a beautiful mathematical shortcut. The **Beta distribution** is a **conjugate prior** for the binomial likelihood. Conjugacy means that if you start with a prior from one family of distributions (Beta) and your likelihood is from another family (Binomial), your posterior will also be in the first family (Beta). This avoids the need for complex MCMC simulations.
+            - If Prior is Beta($\alpha_{prior}, \beta_{prior}$)
+            - And Data is $k$ successes in $n$ trials:
+            - Then the Posterior is simply Beta($\alpha_{prior} + k, \beta_{prior} + n - k$).
+            The $\alpha$ and $\beta$ parameters can be thought of as "pseudo-counts" of prior successes and failures, which are simply added to the new observed counts.
             """)
 
 def render_ci_concept():
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To understand the fundamental concept and correct interpretation of frequentist confidence intervals.
+    **Purpose:** To build a deep, intuitive understanding of the fundamental concept of a **frequentist confidence interval** and to correctly interpret what it does—and does not—tell us.
     
-    **Application:** This is a foundational concept that directly impacts resource planning. This interactive simulation allows users to explore the trade-offs between sample size, cost, and statistical precision, enabling data-driven decisions on how many samples are needed to achieve a reliable result.
+    **Strategic Application:** This concept is the bedrock of all statistical inference in a frequentist framework. A misunderstanding of CIs leads to flawed conclusions and poor decision-making. This interactive simulation directly impacts resource planning and risk assessment. It allows scientists and managers to explore the crucial trade-off between **sample size (cost)** and **statistical precision (certainty)**. It provides a visual, data-driven answer to the perpetual question: "How many samples do we *really* need to run to get a reliable result and an acceptably narrow confidence interval?"
     """)
-    n_slider = st.sidebar.slider("Select Sample Size (n) for Simulation:", 5, 100, 30, 5)
+    n_slider = st.sidebar.slider("Select Sample Size (n) for Each Simulated Experiment:", 5, 100, 30, 5)
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         fig1_ci, fig2_ci, capture_count, n_sims, avg_width = plot_ci_concept(n=n_slider)
-        st.plotly_chart(fig1_ci, use_container_width=True); st.plotly_chart(fig2_ci, use_container_width=True)
+        st.plotly_chart(fig1_ci, use_container_width=True)
+        st.plotly_chart(fig2_ci, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ The Golden Rule", "📖 Method Theory & History"])
         with tabs[0]:
-            st.metric(label=f"📈 KPI: Average CI Width (n={n_slider})", value=f"{avg_width:.2f} units")
-            st.metric(label="💡 Empirical Coverage", value=f"{(capture_count/n_sims):.0%}", help="The % of simulated CIs that captured the true mean.")
-            st.markdown("- **Theoretical Universe (Top):** The wide blue curve is the population. The narrow orange curve is the distribution of *all possible sample means*. Because it's so narrow, any single sample is likely to be close to the true mean.\n- **CI Simulation (Bottom):** As you increase `n`, the CIs become dramatically shorter.\n- **Diminishing Returns:** The gain in precision from n=5 to n=20 is huge. The gain from n=80 to n=100 is much smaller.")
+            st.metric(label=f"📈 KPI: Average CI Width (Precision) at n={n_slider}", value=f"{avg_width:.2f} units", help="A smaller width indicates higher precision. This is inversely proportional to the square root of n.")
+            st.metric(label="💡 Empirical Coverage Rate", value=f"{(capture_count/n_sims):.0%}", help=f"The % of our {n_sims} simulated CIs that successfully 'captured' the true population mean. Should be close to 95%.")
+            st.markdown("""
+            - **Theoretical Universe (Top):**
+                - The wide, light blue curve is the **true population distribution**. In real life, we never see this. It represents every possible measurement.
+                - The narrow, orange curve is the **sampling distribution of the mean**. This is a theoretical distribution of *all possible sample means* of size `n`. Its narrowness, guaranteed by the **Central Limit Theorem**, is the miracle that makes statistical inference possible.
+            - **CI Simulation (Bottom):** This plot shows the reality we live in. We only get to run *one* experiment and get *one* confidence interval (e.g., the first blue line). We don't know if ours is one of the 95 that captured the true mean or one of the 5 that missed.
+            - **The n-slider is key:** As you increase `n`, the orange curve gets narrower and the CIs in the bottom plot become dramatically shorter. This shows that precision is a direct function of sample size.
+            - **Diminishing Returns:** The gain in precision from n=5 to n=20 is huge. The gain from n=80 to n=100 is much smaller. This illustrates that the cost of doubling precision is a quadrupling of sample size, as precision scales with $\sqrt{n}$.
+
+            **The Core Strategic Insight:** A confidence interval is a statement about the *procedure*, not the result. The "95% confidence" is our confidence in the *method* used to generate the interval, not in any single interval itself. We are confident that if we were to repeat our experiment 100 times, roughly 95 of the resulting CIs would contain the true, unknown mean.
+            """)
         with tabs[1]:
-            st.error("🔴 **Incorrect:** 'There is a 95% probability that the true mean is in this interval.'")
-            st.success("🟢 **Correct:** 'We are 95% confident that this interval contains the true mean.' (This interval was constructed using a procedure that, in the long run, captures the true mean 95% of the time.)")
+            st.error("""
+            🔴 **THE INCORRECT (Bayesian) INTERPRETATION:**
+            *"Based on my sample, there is a 95% probability that the true mean is in this interval [X, Y]."*
+            
+            This is wrong because in the frequentist view, the true mean is a fixed, unknown constant. It is either in our specific interval or it is not. The probability is either 1 or 0; we just don't know which. The randomness is in the sampling process that creates the interval, not in the true mean itself.
+            """)
+            st.success("""
+            🟢 **THE CORRECT (Frequentist) INTERPRETATION:**
+            *"We are 95% confident that the interval [X, Y] contains the true mean."*
+            
+            The full, technically correct meaning behind this is: *"This specific interval was constructed using a procedure that, when repeated many times on new samples, will produce intervals that capture the true mean 95% of the time."*
+            """)
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The concept of **confidence intervals** was introduced by **Jerzy Neyman** in a 1937 paper. He sought a rigorously frequentist method that provided a practical range of plausible values. His revolutionary idea was to make a probabilistic statement about the *procedure* used to create the interval, not about the fixed, unknown parameter itself. This elegant and practical solution quickly became the dominant paradigm in applied statistics.
+            The concept of **confidence intervals** was introduced to the world by the brilliant Polish-American mathematician and statistician **Jerzy Neyman** in a landmark 1937 paper. Neyman was a fierce advocate for the frequentist school of statistics and sought a rigorously objective method for interval estimation that did not rely on the "subjective" priors of Bayesian inference.
+            
+            He was a philosophical rival of Sir R.A. Fisher, who had proposed a similar concept called a "fiducial interval," which attempted to assign a probability distribution to a fixed parameter. Neyman found this logically incoherent. His revolutionary idea was to shift the probabilistic statement away from the fixed, unknown parameter and onto the **procedure used to create the interval**. This clever reframing provided a practical and logically consistent solution that quickly became, and remains, the dominant paradigm for interval estimation in applied statistics worldwide.
             
             #### Mathematical Basis
-            The general form is: `Point Estimate ± (Critical Value × Standard Error)`. For the mean, this becomes:
+            The general form of a two-sided confidence interval is a combination of three components:
             """)
-            st.latex(r"\bar{x} \pm t_{\alpha/2, n-1} \frac{s}{\sqrt{n}}")
+            st.latex(r"\text{Point Estimate} \pm (\text{Margin of Error})")
+            st.latex(r"\text{Margin of Error} = (\text{Critical Value} \times \text{Standard Error})")
+            st.markdown("""
+            - **Point Estimate:** Our best single-value guess for the population parameter (e.g., the sample mean, $\bar{x}$).
+            - **Standard Error:** The standard deviation of the sampling distribution of the point estimate. For the mean, this is $\frac{s}{\sqrt{n}}$, where $s$ is the sample standard deviation. It measures the typical error in our point estimate. Note that it shrinks as the square root of the sample size, `n`.
+            - **Critical Value:** A multiplier determined by our desired confidence level and the relevant statistical distribution (e.g., a z-score from the normal distribution or a t-score from the Student's t-distribution). For a 95% CI, this value is typically close to 2.
+            
+            For the mean, this results in the familiar formula:
+            """)
+            st.latex(r"CI = \bar{x} \pm t_{\alpha/2, n-1} \frac{s}{\sqrt{n}}")
+            
+
 
 # ==============================================================================
 # MAIN APP LAYOUT & LOGIC
@@ -1265,32 +1390,26 @@ act3_icons = [ICONS.get(opt, "question-circle") for opt in act3_options]
 if 'method_key' not in st.session_state:
     st.session_state.method_key = act1_options[0]
 
-# CORRECTED: Define callback functions that accept the 'key' argument
-def update_from_act1(key):
-    st.session_state.method_key = st.session_state[key]
-
-def update_from_act2(key):
-    st.session_state.method_key = st.session_state[key]
-    
-def update_from_act3(key):
-    st.session_state.method_key = st.session_state[key]
+# CORRECTED: Define callback functions that accept the selected option value as an argument
+def update_method(selected_option):
+    st.session_state.method_key = selected_option
 
 with st.sidebar.expander("ACT I: FOUNDATION & CHARACTERIZATION", expanded=True):
     option_menu(None, act1_options, icons=act1_icons, menu_icon="cast", 
                 key='act1_menu', 
-                on_change=update_from_act1,
+                on_change=update_method,
                 default_index=act1_options.index(st.session_state.method_key) if st.session_state.method_key in act1_options else 0)
 
 with st.sidebar.expander("ACT II: TRANSFER & STABILITY", expanded=True):
     option_menu(None, act2_options, icons=act2_icons, menu_icon="cast",
                 key='act2_menu',
-                on_change=update_from_act2,
+                on_change=update_method,
                 default_index=act2_options.index(st.session_state.method_key) if st.session_state.method_key in act2_options else 0)
 
 with st.sidebar.expander("ACT III: LIFECYCLE & PREDICTIVE MGMT", expanded=True):
     option_menu(None, act3_options, icons=act3_icons, menu_icon="cast",
                 key='act3_menu',
-                on_change=update_from_act3,
+                on_change=update_method,
                 default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
 
 # --- PowerPoint Download Section in Sidebar ---

@@ -3445,39 +3445,18 @@ with st.sidebar:
         "ACT III: LIFECYCLE & PREDICTIVE MGMT": ["Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis", "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts"]
     }
 
-    # Get the selection from the previous run. Default to the first tool.
-    last_selection = st.session_state.get('method_key', "Confidence Interval Concept")
-
-    # This will hold the selection from the radio button the user just clicked.
-    current_selection = last_selection
-
-    for i, (act_title, act_tools) in enumerate(all_options.items()):
+    # Loop through the acts to create a header and a button for each tool.
+    # This approach is simple, robust, and avoids the state conflicts of multiple radio buttons.
+    for act_title, act_tools in all_options.items():
         st.sidebar.subheader(act_title)
-        
-        # If the last selection is in this group, its index is used. Otherwise, index is None.
-        try:
-            default_index = act_tools.index(last_selection)
-        except ValueError:
-            default_index = None
-
-        selection = st.sidebar.radio(
-            label=f"act_{i}_radio",
-            options=act_tools,
-            index=default_index,
-            label_visibility="collapsed",
-            key=f"radio_act_{i}" # Unique key for each radio group
-        )
-        
-        # If a selection was made in THIS radio group (meaning default_index was not None),
-        # then the 'selection' variable holds its current value. We update our candidate.
-        if default_index is not None:
-            current_selection = selection
-            
-    # After checking all radio groups, if the user's action resulted in a new selection,
-    # update the session state and rerun the script to reflect the change.
-    if current_selection != last_selection:
-        st.session_state.method_key = current_selection
-        st.rerun()
+        for tool in act_tools:
+            # When a button is clicked, it returns True for one script run.
+            # We use this to set the session state to the name of the clicked tool.
+            if st.sidebar.button(tool, key=tool, use_container_width=True):
+                st.session_state.method_key = tool
+                # We can optionally rerun to ensure the main page updates instantly,
+                # though it's often not needed as Streamlit will rerun anyway.
+                st.rerun()
 # --- Main Content Area Dispatcher ---
 if 'method_key' not in st.session_state:
     st.session_state.method_key = "Confidence Interval Concept"

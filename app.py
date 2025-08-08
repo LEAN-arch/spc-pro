@@ -15,10 +15,10 @@ st.set_page_config(
 
 # ==============================================================================
 # PLOTTING FUNCTIONS FOR THIS PAGE
+# (These are the same functions as before, no changes needed)
 # ==============================================================================
 @st.cache_data
 def plot_v_model():
-    # This is the exact same function you provided, no changes needed.
     fig = go.Figure()
     v_model_stages = {
         'URS': {'name': 'User Requirements', 'x': 0, 'y': 5, 'question': 'What does the business/patient/process need?', 'tools': 'Business Case, User Needs Document'},
@@ -46,7 +46,6 @@ def plot_v_model():
 
 @st.cache_data
 def plot_act_grouped_timeline():
-    # This is the exact same function you provided, no changes needed.
     all_tools_data = [
         {'name': 'Assay Robustness (DOE)', 'act': 1, 'year': 1926, 'inventor': 'R.A. Fisher', 'desc': 'Fisher publishes his work on Design of Experiments.'},
         {'name': 'Split-Plot Designs', 'act': 1, 'year': 1930, 'inventor': 'R.A. Fisher & F. Yates', 'desc': 'Specialized DOE for factors that are "hard-to-change".'},
@@ -78,7 +77,6 @@ def plot_act_grouped_timeline():
         {'name': 'Stability Analysis', 'act': 3, 'year': 1993, 'inventor': 'ICH', 'desc': 'ICH guidelines formalize statistical shelf-life estimation.'},
         {'name': 'Advanced AI/ML', 'act': 3, 'year': 2017, 'inventor': 'Vaswani, Lundberg et al.', 'desc': 'Transformers and Explainable AI (XAI) emerge.'},
     ]
-
     all_tools_data.sort(key=lambda x: (x['act'], x['year']))
     act_ranges = {1: (5, 45), 2: (50, 75), 3: (80, 115)}
     tools_by_act = {1: [], 2: [], 3: []}
@@ -123,31 +121,34 @@ def plot_act_grouped_timeline():
 st.title("🛠️ Biotech V&V Analytics Toolkit")
 st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
 st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
-
 st.info("#### 👈 Select the `🔧 Tools` page from the sidebar to explore the interactive modules.")
 
-tab_framework, tab_workflow, tab_journey = st.tabs(["🚀 The V&V Framework", "📈 Project Workflow", "📖 The Scientist's Journey"])
+# --- FIX: Removed st.tabs and created a single, sequential page layout ---
 
-with tab_framework:
-    st.header("The V&V Model: A Strategic Framework")
-    st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
-    st.plotly_chart(plot_v_model(), use_container_width=True)
+# SECTION 1: The Scientist's Journey
+st.header("📖 The Scientist's/Engineer's Journey: A Three-Act Story")
+st.markdown("""The journey from a novel idea to a robust, routine process can be viewed as a three-act story, with each act presenting unique analytical challenges. The toolkit is structured to follow that narrative.""")
+act1, act2, act3 = st.columns(3)
+with act1: 
+    st.subheader("Act I: Foundation & Characterization")
+    st.markdown("Before a method or process can be trusted, its fundamental capabilities, limitations, and sensitivities must be deeply understood. This is the act of building a solid, data-driven foundation.")
+with act2: 
+    st.subheader("Act II: Transfer & Stability")
+    st.markdown("Here, the method faces its crucible. It must prove its performance in a new environment—a new lab, a new scale, a new team. This act is about demonstrating stability and equivalence.")
+with act3: 
+    st.subheader("Act III: The Guardian (Lifecycle Management)")
+    st.markdown("Once live, the journey isn't over. This final act is about continuous guardianship: monitoring process health, detecting subtle drifts, and using advanced analytics to predict and prevent future failures.")
 
-with tab_workflow:
-    st.header("A Typical Project Workflow")
-    st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value, and are ordered chronologically within each phase.")
-    st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True)
+st.divider()
 
-with tab_journey:
-    st.header("The Scientist's/Engineer's Journey: A Three-Act Story")
-    st.markdown("""The journey from a novel idea to a robust, routine process can be viewed as a three-act story, with each act presenting unique analytical challenges. The toolkit is structured to follow that narrative.""")
-    act1, act2, act3 = st.columns(3)
-    with act1: 
-        st.subheader("Act I: Foundation & Characterization")
-        st.markdown("Before a method or process can be trusted, its fundamental capabilities, limitations, and sensitivities must be deeply understood. This is the act of building a solid, data-driven foundation.")
-    with act2: 
-        st.subheader("Act II: Transfer & Stability")
-        st.markdown("Here, the method faces its crucible. It must prove its performance in a new environment—a new lab, a new scale, a new team. This act is about demonstrating stability and equivalence.")
-    with act3: 
-        st.subheader("Act III: The Guardian (Lifecycle Management)")
-        st.markdown("Once live, the journey isn't over. This final act is about continuous guardianship: monitoring process health, detecting subtle drifts, and using advanced analytics to predict and prevent future failures.")
+# SECTION 2: The V&V Framework
+st.header("🚀 The V&V Model: A Strategic Framework")
+st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
+st.plotly_chart(plot_v_model(), use_container_width=True)
+
+st.divider()
+
+# SECTION 3: The Project Workflow
+st.header("📈 Project Workflow")
+st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value, and are ordered chronologically within each phase.")
+st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True)

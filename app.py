@@ -311,10 +311,11 @@ def plot_chronological_timeline():
 
 # REPLACE the existing create_toolkit_conceptual_map function with this one.
 @st.cache_data
+@st.cache_data
 def create_toolkit_conceptual_map():
     """Creates a visually appealing, large-format radial map with no overlaps."""
     
-    # Data structure for tools and their origins
+    # Data structure for tools and their origins (no changes here)
     structure = {
         'Foundational Statistics': {
             'origin': 'Structure',
@@ -356,7 +357,7 @@ def create_toolkit_conceptual_map():
         'Structure': '#6A5ACD'
     }
 
-    # --- Algorithmic Layout Calculation ---
+    # --- Algorithmic Layout Calculation (no changes to the algorithm itself) ---
     nodes = {}
     edges = []
     center_node = "V&V Analytics<br>Toolkit"
@@ -405,14 +406,14 @@ def create_toolkit_conceptual_map():
             mode='markers+text',
             textposition='middle center',
             marker=dict(
-                # FIX: Increased marker size multiplier
-                size=[s * 2.5 for s in data['size']],
+                # FIX: Substantially increased marker size multiplier
+                size=[s * 4.5 for s in data['size']],
                 color=origin_colors[origin_name],
                 symbol='square' if is_structure else 'circle',
                 line=dict(width=2, color='black' if is_structure else origin_colors[origin_name])
             ),
-            # FIX: Increased font size by using a smaller divisor
-            textfont=dict(size=[s / 1.8 for s in data['size']], color='white'),
+            # FIX: Substantially increased font size (smaller divisor = bigger font)
+            textfont=dict(size=[s / 1.5 for s in data['size']], color='white'),
             hoverinfo='text', hovertext=data['name'],
             name=origin_name,
             showlegend=not is_structure
@@ -422,10 +423,10 @@ def create_toolkit_conceptual_map():
         title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
         showlegend=True,
         legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
-        # FIX: Expanded axis range and plot height
-        xaxis=dict(visible=False, range=[-7.5, 7.5]),
-        yaxis=dict(visible=False, range=[-7.5, 7.5]),
-        height=1400,
+        # FIX: Expanded axis range and plot height for the larger figures
+        xaxis=dict(visible=False, range=[-8.5, 8.5]),
+        yaxis=dict(visible=False, range=[-8.5, 8.5]),
+        height=1600,
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#f0f2f6'

@@ -2097,44 +2097,59 @@ with tab_journey:
 st.divider()
 
 # --- Sidebar Navigation ---
-st.sidebar.title("🧰 Toolkit Navigation")
-st.sidebar.markdown("Select a method to explore.")
+# --- Sidebar Navigation ---
+with st.sidebar:
+    st.title("🧰 Toolkit Navigation")
+    st.markdown("Select a method to explore.")
 
-if 'method_key' not in st.session_state:
-    st.session_state.method_key = "Confidence Interval Concept"
+    # Combine all options into a single structure
+    all_options = {
+        "ACT I: FOUNDATION & CHARACTERIZATION": [
+            "Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", 
+            "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", 
+            "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Causal Inference"
+        ],
+        "ACT II: TRANSFER & STABILITY": [
+            "Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", 
+            "Method Comparison", "Pass/Fail Analysis", "Bayesian Inference"
+        ],
+        "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
+            "Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis",
+            "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)",
+            "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection",
+            "Explainable AI (XAI)", "Advanced AI Concepts"
+        ]
+    }
+    
+    # Flatten lists for the option_menu
+    options = [item for sublist in all_options.values() for item in sublist]
+    icons = [ICONS.get(opt, "question-circle") for opt in options]
 
-def update_method(selected_option):
+    # Find the default index based on the current session state key
+    # If key is not found, default to the first item.
+    try:
+        default_idx = options.index(st.session_state.get('method_key', options[0]))
+    except ValueError:
+        default_idx = 0
+
+    # Use a single, unified menu. The menu's return value is the source of truth.
+    # We no longer need the on_change callback.
+    selected_option = option_menu(
+        menu_title=None,
+        options=options,
+        icons=icons,
+        menu_icon="cast",
+        default_index=default_idx,
+        # Add orientation and styles to group items visually under headers
+        styles={
+            "container": {"padding": "0!important", "background-color": "#fafafa"},
+            "nav-link": {"font-size": "14px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
+            "nav-link-selected": {"background-color": "#0068C9"},
+        }
+    )
+    
+    # Update the session state directly from the component's return value
     st.session_state.method_key = selected_option
-
-with st.sidebar.expander("ACT I: FOUNDATION & CHARACTERIZATION", expanded=True):
-    act1_options = [
-        "Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", 
-        "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", 
-        "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Causal Inference"
-    ]
-    act1_icons = [ICONS.get(opt, "question-circle") for opt in act1_options]
-    option_menu(None, act1_options, icons=act1_icons, menu_icon="cast", key='act1_menu', on_change=update_method,
-                default_index=act1_options.index(st.session_state.method_key) if st.session_state.method_key in act1_options else 0)
-
-with st.sidebar.expander("ACT II: TRANSFER & STABILITY", expanded=True):
-    act2_options = [
-        "Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", 
-        "Method Comparison", "Pass/Fail Analysis", "Bayesian Inference"
-    ]
-    act2_icons = [ICONS.get(opt, "question-circle") for opt in act2_options]
-    option_menu(None, act2_options, icons=act2_icons, menu_icon="cast", key='act2_menu', on_change=update_method,
-                default_index=act2_options.index(st.session_state.method_key) if st.session_state.method_key in act2_options else 0)
-
-with st.sidebar.expander("ACT III: LIFECYCLE & PREDICTIVE MGMT", expanded=True):
-    act3_options = [
-        "Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis",
-        "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)",
-        "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection",
-        "Explainable AI (XAI)", "Advanced AI Concepts"
-    ]
-    act3_icons = [ICONS.get(opt, "question-circle") for opt in act3_options]
-    option_menu(None, act3_options, icons=act3_icons, menu_icon="cast", key='act3_menu', on_change=update_method,
-                default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
 
 
 # --- Main Content Area Dispatcher ---

@@ -1586,22 +1586,61 @@ def plot_advanced_ai_concepts(concept):
     fig.update_layout(xaxis_visible=False, yaxis_visible=False, height=300, showlegend=False)
     return fig
     
-@st.cache_data
-def plot_causal_inference():
-    fig = go.Figure()
-    # Define node positions
-    nodes = {'Reagent': (0, 1), 'Temp': (1.5, 2), 'Pressure': (1.5, 0), 'Purity': (3, 2), 'Yield': (3, 0)}
-    # Add nodes
-    fig.add_trace(go.Scatter(x=[v[0] for v in nodes.values()], y=[v[1] for v in nodes.values()],
+def plot_causal_inference(confounding_strength=5.0):
+    """
+    Generates dynamic plots for the Causal Inference module based on user inputs.
+    """
+    # 1. The DAG (same as before, but title is updated)
+    fig_dag = go.Figure()
+    nodes = {'Reagent Lot': (0, 1), 'Temp': (1.5, 2), 'Pressure': (1.5, 0), 'Purity': (3, 2)}
+    fig_dag.add_trace(go.Scatter(x=[v[0] for v in nodes.values()], y=[v[1] for v in nodes.values()],
                                mode="markers+text", text=list(nodes.keys()), textposition="top center",
-                               marker=dict(size=30, color='lightblue', line=dict(width=2, color='black')), textfont_size=14))
-    # Add edges
-    edges = [('Reagent', 'Purity'), ('Reagent', 'Pressure'), ('Temp', 'Purity'), ('Temp', 'Pressure'), ('Pressure', 'Yield'), ('Purity', 'Yield')]
+                               marker=dict(size=40, color='lightblue', line=dict(width=2, color='black')), textfont_size=14))
+    edges = [('Reagent Lot', 'Purity'), ('Reagent Lot', 'Temp'), ('Temp', 'Purity'), ('Temp', 'Pressure')]
     for start, end in edges:
-        fig.add_annotation(x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
-                           xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowwidth=2, arrowcolor='black')
-    fig.update_layout(title="<b>Conceptual Directed Acyclic Graph (DAG)</b>", showlegend=False, xaxis_visible=False, yaxis_visible=False, height=500, margin=dict(t=100))
-    return fig
+        fig_dag.add_annotation(x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
+                               xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowwidth=2, arrowcolor='black')
+    fig_dag.update_layout(title="<b>1. The Causal Map (DAG)</b>", showlegend=False, xaxis_visible=False, yaxis_visible=False, height=400, margin=dict(t=50))
+
+    # 2. Simulate data based on the DAG and confounding strength
+    np.random.seed(42)
+    n_samples = 100
+    # The confounder: Reagent Lot (0=Standard, 1=New)
+    reagent_lot = np.random.randint(0, 2, n_samples)
+    # The true causal effect of temperature on purity is fixed at -0.5
+    true_causal_effect = -0.5
+    
+    # Generate data where Reagent Lot affects BOTH Temp and Purity
+    temp = 70 + confounding_strength * reagent_lot + np.random.normal(0, 2, n_samples)
+    purity = 95 + true_causal_effect * (temp - 70) + confounding_strength * reagent_lot + np.random.normal(0, 2, n_samples)
+    
+    df = pd.DataFrame({'Temp': temp, 'Purity': purity, 'ReagentLot': reagent_lot.astype(str)})
+
+    # 3. Calculate effects
+    # Naive (biased) model: Purity ~ Temp
+    naive_model = ols('Purity ~ Temp', data=df).fit()
+    naive_effect = naive_model.params['Temp']
+    
+    # Adjusted (unbiased) model: Purity ~ Temp + ReagentLot
+    adjusted_model = ols('Purity ~ Temp + C(ReagentLot)', data=df).fit()
+    adjusted_effect = adjusted_model.params['Temp']
+
+    # 4. Create the scatter plot
+    fig_scatter = px.scatter(df, x='Temp', y='Purity', color='ReagentLot',
+                             title="<b>2. Confounding in Action</b>",
+                             color_discrete_map={'0': 'blue', '1': 'red'},
+                             labels={'ReagentLot': 'Reagent Lot'})
+    
+    # Add regression lines
+    x_range = np.linspace(df['Temp'].min(), df['Temp'].max(), 2)
+    fig_scatter.add_trace(go.Scatter(x=x_range, y=naive_model.predict({'Temp': x_range}), mode='lines', 
+                                     name='Naive (Biased) Correlation', line=dict(color='orange', width=4, dash='dash')))
+    fig_scatter.add_trace(go.Scatter(x=x_range, y=adjusted_model.params['Intercept'] + adjusted_effect * x_range, mode='lines', 
+                                     name='True Causal Effect (Adjusted)', line=dict(color='darkgreen', width=4)))
+
+    fig_scatter.update_layout(height=500, legend=dict(x=0.01, y=0.99))
+    
+    return fig_dag, fig_scatter, naive_effect, adjusted_effect
 
 # ==============================================================================
 # ALL UI RENDERING FUNCTIONS
@@ -3893,82 +3932,66 @@ def render_advanced_ai_concepts():
         st.plotly_chart(fig, use_container_width=True)
 
 def render_causal_inference():
-    """Renders the module for Causal Inference."""
+    """Renders the INTERACTIVE module for Causal Inference."""
     st.markdown("""
     #### Purpose & Application: Beyond the Shadow - The Science of "Why"
     **Purpose:** To move beyond mere correlation ("what") and ascend to the level of causation ("why"). While predictive models see shadows on a cave wall (associations), Causal Inference provides the tools to understand the true objects casting them (the underlying causal mechanisms).
     
-    **Strategic Application:** This is the ultimate goal of root cause analysis and the foundation of intelligent intervention.
-    - **💡 Effective CAPA:** Why did a batch fail? A predictive model might say high temperature is *associated* with failure. Causal Inference helps determine if high temperature *causes* failure, or if both are driven by a third hidden variable (a "confounder"). This prevents wasting millions on fixing the wrong problem.
-    - **🗺️ Process Cartography:** It allows for the creation of a **Directed Acyclic Graph (DAG)**, which is a formal causal map of your process, documenting scientific understanding and guiding future analysis.
-    - **🔮 "What If" Scenarios:** It provides a framework to answer hypothetical questions like, "What *would* have been the yield if we had kept the temperature at 40°C?" using only observational data.
+    **Strategic Application:** This is the ultimate goal of root cause analysis. By identifying true causal drivers, we can implement Corrective and Preventive Actions (CAPAs) that are far more likely to be effective.
     """)
     
-    fig = plot_causal_inference() # Assumes a function that plots the DAG
+    st.info("""
+    **Interactive Demo:** Use the slider in the sidebar to control the **Confounding Strength** of the `Reagent Lot`. As you increase it, watch the "Naive Correlation" (the orange line) become a terrible estimate of the "True Causal Effect" (the green line). This simulation visually demonstrates how a hidden variable can create a misleading correlation.
+    """)
+    
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("Causal Inference Controls")
+    confounding_slider = st.sidebar.slider(
+        "🚨 Confounding Strength", 
+        min_value=0.0, max_value=10.0, value=5.0, step=0.5,
+        help="How strongly the 'Reagent Lot' affects BOTH Temperature and Purity. At 0, the naive correlation equals the true causal effect."
+    )
+    
+    # Generate plots using the slider value
+    fig_dag, fig_scatter, naive_effect, adjusted_effect = plot_causal_inference(confounding_strength=confounding_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig_dag, use_container_width=True)
+        st.plotly_chart(fig_scatter, use_container_width=True)
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="🔎 Causal Question", value="Does Temp cause low Purity?", help="The specific causal relationship we want to isolate and quantify.")
-            st.metric(label="🔬 Intervention of Interest", value="Setting Temp to 40°C", help="The hypothetical action whose effect we want to estimate.")
-            st.metric(label="🚨 Identified Confounder", value="Reagent Lot", help="A variable that provides a non-causal 'backdoor' path between Temp and Purity.")
+            st.metric(label="Biased Estimate (Naive Correlation)", value=f"{naive_effect:.3f}", help="The effect you would conclude by just plotting Purity vs. Temp. This is misleading!")
+            st.metric(label="Unbiased Estimate (True Causal Effect)", value=f"{adjusted_effect:.3f}", help="The true effect of Temp on Purity after adjusting for the confounder. Note how this stays stable.")
 
+            st.info("Play with the 'Confounding Strength' slider and watch the metrics and plots!")
             st.markdown("""
-            **Reading the Causal Map (The DAG):**
-            - This graph is not a flowchart; it's a map of **causal assumptions** based on expert knowledge. Arrows represent direct causal effects.
-            - **The Causal Path (Green Arrow):** We want to estimate the strength of the `Temp -> Purity` link.
-            - **The Confounding Path (Red Arrows):** There is a "backdoor" path from Temp to Purity. A `Reagent Lot` can affect both the `Temp` of the reaction and the final `Purity`. If we don't account for this, we might wrongly attribute the effect of the Reagent Lot to the Temperature.
-            
-            **The Core Strategic Insight:** The DAG makes our assumptions explicit. By mapping out all causal relationships, we can use advanced statistical methods to mathematically "block" the confounding paths and isolate the true, unbiased causal effect we care about.
+            - **The DAG (Top Plot):** This is our "causal map." It shows that `Reagent Lot` is a **common cause** of both `Temp` and `Purity`, creating a "backdoor" path that biases the `Temp -> Purity` relationship.
+            - **The Scatter Plot:** As you increase `Confounding Strength`, the orange line (naive correlation) becomes a worse and worse estimate of the green line (the true causal effect). The data points separate into two clouds (one for each reagent lot), and the naive model incorrectly draws a line through them. The adjusted model correctly finds the true, steeper negative trend *within* each group.
             """)
 
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: The Correlation Trap**
-            This is the oldest and most dangerous fallacy in data analysis: **"Correlation equals causation."**
-            
             - An analyst observes that ice cream sales are highly correlated with shark attacks. They recommend banning ice cream to improve beach safety.
-            - **The Flaw:** They failed to account for a confounder: **Hot Weather.** Hot weather causes more people to buy ice cream AND causes more people to go swimming, leading to more shark attacks. Ice cream has no causal effect on shark attacks.
-            - In a lab, this is like seeing that `Pressure` is correlated with `Purity` and launching a huge project to control pressure, not realizing both are driven by `Temperature`.
+            - **The Flaw:** They failed to account for a confounder: **Hot Weather.** Hot weather causes more people to buy ice cream AND causes more people to go swimming. Causal inference provides the tools to mathematically "control for" the weather to see that ice cream has no real effect.
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: Draw the Map, Find the Path, Block the Backdoors**
             A robust causal analysis follows a disciplined, three-step process.
-            
-            1.  **Draw the Map (Build the DAG):** This is a collaborative effort between data scientists and Subject Matter Experts. You must encode all your domain knowledge and causal beliefs into a formal DAG.
-            
-            2.  **Find the Path:** Clearly identify the causal path you want to measure (e.g., `Temp -> Purity`).
-            
-            3.  **Block the Backdoors:** Use the DAG to identify all non-causal "backdoor" paths (confounding). Then, use the appropriate statistical technique (e.g., stratification, regression adjustment) to "block" these paths, leaving only the true causal effect.
-            
-            This structured thinking is what separates guessing from genuine causal discovery.
+            1.  **Draw the Map (Build the DAG):** Encode all your expert knowledge and causal beliefs into a formal DAG.
+            2.  **Find the Path:** Identify the causal path you want to measure (e.g., `Temp -> Purity`).
+            3.  **Block the Backdoors:** Use the DAG to identify all non-causal "backdoor" paths (confounding). Then, use the appropriate statistical technique (like multiple regression) to "block" these paths, leaving only the true causal effect.
             """)
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin: The Causal Revolution
-            For most of the 20th century, mainstream statistics was deeply allergic to the language of causation. The mantra was "correlation is not causation," and statisticians were trained to only discuss associations.
-            
-            This dogma was shattered by the computer scientist and philosopher **Judea Pearl** in the 1980s and 90s. Building on earlier work in path analysis by geneticist **Sewall Wright**, Pearl developed a complete mathematical framework for causal reasoning. He introduced the **Directed Acyclic Graph (DAG)** as the primary tool for encoding causal assumptions and invented the **do-calculus**, a formal symbolic language for describing interventions.
-            
-            His 2000 book *Causality* and his more recent *The Book of Why* sparked a "causal revolution," providing a clear, powerful, and mathematically rigorous language for asking and answering causal questions. For this work, Judea Pearl was awarded the Turing Award in 2011, the highest honor in computer science.
-            
-            #### The Language of Causation: `see` vs. `do`
-            The `do-calculus` introduces a critical distinction:
-            """)
-            st.latex(r"P(\text{Purity} | \text{Temp}) \quad \text{vs.} \quad P(\text{Purity} | do(\text{Temp}))")
-            st.markdown("""
-            - **`P(Purity | Temp)` (Seeing):** This is standard conditional probability. It asks, "If I go into the lab and I *see* that the temperature is 40°C, what is the expected purity?" This is a passive observation, full of potential confounding.
-            
-            - **`P(Purity | do(Temp))` (Doing):** This is the causal quantity. It asks, "If I go into the lab and I *intervene*, setting the temperature to 40°C for everyone, what would the expected purity be?" This represents a perfect, randomized experiment.
-            
-            The entire goal of causal inference is to find a way to estimate the `do` quantity using data where you could only `see`.
+            For most of the 20th century, mainstream statistics was deeply allergic to the language of causation. The mantra was "correlation is not causation." This was shattered by the computer scientist and philosopher **Judea Pearl** in the 1980s and 90s. He developed a complete mathematical framework for causal reasoning, introducing the **Directed Acyclic Graph (DAG)** as the primary tool and inventing the **do-calculus** for describing interventions. This work earned him the Turing Award, the highest honor in computer science.
             """)
 def render_classification_models():
     """Renders the module for Predictive QC (Classification)."""

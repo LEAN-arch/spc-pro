@@ -1048,21 +1048,34 @@ def plot_capability(scenario='Ideal'):
 
     fig.update_layout(height=700, showlegend=False)
     return fig, cpk_val
-@st.cache_data
-def plot_tolerance_intervals():
+def plot_tolerance_intervals(n=30, coverage_pct=99.0):
+    """
+    Generates dynamic plots for the Tolerance Interval module based on user inputs.
+    """
     np.random.seed(42)
-    n = 30
+    
+    # Simulate data based on the sample size slider
     data = np.random.normal(100, 5, n)
     mean, std = np.mean(data), np.std(data, ddof=1)
     
-    # 95% CI for the mean
-    sem = std / np.sqrt(n)
-    ci_margin = t.ppf(0.975, df=n-1) * sem
+    # 95% CI for the mean (n-dependent)
+    sem = std / np.sqrt(n) if n > 0 else 0
+    ci_margin = t.ppf(0.975, df=n-1) * sem if n > 1 else 0
     ci = (mean - ci_margin, mean + ci_margin)
     
-    # 95%/99% Tolerance Interval
-    # k-factor for n=30, 95% confidence, 99% coverage is ~3.003
-    k_factor = 3.003
+    # 95%/99% Tolerance Interval (n and coverage dependent)
+    # A simplified lookup table for k-factors (for 95% confidence)
+    k_factor_lookup = {
+        90.0: {10: 2.208, 30: 1.979, 100: 1.861, 200: 1.821},
+        95.0: {10: 2.842, 30: 2.457, 100: 2.278, 200: 2.228},
+        99.0: {10: 4.046, 30: 3.003, 100: 2.807, 200: 2.748},
+        99.9: {10: 5.733, 30: 3.823, 100: 3.457, 200: 3.376}
+    }
+    # Simple interpolation/selection logic
+    available_n = sorted(k_factor_lookup[coverage_pct].keys())
+    selected_n = min(available_n, key=lambda x:abs(x-n))
+    k_factor = k_factor_lookup[coverage_pct][selected_n]
+    
     ti_margin = k_factor * std
     ti = (mean - ti_margin, mean + ti_margin)
 
@@ -1070,15 +1083,15 @@ def plot_tolerance_intervals():
     fig.add_trace(go.Histogram(x=data, name='Sample Data', histnorm='probability density'))
     # Plot CI
     fig.add_vrect(x0=ci[0], x1=ci[1], fillcolor="rgba(255,165,0,0.3)", layer="below", line_width=0,
-                  annotation_text=f"<b>95% Confidence Interval for Mean</b><br>Captures the true mean 95% of the time", annotation_position="top left")
+                  annotation_text=f"<b>95% CI for Mean</b>", annotation_position="top left")
     # Plot TI
     fig.add_vrect(x0=ti[0], x1=ti[1], fillcolor="rgba(0,128,0,0.3)", layer="below", line_width=0,
-                  annotation_text=f"<b>95%/99% Tolerance Interval</b><br>Captures 99% of individual values 95% of the time", annotation_position="bottom left")
+                  annotation_text=f"<b>95%/{coverage_pct:.1f}% TI</b>", annotation_position="bottom left")
     
-    fig.update_layout(title="<b>Confidence Interval vs. Tolerance Interval (n=30)</b>",
+    fig.update_layout(title=f"<b>Confidence Interval vs. Tolerance Interval (n={n})</b>",
                       xaxis_title="Measured Value", yaxis_title="Density", showlegend=False)
-    return fig
-
+    
+    return fig, ci, ti
 @st.cache_data
 def plot_wilson(successes, n_samples):
     """
@@ -2618,16 +2631,34 @@ def render_spc_charts():
         - **Minimizing False Alarms:** This means there's only a 0.27% chance of a point falling outside the limits purely by chance. This makes the chart robust; when you get a signal, you can be very confident it's real and not just random noise. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
         """)
 def render_tolerance_intervals():
-    """Renders the module for Tolerance Intervals."""
+    """Renders the INTERACTIVE module for Tolerance Intervals."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process. It is the **Quality Engineer's Secret Weapon**.
+    #### Purpose & Application: The Quality Engineer's Secret Weapon
+    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process.
     
-    **Strategic Application:** For manufacturing and quality control, this is often the most critical statistical interval, yet it's frequently misunderstood or ignored. It directly answers the high-stakes business question: **"Based on this sample, what is the range where we can expect almost all of our individual product units to fall?"**
-    - **The Piston Principle:** Imagine you manufacture pistons that must have a diameter of 100mm. A Confidence Interval might tell you that you're 95% confident the *average* diameter of all pistons is between 99.9mm and 100.1mm. This sounds great! But if your process has high variation, you could still be producing many individual pistons at 98mm and 102mm that won't fit in the engine. The Tolerance Interval is what tells you the range where, say, 99% of your *individual* pistons actually lie. It's the interval that tells you if your parts will fit.
+    **Strategic Application:** This is often the most critical statistical interval in manufacturing. It directly answers the high-stakes question: **"Based on this sample, what is the range where we can expect almost all of our individual product units to fall?"**
     """)
     
-    fig = plot_tolerance_intervals() # Assumes a function that plots data, CI, and TI
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to explore the trade-offs in tolerance intervals. This simulation demonstrates how sample size and the desired quality guarantee (coverage) directly impact the calculated interval, which in turn affects process specifications and batch release decisions.
+    """)
+    
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("Tolerance Interval Controls")
+    n_slider = st.sidebar.slider(
+        "🔬 Sample Size (n)", 
+        min_value=10, max_value=200, value=30, step=10,
+        help="The number of samples collected. More samples lead to a narrower, more reliable interval."
+    )
+    coverage_slider = st.sidebar.select_slider(
+        "🎯 Desired Population Coverage",
+        options=[90.0, 95.0, 99.0, 99.9],
+        value=99.0,
+        help="The 'quality promise'. What percentage of all future parts do you want this interval to contain? A higher promise requires a wider interval."
+    )
+
+    # Generate plots using the slider values
+    fig, ci, ti = plot_tolerance_intervals(n=n_slider, coverage_pct=coverage_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -2638,64 +2669,44 @@ def render_tolerance_intervals():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="🎯 Desired Coverage", value="99% of Population", help="The proportion of the entire process output we want our interval to contain.")
-            st.metric(label="🔒 Confidence Level", value="95%", help="Our level of confidence that the calculated interval *truly* captures the desired coverage.")
-            st.metric(label="📏 Resulting Tolerance Interval", value="[94.2, 105.8]", help="The final calculated range. Note how much wider it is than the CI.")
+            st.metric(label="🎯 Desired Coverage", value=f"{coverage_slider:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
+            st.metric(label="📏 Resulting Tolerance Interval", value=f"[{ti[0]:.1f}, {ti[1]:.1f}]", help="The final calculated range. Note how much wider it is than the CI.")
             
+            st.info("Play with the sliders in the sidebar and observe the results!")
             st.markdown("""
-            **Reading the Chart:**
-            - **The Dots:** These are your actual sampled data points.
-            - **Orange Interval (CI):** This is the Confidence Interval for the **mean**. It's narrow because we are very certain about the long-term process average. It answers the question: "Where is the average?"
-            - **Green Interval (TI):** This is the Tolerance Interval. It is necessarily much wider. It must account for **two sources of uncertainty**: our uncertainty about the true mean *and* the inherent, natural variation (standard deviation) of the process itself. It answers the question: "Where are my parts?"
-
-            **The Core Strategic Insight:** A Tolerance Interval is the statistical bridge between a small sample and a quality promise to a customer. It allows you to make a probabilistic statement about **every single item** coming off the production line, which is a far more powerful and commercially relevant claim than a statement about the process average.
+            - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
+            - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
             """)
 
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: The Confidence Interval Fallacy**
-            This is one of the most common and dangerous statistical errors in industry.
-            
-            - A manager sees that the 95% **Confidence Interval** for the mean is [9.9, 10.1] and their product specification is [9.5, 10.5]. They declare victory, believing all their product is in spec.
-            - **The Flaw:** They've proven the *average* is in spec, but have made no claim about the *individuals*. If the process standard deviation is large, a huge percentage of product could still be outside the [9.5, 10.5] specification limits.
+            - A manager sees that the 95% **Confidence Interval** for the mean is [99.9, 100.1] and their product specification is [95, 105]. They declare victory, believing all their product is in spec.
+            - **The Flaw:** They've proven the *average* is in spec, but have made no claim about the *individuals*. If process variation is high, many parts could still be out of spec.
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: Use the Right Interval for the Right Question**
-            The question you are trying to answer dictates the tool you must use.
-            
             - **Question 1: "Where is my long-term process average located?"**
               - **Correct Tool:** ✅ **Confidence Interval**.
-            
             - **Question 2: "Will the individual units I produce meet the customer's specification?"**
               - **Correct Tool:** ✅ **Tolerance Interval**.
               
-            Never use a confidence interval to make a statement about where individual values are expected to fall. That is the specific job of a tolerance interval.
+            Never use a confidence interval to make a statement about where individual values are expected to fall.
             """)
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            The development of tolerance intervals is credited to the brilliant mathematician **Abraham Wald** during his work with the Statistical Research Group at Columbia University during World War II. The group was tasked with solving complex statistical problems for the US military.
+            #### Historical Context: The Surviving Bomber Problem
+            The development of tolerance intervals is credited to the brilliant mathematician **Abraham Wald** during World War II. He is famous for the "surviving bombers" problem: when analyzing bullet holes on returning planes, the military wanted to reinforce the most-hit areas. Wald's revolutionary insight was that they should reinforce the areas with **no bullet holes**—because planes hit there never made it back.
             
-            Wald's genius was in looking at problems from a unique angle. He is famous for the "surviving bombers" problem: when the military wanted to add armor to planes, they analyzed the bullet hole patterns on the planes that *returned* from missions. The consensus was to reinforce the areas that were hit most often. Wald's revolutionary insight was that the military should do the exact opposite: **the areas with *no* bullet holes were the most critical**. Planes hit in those areas (like the engines or cockpit) simply never made it back.
-            
-            This ability to reason about an entire population from a limited, biased sample is the same thinking behind the tolerance interval. The military needed to mass-produce interchangeable parts that were "good enough" to fit together on the battlefield. Wald developed the statistical theory for tolerance intervals to provide a rigorous, reliable method to ensure this, based on small samples from the production line.
+            This ability to reason about an entire population from a limited sample is the same thinking behind the tolerance interval. Wald developed the statistical theory to allow engineers to make a reliable claim about **all** manufactured parts based on a **small sample**, a critical need for mass-producing interchangeable military hardware.
             
             #### Mathematical Basis
-            The formula for a two-sided tolerance interval looks simple, but contains a hidden, powerful factor:
             """)
             st.latex(r"\text{TI} = \bar{x} \pm k \cdot s")
             st.markdown("""
-            - **`x̄`**: The sample mean.
-            - **`s`**: The sample standard deviation.
-            - **`k`**: The **k-factor** or tolerance factor. This is the "magic ingredient". It is NOT a simple z-score or t-score. The `k`-factor is a special value, derived from complex statistical theory, that depends on **three** inputs:
-                1. The sample size (`n`).
-                2. The desired population coverage (e.g., 99%).
-                3. The desired confidence level (e.g., 95%).
-            
-            This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation, making the resulting interval robust and reliable.
+            - **`k`**: The **k-factor** is the magic ingredient. It is a special value that depends on **three** inputs: the sample size (`n`), the desired population coverage (e.g., 99%), and the desired confidence level (e.g., 95%). This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation.
             """)
-
 def render_4pl_regression():
     """Renders the INTERACTIVE module for 4-Parameter Logistic (4PL) regression."""
     st.markdown("""

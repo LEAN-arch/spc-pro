@@ -274,48 +274,6 @@ def plot_lod_loq():
     return fig, LOD, LOQ
 
 @st.cache_data
-def plot_method_comparison():
-    np.random.seed(42); x = np.linspace(20, 150, 50); y = 0.98 * x + 1.5 + np.random.normal(0, 2.5, 50)
-    delta = np.var(y, ddof=1) / np.var(x, ddof=1); x_mean, y_mean = np.mean(x), np.mean(y); Sxx = np.sum((x - x_mean)**2); Sxy = np.sum((x - x_mean)*(y - y_mean))
-    if Sxy == 0: Sxy = 1e-9 # Avoid division by zero
-    beta1_deming = (np.sum((y-y_mean)**2) - delta*Sxx + np.sqrt((np.sum((y-y_mean)**2) - delta*Sxx)**2 + 4*delta*Sxy**2)) / (2*Sxy)
-    beta0_deming = y_mean - beta1_deming*x_mean
-    avg, diff = (x + y) / 2, y - x; mean_diff = np.mean(diff); std_diff = np.std(diff, ddof=1); upper_loa, lower_loa = mean_diff + 1.96 * std_diff, mean_diff - 1.96 * std_diff; percent_bias = (diff / x) * 100
-    fig = make_subplots(rows=2, cols=2, specs=[[{}, {}], [{"colspan": 2}, None]], subplot_titles=("<b>Deming Regression</b>", "<b>Bland-Altman Agreement Plot</b>", "<b>Percent Bias vs. Concentration</b>"), vertical_spacing=0.2)
-    fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name='Sample Results', marker=dict(color='blue')), row=1, col=1); fig.add_trace(go.Scatter(x=x, y=beta0_deming + beta1_deming*x, mode='lines', name='Deming Fit', line=dict(color='red')), row=1, col=1); fig.add_trace(go.Scatter(x=[0, 160], y=[0, 160], mode='lines', name='Line of Identity', line=dict(dash='dash', color='black')), row=1, col=1)
-    fig.add_trace(go.Scatter(x=avg, y=diff, mode='markers', name='Difference', marker=dict(color='purple')), row=1, col=2); fig.add_hline(y=mean_diff, line_color="red", annotation_text=f"Mean Bias={mean_diff:.2f}", row=1, col=2); fig.add_hline(y=upper_loa, line_dash="dash", line_color="blue", annotation_text=f"Upper LoA={upper_loa:.2f}", row=1, col=2); fig.add_hline(y=lower_loa, line_dash="dash", line_color="blue", annotation_text=f"Lower LoA={lower_loa:.2f}", row=1, col=2)
-    fig.add_trace(go.Scatter(x=x, y=percent_bias, mode='markers', name='% Bias', marker=dict(color='orange')), row=2, col=1); fig.add_hrect(y0=-15, y1=15, fillcolor="green", opacity=0.1, layer="below", line_width=0, row=2, col=1); fig.add_hline(y=0, line_dash="dash", line_color="black", row=2, col=1); fig.add_hline(y=15, line_dash="dot", line_color="red", row=2, col=1); fig.add_hline(y=-15, line_dash="dot", line_color="red", row=2, col=1)
-    fig.update_layout(title_text='<b>Method Comparison Dashboard: R&D Lab vs QC Lab</b>', title_x=0.5, height=800, showlegend=False)
-    fig.update_xaxes(title_text="R&D Lab (Reference)", row=1, col=1); fig.update_yaxes(title_text="QC Lab (Test)", row=1, col=1)
-    fig.update_xaxes(title_text="Average of Methods", row=1, col=2); fig.update_yaxes(title_text="Difference (QC - R&D)", row=1, col=2)
-    fig.update_xaxes(title_text="R&D Lab (Reference Concentration)", row=2, col=1); fig.update_yaxes(title_text="% Bias", range=[-25, 25], row=2, col=1)
-    return fig, beta1_deming, beta0_deming, mean_diff, upper_loa, lower_loa
-
-@st.cache_data
-def plot_capability(scenario):
-    np.random.seed(42); LSL, USL = 90, 110
-    if scenario == 'Ideal': data = np.random.normal(100, (USL-LSL)/(6*1.67), 200)
-    elif scenario == 'Shifted': data = np.random.normal(105, (USL-LSL)/(6*1.67), 200)
-    elif scenario == 'Variable': data = np.random.normal(100, (USL-LSL)/(6*0.9), 200)
-    else: data = np.concatenate([np.random.normal(97, 2, 100), np.random.normal(103, 2, 100)])
-    sigma_hat = np.std(data, ddof=1); Cpu = (USL - data.mean()) / (3 * sigma_hat); Cpl = (data.mean() - LSL) / (3 * sigma_hat); Cpk = np.min([Cpu, Cpl])
-    x_axis = np.arange(1, len(data) + 1); mean_i = data.mean(); mr = np.abs(np.diff(data)); mr_mean = np.mean(mr); UCL_I, LCL_I = mean_i + 3*(mr_mean/1.128), mean_i - 3*(mr_mean/1.128)
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=("<b>Process Control (I-Chart)</b>", "<b>Process Capability (Histogram)</b>"), vertical_spacing=0.1, row_heights=[0.4, 0.6])
-    fig.add_trace(go.Scatter(x=x_axis, y=data, mode='lines', line=dict(color='lightgrey'), name='Control Value'), row=1, col=1)
-    out_of_control_idx = np.where((data > UCL_I) | (data < LCL_I))[0]; fig.add_trace(go.Scatter(x=x_axis[out_of_control_idx], y=data[out_of_control_idx], mode='markers', marker=dict(color='red', size=8), name='Signal'), row=1, col=1)
-    fig.add_hline(y=mean_i, line_dash="dash", line_color="black", row=1, col=1); fig.add_hline(y=UCL_I, line_color="red", row=1, col=1); fig.add_hline(y=LCL_I, line_color="red", row=1, col=1)
-    fig.add_trace(go.Histogram(x=data, nbinsx=30, name="Distribution", histnorm='probability density'), row=2, col=1)
-    fig.add_vline(x=LSL, line_dash="dash", line_color="red", annotation_text="LSL", row=2, col=1); fig.add_vline(x=USL, line_dash="dash", line_color="red", annotation_text="USL", row=2, col=1); fig.add_vline(x=data.mean(), line_dash="dot", line_color="black", annotation_text="Mean", row=2, col=1)
-    color = "darkgreen" if Cpk >= 1.33 and scenario != 'Out of Control' else "darkred"; text = f"Cpk = {Cpk:.2f}" if scenario != 'Out of Control' else "Cpk: INVALID"
-    fig.add_annotation(text=text, align='left', showarrow=False, xref='paper', yref='paper', x=0.05, y=0.45, bordercolor="black", borderwidth=1, bgcolor=color, font=dict(color="white", size=16))
-    fig.update_layout(title_text=f'<b>Process Capability Analysis - Scenario: {scenario}</b>', title_x=0.5, height=800, showlegend=False);
-    return fig, Cpk
-
-# ==============================================================================
-# NEW PLOTTING FUNCTIONS FOR EXPANDED TOOLKIT
-# ==============================================================================
-
-@st.cache_data
 def plot_core_validation_params():
     # --- 1. Accuracy (Bias) Data ---
     np.random.seed(42)
@@ -452,25 +410,26 @@ def plot_tost():
     # Equivalence margin (delta)
     delta = 5 # We consider them equivalent if the means are within 5 units
     
-    # Perform two one-sided t-tests
+    # Perform two one-sided t-tests using Welch's t-test for unequal variances
     diff_mean = np.mean(data_B) - np.mean(data_A)
     std_err_diff = np.sqrt(np.var(data_A, ddof=1)/n + np.var(data_B, ddof=1)/n)
+    df_welch = (std_err_diff**4) / ( ((np.var(data_A, ddof=1)/n)**2 / (n-1)) + ((np.var(data_B, ddof=1)/n)**2 / (n-1)) )
     
     t_lower = (diff_mean - (-delta)) / std_err_diff
     t_upper = (diff_mean - delta) / std_err_diff
-    df = n + n - 2
     
-    p_lower = stats.t.sf(t_lower, df)
-    p_upper = stats.t.cdf(t_upper, df)
+    p_lower = stats.t.sf(t_lower, df_welch)
+    p_upper = stats.t.cdf(t_upper, df_welch)
     
     p_tost = max(p_lower, p_upper)
     is_equivalent = p_tost < 0.05
     
     # Create plot
     fig = go.Figure()
-    # Confidence interval for the difference
-    ci_lower = diff_mean - t.ppf(0.975, df) * std_err_diff
-    ci_upper = diff_mean + t.ppf(0.975, df) * std_err_diff
+    # 90% confidence interval for TOST (standard practice)
+    ci_margin = t.ppf(0.95, df_welch) * std_err_diff
+    ci_lower = diff_mean - ci_margin
+    ci_upper = diff_mean + ci_margin
     fig.add_trace(go.Scatter(
         x=[diff_mean], y=['Difference'], error_x=dict(type='data', array=[ci_upper-diff_mean], arrayminus=[diff_mean-ci_lower]),
         mode='markers', name='90% CI for Difference', marker=dict(color='blue', size=15)
@@ -528,7 +487,7 @@ def plot_advanced_doe():
             texts.append(f"Subplot<br>Recipe {(i*4)+j+1}")
     fig_split.add_trace(go.Scatter(x=x_coords, y=y_coords, mode="markers+text", text=texts,
                                   marker=dict(size=15, color="Crimson"), textposition="bottom center"))
-    fig_split.update_layout(title="<b>2. Split-Plot Design (Process)</b>", xaxis=dict(visible=False), yaxis=dict(visible=False))
+    fig_split.update_layout(title="<b>2. Split-Plot Design (Process)</b>", xaxis=dict(visible=False), yaxis=dict(visible=False), showlegend=False)
 
     return fig_mix, fig_split
 
@@ -727,34 +686,49 @@ def plot_survival_analysis():
     time_B = stats.weibull_min.rvs(c=1.5, scale=30, size=50)
     censor_B = np.random.binomial(1, 0.2, 50)
 
+    # Corrected Kaplan-Meier function
     def kaplan_meier(times, events):
-        df = pd.DataFrame({'time': times, 'event': events}).sort_values('time')
-        unique_times = df['time'][df['event']==1].unique()
+        df = pd.DataFrame({'time': times, 'event': events}).sort_values('time').reset_index(drop=True)
         
-        at_risk = len(df)
-        survival = [1.0]
-        ts = [0]
+        # Get unique event times
+        event_times = df.loc[df['event'] == 1, 'time'].unique()
+        event_times = np.sort(event_times)
         
-        for t in unique_times:
-            events_at_t = df[(df['time'] == t) & (df['event'] == 1)].shape[0]
-            at_risk_at_t = df[df['time'] >= t].shape[0]
+        km_df = pd.DataFrame({
+            'time': np.append([0], event_times),
+            'n_at_risk': 0,
+            'n_events': 0,
+        })
+        km_df['survival'] = 1.0
+
+        for i, t in enumerate(km_df['time']):
+            at_risk = (df['time'] >= t).sum()
+            events_at_t = ((df['time'] == t) & (df['event'] == 1)).sum()
             
-            survival.append(survival[-1] * (1 - events_at_t / at_risk_at_t))
-            ts.append(t)
+            km_df.loc[i, 'n_at_risk'] = at_risk
+            km_df.loc[i, 'n_events'] = events_at_t
+
+        for i in range(1, len(km_df)):
+            km_df.loc[i, 'survival'] = km_df.loc[i-1, 'survival'] * (1 - km_df.loc[i, 'n_events'] / km_df.loc[i, 'n_at_risk'])
         
-        return ts, survival
+        # Step function data for plotting
+        ts = np.repeat(km_df['time'].values, 2)[1:]
+        surv = np.repeat(km_df['survival'].values, 2)[:-1]
+        
+        return np.append([0], ts), np.append([1.0], surv)
 
     ts_A, surv_A = kaplan_meier(time_A, 1 - censor_A)
     ts_B, surv_B = kaplan_meier(time_B, 1 - censor_B)
     
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=ts_A, y=surv_A, mode='lines', name='Group A (e.g., Old Component)', line_shape='hv'))
-    fig.add_trace(go.Scatter(x=ts_B, y=surv_B, mode='lines', name='Group B (e.g., New Component)', line_shape='hv'))
+    fig.add_trace(go.Scatter(x=ts_A, y=surv_A, mode='lines', name='Group A (e.g., Old Component)', line_shape='hv', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=ts_B, y=surv_B, mode='lines', name='Group B (e.g., New Component)', line_shape='hv', line=dict(color='red')))
     
     fig.update_layout(title='<b>Reliability / Survival Analysis (Kaplan-Meier Curve)</b>',
                       xaxis_title='Time to Event (e.g., Days to Failure)',
                       yaxis_title='Survival Probability',
-                      yaxis_range=[0, 1.05])
+                      yaxis_range=[0, 1.05],
+                      legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99))
     return fig
 
 @st.cache_data
@@ -771,7 +745,6 @@ def plot_mva_pls():
     pls.fit(X, y)
 
     # VIP score calculation
-    # Simplified VIP calculation for illustration
     T = pls.x_scores_
     W = pls.x_weights_
     Q = pls.y_loadings_
@@ -794,6 +767,7 @@ def plot_mva_pls():
     fig.update_xaxes(title_text='Wavelength', row=1, col=1); fig.update_yaxes(title_text='Absorbance', row=1, col=1)
     fig.update_xaxes(title_text='Wavelength', row=1, col=2); fig.update_yaxes(title_text='VIP Score', row=1, col=2)
     return fig
+
 @st.cache_data
 def plot_clustering():
     np.random.seed(42)
@@ -863,7 +837,7 @@ def plot_xai_shap():
     X_display, y_display = shap.datasets.adult(display=True)
     model = RandomForestClassifier(random_state=42).fit(X, y)
     explainer = shap.Explainer(model, X)
-    shap_values_obj = explainer(X[:100]) # Use the raw X for explanation
+    shap_values_obj = explainer(X.iloc[:100]) # Use the raw X for explanation
     shap_values = shap_values_obj.values
     
     # Beeswarm plot as an image
@@ -883,14 +857,14 @@ def plot_xai_shap():
 def plot_advanced_ai_concepts(concept):
     fig = go.Figure()
     if concept == "Transformers":
-        text = "Input -> [Encoder Stacks] -> [Attention] -> [Decoder Stacks] -> Output"
+        text = "Input Seq -> [Encoder] -> [Self-Attention] -> [Decoder] -> Output Seq"
         fig.add_annotation(text=f"<b>Conceptual Flow: Transformer</b><br>{text}", showarrow=False, font_size=16)
     elif concept == "GNNs":
         nodes_x = [1, 2, 3, 4, 3, 2]; nodes_y = [2, 3, 2, 1, 0, -1]
         edges = [(0,1), (1,2), (2,3), (2,4), (4,5), (5,1)]
         for (start, end) in edges:
             fig.add_trace(go.Scatter(x=[nodes_x[start], nodes_x[end]], y=[nodes_y[start], nodes_y[end]], mode='lines', line_color='grey'))
-        fig.add_trace(go.Scatter(x=nodes_x, y=nodes_y, mode='markers', marker_size=30, text=[f"Node {i}" for i in range(6)]))
+        fig.add_trace(go.Scatter(x=nodes_x, y=nodes_y, mode='markers+text', text=[f"Node {i}" for i in range(6)], marker_size=30, textposition="middle center"))
         fig.update_layout(title="<b>Conceptual Flow: Graph Neural Network</b>")
     elif concept == "RL":
         fig.add_shape(type="rect", x0=0, y0=0, x1=2, y1=2, line_width=2, fillcolor='lightblue', name="Agent")
@@ -911,7 +885,7 @@ def plot_advanced_ai_concepts(concept):
         fig.add_annotation(x=9, y=1, text="<b>Synthetic Data</b>", showarrow=False)
         fig.update_layout(title="<b>Conceptual Flow: Generative AI (GANs)</b>")
     
-    fig.update_layout(xaxis_visible=False, yaxis_visible=False, height=300)
+    fig.update_layout(xaxis_visible=False, yaxis_visible=False, height=300, showlegend=False)
     return fig
     
 @st.cache_data
@@ -930,6 +904,11 @@ def plot_causal_inference():
                            xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowwidth=2, arrowcolor='black')
     fig.update_layout(title="<b>Conceptual Directed Acyclic Graph (DAG)</b>", showlegend=False, xaxis_visible=False, yaxis_visible=False, height=500, margin=dict(t=100))
     return fig
+
+# ==============================================================================
+# UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
+# ==============================================================================
+
 # ==============================================================================
 # UI RENDERING FUNCTIONS
 # ==============================================================================
@@ -1300,7 +1279,7 @@ def render_xai_shap():
     """)
     
     st.subheader("Local Prediction Explanation (Single SHAP Force Plot)")
-    st.components.v1.html(force_html, height=150, scrolling=True)
+    st.components.v1.html(f"<body>{force_html}</body>", height=150, scrolling=True)
     st.markdown("""
     **Interpretation:** This plot explains a *single prediction*.
     - **Base Value:** The average prediction across all data.
@@ -1361,10 +1340,8 @@ def render_causal_inference():
     By building this graph based on SME knowledge, we can use statistical techniques (like do-calculus or structural equation modeling) to estimate the true, isolated causal effect of one variable on another, even in the presence of confounding.
     """)
 
-
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
-# THIS SECTION MUST COME AFTER ALL 'render' FUNCTIONS HAVE BEEN DEFINED
 # ==============================================================================
 st.title("🛠️ Biotech V&V Analytics Toolkit")
 st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")

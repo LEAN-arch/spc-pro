@@ -2378,13 +2378,15 @@ def render_pass_fail():
             The **Wilson Score Interval** (1927) and the **Clopper-Pearson Interval** (1934) were created to solve this problem.
             - The **Clopper-Pearson** interval is an "exact" method derived from the binomial distribution. It guarantees coverage will never be less than the nominal level, making it conservative (wider).
             - The **Wilson Score** interval is derived by inverting the score test. Its average coverage probability is much closer to the nominal 95% level, making it more accurate and less conservative in practice.
+            """)
             
-            #### Mathematical Basis
+            # --- FIX: SEPARATED EACH FUNCTION CALL ---
+            st.markdown("#### Mathematical Basis")
             st.markdown("The Wald interval is simply:")
             st.latex(r"\hat{p} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}")
             st.markdown("The Wilson Score interval's superior formula is:")
-            st.latex(r"CI_{Wilson} = \frac{1}{1 + z^2/n} \left( \hat{p} + \frac{z^2}{2n} \pm z \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}} \right)")
-            st.markdown("Notice it adds pseudo-successes and failures ($z^2/2$), pulling the center away from 0 or 1. This is what gives it such good performance where the Wald interval fails catastrophically.")
+            st.latex(r"CI_{\text{Wilson}} = \frac{1}{1 + z_{\alpha/2}^2/n} \left( \hat{p} + \frac{z_{\alpha/2}^2}{2n} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z_{\alpha/2}^2}{4n^2}} \right)")
+            st.markdown("Notice it adds pseudo-successes and failures ($z_{\alpha/2}^2/2$), pulling the center away from 0 or 1. This is what gives it such good performance where the Wald interval fails catastrophically.")
             
 
 def render_bayesian():
@@ -2451,6 +2453,7 @@ def render_bayesian():
             - Then the Posterior is simply Beta($\alpha_{prior} + k, \beta_{prior} + n - k$).
             The $\alpha$ and $\beta$ parameters can be thought of as "pseudo-counts" of prior successes and failures, which are simply added to the new observed counts.
             """)
+
 def render_multi_rule():
     """Renders the module for Multi-Rule SPC (Westgard Rules)."""
     st.markdown("""
@@ -2538,6 +2541,7 @@ def render_multi_rule():
     
     # Placeholder for the plotting function
     # In a real app, this function would generate data and check Westgard rule violations
+
 def render_westgard_rules_interactive():
     """Renders the interactive module for Multi-Rule SPC (Westgard Rules)."""
     st.markdown("""

@@ -482,15 +482,36 @@ def plot_ci_concept(n=30):
     
     return fig1, fig2, capture_count, n_sims, avg_width
     
-@st.cache_data
-def plot_gage_rr():
-    np.random.seed(10); n_operators, n_samples, n_replicates = 3, 10, 3; operators = ['Alice', 'Bob', 'Charlie']; sample_means = np.linspace(90, 110, n_samples); operator_bias = {'Alice': 0, 'Bob': -0.5, 'Charlie': 0.8}; data = []
+# The @st.cache_data decorator is removed to allow for dynamic regeneration.
+def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75):
+    """
+    Generates dynamic plots for the Gage R&R module based on user inputs.
+    """
+    np.random.seed(10)
+    n_operators, n_samples, n_replicates = 3, 10, 3
+    operators = ['Alice', 'Bob', 'Charlie']
+    
+    # Generate true part values based on the part_sd slider
+    true_part_values = np.random.normal(100, part_sd, n_samples)
+    
+    # Generate operator biases based on the operator_sd slider
+    operator_biases = np.random.normal(0, operator_sd, n_operators)
+    operator_bias_map = {op: bias for op, bias in zip(operators, operator_biases)}
+    
+    data = []
     for op_idx, operator in enumerate(operators):
-        for sample_idx, sample_mean in enumerate(sample_means):
-            measurements = np.random.normal(sample_mean + operator_bias[operator], 1.5, n_replicates)
-            for m_idx, m in enumerate(measurements): data.append([operator, f'Part_{sample_idx+1}', m, m_idx + 1])
+        for sample_idx, true_value in enumerate(true_part_values):
+            # Generate measurements using the operator bias and repeatability_sd slider
+            measurements = np.random.normal(true_value + operator_bias_map[operator], repeatability_sd, n_replicates)
+            for m_idx, m in enumerate(measurements):
+                data.append([operator, f'Part_{sample_idx+1}', m, m_idx + 1])
+    
     df = pd.DataFrame(data, columns=['Operator', 'Part', 'Measurement', 'Replicate'])
-    model = ols('Measurement ~ C(Part) + C(Operator) + C(Part):C(Operator)', data=df).fit(); anova_table = sm.stats.anova_lm(model, typ=2)
+    
+    # Perform ANOVA and calculate variance components
+    model = ols('Measurement ~ C(Part) + C(Operator) + C(Part):C(Operator)', data=df).fit()
+    anova_table = sm.stats.anova_lm(model, typ=2)
+    
     ms_operator = anova_table.loc['C(Operator)', 'sum_sq'] / anova_table.loc['C(Operator)', 'df']
     ms_part = anova_table.loc['C(Part)', 'sum_sq'] / anova_table.loc['C(Part)', 'df']
     ms_interaction = anova_table.loc['C(Part):C(Operator)', 'sum_sq'] / anova_table.loc['C(Part):C(Operator)', 'df']
@@ -503,9 +524,11 @@ def plot_gage_rr():
     var_part = max(0, (ms_part - ms_interaction) / (n_operators * n_replicates))
     var_rr = var_repeatability + var_reproducibility
     var_total = var_rr + var_part
+    
     pct_rr = (var_rr / var_total) * 100 if var_total > 0 else 0
     pct_part = (var_part / var_total) * 100 if var_total > 0 else 0
     
+    # Plotting (largely the same, just consumes the dynamic data)
     fig = make_subplots(rows=2, cols=2, column_widths=[0.7, 0.3], row_heights=[0.5, 0.5], specs=[[{"rowspan": 2}, {}], [None, {}]], subplot_titles=("<b>Variation by Part & Operator</b>", "<b>Overall Variation by Operator</b>", "<b>Variance Contribution</b>"))
     fig_box = px.box(df, x='Part', y='Measurement', color='Operator', color_discrete_sequence=px.colors.qualitative.Plotly)
     for trace in fig_box.data: fig.add_trace(trace, row=1, col=1)
@@ -518,6 +541,7 @@ def plot_gage_rr():
     fig.add_hline(y=10, line_dash="dash", line_color="darkgreen", annotation_text="Acceptable < 10%", annotation_position="bottom right", row=2, col=2)
     fig.add_hline(y=30, line_dash="dash", line_color="darkorange", annotation_text="Unacceptable > 30%", annotation_position="top right", row=2, col=2)
     fig.update_layout(title_text='<b>Gage R&R Study: ANOVA Method</b>', title_x=0.5, height=800, boxmode='group', showlegend=True); fig.update_xaxes(tickangle=45, row=1, col=1)
+    
     return fig, pct_rr, pct_part
 
 @st.cache_data
@@ -1698,74 +1722,79 @@ def render_core_validation_params():
             **Specificity is often assessed via Hypothesis Testing:** A Student's t-test compares the means of the "Analyte Only" and "Analyte + Interferent" groups. The null hypothesis ($H_0$) is that the means are equal. A high p-value (e.g., > 0.05) means we fail to reject $H_0$, providing evidence that the interferent has no significant effect.
             """)
 def render_gage_rr():
-    """Renders the interactive module for Gage R&R."""
+    """Renders the INTERACTIVE module for Gage R&R."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To rigorously quantify the inherent variability (error) of a measurement system and decompose it from the true, underlying variation of the process or product. A Gage R&R study is the definitive method for assessing the **metrological fitness-for-purpose** of any analytical method or instrument. It answers the fundamental question: "Is my measurement system a precision instrument, or a random number generator?"
+    **Purpose:** To rigorously quantify the inherent variability (error) of a measurement system. It answers the fundamental question: "Is my measurement system a precision instrument, or a random number generator?"
     
-    **Strategic Application:** This is the non-negotiable **foundational checkpoint** in any technology transfer, process validation, or serious quality improvement initiative. Attempting to characterize a process with an uncharacterized measurement system is scientifically invalid. An unreliable measurement system creates a "fog of uncertainty," injecting noise that can lead to two costly errors:
-    1.  **Type I Error (False Alarm):** The measurement system's noise makes a good batch appear out-of-spec, leading to unnecessary investigations and rejection of good product.
-    2.  **Type II Error (Missed Signal):** The noise masks a real process drift or shift, allowing a bad batch to be released, potentially leading to catastrophic field failures.
-
-    By partitioning the total observed variation into its distinct components—**Repeatability**, **Reproducibility**, and **Part-to-Part** variation—this analysis provides the objective, statistical evidence needed to trust your data.
+    **Strategic Application:** A foundational checkpoint in any technology transfer or process validation. An unreliable measurement system creates a "fog of uncertainty," leading to two costly errors: rejecting good product (False Alarm) or accepting bad product (Missed Signal). **Use the sliders in the sidebar to simulate different sources of variation and see their impact on the final % Gage R&R.**
     """)
+    
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("Gage R&R Controls")
+    part_sd_slider = st.sidebar.slider(
+        "🏭 Part-to-Part Variation (SD)", 
+        min_value=1.0, max_value=10.0, value=5.0, step=0.5,
+        help="The 'true' variation of the product. Increase this to see how a good measurement system can easily distinguish between different parts."
+    )
+    repeat_sd_slider = st.sidebar.slider(
+        "🔬 Repeatability (SD)", 
+        min_value=0.1, max_value=5.0, value=1.5, step=0.1,
+        help="The inherent 'noise' of the instrument/assay. Increase this to simulate a less precise measurement device."
+    )
+    operator_sd_slider = st.sidebar.slider(
+        "👤 Operator-to-Operator Variation (SD)", 
+        min_value=0.0, max_value=5.0, value=0.75, step=0.25,
+        help="The systematic bias between operators. Increase this to simulate poor training or inconsistent technique."
+    )
+    
+    # Generate plots using the slider values
+    fig, pct_rr, pct_part = plot_gage_rr(
+        part_sd=part_sd_slider, 
+        repeatability_sd=repeat_sd_slider, 
+        operator_sd=operator_sd_slider
+    )
+    
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        fig, pct_rr, pct_part = plot_gage_rr()
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse", help="This represents the percentage of the total observed variation that is consumed by measurement error.")
-            st.metric(label="💡 KPI: Number of Distinct Categories (ndc)", value=f"{int(1.41 * (pct_part / pct_rr)**0.5) if pct_rr > 0 else '>10'}", help="An estimate of how many distinct groups the measurement system can discern in the process data. A value < 5 is problematic.")
+            st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse", help="The percentage of total variation consumed by measurement error.")
+            st.metric(label="💡 KPI: Number of Distinct Categories (ndc)", value=f"{int(1.41 * (pct_part / pct_rr)**0.5) if pct_rr > 0 else '>10'}", help="An estimate of how many distinct groups the system can discern. A value < 5 is problematic.")
 
+            st.info("Play with the sliders in the sidebar to see how different sources of error affect the results!")
             st.markdown("""
-            - **Variation by Part & Operator (Main Plot):** The diagnostic heart of the study.
-                - *High Repeatability Error:* Wide boxes for a given operator, indicating the instrument/assay has poor precision. This is often a hardware or chemistry problem.
-                - *High Reproducibility Error:* The colored lines (operator means) are not parallel or are vertically offset. This is often a human factor or training issue.
-                - ***The Interaction Term:*** A significant Operator-by-Part interaction is the most insidious problem. It means operators are not just biased, but *inconsistently* biased. Operator A measures Part 1 high and Part 5 low, while Operator B does the opposite. This points to ambiguous instructions or a flawed measurement technique.
+            - **Increase `Part-to-Part Variation`:** Notice how the operator means (colored lines) spread further apart. A good measurement system should show this! Crucially, the **% Gage R&R KPI goes DOWN**, because the measurement error is now a smaller proportion of the total variation.
+            - **Increase `Repeatability`:** The box plots for each part get much wider. This is pure measurement noise. The **% Gage R&R KPI goes UP**.
+            - **Increase `Operator-to-Operator Variation`:** The colored mean lines separate vertically and the overall operator boxes (top right) drift apart. This is bias between people. The **% Gage R&R KPI goes UP**.
 
-            - **The "Number of Distinct Categories" (ndc):** This powerful metric translates %R&R into practical terms. It estimates how many non-overlapping groups your measurement system can reliably distinguish within your process's variation.
-                - `ndc = 1`: The system is useless; it cannot even tell the difference between a high part and a low part.
-                - `ndc = 2-4`: The system can only perform crude screening (e.g., pass/fail).
-                - `ndc ≥ 5`: The system is considered adequate for process control.
-
-            **The Core Strategic Insight:** A low % Gage R&R validates your measurement system as a trustworthy "ruler," confirming that the variation you observe reflects genuine process dynamics, not measurement noise. A high value means your ruler is "spongy," making any conclusions about your process's health statistically indefensible. **You cannot manage what you cannot reliably measure.**
+            **The Core Strategic Insight:** A low % Gage R&R is achieved when the measurement error (Repeatability + Reproducibility) is small *relative to* the true process variation.
             """)
 
         with tabs[1]:
-            st.markdown("Acceptance criteria are risk-based and derived from the **AIAG's Measurement Systems Analysis (MSA)** manual, the de facto global standard. The percentage is calculated against the **total study variation**.")
-            st.markdown("- **< 10% Gage R&R:** The system is **acceptable**. The 'fog of uncertainty' is minimal. The system can reliably detect process shifts and can be used for SPC and capability analysis.")
-            st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable or marginal**. Its use may be approved for less critical characteristics, but it is likely unsuitable for controlling a critical-to-quality parameter. This result should trigger an improvement project for the measurement method.")
-            st.markdown("- **> 30% Gage R&R:** The system is **unacceptable and must be rejected**. Data generated by this system is untrustworthy. Using this system for process decisions is equivalent to making decisions by flipping a coin. The method must be fundamentally improved.")
+            st.markdown("Acceptance criteria are risk-based and derived from the **AIAG's Measurement Systems Analysis (MSA)** manual, the de facto global standard.")
+            st.markdown("- **< 10% Gage R&R:** The system is **acceptable**.")
+            st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable or marginal**.")
+            st.markdown("- **> 30% Gage R&R:** The system is **unacceptable and must be rejected**.")
             st.info("""
-            **Beyond the Numbers: The Part Selection Strategy**
-            The most common failure mode of a Gage R&R study is not the math, but the study design. The parts selected **must span the full expected range of process variation**. If you only select parts from the middle of the distribution, your Part-to-Part variation will be artificially low, which will mathematically inflate your % Gage R&R and cause a good system to fail. A robust study includes parts from near the Lower and Upper Specification Limits.
+            **The Part Selection Strategy:** The most common failure mode of a Gage R&R study is not the math, but the study design. The parts selected **must span the full expected range of process variation**. If you only select parts from the middle of the distribution, your Part-to-Part variation will be artificially low, which will mathematically inflate your % Gage R&R and cause a good system to fail.
             """)
             
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            While the concepts are old, their modern application was born out of the quality crisis in the American automotive industry in the 1970s. Guided by luminaries like **W. Edwards Deming**, manufacturers realized they were often "tampering" with their processes—adjusting a stable process based on faulty measurement data, thereby *increasing* variation.
-            
-            The **AIAG** codified the solution in the first MSA manual. The critical evolution was the move from the simple **Average and Range (X-bar & R) method** to the **ANOVA method**. The X-bar & R method is computationally simpler but has a critical flaw: it confounds the operator-part interaction with reproducibility. The **ANOVA method**, pioneered for agriculture by statistician **Sir Ronald A. Fisher**, became the gold standard because of its unique ability to cleanly partition and test the significance of each variance component, including the crucial interaction term.
+            The modern application was born out of the quality crisis in the American automotive industry in the 1970s. The **AIAG** codified the solution in the first MSA manual. The critical evolution was the move from the simple **Average and Range (X-bar & R) method** to the **ANOVA method**. The ANOVA method, pioneered by **Sir Ronald A. Fisher**, became the gold standard because of its unique ability to cleanly partition and test the significance of each variance component, including the crucial interaction term.
             
             #### Mathematical Basis
             The ANOVA method partitions the total sum of squared deviations from the mean ($SS_T$) into components attributable to each factor.
             """)
             st.latex(r"SS_{Total} = SS_{Part} + SS_{Operator} + SS_{Part \times Operator} + SS_{Error}")
-            st.markdown("""
-            These sums of squares are then converted to Mean Squares (MS) by dividing by their respective degrees of freedom (df). The variance components ($\hat{\sigma}^2$) are then estimated from these MS values.
-            - **Repeatability (Equipment Variation, EV):** The inherent random error of the measurement process.
-            """)
-            st.latex(r"\hat{\sigma}^2_{Repeatability} = MS_{Error}")
-            st.markdown("- **Reproducibility (Appraiser Variation, AV):** The variation between operators, composed of the pure operator effect and the interaction effect.")
-            st.latex(r"\hat{\sigma}^2_{Reproducibility} = \hat{\sigma}^2_{Operator} + \hat{\sigma}^2_{Interaction}")
-            st.latex(r"\text{where } \hat{\sigma}^2_{Operator} = \frac{MS_{Operator} - MS_{Interaction}}{n_{parts} \cdot n_{replicates}}")
-            st.warning("**Negative Variance Components:** It is mathematically possible for these formulas to yield a negative variance for a term. This is a statistical artifact. The correct interpretation is that the true variance component is zero, and it should be set to zero for calculating the final %R&R.")
-
+            st.markdown("These are converted to Mean Squares (MS) and then to variance components ($\hat{\sigma}^2$).")
+            
 def render_linearity():
     """Renders the interactive module for Linearity analysis."""
     st.markdown("""

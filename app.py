@@ -311,54 +311,50 @@ def plot_chronological_timeline():
 
 @st.cache_data
 def create_toolkit_conceptual_map():
-    """Creates a conceptual map of all the tools in the toolkit."""
+    """Creates an improved conceptual map of all the tools in the toolkit."""
     
-    # Define the nodes: {KEY: (Full Name, x_pos, y_pos)}
-    # X positions represent the level of hierarchy.
+    # FIX: Node dictionary is updated with a "short name" for rendering and adjusted coordinates to prevent overlap.
+    # Structure is {KEY: (Full Name, 'Short<br>Name', x_pos, y_pos)}
     nodes = {
         # Level 0: Broadest Categories
-        'FOUND_STATS': ('Foundational Statistics', 0, 6),
-        'PROC_QC': ('Process & Quality Control', 0, 2),
-        'ADV_ANALYTICS': ('Advanced Analytics (ML/AI)', 0, -2.5),
+        'FOUND_STATS': ('Foundational Statistics', 'Foundational<br>Statistics', 0, 6),
+        'PROC_QC': ('Process & Quality Control', 'Process &<br>Quality Control', 0, 0),
+        'ADV_ANALYTICS': ('Advanced Analytics (ML/AI)', 'Advanced Analytics<br>(ML/AI)', 0, -6),
         
         # Level 1: Core Methodologies
-        'STAT_INF': ('Statistical Inference', 1, 8),
-        'REG_MOD': ('Regression Models', 1, 6),
-        'MSA': ('Measurement Systems Analysis', 1, 4),
-        'SPC': ('Statistical Process Control', 1, 2),
-        'VALIDATION': ('Validation & Lifecycle', 1, 0),
-        'PRED_MOD': ('Predictive Modeling', 1, -1.5),
-        'UNSUP_LRN': ('Unsupervised Learning', 1, -3.5),
+        'STAT_INF': ('Statistical Inference', 'Statistical<br>Inference', 1.5, 9),
+        'REG_MOD': ('Regression Models', 'Regression<br>Models', 1.5, 6),
+        'MSA': ('Measurement Systems Analysis', 'Measurement<br>Systems Analysis', 1.5, 3),
+        'SPC': ('Statistical Process Control', 'Statistical<br>Process Control', 1.5, 0),
+        'VALIDATION': ('Validation & Lifecycle', 'Validation &<br>Lifecycle', 1.5, -3),
+        'PRED_MOD': ('Predictive Modeling', 'Predictive<br>Modeling', 1.5, -6),
+        'UNSUP_LRN': ('Unsupervised Learning', 'Unsupervised<br>Learning', 1.5, -9),
         
-        # Level 2: Specific App Tools
-        'CI': ('Confidence Interval Concept', 2, 9),
-        'TOST': ('Equivalence Testing (TOST)', 2, 8),
-        'BAYES': ('Bayesian Inference', 2, 7),
-        'LIN': ('Linearity & Range', 2, 6),
-        '4PL': ('Non-Linear Regression (4PL/5PL)', 2, 5),
-        'GAGE': ('Gage R&R / VCA', 2, 4),
-        'METH_COMP': ('Method Comparison', 2, 3),
-        'SPC_CHART': ('Process Stability (SPC)', 2, 2.25),
-        'SMALL_SHIFT': ('Small Shift Detection', 2, 1.5),
-        'MV_SPC': ('Multivariate SPC', 2, 0.75),
-        'STABILITY': ('Stability Analysis (Shelf-Life)', 2, 0),
-        'CAPA': ('Process Capability (Cpk)', 2, -1),
-        'TOL_INT': ('Tolerance Intervals', 2, -2),
-        'SURVIVAL': ('Reliability / Survival Analysis', 2, -3),
-        'ANOMALY': ('Anomaly Detection', 2, -4),
-        'CLUSTER': ('Clustering (Unsupervised)', 2, -5),
-        'PRED_QC': ('Predictive QC (Classification)', 2, -6),
-        'XAI': ('Explainable AI (XAI)', 2, -7),
+        # Level 2: Specific App Tools (y-coordinates are spaced out)
+        'CI': ('Confidence Interval Concept', 'Confidence<br>Intervals', 3, 10.5),
+        'TOST': ('Equivalence Testing (TOST)', 'Equivalence<br>Testing (TOST)', 3, 9.5),
+        'BAYES': ('Bayesian Inference', 'Bayesian<br>Inference', 3, 8.5),
+        'LIN': ('Linearity & Range', 'Linearity<br>& Range', 3, 7),
+        '4PL': ('Non-Linear Regression (4PL/5PL)', 'Non-Linear<br>Regression', 3, 6),
+        'STABILITY': ('Stability Analysis (Shelf-Life)', 'Stability<br>Analysis', 3, 5),
+        'GAGE': ('Gage R&R / VCA', 'Gage R&R<br>/ VCA', 3, 3.5),
+        'METH_COMP': ('Method Comparison', 'Method<br>Comparison', 3, 2.5),
+        'SPC_CHART': ('Process Stability (SPC)', 'Process<br>Stability (SPC)', 3, 1.5),
+        'SMALL_SHIFT': ('Small Shift Detection', 'Small Shift<br>Detection', 3, 0.5),
+        'MV_SPC': ('Multivariate SPC', 'Multivariate<br>SPC', 3, -0.5),
+        'CAPA': ('Process Capability (Cpk)', 'Process<br>Capability (Cpk)', 3, -2),
+        'TOL_INT': ('Tolerance Intervals', 'Tolerance<br>Intervals', 3, -3),
+        'SURVIVAL': ('Reliability / Survival Analysis', 'Reliability /<br>Survival Analysis', 3, -4),
+        'PRED_QC': ('Predictive QC (Classification)', 'Predictive QC<br>(Classification)', 3, -5.5),
+        'XAI': ('Explainable AI (XAI)', 'Explainable AI<br>(XAI)', 3, -6.5),
+        'ANOMALY': ('Anomaly Detection', 'Anomaly<br>Detection', 3, -8),
+        'CLUSTER': ('Clustering (Unsupervised)', 'Clustering<br>(Unsupervised)', 3, -9),
     }
 
-    # Define the edges connecting the nodes: [(start_key, end_key)]
     edges = [
-        # Connections from Level 0 to Level 1
         ('FOUND_STATS', 'STAT_INF'), ('FOUND_STATS', 'REG_MOD'),
         ('PROC_QC', 'MSA'), ('PROC_QC', 'SPC'), ('PROC_QC', 'VALIDATION'),
         ('ADV_ANALYTICS', 'PRED_MOD'), ('ADV_ANALYTICS', 'UNSUP_LRN'),
-        
-        # Connections from Level 1 to Level 2 (the tools)
         ('STAT_INF', 'CI'), ('STAT_INF', 'TOST'), ('STAT_INF', 'BAYES'),
         ('REG_MOD', 'LIN'), ('REG_MOD', '4PL'), ('REG_MOD', 'STABILITY'),
         ('MSA', 'GAGE'), ('MSA', 'METH_COMP'),
@@ -370,37 +366,31 @@ def create_toolkit_conceptual_map():
 
     fig = go.Figure()
 
-    # Draw Edges first (so they are in the background)
     for start, end in edges:
         fig.add_trace(go.Scatter(
-            x=[nodes[start][1], nodes[end][1]],
-            y=[nodes[start][2], nodes[end][2]],
-            mode='lines',
-            line=dict(color='lightgrey', width=2),
-            hoverinfo='none'
+            x=[nodes[start][2], nodes[end][2]], y=[nodes[start][3], nodes[end][3]],
+            mode='lines', line=dict(color='lightgrey', width=2), hoverinfo='none'
         ))
 
-    # Draw Nodes
-    node_x = [v[1] for v in nodes.values()]
-    node_y = [v[2] for v in nodes.values()]
-    node_text = [v[0] for v in nodes.values()]
+    node_x = [v[2] for v in nodes.values()]
+    node_y = [v[3] for v in nodes.values()]
+    short_text = [v[1] for v in nodes.values()]
+    full_text = [v[0] for v in nodes.values()]
     
-    # Define colors based on the hierarchy level (x-position)
     node_colors = []
     for x in node_x:
-        if x == 0:
-            node_colors.append('#004d40')  # Darkest for Level 0
-        elif x == 1:
-            node_colors.append('#00897b')  # Medium for Level 1
-        else:
-            node_colors.append('#4db6ac')  # Lightest for Level 2 (Tools)
+        if x == 0: node_colors.append('#004d40')
+        elif x == 1.5: node_colors.append('#00897b')
+        else: node_colors.append('#4db6ac')
 
     fig.add_trace(go.Scatter(
-        x=node_x, y=node_y, text=node_text,
+        x=node_x, y=node_y, text=short_text,
         mode='markers+text',
         textposition="middle center",
-        marker=dict(size=55, color=node_colors, symbol='circle', line=dict(width=2, color='black')),
+        # FIX: Increased marker size
+        marker=dict(size=80, color=node_colors, symbol='circle', line=dict(width=2, color='black')),
         textfont=dict(size=10, color='white'),
+        hovertext=full_text,
         hoverinfo='text'
     ))
 
@@ -408,8 +398,9 @@ def create_toolkit_conceptual_map():
         title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
         showlegend=False,
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-8, 10]),
-        height=900,
+        # FIX: Adjusted y-axis range to fit new layout
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 11.5]),
+        height=1000,
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#f0f2f6'

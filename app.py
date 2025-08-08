@@ -310,6 +310,113 @@ def plot_chronological_timeline():
     return fig
 
 @st.cache_data
+def create_toolkit_conceptual_map():
+    """Creates a conceptual map of all the tools in the toolkit."""
+    
+    # Define the nodes: {KEY: (Full Name, x_pos, y_pos)}
+    # X positions represent the level of hierarchy.
+    nodes = {
+        # Level 0: Broadest Categories
+        'FOUND_STATS': ('Foundational Statistics', 0, 6),
+        'PROC_QC': ('Process & Quality Control', 0, 2),
+        'ADV_ANALYTICS': ('Advanced Analytics (ML/AI)', 0, -2.5),
+        
+        # Level 1: Core Methodologies
+        'STAT_INF': ('Statistical Inference', 1, 8),
+        'REG_MOD': ('Regression Models', 1, 6),
+        'MSA': ('Measurement Systems Analysis', 1, 4),
+        'SPC': ('Statistical Process Control', 1, 2),
+        'VALIDATION': ('Validation & Lifecycle', 1, 0),
+        'PRED_MOD': ('Predictive Modeling', 1, -1.5),
+        'UNSUP_LRN': ('Unsupervised Learning', 1, -3.5),
+        
+        # Level 2: Specific App Tools
+        'CI': ('Confidence Interval Concept', 2, 9),
+        'TOST': ('Equivalence Testing (TOST)', 2, 8),
+        'BAYES': ('Bayesian Inference', 2, 7),
+        'LIN': ('Linearity & Range', 2, 6),
+        '4PL': ('Non-Linear Regression (4PL/5PL)', 2, 5),
+        'GAGE': ('Gage R&R / VCA', 2, 4),
+        'METH_COMP': ('Method Comparison', 2, 3),
+        'SPC_CHART': ('Process Stability (SPC)', 2, 2.25),
+        'SMALL_SHIFT': ('Small Shift Detection', 2, 1.5),
+        'MV_SPC': ('Multivariate SPC', 2, 0.75),
+        'STABILITY': ('Stability Analysis (Shelf-Life)', 2, 0),
+        'CAPA': ('Process Capability (Cpk)', 2, -1),
+        'TOL_INT': ('Tolerance Intervals', 2, -2),
+        'SURVIVAL': ('Reliability / Survival Analysis', 2, -3),
+        'ANOMALY': ('Anomaly Detection', 2, -4),
+        'CLUSTER': ('Clustering (Unsupervised)', 2, -5),
+        'PRED_QC': ('Predictive QC (Classification)', 2, -6),
+        'XAI': ('Explainable AI (XAI)', 2, -7),
+    }
+
+    # Define the edges connecting the nodes: [(start_key, end_key)]
+    edges = [
+        # Connections from Level 0 to Level 1
+        ('FOUND_STATS', 'STAT_INF'), ('FOUND_STATS', 'REG_MOD'),
+        ('PROC_QC', 'MSA'), ('PROC_QC', 'SPC'), ('PROC_QC', 'VALIDATION'),
+        ('ADV_ANALYTICS', 'PRED_MOD'), ('ADV_ANALYTICS', 'UNSUP_LRN'),
+        
+        # Connections from Level 1 to Level 2 (the tools)
+        ('STAT_INF', 'CI'), ('STAT_INF', 'TOST'), ('STAT_INF', 'BAYES'),
+        ('REG_MOD', 'LIN'), ('REG_MOD', '4PL'), ('REG_MOD', 'STABILITY'),
+        ('MSA', 'GAGE'), ('MSA', 'METH_COMP'),
+        ('SPC', 'SPC_CHART'), ('SPC', 'SMALL_SHIFT'), ('SPC', 'MV_SPC'),
+        ('VALIDATION', 'CAPA'), ('VALIDATION', 'TOL_INT'), ('VALIDATION', 'SURVIVAL'),
+        ('UNSUP_LRN', 'ANOMALY'), ('UNSUP_LRN', 'CLUSTER'),
+        ('PRED_MOD', 'PRED_QC'), ('PRED_MOD', 'XAI'),
+    ]
+
+    fig = go.Figure()
+
+    # Draw Edges first (so they are in the background)
+    for start, end in edges:
+        fig.add_trace(go.Scatter(
+            x=[nodes[start][1], nodes[end][1]],
+            y=[nodes[start][2], nodes[end][2]],
+            mode='lines',
+            line=dict(color='lightgrey', width=2),
+            hoverinfo='none'
+        ))
+
+    # Draw Nodes
+    node_x = [v[1] for v in nodes.values()]
+    node_y = [v[2] for v in nodes.values()]
+    node_text = [v[0] for v in nodes.values()]
+    
+    # Define colors based on the hierarchy level (x-position)
+    node_colors = []
+    for x in node_x:
+        if x == 0:
+            node_colors.append('#004d40')  # Darkest for Level 0
+        elif x == 1:
+            node_colors.append('#00897b')  # Medium for Level 1
+        else:
+            node_colors.append('#4db6ac')  # Lightest for Level 2 (Tools)
+
+    fig.add_trace(go.Scatter(
+        x=node_x, y=node_y, text=node_text,
+        mode='markers+text',
+        textposition="middle center",
+        marker=dict(size=55, color=node_colors, symbol='circle', line=dict(width=2, color='black')),
+        textfont=dict(size=10, color='white'),
+        hoverinfo='text'
+    ))
+
+    fig.update_layout(
+        title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
+        showlegend=False,
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-8, 10]),
+        height=900,
+        margin=dict(l=20, r=20, t=60, b=20),
+        plot_bgcolor='#FFFFFF',
+        paper_bgcolor='#f0f2f6'
+    )
+    return fig
+
+@st.cache_data
 def plot_ci_concept(n=30):
     """
     Generates plots for the confidence interval concept module.
@@ -1390,6 +1497,10 @@ def render_introduction_content():
     st.header("⏳ A Chronological View of V&V Analytics")
     st.markdown("This timeline organizes the same tools purely by their year of invention, showing the evolution of statistical and machine learning thought over the last century.")
     st.plotly_chart(plot_chronological_timeline(), use_container_width=True)
+
+    st.header("🗺️ Conceptual Map of Tools")
+    st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
+    st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
 
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)

@@ -1361,6 +1361,7 @@ def render_causal_inference():
     By building this graph based on SME knowledge, we can use statistical techniques (like do-calculus or structural equation modeling) to estimate the true, isolated causal effect of one variable on another, even in the presence of confounding.
     """)
 
+
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
 # THIS SECTION MUST COME AFTER ALL 'render' FUNCTIONS HAVE BEEN DEFINED
@@ -1434,6 +1435,7 @@ with st.sidebar.expander("ACT III: LIFECYCLE & PREDICTIVE MGMT", expanded=True):
     act3_icons = [ICONS.get(opt, "question-circle") for opt in act3_options]
     option_menu(None, act3_options, icons=act3_icons, menu_icon="cast", key='act3_menu', on_change=update_method,
                 default_index=act3_options.index(st.session_state.method_key) if st.session_state.method_key in act3_options else 0)
+
 
 # --- Main Content Area Dispatcher ---
 method_key = st.session_state.method_key

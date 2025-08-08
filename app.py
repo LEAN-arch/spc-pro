@@ -682,20 +682,17 @@ def plot_survival_analysis():
     np.random.seed(42)
     # Simulate time-to-event data for two groups
     time_A = stats.weibull_min.rvs(c=1.5, scale=20, size=50)
-    censor_A = np.random.binomial(1, 0.2, 50) # 1=censored
+    censor_A = np.random.binomial(1, 0.2, 50) # 0=event, 1=censored
     time_B = stats.weibull_min.rvs(c=1.5, scale=30, size=50)
     censor_B = np.random.binomial(1, 0.2, 50)
 
-    # Corrected Kaplan-Meier function
+    # CORRECTED Kaplan-Meier function
     def kaplan_meier(times, events):
         df = pd.DataFrame({'time': times, 'event': events}).sort_values('time').reset_index(drop=True)
-        
-        # Get unique event times
-        event_times = df.loc[df['event'] == 1, 'time'].unique()
-        event_times = np.sort(event_times)
+        unique_times = df['time'][df['event'] == 1].unique()
         
         km_df = pd.DataFrame({
-            'time': np.append([0], event_times),
+            'time': np.append([0], unique_times),
             'n_at_risk': 0,
             'n_events': 0,
         })
@@ -704,7 +701,6 @@ def plot_survival_analysis():
         for i, t in enumerate(km_df['time']):
             at_risk = (df['time'] >= t).sum()
             events_at_t = ((df['time'] == t) & (df['event'] == 1)).sum()
-            
             km_df.loc[i, 'n_at_risk'] = at_risk
             km_df.loc[i, 'n_events'] = events_at_t
 
@@ -833,22 +829,23 @@ def plot_classification_models():
 
 @st.cache_data
 def plot_xai_shap():
+    # This function uses matplotlib backend for SHAP, so we need to handle image conversion
+    plt.style.use('default')
     X, y = shap.datasets.adult()
-    X_display, y_display = shap.datasets.adult(display=True)
+    X_display, _ = shap.datasets.adult(display=True)
     model = RandomForestClassifier(random_state=42).fit(X, y)
     explainer = shap.Explainer(model, X)
-    shap_values_obj = explainer(X.iloc[:100]) # Use the raw X for explanation
-    shap_values = shap_values_obj.values
+    shap_values_obj = explainer(X.iloc[:100])
     
     # Beeswarm plot as an image
-    shap.summary_plot(shap_values[:,:,1], X.iloc[:100], show=False)
+    shap.summary_plot(shap_values_obj.values[:,:,1], X.iloc[:100], show=False)
     buf_summary = io.BytesIO()
     plt.savefig(buf_summary, format='png', bbox_inches='tight')
     plt.close()
     buf_summary.seek(0)
     
     # Force plot as html
-    force_plot_html = shap.force_plot(explainer.expected_value[1], shap_values[0,:,1], X_display.iloc[0,:], show=False)
+    force_plot_html = shap.force_plot(explainer.expected_value[1], shap_values_obj.values[0,:,1], X_display.iloc[0,:], show=False)
     html_string = force_plot_html.html()
 
     return buf_summary, html_string
@@ -908,12 +905,8 @@ def plot_causal_inference():
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================
-
-# ==============================================================================
-# UI RENDERING FUNCTIONS
-# ==============================================================================
-
 def render_ci_concept():
+    """Renders the interactive module for Confidence Intervals."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To build a deep, intuitive understanding of the fundamental concept of a **frequentist confidence interval** and to correctly interpret what it does—and does not—tell us.
@@ -921,26 +914,28 @@ def render_ci_concept():
     **Strategic Application:** This concept is the bedrock of all statistical inference in a frequentist framework. A misunderstanding of CIs leads to flawed conclusions and poor decision-making. This interactive simulation directly impacts resource planning and risk assessment. It allows scientists and managers to explore the crucial trade-off between **sample size (cost)** and **statistical precision (certainty)**. It provides a visual, data-driven answer to the perpetual question: "How many samples do we *really* need to run to get a reliable result and an acceptably narrow confidence interval?"
     """)
     n_slider = st.sidebar.slider("Select Sample Size (n) for Each Simulated Experiment:", 5, 100, 30, 5)
+    
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         fig1_ci, fig2_ci, capture_count, n_sims, avg_width = plot_ci_concept(n=n_slider)
         st.plotly_chart(fig1_ci, use_container_width=True)
         st.plotly_chart(fig2_ci, use_container_width=True)
+        
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights & Interpretation", "✅ The Golden Rule", "📖 Method Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         with tabs[0]:
             st.metric(label=f"📈 KPI: Average CI Width (Precision) at n={n_slider}", value=f"{avg_width:.2f} units", help="A smaller width indicates higher precision. This is inversely proportional to the square root of n.")
             st.metric(label="💡 Empirical Coverage Rate", value=f"{(capture_count/n_sims):.0%}", help=f"The % of our {n_sims} simulated CIs that successfully 'captured' the true population mean. Should be close to 95%.")
             st.markdown("""
-            - **Theoretical Universe (Top):**
-                - The wide, light blue curve is the **true population distribution**. In real life, we never see this. It represents every possible measurement.
+            - **Theoretical Universe (Top Plot):**
+                - The wide, light blue curve is the **true population distribution**. In real life, we *never* see this. It represents every possible measurement.
                 - The narrow, orange curve is the **sampling distribution of the mean**. This is a theoretical distribution of *all possible sample means* of size `n`. Its narrowness, guaranteed by the **Central Limit Theorem**, is the miracle that makes statistical inference possible.
-            - **CI Simulation (Bottom):** This plot shows the reality we live in. We only get to run *one* experiment and get *one* confidence interval (e.g., the first blue line). We don't know if ours is one of the 95 that captured the true mean or one of the 5 that missed.
+            - **CI Simulation (Bottom Plot):** This plot shows the reality we live in. We only get to run *one* experiment and get *one* confidence interval (e.g., the first blue line). We don't know if ours is one of the 95 that captured the true mean or one of the 5 that missed.
             - **The n-slider is key:** As you increase `n`, the orange curve gets narrower and the CIs in the bottom plot become dramatically shorter. This shows that precision is a direct function of sample size.
-            - **Diminishing Returns:** The gain in precision from n=5 to n=20 is huge. The gain from n=80 to n=100 is much smaller. This illustrates that the cost of doubling precision is a quadrupling of sample size, as precision scales with $\sqrt{n}$.
+            - **Diminishing Returns:** The gain in precision from n=5 to n=20 is huge. The gain from n=80 to n=100 is much smaller. This illustrates the cost of increased precision: to double your precision (halve the CI width), you must quadruple your sample size, as precision scales with $\sqrt{n}$.
 
-            **The Core Strategic Insight:** A confidence interval is a statement about the *procedure*, not the result. The "95% confidence" is our confidence in the *method* used to generate the interval, not in any single interval itself. We are confident that if we were to repeat our experiment 100 times, roughly 95 of the resulting CIs would contain the true, unknown mean.
+            **The Core Strategic Insight:** A confidence interval is a statement about the *procedure*, not a specific result. The "95% confidence" is our confidence in the *method* used to generate the interval, not in any single interval itself. We are confident that if we were to repeat our experiment 100 times, roughly 95 of the resulting CIs would contain the true, unknown parameter.
             """)
         with tabs[1]:
             st.error("""
@@ -958,9 +953,9 @@ def render_ci_concept():
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The concept of **confidence intervals** was introduced to the world by the brilliant Polish-American mathematician and statistician **Jerzy Neyman** in a landmark 1937 paper. Neyman was a fierce advocate for the frequentist school of statistics and sought a rigorously objective method for interval estimation that did not rely on the "subjective" priors of Bayesian inference.
+            The concept of **confidence intervals** was introduced to the world by the brilliant Polish-American mathematician and statistician **Jerzy Neyman** in a landmark 1937 paper. Neyman, a fierce advocate for the frequentist school, sought a rigorously objective method for interval estimation that did not rely on the "subjective" priors of Bayesian inference.
             
-            He was a philosophical rival of Sir R.A. Fisher, who had proposed a similar concept called a "fiducial interval," which attempted to assign a probability distribution to a fixed parameter. Neyman found this logically incoherent. His revolutionary idea was to shift the probabilistic statement away from the fixed, unknown parameter and onto the **procedure used to create the interval**. This clever reframing provided a practical and logically consistent solution that quickly became, and remains, the dominant paradigm for interval estimation in applied statistics worldwide.
+            He was a philosophical rival of Sir R.A. Fisher, who had proposed a similar concept called a "fiducial interval," which attempted to assign a probability distribution to a fixed parameter. Neyman found this logically incoherent. His revolutionary idea was to shift the probabilistic statement away from the fixed, unknown parameter and onto the **procedure used to create the interval**. This clever reframing provided a practical and logically consistent solution that remains the dominant paradigm for interval estimation in applied statistics worldwide.
             
             #### Mathematical Basis
             The general form of a two-sided confidence interval is a combination of three components:
@@ -969,7 +964,7 @@ def render_ci_concept():
             st.latex(r"\text{Margin of Error} = (\text{Critical Value} \times \text{Standard Error})")
             st.markdown("""
             - **Point Estimate:** Our best single-value guess for the population parameter (e.g., the sample mean, $\bar{x}$).
-            - **Standard Error:** The standard deviation of the sampling distribution of the point estimate. For the mean, this is $\frac{s}{\sqrt{n}}$, where $s$ is the sample standard deviation. It measures the typical error in our point estimate. Note that it shrinks as the square root of the sample size, `n`.
+            - **Standard Error:** The standard deviation of the sampling distribution of the point estimate. For the mean, this is $\frac{s}{\sqrt{n}}$, where $s$ is the sample standard deviation. It measures the typical error in our point estimate and shrinks as `n` increases.
             - **Critical Value:** A multiplier determined by our desired confidence level and the relevant statistical distribution (e.g., a z-score from the normal distribution or a t-score from the Student's t-distribution). For a 95% CI, this value is typically close to 2.
             
             For the mean, this results in the familiar formula:
@@ -977,11 +972,12 @@ def render_ci_concept():
             st.latex(r"CI = \bar{x} \pm t_{\alpha/2, n-1} \frac{s}{\sqrt{n}}")
 
 def render_core_validation_params():
+    """Renders the module for core validation parameters (Accuracy, Precision, Specificity)."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To formally establish the fundamental performance characteristics of an analytical method as required by regulatory guidelines like ICH Q2(R1). This module covers three of the most important parameters:
     - **Accuracy:** The closeness of agreement between the value which is accepted as a conventional true value and the value found. It measures systematic error or bias.
-    - **Precision:** The closeness of agreement (degree of scatter) between a series of measurements obtained from multiple samplings of the same homogeneous sample under the prescribed conditions. It measures random error.
+    - **Precision:** The closeness of agreement (degree of scatter) between a series of measurements obtained from multiple samplings of the same homogeneous sample. It measures random error.
     - **Specificity:** The ability to assess unequivocally the analyte in the presence of components which may be expected to be present, such as impurities, degradants, or matrix components.
 
     **Strategic Application:** These parameters are the non-negotiable "big three" of any formal assay validation report. They provide the core, objective evidence that the method is fit for its intended purpose. Failing to adequately characterize any of these parameters would be a major deficiency in a regulatory submission.
@@ -997,7 +993,7 @@ def render_core_validation_params():
     st.markdown("""
     **Interpretation of Precision:** The violin plots visualize the spread of the data.
     - **Repeatability** (intra-assay precision) shows the spread from repeated measurements in one run. A narrow distribution indicates low random error under ideal conditions.
-    - **Intermediate Precision** shows the spread when conditions like the day, analyst, or equipment vary. A wider distribution here than for repeatability is expected, but it must still be within acceptable limits (e.g., %CV < 15%). This demonstrates the method's robustness to routine operational variability.
+    - **Intermediate Precision** (inter-assay precision) shows the spread when conditions like the day, analyst, or equipment vary. A wider distribution here than for repeatability is expected, but it must still be within acceptable limits (e.g., %CV < 15%). This demonstrates the method's robustness to routine operational variability.
     """)
 
     st.plotly_chart(fig3, use_container_width=True)
@@ -1005,7 +1001,475 @@ def render_core_validation_params():
     **Interpretation of Specificity:** This study tests for interference. The goal is to show that the signal from the "Analyte Only" is statistically indistinguishable from the signal for "Analyte + Interferent," and both are significantly higher than the "Matrix Blank". If the interferent significantly increases or decreases the signal, the method is not specific and may not be suitable for analyzing complex samples.
     """)
 
+def render_gage_rr():
+    """Renders the interactive module for Gage R&R."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To rigorously quantify the inherent variability (error) of a measurement system and decompose it from the true, underlying variation of the process or product. A Gage R&R study is the definitive method for assessing the **metrological fitness-for-purpose** of any analytical method or instrument. It answers the fundamental question: "Is my measurement system a precision instrument, or a random number generator?"
+    
+    **Strategic Application:** This is the non-negotiable **foundational checkpoint** in any technology transfer, process validation, or serious quality improvement initiative. Attempting to characterize a process with an uncharacterized measurement system is scientifically invalid. An unreliable measurement system creates a "fog of uncertainty," injecting noise that can lead to two costly errors:
+    1.  **Type I Error (False Alarm):** The measurement system's noise makes a good batch appear out-of-spec, leading to unnecessary investigations and rejection of good product.
+    2.  **Type II Error (Missed Signal):** The noise masks a real process drift or shift, allowing a bad batch to be released, potentially leading to catastrophic field failures.
+
+    By partitioning the total observed variation into its distinct components—**Repeatability**, **Reproducibility**, and **Part-to-Part** variation—this analysis provides the objective, statistical evidence needed to trust your data.
+    """)
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, pct_rr, pct_part = plot_gage_rr()
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse", help="This represents the percentage of the total observed variation that is consumed by measurement error.")
+            st.metric(label="💡 KPI: Number of Distinct Categories (ndc)", value=f"{int(1.41 * (pct_part / pct_rr)**0.5) if pct_rr > 0 else '>10'}", help="An estimate of how many distinct groups the measurement system can discern in the process data. A value < 5 is problematic.")
+
+            st.markdown("""
+            - **Variation by Part & Operator (Main Plot):** The diagnostic heart of the study.
+                - *High Repeatability Error:* Wide boxes for a given operator, indicating the instrument/assay has poor precision. This is often a hardware or chemistry problem.
+                - *High Reproducibility Error:* The colored lines (operator means) are not parallel or are vertically offset. This is often a human factor or training issue.
+                - ***The Interaction Term:*** A significant Operator-by-Part interaction is the most insidious problem. It means operators are not just biased, but *inconsistently* biased. Operator A measures Part 1 high and Part 5 low, while Operator B does the opposite. This points to ambiguous instructions or a flawed measurement technique.
+
+            - **The "Number of Distinct Categories" (ndc):** This powerful metric translates %R&R into practical terms. It estimates how many non-overlapping groups your measurement system can reliably distinguish within your process's variation.
+                - `ndc = 1`: The system is useless; it cannot even tell the difference between a high part and a low part.
+                - `ndc = 2-4`: The system can only perform crude screening (e.g., pass/fail).
+                - `ndc ≥ 5`: The system is considered adequate for process control.
+
+            **The Core Strategic Insight:** A low % Gage R&R validates your measurement system as a trustworthy "ruler," confirming that the variation you observe reflects genuine process dynamics, not measurement noise. A high value means your ruler is "spongy," making any conclusions about your process's health statistically indefensible. **You cannot manage what you cannot reliably measure.**
+            """)
+
+        with tabs[1]:
+            st.markdown("Acceptance criteria are risk-based and derived from the **AIAG's Measurement Systems Analysis (MSA)** manual, the de facto global standard. The percentage is calculated against the **total study variation**.")
+            st.markdown("- **< 10% Gage R&R:** The system is **acceptable**. The 'fog of uncertainty' is minimal. The system can reliably detect process shifts and can be used for SPC and capability analysis.")
+            st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable or marginal**. Its use may be approved for less critical characteristics, but it is likely unsuitable for controlling a critical-to-quality parameter. This result should trigger an improvement project for the measurement method.")
+            st.markdown("- **> 30% Gage R&R:** The system is **unacceptable and must be rejected**. Data generated by this system is untrustworthy. Using this system for process decisions is equivalent to making decisions by flipping a coin. The method must be fundamentally improved.")
+            st.info("""
+            **Beyond the Numbers: The Part Selection Strategy**
+            The most common failure mode of a Gage R&R study is not the math, but the study design. The parts selected **must span the full expected range of process variation**. If you only select parts from the middle of the distribution, your Part-to-Part variation will be artificially low, which will mathematically inflate your % Gage R&R and cause a good system to fail. A robust study includes parts from near the Lower and Upper Specification Limits.
+            """)
+            
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            While the concepts are old, their modern application was born out of the quality crisis in the American automotive industry in the 1970s. Guided by luminaries like **W. Edwards Deming**, manufacturers realized they were often "tampering" with their processes—adjusting a stable process based on faulty measurement data, thereby *increasing* variation.
+            
+            The **AIAG** codified the solution in the first MSA manual. The critical evolution was the move from the simple **Average and Range (X-bar & R) method** to the **ANOVA method**. The X-bar & R method is computationally simpler but has a critical flaw: it confounds the operator-part interaction with reproducibility. The **ANOVA method**, pioneered for agriculture by statistician **Sir Ronald A. Fisher**, became the gold standard because of its unique ability to cleanly partition and test the significance of each variance component, including the crucial interaction term.
+            
+            #### Mathematical Basis
+            The ANOVA method partitions the total sum of squared deviations from the mean ($SS_T$) into components attributable to each factor.
+            """)
+            st.latex(r"SS_{Total} = SS_{Part} + SS_{Operator} + SS_{Part \times Operator} + SS_{Error}")
+            st.markdown("""
+            These sums of squares are then converted to Mean Squares (MS) by dividing by their respective degrees of freedom (df). The variance components ($\hat{\sigma}^2$) are then estimated from these MS values.
+            - **Repeatability (Equipment Variation, EV):** The inherent random error of the measurement process.
+            """)
+            st.latex(r"\hat{\sigma}^2_{Repeatability} = MS_{Error}")
+            st.markdown("- **Reproducibility (Appraiser Variation, AV):** The variation between operators, composed of the pure operator effect and the interaction effect.")
+            st.latex(r"\hat{\sigma}^2_{Reproducibility} = \hat{\sigma}^2_{Operator} + \hat{\sigma}^2_{Interaction}")
+            st.latex(r"\text{where } \hat{\sigma}^2_{Operator} = \frac{MS_{Operator} - MS_{Interaction}}{n_{parts} \cdot n_{replicates}}")
+            st.warning("**Negative Variance Components:** It is mathematically possible for these formulas to yield a negative variance for a term. This is a statistical artifact. The correct interpretation is that the true variance component is zero, and it should be set to zero for calculating the final %R&R.")
+
+def render_linearity():
+    """Renders the interactive module for Linearity analysis."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To verify that an assay's response is directly and predictably proportional to the known concentration of the analyte across its entire intended operational range.
+    
+    **Strategic Application:** This is a cornerstone of quantitative assay validation, mandated by every major regulatory body (FDA, EMA, ICH). It provides the statistical evidence that the assay is not just precise, but **globally accurate** across its reportable range. A method exhibiting non-linearity might be accurate at a central control point but dangerously inaccurate at the specification limits, leading to incorrect batch disposition decisions.
+    """)
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, model = plot_linearity()
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}", help="Indicates the proportion of variance in the measured values explained by the nominal values. A necessary, but not sufficient, criterion.")
+            st.metric(label="💡 Metric: Slope", value=f"{model.params[1]:.3f}", help="Ideal = 1.0. A slope < 1 indicates signal compression; > 1 indicates expansion.")
+            st.metric(label="💡 Metric: Y-Intercept", value=f"{model.params[0]:.2f}", help="Ideal = 0.0. A non-zero intercept indicates a constant systematic error or background bias.")
+            st.markdown("""
+            - **Linearity Plot:** Data should cluster tightly around the Line of Identity (y=x). Any systematic deviation (e.g., a gentle 'S' curve) suggests non-linearity that R² alone might miss.
+            - **Residual Plot:** The single most powerful diagnostic for linearity. A perfect model shows a random, "shotgun blast" pattern of points centered on zero.
+                - A **curved (U or ∩) pattern** is the classic sign of non-linearity, indicating the straight-line model is inappropriate. This is often due to detector saturation at high concentrations.
+                - A **funnel shape (heteroscedasticity)** indicates that the error increases with concentration. This is common in analytical chemistry and violates a key assumption of Ordinary Least Squares (OLS) regression. The proper technique here is **Weighted Least Squares (WLS) Regression.**
+            - **Recovery Plot:** The practical business-end of the analysis. It translates statistical error into analytical accuracy, answering: "At a given true concentration, what result does my assay report, and by how much is it off?"
+            
+            **The Core Strategic Insight:** A high R², a slope of 1, an intercept of 0, randomly scattered residuals, and recovery within tight limits collectively provide a **verifiable chain of evidence** that the assay is a trustworthy quantitative tool across its entire defined range.
+            """)
+
+        with tabs[1]:
+            st.markdown("These criteria are defined in the validation protocol and must be met to declare the method linear.")
+            st.markdown("- **R-squared (R²):** While common, it is a weak criterion alone. An R² > **0.995** is a typical starting point, but for chromatography (HPLC, GC), R² > **0.999** is often required.")
+            st.markdown("- **Slope:** The 95% confidence interval for the slope must contain 1.0. A common acceptance range for the point estimate is **0.95 to 1.05** for immunoassays, or tighter (**0.98 to 1.02**) for more precise methods.")
+            st.markdown("- **Y-Intercept:** The 95% confidence interval for the intercept must contain 0. This statistically proves the absence of a significant constant bias.")
+            st.markdown("- **Residuals:** There should be no obvious pattern or trend in the residual plot. Formal statistical tests like the **Lack-of-Fit test** can be used to objectively prove linearity (this requires true replicates at each concentration level).")
+            st.markdown("- **Recovery:** The percent recovery at each concentration level must fall within a pre-defined range (e.g., 80% to 120% for bioassays, 99.0% to 101.0% for drug purity assays).")
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The mathematical engine is **Ordinary Least Squares (OLS) Regression**, a cornerstone of statistics developed independently by **Adrien-Marie Legendre (1805)** and **Carl Friedrich Gauss (1809)**. Gauss famously used it to predict the location of the dwarf planet Ceres after it was lost, a triumph of mathematical modeling.
+            
+            The genius of OLS lies in its objective function: to find the line that **minimizes the sum of the squared vertical distances (the "residuals")** between the observed data and the fitted line. Under the assumption of normally distributed errors, the OLS estimates are also the **Maximum Likelihood Estimates (MLE)**, providing a deep theoretical justification for the method.
+
+            #### Mathematical Basis
+            The goal is to fit a simple linear model to the calibration data, linking the true concentration ($x$) to the measured response ($y$).
+            """)
+            st.latex("y = \\beta_0 + \\beta_1 x + \\epsilon")
+            st.markdown("""
+            - $y$: The measured concentration or instrument signal.
+            - $x$: The nominal (true) concentration of the reference standard.
+            - $\\beta_0$ (Intercept): Represents the assay's **constant systematic error**.
+            - $\\beta_1$ (Slope): Represents the assay's **proportional systematic error** (sensitivity).
+            - $\\epsilon$: The random measurement error.
+
+            The validation hinges on formal statistical tests of the estimated coefficients ($\hat{\beta}_0, \hat{\beta}_1$):
+            - **Hypothesis Test for Slope:** $H_0: \\beta_1 = 1$ (no proportional bias).
+            - **Hypothesis Test for Intercept:** $H_0: \\beta_0 = 0$ (no constant bias).
+            A p-value > 0.05 for these tests supports the claim of linearity and no bias.
+            """)
+
+def render_lod_loq():
+    """Renders the interactive module for Limit of Detection & Quantitation."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To formally establish the absolute lower performance boundaries of a quantitative assay. It determines the lowest analyte concentration an assay can reliably **detect (LOD)** and the lowest concentration it can reliably and accurately **quantify (LOQ)**.
+    
+    **Strategic Application:** This is a mission-critical parameter for any assay used to measure trace components. Examples include:
+    - **Impurity Testing:** The LOQ *must* be demonstrably below the specification limit for a potentially harmful impurity in a drug product.
+    - **Early-Stage Disease Diagnosis:** The LOD/LOQ for a cancer biomarker must be low enough to detect the disease at its earliest, most treatable stage.
+    - **Pharmacokinetics (PK):** To properly characterize a drug's elimination phase, the assay LOQ must be low enough to measure the final few datapoints in the concentration-time curve.
+    
+    The **LOD** is a qualitative threshold answering "Is the analyte present?" The **LOQ** is a much higher quantitative bar, answering "What is the concentration, and can I trust the numerical value?"
+    """)
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, lod_val, loq_val = plot_lod_loq()
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} ng/mL", help="The lowest concentration you can report with confidence in the numerical value.")
+            st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} ng/mL", help="The lowest concentration you can reliably claim is 'present'.")
+            st.markdown("""
+            - **Signal Distribution (Violin Plot):** The distribution of signals from the 'Blank' samples (the noise) must be clearly separated from the distribution of signals from the 'Low Concentration' samples. Significant overlap indicates the assay lacks the fundamental sensitivity required.
+            - **Low-Level Calibration Curve (Regression Plot):** The LOD and LOQ are derived directly from two key parameters of this model:
+                1.  **The Slope (S):** The assay's sensitivity. A steeper slope is better.
+                2.  **The Residual Standard Error (σ):** The inherent noise or imprecision of the assay at the low end. A smaller σ is better.
+
+            **The Core Strategic Insight:** This analysis defines the **absolute floor of your assay's validated capability**. Claiming a quantitative result below the validated LOQ is scientifically and regulatorily indefensible. It's the difference between seeing a faint star and being able to measure its brightness.
+            """)
+
+        with tabs[1]:
+            st.markdown("Acceptance criteria are absolute and defined by the assay's intended use.")
+            st.markdown("- The primary, non-negotiable criterion is that the experimentally determined **LOQ must be ≤ the lowest concentration that the assay is required to measure** for its specific application (e.g., a release specification for an impurity).")
+            st.markdown("- For a concentration to be formally declared the LOQ, it must be experimentally confirmed. This typically involves analyzing 5-6 independent samples at the claimed LOQ concentration and demonstrating that they meet pre-defined criteria for precision and accuracy (e.g., **%CV < 20% and %Recovery between 80-120%** for a bioassay).")
+            st.warning("""
+            **The LOB, LOD, and LOQ Hierarchy: A Critical Distinction**
+            A full characterization involves three distinct limits:
+            - **Limit of Blank (LOB):** The highest measurement expected from a blank sample. (LOB = mean_blank + 1.645 * sd_blank)
+            - **Limit of Detection (LOD):** The lowest concentration whose signal is statistically distinguishable from the LOB. (LOD = LOB + 1.645 * sd_low_conc_sample)
+            - **Limit of Quantitation (LOQ):** The lowest concentration meeting precision/accuracy requirements, which is almost always higher than the LOD.
+            Confusing these is a common and serious error.
+            """)
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The need to define analytical sensitivity is old, but definitions were inconsistent until the **International Council for Harmonisation (ICH)** guideline **ICH Q2(R1) "Validation of Analytical Procedures"** harmonized the definitions and methodologies. This work was heavily influenced by the statistical framework established by **Lloyd Currie at NIST** in his 1968 paper, which established the clear, hypothesis-testing basis for the modern LOB/LOD/LOQ hierarchy.
+
+            #### Mathematical Basis
+            This method is built on the relationship between the assay's signal, its sensitivity (Slope, S), and its noise (standard deviation, σ). The standard deviation σ is most robustly estimated using the **residual standard error** from a regression model fit to low-concentration data.
+
+            - **Limit of Detection (LOD):** The formula is designed to control the risk of false positives and false negatives. The factor 3.3 is an approximation related to a high level of confidence that a signal at this level is not a random fluctuation of the blank.
+            """)
+            st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
+            st.markdown("""
+            - **Limit of Quantitation (LOQ):** This is about measurement quality. It demands a much higher signal-to-noise ratio to ensure the measurement has an acceptable level of uncertainty. The factor of 10 is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.
+            """)
+            st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
+
+def render_method_comparison():
+    """Renders the interactive module for Method Comparison."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To formally assess and quantify the degree of agreement and systemic bias between two different measurement methods intended to measure the same quantity. This analysis moves beyond simple correlation to determine if the two methods can be used **interchangeably** in practice.
+    
+    **Strategic Application:** This study is the "crucible" of method transfer, validation, or replacement. A failed comparison study can halt a tech transfer, delay a product launch, or invalidate a clinical study. Key scenarios include:
+    - **Tech Transfer:** Proving a QC lab's assay is equivalent to the original R&D method.
+    - **Method Modernization:** Demonstrating a new, faster, or cheaper assay yields clinically equivalent results to an older gold standard.
+    - **Cross-Site Harmonization:** Ensuring results from different facilities are comparable.
+    
+    This analysis answers the critical business and regulatory question: “Do these two methods produce the same result, for the same sample, within medically or technically acceptable limits?”
+    """)
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, slope, intercept, bias, ua, la = plot_method_comparison()
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference between the Test and Reference methods. Positive value = Test method measures higher on average.")
+            st.metric(label="💡 Metric: Deming Slope", value=f"{slope:.3f}", help="Ideal = 1.0. Measures proportional bias, which is concentration-dependent.")
+            st.metric(label="💡 Metric: Deming Intercept", value=f"{intercept:.2f}", help="Ideal = 0.0. Measures constant bias, a fixed offset across the entire range.")
+            st.markdown("""
+            - **Deming Regression:** The correct regression for method comparison. Unlike standard OLS, it accounts for measurement error in *both* methods, providing an unbiased estimate of slope (proportional bias) and intercept (constant bias). The goal is to see the red Deming line perfectly overlay the black Line of Identity.
+            - **Bland-Altman Plot:** This plot transforms the question from "are they correlated?" to "how much do they differ?". It visualizes the random error and quantifies the **95% Limits of Agreement (LoA)**, the expected range of disagreement for 95% of future measurements.
+            - **% Bias Plot:** This plot assesses **practical significance**. It shows if the bias at any specific concentration exceeds a pre-defined acceptable limit (e.g., ±15%).
+
+            **The Core Strategic Insight:** This dashboard provides a multi-faceted verdict on method interchangeability. Deming regression diagnoses the *type* of bias (constant vs. proportional), the Bland-Altman plot quantifies the *magnitude* of expected random disagreement, and the % Bias plot confirms *local* acceptability.
+            """)
+        with tabs[1]:
+            st.markdown("Acceptance criteria must be pre-defined in the validation protocol and be clinically or technically justified.")
+            st.markdown("- **Deming Regression:** The 95% confidence interval for the **slope must contain 1.0**, and the 95% CI for the **intercept must contain 0**. This provides statistical proof of no systematic bias.")
+            st.markdown(f"- **Bland-Altman:** The primary criterion is that the **95% Limits of Agreement (`{la:.2f}` to `{ua:.2f}`) must be clinically or technically acceptable**. A 20-unit LoA might be acceptable for a glucose monitor but catastrophic for a cancer biomarker.")
+            st.markdown("- **Total Analytical Error (TAE):** An advanced approach where, across the entire range, `|Bias| + 1.96 * SD_of_difference` must be less than a predefined Total Allowable Error (TEa).")
+            st.error("""
+            **The Correlation Catastrophe**
+            Do not, under any circumstances, use the correlation coefficient (R or R²) as a measure of agreement. Two methods can be perfectly correlated (R=1.0) but have a huge bias (e.g., one method always reads exactly twice as high as the other). A high correlation is a prerequisite for agreement, but it is **not** evidence of agreement.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            For decades, scientists committed a cardinal sin: using **Ordinary Least Squares (OLS) regression** and the **correlation coefficient (r)** to compare methods. This is flawed because OLS assumes the x-axis (reference method) is measured without error, an impossibility.
+            
+            - **Deming's Correction:** While known to statisticians, **W. Edwards Deming** championed this type of regression in the 1940s. It correctly assumes both methods have measurement error, providing an unbiased estimate of the true relationship. **Passing-Bablok regression** is a robust non-parametric alternative.
+            
+            - **The Bland-Altman Revolution:** A 1986 paper in *The Lancet* by **J. Martin Bland and Douglas G. Altman** ruthlessly exposed the misuse of correlation and proposed their brilliantly simple alternative. Instead of plotting Y vs. X, they plotted the **Difference (Y-X) vs. the Average ((Y+X)/2)**. This directly visualizes the magnitude and patterns of disagreement and is now the undisputed gold standard.
+            
+            #### Mathematical Basis
+            **Deming Regression:** OLS minimizes the sum of squared vertical distances. Deming regression minimizes the sum of squared distances from the points to the line, weighted by the ratio of the error variances of the two methods.
+            
+            **Bland-Altman Plot:** This is a graphical analysis. The key metrics are the **mean difference (bias)**, $\bar{d}$, and the **standard deviation of the differences**, $s_d$. The 95% Limits of Agreement (LoA) are calculated assuming the differences are approximately normally distributed:
+            """)
+            st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
+            st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
+
+def render_capability():
+    """Renders the interactive module for Process Capability (Cpk)."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To quantitatively determine if a process, once proven to be in a state of statistical control, is **capable** of consistently producing output that meets pre-defined specification limits (USL/LSL).
+    
+    **Strategic Application:** This is the ultimate verdict on process performance, often the final gate in a process validation or technology transfer. It directly answers the critical business question: "Is our process good enough to reliably meet customer or regulatory requirements with a high degree of confidence?" 
+    - A high capability index (Cpk) provides objective, statistical evidence that the process is robust, predictable, and delivers high quality.
+    - A low Cpk is a clear signal that the process requires fundamental improvement, either by **re-centering the process mean** or by **reducing the process variation**.
+    
+    In many ways, achieving a high Cpk is the statistical equivalent of "mission accomplished" for a process development or transfer team.
+    """)
+    scenario = st.sidebar.radio("Select Process Scenario:", ('Ideal', 'Shifted', 'Variable', 'Out of Control'))
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, cpk_val = plot_capability(scenario)
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Process Capability (Cpk)", value=f"{cpk_val:.2f}" if scenario != 'Out of Control' else "INVALID", help="Measures how well the process fits within the spec limits, accounting for centering. Higher is better.")
+            st.markdown("""
+            - **The Mantra: Control Before Capability.** The control chart (top plot) is a prerequisite. The Cpk metric is only statistically valid and meaningful if the process is stable and in-control. The 'Out of Control' scenario yields an **INVALID** Cpk because an unstable process has no single, predictable "voice" to measure. Its future performance is unknown.
+            - **The Key Insight: Control ≠ Capability.** A process can be perfectly in-control (predictable) but not capable (producing bad product). 
+                - The **'Shifted'** scenario shows a process that is precise but inaccurate.
+                - The **'Variable'** scenario shows a process that is centered but imprecise.
+            Both are in control, but both have a poor Cpk. This demonstrates why you need both SPC (for control) and Capability Analysis (for quality).
+            """)
+        with tabs[1]:
+            st.markdown("These are industry-standard benchmarks, often required by customers, especially in automotive and aerospace. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
+            st.markdown("- `Cpk < 1.00`: Process is **not capable**. The 'voice of the process' is wider than the 'voice of the customer.' A significant portion of output will not meet specifications.")
+            st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**. It requires tight control and monitoring, as small shifts can lead to non-conforming product.")
+            st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable**. This is a common minimum target for many industries, corresponding to a '4-sigma' quality level and a theoretical defect rate of ~63 parts per million (PPM).")
+            st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** and is approaching **Six Sigma** quality. This corresponds to a '5-sigma' level and a theoretical defect rate of ~0.6 PPM.")
+            st.markdown("- `Cpk ≥ 2.00`: Process has achieved **Six Sigma capability** (assuming no long-term shift). This represents world-class performance with a theoretical defect rate of just 2 parts per *billion*. ")
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The concept of comparing process output to specification limits is old, but the formalization into capability indices originated in the Japanese manufacturing industry in the 1970s as a core part of Total Quality Management (TQM).
+            
+            However, it was the **Six Sigma** initiative, pioneered by engineer Bill Smith at **Motorola in the 1980s**, that catapulted Cpk to global prominence. The 'Six Sigma' concept was born: a process so capable that the nearest specification limit is at least six standard deviations away from the process mean. This translates to a defect rate of just 3.4 parts per million (which famously accounts for a hypothetical 1.5 sigma long-term drift of the process mean). Cpk became the standard metric for measuring progress toward this ambitious goal.
+            
+            #### Mathematical Basis
+            Capability analysis is a direct comparison between the **"Voice of the Customer"** (the allowable spread, USL - LSL) and the **"Voice of the Process"** (the actual, natural spread, conventionally 6σ).
+
+            - **Cp (Potential Capability):** Measures if the process is narrow enough, ignoring centering. It's the best the process *could* be if perfectly centered.
+            """)
+            st.latex(r"C_p = \frac{\text{Tolerance Width}}{\text{Process Width}} = \frac{USL - LSL}{6\hat{\sigma}}")
+            st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It is the lesser of the upper and lower capability indices, effectively measuring the distance from the process mean to the *nearest* specification limit. It is the 'worst-case scenario'.")
+            st.latex(r"C_{pk} = \min(C_{pu}, C_{pl}) = \min \left( \frac{USL - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - LSL}{3\hat{\sigma}} \right)")
+            st.markdown("A Cpk of 1.33 means that the process distribution could fit between the mean and the nearest spec limit 1.33 times. This provides a 'buffer' zone to absorb small process shifts without producing defects.")
+
+def render_pass_fail():
+    """Renders the interactive module for Pass/Fail (Binomial Proportion) analysis."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To accurately calculate and critically compare confidence intervals for a binomial proportion, which is the underlying statistic for any pass/fail, present/absent, or concordant/discordant outcome.
+    
+    **Strategic Application:** This is essential for the validation of **qualitative assays** or for agreement studies in method transfers. The goal is to prove, with a high degree of statistical confidence, that the assay's success rate (e.g., >95% concordance with a reference method) is above a required performance threshold. 
+    
+    The critical challenge, especially with the small sample sizes typical in validation (n=30 is common), is that simple, textbook methods for calculating confidence intervals (the 'Wald' interval) are dangerously inaccurate. Choosing the wrong method can lead to falsely concluding a method is acceptable when it is not, a major regulatory and quality risk.
+    """)
+    n_samples_wilson = st.sidebar.slider("Number of Validation Samples (n)", 1, 100, 30, key='wilson_n')
+    successes_wilson = st.sidebar.slider("Concordant Results", 0, n_samples_wilson, int(n_samples_wilson * 0.95), key='wilson_s')
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig1_wilson, fig2_wilson = plot_wilson(successes_wilson, n_samples_wilson)
+        st.plotly_chart(fig1_wilson, use_container_width=True)
+        st.plotly_chart(fig2_wilson, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Observed Rate", value=f"{(successes_wilson/n_samples_wilson if n_samples_wilson > 0 else 0):.2%}", help="The point estimate of the success rate. This value alone is insufficient without a confidence interval.")
+            st.markdown("""
+            - **CI Comparison (Top Plot):** This plot reveals the dramatic differences between interval methods. Note how the 'Wald' interval is often much narrower, giving a false sense of precision. At the extremes (e.g., 30/30 successes), the Wald interval collapses to a width of zero, which is statistically indefensible.
+            - **Coverage Probability (Bottom Plot):** This is the crucial diagnostic plot. It shows the *actual* probability that an interval will contain the true proportion.
+                - The **Wald interval (red)** is a disaster. Its actual coverage plummets near the extremes and is wildly erratic everywhere else. It consistently fails to meet the nominal 95% level.
+                - The **Wilson and Clopper-Pearson intervals (blue/green)** are far superior. Their coverage probability is always at or above the nominal 95% level, making them reliable and conservative.
+
+            **The Core Strategic Insight:** Never use the standard Wald (or "Normal Approximation") interval for important decisions, especially with sample sizes under 100. The **Wilson Score interval** provides the best balance of accuracy and interval width for most applications. The **Clopper-Pearson** is the most conservative ("exact") choice, often preferred in regulatory submissions for its guaranteed coverage.
+            """)
+        with tabs[1]:
+            st.markdown("- **The Golden Rule of Binomial Acceptance:** The acceptance criterion must **always be based on the lower bound of the confidence interval**, never on the point estimate.")
+            st.markdown("- **Example Criterion:** 'The lower bound of the 95% **Wilson Score** (or Clopper-Pearson) confidence interval for the concordance rate must be greater than or equal to the target of 90%.'")
+            st.markdown("- **Sample Size Implication:** This tool powerfully demonstrates why larger sample sizes are needed for high-confidence claims. With a small `n`, even a perfect result (e.g., 20/20 successes) may have a lower confidence bound that fails to meet a high target (like 95%), forcing the study to be repeated with more samples.")
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            For much of the 20th century, the simple **Wald interval** (named after Abraham Wald) was taught in introductory statistics classes. However, its poor performance was well-known. A famous 1998 paper by Brown, Cai, and DasGupta comprehensively documented its failures and advocated for superior alternatives.
+            
+            The **Wilson Score Interval** (1927) and the **Clopper-Pearson Interval** (1934) were created to solve this problem.
+            - The **Clopper-Pearson** interval is an "exact" method derived from the binomial distribution. It guarantees coverage will never be less than the nominal level, making it conservative (wider).
+            - The **Wilson Score** interval is derived by inverting the score test. Its average coverage probability is much closer to the nominal 95% level, making it more accurate and less conservative in practice.
+            
+            #### Mathematical Basis
+            The Wald interval is simply $\hat{p} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$. The Wilson Score interval's superior formula is:
+            """)
+            st.latex(r"CI_{Wilson} = \frac{1}{1 + z^2/n} \left( \hat{p} + \frac{z^2}{2n} \pm z \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}} \right)")
+            st.markdown("Notice it adds pseudo-successes and failures ($z^2/2$), pulling the center away from 0 or 1. This is what gives it such good performance where the Wald interval fails catastrophically.")
+            
+
+def render_bayesian():
+    """Renders the interactive module for Bayesian Inference."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To employ Bayesian inference to formally and quantitatively synthesize existing knowledge (a **Prior** belief) with new experimental data (the **Likelihood**) to arrive at an updated, more robust conclusion (the **Posterior** belief).
+    
+    **Strategic Application:** This is a paradigm-shifting tool for driving efficient, knowledge-based validation and decision-making. In a traditional (Frequentist) world, every study starts from a blank slate. In the Bayesian world, we can formally leverage what we already know. This is powerful for:
+    - **Accelerating Tech Transfer:** Use data from an R&D validation study to form a **strong, informative prior**. This allows the receiving QC lab to demonstrate success with a smaller confirmation study, saving time and resources.
+    - **Adaptive Clinical Trials:** Data from an interim analysis can serve as a prior for the final analysis, allowing trials to be stopped early.
+    - **Quantifying Belief & Risk:** It provides a natural framework to answer the question: "Given what we already knew, and what this new data shows, what is the probability that the pass rate is actually above 95%?"
+    """)
+    prior_type_bayes = st.sidebar.radio("Select Prior Belief:", ("Strong R&D Prior", "No Prior (Frequentist)", "Skeptical/Regulatory Prior"))
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, prior_mean, mle, posterior_mean = plot_bayesian(prior_type_bayes)
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Posterior Mean Rate", value=f"{posterior_mean:.3f}", help="The final, data-informed belief; a weighted average of the prior and the data.")
+            st.metric(label="💡 Prior Mean Rate", value=f"{prior_mean:.3f}", help="The initial belief *before* seeing the new QC data.")
+            st.metric(label="💡 Data-only Estimate (MLE)", value=f"{mle:.3f}", help="The evidence from the new QC data alone (the frequentist result).")
+            st.markdown("""
+            - **Prior (Green Dashed):** Our initial belief about the pass rate. A **Strong Prior** is tall and narrow, representing high confidence from historical data. A **Skeptical Prior** is wide and flat, representing uncertainty.
+            - **Likelihood (Red Dotted):** The "voice of the new data." This is the evidence from our new QC runs. Note that it is not a probability distribution.
+            - **Posterior (Blue Solid):** The final, updated belief. The posterior is always a **compromise** between the prior and the likelihood, weighted by their respective certainties (the narrowness of their distributions).
+
+            **The Core Strategic Insight:** This simulation demonstrates Bayesian updating in action.
+             - With a **Strong R&D Prior**, the new (and slightly worse) QC data barely moves our final belief. The strong prior evidence dominates the small new sample.
+             - With a **Skeptical Prior**, our final belief is a true compromise between the skeptical starting point and the new data.
+             - With **No Prior**, the posterior is determined almost entirely by the data, and the result mirrors the frequentist conclusion.
+            This framework provides a transparent and logical way to cumulate knowledge over time.
+            """)
+        with tabs[1]:
+            st.markdown("- The acceptance criterion is framed in terms of the **posterior distribution** and is probabilistic.")
+            st.markdown("- **Example Criterion 1 (Probability Statement):** 'There must be at least a 95% probability that the true pass rate is greater than 90%.' This is calculated by finding the area under the blue posterior curve to the right of the 0.90 threshold.")
+            st.markdown("- **Example Criterion 2 (Credible Interval):** 'The lower bound of the **95% Credible Interval** (the central 95% of the blue posterior distribution) must be above the target of 90%.'")
+            st.warning("**The Prior is Critical:** The choice of prior is the most controversial and important part of a Bayesian analysis. In a regulated setting, the prior must be transparent, justified by historical data, and pre-specified in the validation protocol. An unsubstantiated, overly optimistic prior would be a major red flag for an auditor.")
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The underlying theorem was conceived by the Reverend **Thomas Bayes** in the 1740s. However, for nearly 200 years, Bayesian inference remained a philosophical curiosity, largely overshadowed by the Frequentist school. This was due to philosophical objections to the subjective nature of priors and the computational difficulty of calculating the posterior distribution.
+            
+            The **"Bayesian Revolution"** began in the late 20th century, driven by powerful computers and simulation algorithms like **Markov Chain Monte Carlo (MCMC)**. These methods allowed scientists to approximate the posterior distribution for incredibly complex models, making Bayesian methods practical for the first time.
+            
+            #### Mathematical Basis
+            Bayes' Theorem is elegantly simple:
+            """)
+            st.latex(r"P(\theta|D) = \frac{P(D|\theta) \cdot P(\theta)}{P(D)}")
+            st.markdown(r"In words: **Posterior = (Likelihood × Prior) / Evidence**")
+            st.markdown(r"""
+            - $P(\theta|D)$ (Posterior): The probability of our parameter $\theta$ (e.g., the true pass rate) given the new Data D.
+            - $P(D|\theta)$ (Likelihood): The probability of observing our Data D, given a specific value of the parameter $\theta$.
+            - $P(\theta)$ (Prior): Our initial belief about the distribution of the parameter $\theta$.
+            
+            For binomial data, the **Beta distribution** is a **conjugate prior**. This means if you start with a Beta prior and have a binomial likelihood, your posterior will also be a Beta distribution.
+            - If Prior is Beta($\alpha_{prior}, \beta_{prior}$)
+            - And Data is $k$ successes in $n$ trials:
+            - Then the Posterior is simply Beta($\alpha_{prior} + k, \beta_{prior} + n - k$).
+            The $\alpha$ and $\beta$ parameters can be thought of as "pseudo-counts" of prior successes and failures, which are simply added to the new observed counts.
+            """)
+
+def render_spc_charts():
+    """Renders the module for Statistical Process Control (SPC) charts."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To monitor a process over time to detect special cause variation, ensuring it remains in a state of statistical control. This module covers the three most common types of Shewhart charts:
+    - **I-MR Chart:** For individual measurements where subgrouping is not possible or practical.
+    - **X-bar & R Chart:** For continuous data collected in rational subgroups (e.g., 5 samples per hour). This is more powerful than an I-MR chart for detecting small shifts.
+    - **P-Chart:** For attribute data, specifically the proportion of non-conforming items per batch or lot.
+
+    **Strategic Application:** This is the foundation of SPC. These charts provide the real-time "voice of the process," distinguishing between normal, random variation (common cause) and signals that indicate a fundamental process change (special cause).
+    """)
+    fig_imr, fig_xbar, fig_p = plot_spc_charts()
+    
+    st.plotly_chart(fig_imr, use_container_width=True)
+    st.markdown("**Interpretation of I-MR Chart:** The Individuals (I) chart tracks the process center, while the Moving Range (MR) chart tracks its short-term variability. Both must be stable to declare the process 'in control'.")
+    
+    st.plotly_chart(fig_xbar, use_container_width=True)
+    st.markdown("**Interpretation of X-bar & R Chart:** The X-bar chart tracks the variation *between* subgroups (a measure of process shifts), while the Range (R) chart tracks the variation *within* subgroups (a measure of process consistency).")
+    
+    st.plotly_chart(fig_p, use_container_width=True)
+    st.markdown("**Interpretation of P-Chart:** This chart tracks the proportion of defective units over time. The control limits are not constant; they become tighter for larger batch sizes, reflecting the increased certainty. This chart is essential for monitoring pass/fail rates and yields.")
+
+def render_tolerance_intervals():
+    """Renders the module for Tolerance Intervals."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process.
+    
+    **Strategic Application:** For many manufacturing and quality applications, this is a far more useful and powerful tool than a standard confidence interval. It directly answers the question that engineers and quality managers care about: "What is the range where we expect almost all of our individual product units to fall?"
+    - **Specification Setting:** Tolerance intervals can be used to set statistically-driven release specifications.
+    - **Validation:** They are used in validation reports to demonstrate that a process can reliably produce units within a required range.
+    - **Comparing to a Confidence Interval:** A CI is about the mean; a TI is about the individuals. A process can have a very narrow CI for its mean but still produce many individual units outside of specification if its variance is high.
+    """)
+    fig = plot_tolerance_intervals()
+    st.plotly_chart(fig, use_container_width=True)
+    st.error("""
+    **Critical Distinction:**
+    - **Confidence Interval (Orange):** "We are 95% confident that the true long-term **mean** of the process is within this narrow range."
+    - **Tolerance Interval (Green):** "We are 95% confident that **99% of all individual units** produced by this process will fall within this much wider range."
+    
+    For ensuring product quality, the Tolerance Interval is the relevant metric.
+    """)
+
 def render_4pl_regression():
+    """Renders the module for 4-Parameter Logistic (4PL) regression."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To accurately model the characteristic sigmoidal (S-shaped) dose-response relationship found in most immunoassays (e.g., ELISA) and biological assays. A straight-line (linear) model is fundamentally incorrect for this type of data.
@@ -1022,13 +1486,14 @@ def render_4pl_regression():
         st.plotly_chart(fig, use_container_width=True)
     with col2:
         st.subheader("Fitted Parameters")
-        st.metric("Upper Asymptote (a)", f"{params[0]:.3f}")
+        st.metric("Upper Asymptote (d)", f"{params[0]:.3f}")
         st.metric("Hill Slope (b)", f"{params[1]:.3f}")
         st.metric("EC50 (c)", f"{params[2]:.3f}")
-        st.metric("Lower Asymptote (d)", f"{params[3]:.3f}")
+        st.metric("Lower Asymptote (a)", f"{params[3]:.3f}")
         st.markdown("**Interpretation:** The 4PL model fits four key parameters to describe the curve's shape. The `EC50` (parameter 'c') is often the most important KPI, representing the potency of the analyte. A good fit is characterized by the red dashed line closely tracking the measured data points and by a high R-squared value for the non-linear fit.")
 
 def render_roc_curve():
+    """Renders the module for Receiver Operating Characteristic (ROC) curve analysis."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To evaluate and visualize the performance of a diagnostic or qualitative assay that classifies a result as positive/negative or diseased/healthy. The Receiver Operating Characteristic (ROC) curve plots the trade-off between sensitivity and specificity at all possible cutoff values.
@@ -1057,6 +1522,7 @@ def render_roc_curve():
         """)
 
 def render_tost():
+    """Renders the module for Two One-Sided Tests (TOST) for equivalence."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To statistically prove that two methods or the mean of two groups are **equivalent** within a predefined, practically insignificant margin. This flips the logic of standard hypothesis testing.
@@ -1083,8 +1549,9 @@ def render_tost():
         
         To declare equivalence, the **entire confidence interval must fall completely inside the equivalence zone.** In this example, it does, so we can statistically conclude that the two methods are equivalent.
         """)
-        
+
 def render_advanced_doe():
+    """Renders the module for advanced Design of Experiments (DOE)."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To employ specialized experimental designs for complex, real-world optimization problems that cannot be handled by standard factorial designs. This module covers two common scenarios:
@@ -1105,83 +1572,13 @@ def render_advanced_doe():
     **Interpretation of Split-Plot Designs:** The design is structured in "Whole Plots" (blue dashed boxes) where the hard-to-change factor is held constant. Within each whole plot, the "Subplots" (red markers) represent the randomized trials of the easy-to-change factors. Analyzing this data requires a special type of ANOVA that correctly uses different error terms for the whole plot and subplot factors, preventing incorrect conclusions about the significance of the hard-to-change variables.
     """)
 
-def render_spc_charts():
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To monitor a process over time to detect special cause variation, ensuring it remains in a state of statistical control. This module covers the three most common types of Shewhart charts:
-    - **I-MR Chart:** For individual measurements where subgrouping is not possible or practical.
-    - **X-bar & R Chart:** For continuous data collected in rational subgroups (e.g., 5 samples per hour). This is more powerful than an I-MR chart for detecting small shifts.
-    - **P-Chart:** For attribute data, specifically the proportion of non-conforming items per batch or lot.
-
-    **Strategic Application:** This is the foundation of Statistical Process Control (SPC). These charts provide the real-time "voice of the process," distinguishing between normal, random variation (common cause) and signals that indicate a fundamental process change (special cause).
-    """)
-    fig_imr, fig_xbar, fig_p = plot_spc_charts()
-    
-    st.plotly_chart(fig_imr, use_container_width=True)
-    st.markdown("**Interpretation of I-MR Chart:** The Individuals (I) chart tracks the process center, while the Moving Range (MR) chart tracks its short-term variability. Both must be stable to declare the process 'in control'.")
-    
-    st.plotly_chart(fig_xbar, use_container_width=True)
-    st.markdown("**Interpretation of X-bar & R Chart:** The X-bar chart tracks the variation *between* subgroups (a measure of process shifts), while the Range (R) chart tracks the variation *within* subgroups (a measure of process consistency).")
-    
-    st.plotly_chart(fig_p, use_container_width=True)
-    st.markdown("**Interpretation of P-Chart:** This chart tracks the proportion of defective units over time. The control limits are not constant; they become tighter for larger batch sizes, reflecting the increased certainty. This chart is essential for monitoring pass/fail rates and yields.")
-
-def render_tolerance_intervals():
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process.
-    
-    **Strategic Application:** For many manufacturing and quality applications, this is a far more useful and powerful tool than a standard confidence interval. It directly answers the question that engineers and quality managers care about: "What is the range where we expect almost all of our individual product units to fall?"
-    - **Specification Setting:** Tolerance intervals can be used to set statistically-driven release specifications.
-    - **Validation:** They are used in validation reports to demonstrate that a process can reliably produce units within a required range.
-    - **Comparing to a Confidence Interval:** A CI is about the mean; a TI is about the individuals. A process can have a very narrow CI for its mean but still produce many individual units outside of specification if its variance is high.
-    """)
-    fig = plot_tolerance_intervals()
-    st.plotly_chart(fig, use_container_width=True)
-    st.error("""
-    **Critical Distinction:**
-    - **Confidence Interval (Orange):** "We are 95% confident that the true long-term **mean** of the process is within this narrow range."
-    - **Tolerance Interval (Green):** "We are 95% confident that **99% of all individual units** produced by this process will fall within this much wider range."
-    
-    For ensuring product quality, the Tolerance Interval is the relevant metric.
-    """)
-
-def render_multivariate_spc():
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To monitor multiple correlated process variables simultaneously in a single control chart. This is the multivariate extension of the Shewhart chart.
-    
-    **Strategic Application:** In complex processes like a bioreactor, parameters like temperature, pH, dissolved oxygen, and pressure are all correlated. Monitoring them with individual control charts is inefficient and can be misleading. A small deviation in all variables simultaneously might go unnoticed on individual charts but represents a significant deviation in the process's overall state.
-    - **Hotelling's T² Chart:** This chart tracks the multivariate distance of a process observation from the center of the historical data, accounting for all correlations. It condenses dozens of variables into a single, powerful monitoring statistic.
-    """)
-    fig = plot_multivariate_spc()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** The left plot shows the raw data. The shift in the red points is only in the Y-direction; the X-values are still in control. An individual X-chart would not detect this shift. The **T² Chart (Right)** combines both variables into a single statistic. It clearly and immediately detects the out-of-control condition when the process shifts, providing a single, unambiguous signal that the overall process "fingerprint" has changed.
-    """)
-
-def render_time_series_analysis():
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To model and forecast time series data by explicitly accounting for its internal structure, such as trend, seasonality, and autocorrelation (the relationship between a value and its own past values).
-    
-    **Strategic Application:** While modern tools like Prophet are often easier to use, classical models like **ARIMA (AutoRegressive Integrated Moving Average)** provide a deep statistical framework for process understanding.
-    - **ARIMA:** A powerful and flexible class of models that can capture complex temporal dependencies. It's a "white-box" model where the parameters (p, d, q) are interpretable, making it highly defensible in regulatory environments. It often excels at short-term forecasting.
-    - **Prophet:** A modern forecasting tool from Facebook designed for ease-of-use and automatic handling of business time series features like multiple seasonalities and holidays.
-    This module provides a comparison of the two approaches.
-    """)
-    fig = plot_time_series_analysis()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** This plot shows the forecasts from both Prophet (red) and ARIMA (green) against the true future data. Both models can capture the overall trend and seasonality. The choice between them often depends on the specific characteristics of the data and the need for interpretability vs. automation. ARIMA requires more statistical expertise to tune but can be more precise for certain processes, while Prophet is designed to produce high-quality forecasts with minimal effort.
-    """)
-
 def render_stability_analysis():
+    """Renders the module for pharmaceutical stability analysis."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To statistically determine the shelf-life or retest period for a drug product, substance, or critical reagent. This involves modeling the degradation of a critical quality attribute (CQA) over time and finding the point where it is predicted to fail its specification.
     
-    **Strategic Application:** This is a mandatory, high-stakes analysis for any commercial pharmaceutical product. The expiry date printed on a product vial is not arbitrary; it is the output of a formal statistical stability analysis, as required by ICH Q1E guidelines. The analysis involves:
+    **Strategic Application:** This is a mandatory, high-stakes analysis for any commercial pharmaceutical product, as required by ICH Q1E guidelines. The analysis involves:
     - Collecting data from multiple batches at various time points under specified storage conditions.
     - Fitting a regression model to the data.
     - Determining the time at which the 95% confidence interval for the mean degradation trend intersects the specification limit.
@@ -1193,6 +1590,7 @@ def render_stability_analysis():
     """)
 
 def render_survival_analysis():
+    """Renders the module for Survival Analysis."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To analyze and model "time-to-event" data, such as the time until a piece of equipment fails, a patient responds to treatment, or a reagent lot's performance drops below a threshold. It is uniquely designed to handle **censored data**, where the event has not yet occurred for some subjects at the end of the study.
@@ -1208,7 +1606,23 @@ def render_survival_analysis():
     **Interpretation:** This plot shows a **Kaplan-Meier survival curve**. It visualizes the probability that an item from a given group will "survive" past a certain time. The vertical drops indicate when an event (e.g., failure) occurred, and the small vertical ticks represent censored observations (runs that ended before failure). Here, we can clearly see that Group B has a higher survival probability over time compared to Group A. A formal **Log-Rank test** would be used to determine if this difference is statistically significant.
     """)
 
+def render_multivariate_spc():
+    """Renders the module for Multivariate SPC."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To monitor multiple correlated process variables simultaneously in a single control chart. This is the multivariate extension of the Shewhart chart.
+    
+    **Strategic Application:** In complex processes like a bioreactor, parameters like temperature, pH, and dissolved oxygen are all correlated. Monitoring them with individual control charts is inefficient and can be misleading. A small deviation in all variables simultaneously might go unnoticed on individual charts but represents a significant deviation in the process's overall state.
+    - **Hotelling's T² Chart:** This chart tracks the multivariate distance of a process observation from the center of the historical data, accounting for all correlations. It condenses dozens of variables into a single, powerful monitoring statistic.
+    """)
+    fig = plot_multivariate_spc()
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown("""
+    **Interpretation:** The left plot shows the raw data. The shift in the red points is only in the Y-direction; the X-values are still in control. An individual X-chart would not detect this shift. The **T² Chart (Right)** combines both variables into a single statistic. It clearly and immediately detects the out-of-control condition when the process shifts, providing a single, unambiguous signal that the overall process "fingerprint" has changed.
+    """)
+
 def render_mva_pls():
+    """Renders the module for Multivariate Analysis (PLS)."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To model the relationship between a large set of highly correlated input variables (X, e.g., hundreds of spectral data points) and one or more output variables (Y, e.g., product concentration or purity). **Partial Least Squares (PLS)**, also known as Projection to Latent Structures, is the primary tool for this.
@@ -1224,6 +1638,7 @@ def render_mva_pls():
     """)
 
 def render_clustering():
+    """Renders the module for unsupervised clustering."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To use unsupervised machine learning to discover natural, hidden groupings or "regimes" within a dataset, without any prior knowledge of what those groups might be.
@@ -1240,11 +1655,12 @@ def render_clustering():
     """)
 
 def render_classification_models():
+    """Renders the module for classification models."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To build predictive models for a categorical outcome (e.g., Pass/Fail, Compliant/Non-compliant). This module compares a classical statistical model with a modern machine learning model.
     - **Logistic Regression:** A "white-box" statistical model that is highly interpretable but assumes a linear relationship between the inputs and the log-odds of the outcome.
-    - **Random Forest:** A powerful, "black-box" machine learning model that can automatically capture complex, non-linear relationships and interactions. It is often more accurate but less interpretable than logistic regression.
+    - **Random Forest:** A powerful, "black-box" machine learning model that can automatically capture complex, non-linear relationships and interactions. It is often more accurate but less interpretable.
     
     **Strategic Application:** These models are the core of **Predictive QC**. The choice between them involves a trade-off. In a highly regulated GxP environment, the interpretability of Logistic Regression is often preferred. For pure predictive performance where the "why" is less important than the "what," Random Forest often has the edge.
     """)
@@ -1252,11 +1668,29 @@ def render_classification_models():
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("""
     **Interpretation:** The data in this example has a non-linear circular relationship. 
-    - **Logistic Regression (Left)** attempts to separate the groups with a straight line, which is the only tool it has. It performs poorly as a result.
+    - **Logistic Regression (Left)** attempts to separate the groups with a straight line. It performs poorly as a result.
     - **Random Forest (Right)** is an ensemble of decision trees and can create a complex, non-linear decision boundary that perfectly captures the circular pattern. Its accuracy is much higher. This demonstrates the power of machine learning models for problems where the underlying relationships are not simple.
     """)
 
+def render_time_series_analysis():
+    """Renders the module for Time Series analysis."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To model and forecast time series data by explicitly accounting for its internal structure, such as trend, seasonality, and autocorrelation.
+    
+    **Strategic Application:** While modern tools like Prophet are often easier to use, classical models like **ARIMA (AutoRegressive Integrated Moving Average)** provide a deep statistical framework for process understanding.
+    - **ARIMA:** A powerful and flexible "white-box" model where the parameters are interpretable, making it highly defensible in regulatory environments. It often excels at short-term forecasting.
+    - **Prophet:** A modern forecasting tool from Facebook designed for ease-of-use and automatic handling of business time series features like multiple seasonalities and holidays.
+    This module provides a comparison of the two approaches.
+    """)
+    fig = plot_time_series_analysis()
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown("""
+    **Interpretation:** This plot shows the forecasts from both Prophet (red) and ARIMA (green) against the true future data. Both models can capture the overall trend and seasonality. The choice between them often depends on the specific characteristics of the data and the need for interpretability vs. automation. ARIMA requires more statistical expertise to tune but can be more precise for certain processes, while Prophet is designed to produce high-quality forecasts with minimal effort.
+    """)
+
 def render_xai_shap():
+    """Renders the module for Explainable AI (XAI) using SHAP."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To "look inside the black box" of complex machine learning models (like Random Forest or Gradient Boosting) and explain their predictions. **Explainable AI (XAI)** provides tools to understand *why* a model made a specific prediction.
@@ -1289,6 +1723,7 @@ def render_xai_shap():
     """)
 
 def render_advanced_ai_concepts():
+    """Renders the module for advanced AI concepts."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To provide a high-level, conceptual overview of cutting-edge AI architectures that represent the future of process analytics. While coding them is beyond the scope of this toolkit, understanding their capabilities is crucial for future strategy.
@@ -1320,6 +1755,7 @@ def render_advanced_ai_concepts():
         """)
 
 def render_causal_inference():
+    """Renders the module for Causal Inference."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To move beyond correlation and attempt to identify and quantify true **causal relationships** within a process. It is the science of asking "why?".
@@ -1335,10 +1771,11 @@ def render_causal_inference():
     - `Reagent Lot -> Purity`: The lot has a direct causal effect on purity.
     - `Temp -> Purity`: Temperature has a direct causal effect on purity.
     - `Temp -> Pressure`: Temperature also causes changes in pressure.
-    - `Reagent Lot -> Pressure`: A confounding path exists.
+    - `Reagent Lot -> Pressure`: A confounding path exists between Reagent Lot and Purity through Pressure.
     
     By building this graph based on SME knowledge, we can use statistical techniques (like do-calculus or structural equation modeling) to estimate the true, isolated causal effect of one variable on another, even in the presence of confounding.
     """)
+
 
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT

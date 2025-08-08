@@ -311,6 +311,8 @@ def plot_chronological_timeline():
 
 # REPLACE the existing create_toolkit_conceptual_map function with this one.
 
+# REPLACE the existing create_toolkit_conceptual_map function with this one.
+
 @st.cache_data
 def create_toolkit_conceptual_map():
     """Creates a visually superior, non-overlapping conceptual map with a clean legend."""
@@ -341,32 +343,32 @@ def create_toolkit_conceptual_map():
     origin_colors = {
         'Statistics': '#1f77b4', 'Biostatistics': '#2ca02c',
         'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728',
-        'Structure': '#6A5ACD'
+        'Structure': '#6A5ACD' # This is the purple color
     }
 
     nodes = {}
     
-    # --- Algorithmic Layout ---
+    # Algorithmic Layout - ensures no overlaps
+    vertical_spacing = 2.2
     all_tools_flat = [tool for sublist in sub_structure.values() for tool in sublist]
-    # FIX: Increased the multiplier from 1.5 to 2.2 to add more vertical space
-    y_coords = np.linspace(len(all_tools_flat) * 2.2, -len(all_tools_flat) * 2.2, len(all_tools_flat))
+    y_coords = np.linspace(len(all_tools_flat) * vertical_spacing, -len(all_tools_flat) * vertical_spacing, len(all_tools_flat))
     x_positions = [4, 5]
     for i, tool_key in enumerate(all_tools_flat):
-        nodes[tool_key] = {'x': x_positions[i % 2], 'y': y_coords[i], 'name': tool_key.replace(' (', '\n('), 'origin': tool_origins.get(tool_key)}
+        nodes[tool_key] = {'x': x_positions[i % 2], 'y': y_coords[i], 'name': tool_key.replace(' (', '\n('), 'short': tool_key.replace(' (', '<br>('), 'origin': tool_origins.get(tool_key)}
 
     for l2_key, l3_keys in sub_structure.items():
         child_ys = [nodes[child_key]['y'] for child_key in l3_keys]
-        nodes[l2_key] = {'x': 2.5, 'y': np.mean(child_ys), 'name': l2_key.replace(' ', '\n'), 'origin': 'Structure'}
+        nodes[l2_key] = {'x': 2.5, 'y': np.mean(child_ys), 'name': l2_key, 'short': l2_key.replace(' ', '<br>'), 'origin': 'Structure'}
 
     for l1_key, l2_keys in structure.items():
         child_ys = [nodes[child_key]['y'] for child_key in l2_keys]
-        nodes[l1_key] = {'x': 1, 'y': np.mean(child_ys), 'name': l1_key.replace(' ', '\n'), 'origin': 'Structure'}
+        nodes[l1_key] = {'x': 1, 'y': np.mean(child_ys), 'name': l1_key, 'short': l1_key.replace(' ', '<br>'), 'origin': 'Structure'}
 
-    nodes['CENTER'] = {'x': -0.5, 'y': 0, 'name': 'V&V Analytics\nToolkit', 'origin': 'Structure'}
+    nodes['CENTER'] = {'x': -0.5, 'y': 0, 'name': 'V&V Analytics Toolkit', 'short': 'V&V Analytics<br>Toolkit', 'origin': 'Structure'}
 
     fig = go.Figure()
 
-    # --- Draw Edges using Shapes ---
+    # Draw Edges using Shapes to prevent legend pollution
     all_edges = [('CENTER', l1) for l1 in structure.keys()] + \
                 [(l1, l2) for l1, l2s in structure.items() for l2 in l2s] + \
                 [(l2, l3) for l2, l3s in sub_structure.items() for l3 in l3s]
@@ -376,57 +378,64 @@ def create_toolkit_conceptual_map():
         x1, y1 = nodes[end_key]['x'], nodes[end_key]['y']
         fig.add_shape(type="line", x0=x0, y0=y0, x1=x1, y1=y1, line=dict(color="lightgrey", width=1.5))
 
-    # --- Draw Nodes by Origin ---
-    data_by_origin = {name: {'x': [], 'y': [], 'name': []} for name in origin_colors.keys()}
+    # Aggregate data by origin for clean legend plotting
+    data_by_origin = {name: {'x': [], 'y': [], 'short': [], 'full': [], 'size': []} for name in origin_colors.keys()}
+    
+    # Define sizes for different node levels
+    size_map = {'CENTER': 150, 'Level1': 130, 'Level2': 110, 'Tool': 90}
+    font_map = {'CENTER': 16, 'Level1': 14, 'Level2': 12, 'Tool': 11}
+
     for key, data in nodes.items():
+        # Determine node level for sizing
+        if key == 'CENTER': level = 'CENTER'
+        elif key in structure: level = 'Level1'
+        elif key in sub_structure: level = 'Level2'
+        else: level = 'Tool'
+        
         data_by_origin[data['origin']]['x'].append(data['x'])
         data_by_origin[data['origin']]['y'].append(data['y'])
-        data_by_origin[data['origin']]['name'].append(data['name'])
+        data_by_origin[data['origin']]['short'].append(data['short'])
+        data_by_origin[data['origin']]['full'].append(data['name'])
+        data_by_origin[data['origin']]['size'].append(size_map[level])
         
+    # Draw one trace per origin for a clean legend
     for origin_name, data in data_by_origin.items():
-        is_tool = origin_name != 'Structure'
+        if not data['x']: continue
         fig.add_trace(go.Scatter(
-            x=data['x'], y=data['y'],
-            mode='markers+text' if is_tool else 'markers',
-            text=data['name'] if is_tool else None,
-            textposition="top center",
-            textfont=dict(size=12, color='black'),
+            x=data['x'], y=data['y'], text=data['short'],
+            mode='markers+text', textposition="middle center",
             marker=dict(
-                # FIX: Increased the size of the structural nodes (purple boxes)
-                size=30 if is_tool else 250,
+                size=data['size'], # Use dynamic sizes
                 color=origin_colors[origin_name],
-                symbol='circle' if is_tool else 'square',
+                # FIX: All nodes are now circles
+                symbol='circle',
                 line=dict(width=2, color='black')
             ),
-            hoverinfo='text',
-            hovertext=[name.replace('\n', ' ') for name in data['name']],
+            # FIX: Use consistent font color and family
+            textfont=dict(
+                size=font_map[origin_name] if origin_name=='Structure' else font_map['Tool'], # Simplified font logic
+                color='white',
+                family="Arial"
+            ),
+            hovertext=[name.replace('<br>', ' ') for name in data['short']], hoverinfo='text',
             name=origin_name
         ))
-        
-    # --- Add text annotations for structural nodes ---
-    for key, data in nodes.items():
-        if data['origin'] == 'Structure':
-            fig.add_annotation(
-                x=data['x'], y=data['y'], text=f"<b>{data['name']}</b>",
-                showarrow=False,
-                # FIX: Increased font size to match the larger boxes
-                font=dict(color='white', size=18 if key=='CENTER' else 16)
-            )
+
+    # Update font sizes for structural nodes to be proportional
+    fig.data[-1].textfont.size = [font_map['CENTER'] if name=='V&V Analytics<br>Toolkit' else font_map['Level1'] if name in [nodes[k]['short'] for k in structure.keys()] else font_map['Level2'] for name in fig.data[-1].text]
 
     fig.update_layout(
         title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
         showlegend=True,
         legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
         xaxis=dict(visible=False, range=[-1, 6]),
-        # FIX: Expanded y-axis range and height to accommodate the new spacing
-        yaxis=dict(visible=False, range=[-35, 35]),
+        yaxis=dict(visible=False, range=[-28, 28]),
         height=2400,
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#f0f2f6'
     )
     return fig
-
 @st.cache_data
 def plot_ci_concept(n=30):
     """

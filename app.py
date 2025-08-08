@@ -1238,17 +1238,14 @@ def plot_westgard_scenario(scenario='Stable'):
         
     fig = go.Figure()
     
-    # Add shaded regions for control zones
     fig.add_hrect(y0=mean - 3*std, y1=mean + 3*std, line_width=0, fillcolor='rgba(255, 165, 0, 0.1)', layer='below', name='±3σ Zone')
     fig.add_hrect(y0=mean - 2*std, y1=mean + 2*std, line_width=0, fillcolor='rgba(0, 128, 0, 0.1)', layer='below', name='±2σ Zone')
     fig.add_hrect(y0=mean - 1*std, y1=mean + 1*std, line_width=0, fillcolor='rgba(0, 128, 0, 0.1)', layer='below', name='±1σ Zone')
 
-    # Add SD lines with labels
     for i in [-3, -2, -1, 1, 2, 3]:
         fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), annotation_text=f"{'+' if i > 0 else ''}{i}σ", annotation_position="bottom right")
     fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean', annotation_position="bottom right")
 
-    # Add data trace
     fig.add_trace(go.Scatter(x=np.arange(1, n_points + 1), y=data, mode='lines+markers', name='Control Data', line=dict(color='#636EFA', width=3), marker=dict(size=10, symbol='circle', line=dict(width=2, color='black'))))
 
     # Add violation annotations
@@ -1261,6 +1258,10 @@ def plot_westgard_scenario(scenario='Stable'):
     elif scenario == 'Complex Failure':
         fig.add_trace(go.Scatter(x=[11], y=[107], mode='markers', marker=dict(color='red', size=16, symbol='diamond', line=dict(width=2, color='black')), name='1-3s Violation'))
         fig.add_trace(go.Scatter(x=[15, 16], y=[105, 105.5], mode='markers', marker=dict(color='orange', size=16, symbol='diamond', line=dict(width=2, color='black')), name='2-2s Violation'))
+    elif scenario == 'Stable':
+        # For a stable run, there are no violations to highlight.
+        # This block explicitly does nothing.
+        pass
         
     fig.update_layout(title=f"<b>Westgard Rules: {scenario} Scenario</b>",
                       xaxis_title="Measurement Number", yaxis_title="Control Value",

@@ -3028,7 +3028,7 @@ def render_mva_pls():
             - Then, PLS simply listens to the summary from these few group leaders to make its prediction about the Y variable. This process of creating a few informative LVs from thousands of inputs is called **dimensionality reduction**, and it's the core of how PLS works.
             """)
 
-ef render_clustering():
+def render_clustering():
     """Renders the module for unsupervised clustering."""
     st.markdown("""
     #### Purpose & Application: The Data Archeologist

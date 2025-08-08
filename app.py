@@ -1125,7 +1125,7 @@ def plot_xai_shap():
     # This function uses matplotlib backend for SHAP, so we need to handle image conversion
     plt.style.use('default')
     
-    # This section for loading data directly via URL is already correct and robust.
+    # Load sample data (no changes needed here)
     github_data_url = "https://github.com/slundberg/shap/raw/master/data/"
     data_url = github_data_url + "adult.data"
     dtypes = [
@@ -1155,7 +1155,7 @@ def plot_xai_shap():
     buf_summary.seek(0)
     
     # --- Force plot HTML generation (THIS IS THE FIX) ---
-    # 1. Generate the plot object as before
+    # 1. Generate the plot object
     force_plot = shap.force_plot(
         explainer.expected_value[1], 
         shap_values_obj.values[0,:,1], 
@@ -1166,8 +1166,8 @@ def plot_xai_shap():
     # 2. Get the raw HTML from the plot object
     force_plot_html = force_plot.html()
 
-    # 3. Create a fully self-contained HTML string by adding the SHAP JS library
-    #    shap.initjs() injects the necessary <script> tag.
+    # 3. Create a fully self-contained HTML string by adding the SHAP JS library.
+    #    shap.initjs() injects the necessary <script> tag for rendering.
     full_html = f"<html><head>{shap.initjs()}</head><body>{force_plot_html}</body></html>"
 
     return buf_summary, full_html
@@ -2258,7 +2258,6 @@ def render_roc_curve():
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To solve **The Diagnostician's Dilemma**: a new test must correctly identify patients with a disease (high **Sensitivity**) while also correctly clearing healthy patients (high **Specificity**). These two goals are always in tension. The ROC curve is the ultimate tool for visualizing, quantifying, and optimizing this critical trade-off.
-    
     **Strategic Application:** This is the undisputed global standard for validating and comparing diagnostic tests. The Area Under the Curve (AUC) provides a single, powerful metric of a test's overall diagnostic horsepower.
     - **Rational Cutoff Selection:** The ROC curve allows scientists and clinicians to rationally select the optimal cutoff point that best balances the clinical risks and benefits of false positives vs. false negatives.
     - **Assay Showdown:** Directly compare the AUC of two competing assays to provide definitive evidence of which is diagnostically superior.
@@ -2661,72 +2660,69 @@ def render_advanced_doe():
     **Strategic Application:** Using the wrong design for these common problems leads to wasted experiments, impossible-to-run conditions, and statistically invalid conclusions. Mastering these designs provides a massive competitive advantage in formulation and process development.
     """)
     
-    # Assumes a function that returns the two necessary plot figures
     fig_mix, fig_split = plot_advanced_doe()
     
-    st.subheader("Analysis & Interpretation")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+    # FIX: Restructured the layout to be consistent with other modules.
+    col1, col2 = st.columns([0.7, 0.3])
 
-    with tabs[0]:
-        st.info("💡 **Pro-Tip:** Each design solves a unique, common experimental challenge. Use the expanders to see how each one works.")
-
-        with st.expander("🧪 The Alchemist's Cookbook: Mixture Designs", expanded=True):
-            st.metric("Optimal Response Found", "98.5% Efficacy", help="The peak performance found within the formulation space.")
+    with col1:
+        st.subheader("Experimental Designs & Results")
+        with st.expander("🧪 Mixture Design: The Alchemist's Cookbook", expanded=True):
             st.plotly_chart(fig_mix, use_container_width=True)
-            st.markdown("""
-            - **The Problem:** You're creating a three-component buffer (A, B, C). The components must add up to 100%. A standard DOE would try impossible runs like "100% A, 100% B, 100% C".
-            - **The Solution:** A mixture design populates a triangular "recipe space."
-                - **Corners:** Pure 100% components.
-                - **Edges:** Two-component blends.
-                - **Center:** A mix of all three.
-            - **Strategic Insight:** The contour plot is a **treasure map of your formulation space**. It models how the *proportions* of ingredients impact a response like stability or efficacy, allowing you to find the optimal recipe with maximum efficiency.
-            """)
 
-        with st.expander("🏭 The Smart Baker's Dilemma: Split-Plot Designs", expanded=True):
-            st.metric("HTC Factor Significance (p-value)", "0.002", help="The p-value for the Hard-to-Change factor, calculated correctly.")
+        with st.expander("🏭 Split-Plot Design: The Smart Baker's Dilemma", expanded=True):
             st.plotly_chart(fig_split, use_container_width=True)
+
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+
+        with tabs[0]:
+            st.info("💡 **Pro-Tip:** Each design solves a unique, common experimental challenge. Click the expanders on the left to see each plot.")
             st.markdown("""
-            - **The Problem:** You're optimizing a baking process. Changing the oven **Temperature** is hard and takes hours (Hard-to-Change). Changing the **Time** for each tray is easy (Easy-to-Change). Randomizing temperature for every single run would be impossibly slow and expensive.
-            - **The Solution:** A split-plot design. You run the experiment in blocks:
-                - **Whole Plots (Boxes):** Set the oven to one temperature.
-                - **Sub-Plots (Points):** Bake multiple trays at that temperature, randomizing the easy-to-change factors (like time) within that block.
-            - **Strategic Insight:** This design is logistically efficient, but it requires a special analysis. The effect of the Hard-to-Change factor must be tested against its own, larger "Whole Plot Error Term." A standard analysis will give a false positive and lead you to believe the HTC factor is significant when it isn't.
+            **Mixture Designs**
+            - **The Problem:** Optimizing a recipe where components must sum to 100%.
+            - **The Solution:** A triangular "recipe space" plot where corners are pure components.
+            - **Strategic Insight:** The contour plot is a **treasure map of your formulation space**, revealing the optimal blend with maximum efficiency.
+
+            **Split-Plot Designs**
+            - **The Problem:** Optimizing a process with both Hard-to-Change (HTC) and Easy-to-Change (ETC) factors.
+            - **The Solution:** An efficient blocked design where the HTC factor is changed less frequently.
+            - **Strategic Insight:** Requires a special analysis to avoid false positives. It correctly handles the different levels of experimental error, providing valid conclusions about all factors.
             """)
-
-    with tabs[1]:
-        st.error("""
-        🔴 **THE INCORRECT APPROACH: Force a Square Peg into a Round Hole**
-        This is a classic and costly DOE mistake.
-        
-        - **For Mixtures:** Using a standard factorial design. This generates impossible recipes (e.g., 80% A, 80% B, 80% C = 240% total!) and completely fails to model the blending properties of the ingredients.
-        - **For Split-Plots:** Acknowledging the HTC factor is a pain, but analyzing the data as if it were a normal, fully randomized factorial DOE. This leads to an **incorrectly small error term** for the HTC factor, massively inflating its significance. You might launch a huge project to control a factor that actually has no effect.
-        """)
-        st.success("""
-        🟢 **THE GOLDEN RULE: Let the Problem's Constraints Define the Design**
-        The statistical design must mirror the physical, logistical, and financial reality of the experiment.
-        
-        - **If your factors are ingredients in a recipe that must sum to 100%...**
-          - **You MUST use a Mixture Design.**
-        
-        - **If you have factors that are difficult, slow, or expensive to change...**
-          - **You MUST use a Split-Plot Design** and its corresponding special ANOVA.
-          
-        Honoring the problem's structure is not optional. It is the only path to a statistically valid and operationally efficient experiment.
-        """)
-
-    with tabs[2]:
-        st.markdown("""
-        #### Historical Context & Origin
-        These advanced designs were born from practical necessity, solving real-world industrial and agricultural problems.
-        
-        - **Mixture Designs (1950s):** The theory for mixture experiments was largely developed by American statistician **Henry Scheffé**. He was working on problems in industrial chemistry, food science, and materials engineering where formulators needed a systematic way to optimize recipes. His work provided the mathematical foundation to move from haphazard "one-blend-at-a-time" tinkering to a holistic, model-based approach for optimizing formulations.
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: Force a Square Peg into a Round Hole**
+            This is a classic and costly DOE mistake.
             
-        - **Split-Plot Designs (1920s):** The origin of the split-plot is even more fascinating—it comes from agriculture. The legendary statistician **R.A. Fisher**, working at the Rothamsted Experimental Station in the UK, faced a classic dilemma. He wanted to test the effects of both large-scale irrigation techniques and different crop varieties. It was practical to irrigate a huge **plot** of land in one way (the Hard-to-Change factor). Then, within that large plot, it was easy to plant smaller **sub-plots** with different crop varieties (the Easy-to-Change factors). Fisher developed the unique split-plot structure and the corresponding ANOVA to correctly analyze this type of data, a method that is now essential for industrial experimentation.
-        
-        #### Mathematical Basis
-        - **Mixture Designs:** The key is the constraint: `x₁ + x₂ + ... + xₙ = 1`. This mathematical constraint means a standard regression model (which includes an intercept term) is incorrect. The models are reformulated, often without an intercept, to properly account for the mixture constraint.
-        - **Split-Plot Designs:** The model has two distinct error terms: `Error_A = Whole Plot Error` and `Error_B = Subplot Error`. The F-test for the hard-to-change factors must be calculated using `Error_A`. The F-test for the easy-to-change factors is calculated using `Error_B`. Using the wrong error term is the most common mistake in analyzing these experiments.
-        """)
+            - **For Mixtures:** Using a standard factorial design. This generates impossible recipes (e.g., 80% A, 80% B, 80% C = 240% total!) and completely fails to model the blending properties of the ingredients.
+            - **For Split-Plots:** Analyzing the data as if it were a normal, fully randomized factorial DOE. This leads to an **incorrectly small error term** for the HTC factor, massively inflating its significance. You might launch a huge project to control a factor that actually has no effect.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Let the Problem's Constraints Define the Design**
+            The statistical design must mirror the physical, logistical, and financial reality of the experiment.
+            
+            - **If your factors are ingredients in a recipe that must sum to 100%...**
+              - **You MUST use a Mixture Design.**
+            
+            - **If you have factors that are difficult, slow, or expensive to change...**
+              - **You MUST use a Split-Plot Design** and its corresponding special ANOVA.
+              
+            Honoring the problem's structure is not optional. It is the only path to a statistically valid and operationally efficient experiment.
+            """)
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            These advanced designs were born from practical necessity, solving real-world industrial and agricultural problems.
+            
+            - **Mixture Designs (1950s):** The theory for mixture experiments was largely developed by American statistician **Henry Scheffé**. He was working on problems in industrial chemistry and food science where formulators needed a systematic way to optimize recipes.
+                
+            - **Split-Plot Designs (1920s):** This design originated in agriculture with the legendary statistician **R.A. Fisher**. It was impractical to irrigate small, randomized plots differently, so he devised a method to apply irrigation (the Hard-to-Change factor) to large plots and then test different crop varieties (Easy-to-Change factors) within those larger plots.
+            
+            #### Mathematical Basis
+            - **Mixture Designs:** The constraint `x₁ + x₂ + ... + xₙ = 1` means the regression model is reformulated, often without an intercept, to properly account for the dependency.
+            - **Split-Plot Designs:** The model has two distinct error terms: a "Whole Plot Error" for testing the HTC factors and a "Subplot Error" for testing the ETC factors. Using the wrong error term is the most common mistake in analyzing these experiments.
+            """)
 
 def render_stability_analysis():
     """Renders the module for pharmaceutical stability analysis."""

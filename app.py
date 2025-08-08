@@ -2181,6 +2181,11 @@ def render_capability():
     
     In many ways, achieving a high Cpk is the statistical equivalent of "mission accomplished" for a process development or transfer team.
     """)
+    
+    st.info("""
+    **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate four common real-world process states. Observe how the control chart (stability), the histogram's position relative to the spec limits, and the final Cpk value (capability) change for each scenario. This demonstrates the critical principle that a process must be stable *before* its capability can be meaningfully assessed.
+    """)
+
     scenario = st.sidebar.radio("Select Process Scenario:", ('Ideal', 'Shifted', 'Variable', 'Out of Control'))
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -2194,37 +2199,35 @@ def render_capability():
         with tabs[0]:
             st.metric(label="📈 KPI: Process Capability (Cpk)", value=f"{cpk_val:.2f}" if scenario != 'Out of Control' else "INVALID", help="Measures how well the process fits within the spec limits, accounting for centering. Higher is better.")
             st.markdown("""
-            - **The Mantra: Control Before Capability.** The control chart (top plot) is a prerequisite. The Cpk metric is only statistically valid and meaningful if the process is stable and in-control. The 'Out of Control' scenario yields an **INVALID** Cpk because an unstable process has no single, predictable "voice" to measure. Its future performance is unknown.
+            - **The Mantra: Control Before Capability.** The control chart (top plot) is a prerequisite. The Cpk metric is only statistically valid and meaningful if the process is stable and in-control. The 'Out of Control' scenario yields an **INVALID** Cpk because an unstable process has no single, predictable "voice" to measure.
             - **The Key Insight: Control ≠ Capability.** A process can be perfectly in-control (predictable) but not capable (producing bad product). 
                 - The **'Shifted'** scenario shows a process that is precise but inaccurate.
                 - The **'Variable'** scenario shows a process that is centered but imprecise.
-            Both are in control, but both have a poor Cpk. This demonstrates why you need both SPC (for control) and Capability Analysis (for quality).
+            Both are in control, but both have a poor Cpk.
             """)
         with tabs[1]:
             st.markdown("These are industry-standard benchmarks, often required by customers, especially in automotive and aerospace. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
-            st.markdown("- `Cpk < 1.00`: Process is **not capable**. The 'voice of the process' is wider than the 'voice of the customer.' A significant portion of output will not meet specifications.")
-            st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**. It requires tight control and monitoring, as small shifts can lead to non-conforming product.")
-            st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable**. This is a common minimum target for many industries, corresponding to a '4-sigma' quality level and a theoretical defect rate of ~63 parts per million (PPM).")
-            st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** and is approaching **Six Sigma** quality. This corresponds to a '5-sigma' level and a theoretical defect rate of ~0.6 PPM.")
-            st.markdown("- `Cpk ≥ 2.00`: Process has achieved **Six Sigma capability** (assuming no long-term shift). This represents world-class performance with a theoretical defect rate of just 2 parts per *billion*. ")
+            st.markdown("- `Cpk < 1.00`: Process is **not capable**.")
+            st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**.")
+            st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable** (a '4-sigma' quality level).")
+            st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** (approaching 'Six Sigma').")
+            st.markdown("- `Cpk ≥ 2.00`: Process has achieved **Six Sigma capability**.")
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
             The concept of comparing process output to specification limits is old, but the formalization into capability indices originated in the Japanese manufacturing industry in the 1970s as a core part of Total Quality Management (TQM).
             
-            However, it was the **Six Sigma** initiative, pioneered by engineer Bill Smith at **Motorola in the 1980s**, that catapulted Cpk to global prominence. The 'Six Sigma' concept was born: a process so capable that the nearest specification limit is at least six standard deviations away from the process mean. This translates to a defect rate of just 3.4 parts per million (which famously accounts for a hypothetical 1.5 sigma long-term drift of the process mean). Cpk became the standard metric for measuring progress toward this ambitious goal.
+            However, it was the **Six Sigma** initiative, pioneered by engineer Bill Smith at **Motorola in the 1980s**, that catapulted Cpk to global prominence. The 'Six Sigma' concept was born: a process so capable that the nearest specification limit is at least six standard deviations away from the process mean. Cpk became the standard metric for measuring progress toward this ambitious goal.
             
             #### Mathematical Basis
             Capability analysis is a direct comparison between the **"Voice of the Customer"** (the allowable spread, USL - LSL) and the **"Voice of the Process"** (the actual, natural spread, conventionally 6σ).
 
-            - **Cp (Potential Capability):** Measures if the process is narrow enough, ignoring centering. It's the best the process *could* be if perfectly centered.
+            - **Cp (Potential Capability):** Measures if the process is narrow enough, ignoring centering.
             """)
-            st.latex(r"C_p = \frac{\text{Tolerance Width}}{\text{Process Width}} = \frac{USL - LSL}{6\hat{\sigma}}")
-            st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It is the lesser of the upper and lower capability indices, effectively measuring the distance from the process mean to the *nearest* specification limit. It is the 'worst-case scenario'.")
-            st.latex(r"C_{pk} = \min(C_{pu}, C_{pl}) = \min \left( \frac{USL - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - LSL}{3\hat{\sigma}} \right)")
-            st.markdown("A Cpk of 1.33 means that the process distribution could fit between the mean and the nearest spec limit 1.33 times. This provides a 'buffer' zone to absorb small process shifts without producing defects.")
-
+            st.latex(r"C_p = \frac{USL - LSL}{6\hat{\sigma}}")
+            st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit.")
+            st.latex(r"C_{pk} = \min \left( \frac{USL - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - LSL}{3\hat{\sigma}} \right)")
 def render_pass_fail():
     """Renders the interactive module for Pass/Fail (Binomial Proportion) analysis."""
     st.markdown("""

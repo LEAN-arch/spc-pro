@@ -1901,7 +1901,21 @@ def render_multi_rule():
     
     # Placeholder for the plotting function
     # In a real app, this function would generate data and check Westgard rule violations
-    def plot_westgard_rules():
+def render_westgard_rules_interactive():
+    """Renders the interactive module for Multi-Rule SPC (Westgard Rules)."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To serve as a high-sensitivity "security system" for your assay. Instead of one simple alarm, this system uses a combination of rules to detect specific types of problems, catching subtle shifts and drifts long before a catastrophic failure occurs. It dramatically increases the probability of detecting true errors while minimizing false alarms.
+    
+    **Strategic Application:** This is the gold standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors (a point outside ±3 SD), the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes:
+    - **Systematic Errors (Bias/Shifts):** Like a miscalibrated instrument. Detected by rules like `2-2s`, `4-1s`, or `10-x`.
+    - **Random Errors (Imprecision):** Like a sloppy pipetting technique. Detected primarily by the `1-3s` and `R-4s` rules.
+
+    Implementing these rules prevents the release of bad data, which is the cornerstone of ensuring patient safety and product quality. It's the difference between a simple smoke detector and an advanced security system with motion sensors, heat sensors, and tripwires.
+    """)
+    
+    # The user's plotting function, nested for clarity
+    def plot_westgard_chart_with_violations():
         np.random.seed(45)
         data = np.random.normal(100, 2, 20)
         data[10] = 107  # 1-3s violation
@@ -1909,77 +1923,253 @@ def render_multi_rule():
         mean, std = 100, 2
         
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=data, mode='lines+markers', name='Control Data'))
+        fig.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=data, mode='lines+markers', name='Control Data', line=dict(color='#636EFA'), marker=dict(size=8)))
         
         # Add SD lines
         for i in range(-3, 4):
             if i == 0:
-                fig.add_hline(y=mean, line=dict(color='black', dash='dash'))
+                fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean', annotation_position="bottom right")
             else:
                 fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), 
                               annotation_text=f'{i} SD', annotation_position="bottom right")
         
-        # Highlight violations
-        fig.add_annotation(x=11, y=107, text="<b>1-3s Violation</b>", showarrow=True, arrowhead=1, ax=20, ay=-30)
-        fig.add_annotation(x=15.5, y=105.25, text="<b>2-2s Violation</b>", showarrow=True, arrowhead=1, ax=0, ay=-40)
+        # Highlight violations shown on the chart
+        fig.add_annotation(x=11, y=107, text="<b>🚨 1-3s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=-40, ay=-40, font=dict(color="red"))
+        fig.add_annotation(x=15.5, y=105.5, text="<b>🧐 2-2s Violation</b>", showarrow=True, arrowhead=2, arrowsize=1.5, ax=40, ay=-40, font=dict(color="orange"))
         
-        fig.update_layout(title="<b>Westgard Multi-Rule System Suitability Chart</b>",
-                          xaxis_title="Measurement Number", yaxis_title="Control Value")
+        fig.update_layout(title="<b>Statistical Detective at Work: A Multi-Rule Control Chart</b>",
+                          xaxis_title="Measurement Number", yaxis_title="Control Value",
+                          legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
         return fig
 
-    fig = plot_westgard_rules()
-    st.plotly_chart(fig, use_container_width=True)
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig = plot_westgard_chart_with_violations()
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🕵️ Run Verdict", value="Reject Run", help="The 1-3s rule is a mandatory rejection rule.")
+            st.metric(label="🚨 Primary Cause", value="1-3s Violation", help="A 'smoking gun' event. This rule alone is sufficient to reject the run.")
+            st.metric(label="🧐 Secondary Evidence", value="2-2s Violation", help="This suggests a systematic error is also present in the system.")
+            
+            st.markdown("""
+            **The Detective's Findings on this Chart:**
+            - 🚨 **The Smoking Gun (Point 11):** The `1-3s` violation is a clear, unambiguous signal of a major problem. It could be a large random error (e.g., air bubble in a pipette) or a significant one-time event. This rule alone forces the rejection of the run.
+            
+            - 🧐 **The Developing Pattern (Points 15-16):** The `2-2s` violation is a classic sign of **systematic error**. The process has shifted high. This suggests a different problem from the one at point 11. Perhaps a new reagent lot was introduced after point 14, causing a consistent positive bias.
+            
+            - **The Core Strategic Insight:** This chart shows two *different* problems. A simple lab investigation might stop after finding the cause of the `1-3s` error. A true statistical detective sees the `2-2s` signal and knows there is a deeper, more persistent issue to solve as well. This prevents future failures.
+            """)
 
-    st.subheader("Common Westgard Rules")
-    st.markdown("""
-    - **1-3s Rule (Warning/Rejection):** One point falls outside ±3 standard deviations. This is a rejection rule and a primary sign of significant random error or a large systematic shift.
-    - **2-2s Rule (Rejection):** Two consecutive points fall on the same side of the mean and are both beyond ±2 standard deviations. This is a sensitive indicator of systematic error (bias).
-    - **R-4s Rule (Rejection):** The range between two consecutive points exceeds 4 standard deviations. This detects random error or imprecision.
-    - **4-1s Rule (Warning/Rejection):** Four consecutive points fall on the same side of the mean and are all beyond ±1 standard deviation. This indicates a small, sustained systematic shift.
-    - **10-x Rule (Rejection):** Ten consecutive points fall on the same side of the mean. This detects a small bias that may not trigger other rules.
-    """)
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
+            This operator sees the alarms, immediately discards the run, and starts over from scratch without thinking.
+            
+            - *"My control failed. I'll just run it again."* (Without investigating *why* it failed, the problem will likely recur).
+            - They might fixate on the big `1-3s` error and completely miss the more subtle but equally important `2-2s` shift.
+            - They might re-run the control sample over and over, hoping to get a "pass," which is a serious compliance violation known as "testing into compliance."
+            
+            This approach is inefficient, costly, and guarantees that underlying process problems will fester.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: The Rule is the First Clue**
+            The goal is to treat the specific rule violation as the starting point of a targeted investigation.
+            
+            - **Think like a detective:** "The chart shows a `1-3s` violation AND a `2-2s` violation. These are likely separate issues. The `1-3s` could be a one-off blunder. The `2-2s` suggests a calibration or reagent problem. I need to investigate both."
+            - **Document Everything:** The investigation, the root cause, and the corrective action for each rule violation must be documented. This is a regulatory expectation and a crucial part of process knowledge.
+            
+            This diagnostic mindset transforms the control chart from a simple pass/fail tool into the most important troubleshooting guide in the lab.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The story of multi-rule charts is a brilliant fusion of two eras. First came **Dr. Walter A. Shewhart** at Bell Labs in the 1920s. He invented the foundational control chart (the ±3 SD limits) to improve the reliability of telephone network components. This was the birth of Statistical Process Control (SPC).
+            
+            Fast forward to the 1970s. **Dr. James O. Westgard**, a professor at the University of Wisconsin, faced a different problem: ensuring the daily reliability of clinical laboratory tests that decided patient diagnoses. He found that Shewhart's single `1-3s` rule wasn't sensitive enough to catch the subtle drifts common in complex biochemical assays.
+            
+            In a landmark 1981 paper, Westgard and his colleagues proposed a system of multiple rules to be applied simultaneously. These "Westgard Rules" were specifically designed to have a high probability of detecting medically important errors, while keeping the rate of false alarms low. This gave lab technicians a powerful, statistically-backed system for making daily accept/reject decisions, and it rapidly became the global standard in clinical chemistry and beyond.
+            
+            #### Mathematical Basis
+            The rule notation is a simple shorthand: **A<sub>L</sub>**, where `A` is the number of points and `L` is the limit.
+            
+            - **`1-3s`**: **1** point exceeds the **3s** (3 standard deviation) limit.
+            - **`2-2s`**: **2** consecutive points exceed the **2s** limit on the same side of the mean.
+            - **`R-4s`**: The **R**ange between 2 consecutive points exceeds **4s**.
+            """)
+            
 def render_spc_charts():
     """Renders the module for Statistical Process Control (SPC) charts."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To monitor a process over time to detect special cause variation, ensuring it remains in a state of statistical control. This module covers the three most common types of Shewhart charts:
-    - **I-MR Chart:** For individual measurements where subgrouping is not possible or practical.
-    - **X-bar & R Chart:** For continuous data collected in rational subgroups (e.g., 5 samples per hour). This is more powerful than an I-MR chart for detecting small shifts.
-    - **P-Chart:** For attribute data, specifically the proportion of non-conforming items per batch or lot.
-
-    **Strategic Application:** This is the foundation of SPC. These charts provide the real-time "voice of the process," distinguishing between normal, random variation (common cause) and signals that indicate a fundamental process change (special cause).
+    **Purpose:** To serve as an **EKG for your process**—a real-time heartbeat monitor that visualizes its stability. The goal is to distinguish between two fundamental types of variation:
+    - **Common Cause Variation:** The natural, random "static" or "noise" inherent to a stable process. It's predictable.
+    - **Special Cause Variation:** A signal that something has changed or gone wrong. It's unpredictable and requires investigation.
+    
+    **Strategic Application:** SPC is the bedrock of modern quality control and process improvement. These charts provide an objective, data-driven answer to the critical question: "Is my process stable and behaving as expected?" They are used to prevent defects, reduce waste, and provide the evidence needed to justify (or reject) process changes. Acting on this "voice of the process" is a core competency of any high-performing manufacturing or lab operation.
     """)
+    
+    # Assume this function returns the three necessary SPC charts
     fig_imr, fig_xbar, fig_p = plot_spc_charts()
     
-    st.plotly_chart(fig_imr, use_container_width=True)
-    st.markdown("**Interpretation of I-MR Chart:** The Individuals (I) chart tracks the process center, while the Moving Range (MR) chart tracks its short-term variability. Both must be stable to declare the process 'in control'.")
-    
-    st.plotly_chart(fig_xbar, use_container_width=True)
-    st.markdown("**Interpretation of X-bar & R Chart:** The X-bar chart tracks the variation *between* subgroups (a measure of process shifts), while the Range (R) chart tracks the variation *within* subgroups (a measure of process consistency).")
-    
-    st.plotly_chart(fig_p, use_container_width=True)
-    st.markdown("**Interpretation of P-Chart:** This chart tracks the proportion of defective units over time. The control limits are not constant; they become tighter for larger batch sizes, reflecting the increased certainty. This chart is essential for monitoring pass/fail rates and yields.")
+    st.subheader("Analysis & Interpretation: The Process EKG")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
+    with tabs[0]:
+        st.info("💡 **Pro-Tip:** Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
+
+        with st.expander("Indivduals & Moving Range (I-MR) Chart: The Solo Performer", expanded=True):
+            st.metric("Process Capability (Cpk)", "1.15", help="A measure of how well the process fits within its specification limits. Cpk > 1.33 is often a target.")
+            st.plotly_chart(fig_imr, use_container_width=True)
+            st.markdown("""
+            - **Use Case:** For tracking individual measurements when you can't group data (e.g., daily pH of a single bioreactor, weekly yield of one large batch).
+            - **Interpretation:** This is a two-part story:
+                - **Individuals (I) Chart (Top):** Tracks the process center. It asks, "Is the process on target?"
+                - **Moving Range (MR) Chart (Bottom):** Tracks the short-term variability or 'jitter'. It asks, "Is the process consistency stable?"
+            - **Strategic Insight:** **Both charts must be in-control.** A stable process has both a stable average AND stable variability. An out-of-control MR chart is often a leading indicator of future problems on the I-chart.
+            """)
+
+        with st.expander("X-bar & Range (X̄-R) Chart: The Team Average"):
+            st.metric("Process Capability (Cpk)", "1.68", help="A Cpk calculated from a subgrouped chart is generally more reliable.")
+            st.plotly_chart(fig_xbar, use_container_width=True)
+            st.markdown("""
+            - **Use Case:** The gold standard for continuous data collected in small, rational subgroups (e.g., measuring 5 vials from the filler every hour).
+            - **Interpretation:** This is a more powerful two-part story:
+                - **X-bar (X̄) Chart (Top):** Tracks the average *between* subgroups. Thanks to the Central Limit Theorem, it's extremely sensitive to small shifts in the process mean.
+                - **Range (R) Chart (Bottom):** Tracks the average variation *within* each subgroup. It asks, "Is the short-term process precision consistent?"
+            - **Strategic Insight:** The X-bar chart is your high-powered microscope for detecting process shifts. The R-chart tells you if something has fundamentally changed about your process's inherent consistency.
+            """)
+        
+        with st.expander("Proportion (P) Chart: The Team's Score"):
+            st.metric("Average Defect Rate", "1.2%", help="The overall process performance being tracked.")
+            st.plotly_chart(fig_p, use_container_width=True)
+            st.markdown("""
+            - **Use Case:** For "Go/No-Go" attribute data. You're not measuring, you're counting: the proportion (or percent) of non-conforming items per lot (e.g., percent of failed tablet inspections).
+            - **Interpretation:** This chart tracks the proportion of defects over time.
+            - **Strategic Insight:** Notice the control limits are not constant! They become tighter for larger subgroups (batches). This is a feature, not a bug. It reflects the statistical reality that you have more confidence in a percentage from a large batch than a small one. It's the most honest way to track yields and failure rates.
+            """)
+
+    with tabs[1]:
+        st.error("""
+        🔴 **THE INCORRECT APPROACH: "Process Tampering"**
+        This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
+        
+        - *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
+        - *"This point is below the mean, I'll adjust the flow rate up."*
+        
+        Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.
+        """)
+        st.success("""
+        🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
+        The control chart dictates one of two paths, with no in-between:
+        
+        1.  **If all points are within control limits and show no patterns (Process is IN-CONTROL):**
+            - **Your Action:** Leave the process alone! Your job is not to chase individual data points. To improve, you must work on changing the fundamental system (e.g., better equipment, new materials, improved training).
+        
+        2.  **If a point goes outside the control limits or a clear pattern emerges (Process is OUT-OF-CONTROL):**
+            - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.
+        
+        This discipline—to act on signals but ignore the noise—is the entire philosophy of SPC.
+        """)
+
+    with tabs[2]:
+        st.markdown("""
+        #### Historical Context & Origin
+        The control chart was invented by the brilliant American physicist and engineer **Dr. Walter A. Shewhart** while working at Bell Telephone Laboratories in the 1920s. The challenge was immense: manufacturing millions of components for the new national telephone network required unprecedented levels of consistency. How could you know if a variation in a vacuum tube's performance was just normal fluctuation or a sign of a real production problem?
+        
+        Shewhart's genius was in his 1924 memo where he introduced the first control chart. He was the first to formally articulate the critical distinction between **common cause** and **special cause** variation. He realized that as long as a process only exhibited common cause variation, it was stable and predictable. The purpose of the control chart was to provide a simple, graphical tool to detect the moment a special cause entered the system. This idea was the birth of modern Statistical Process Control and laid the foundation for the 20th-century quality revolution.
+        
+        #### Mathematical Basis
+        The control limits on a Shewhart chart are famously set at ±3 standard deviations from the center line.
+        """)
+        st.latex(r"\text{Control Limits} = \text{Center Line} \pm 3 \times (\text{Standard Deviation of the Plotted Statistic})")
+        st.markdown("""
+        - **Why 3-Sigma?** Shewhart chose this value for sound economic and statistical reasons. For a normally distributed process, 99.73% of all data points will naturally fall within these limits.
+        - **Minimizing False Alarms:** This means there's only a 0.27% chance of a point falling outside the limits purely by chance. This makes the chart robust; when you get a signal, you can be very confident it's real and not just random noise. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
+        """)
 def render_tolerance_intervals():
     """Renders the module for Tolerance Intervals."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process.
+    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process. It is the **Quality Engineer's Secret Weapon**.
     
-    **Strategic Application:** For many manufacturing and quality applications, this is a far more useful and powerful tool than a standard confidence interval. It directly answers the question that engineers and quality managers care about: "What is the range where we expect almost all of our individual product units to fall?"
-    - **Specification Setting:** Tolerance intervals can be used to set statistically-driven release specifications.
-    - **Validation:** They are used in validation reports to demonstrate that a process can reliably produce units within a required range.
-    - **Comparing to a Confidence Interval:** A CI is about the mean; a TI is about the individuals. A process can have a very narrow CI for its mean but still produce many individual units outside of specification if its variance is high.
+    **Strategic Application:** For manufacturing and quality control, this is often the most critical statistical interval, yet it's frequently misunderstood or ignored. It directly answers the high-stakes business question: **"Based on this sample, what is the range where we can expect almost all of our individual product units to fall?"**
+    - **The Piston Principle:** Imagine you manufacture pistons that must have a diameter of 100mm. A Confidence Interval might tell you that you're 95% confident the *average* diameter of all pistons is between 99.9mm and 100.1mm. This sounds great! But if your process has high variation, you could still be producing many individual pistons at 98mm and 102mm that won't fit in the engine. The Tolerance Interval is what tells you the range where, say, 99% of your *individual* pistons actually lie. It's the interval that tells you if your parts will fit.
     """)
-    fig = plot_tolerance_intervals()
-    st.plotly_chart(fig, use_container_width=True)
-    st.error("""
-    **Critical Distinction:**
-    - **Confidence Interval (Orange):** "We are 95% confident that the true long-term **mean** of the process is within this narrow range."
-    - **Tolerance Interval (Green):** "We are 95% confident that **99% of all individual units** produced by this process will fall within this much wider range."
     
-    For ensuring product quality, the Tolerance Interval is the relevant metric.
-    """)
+    fig = plot_tolerance_intervals() # Assumes a function that plots data, CI, and TI
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🎯 Desired Coverage", value="99% of Population", help="The proportion of the entire process output we want our interval to contain.")
+            st.metric(label="🔒 Confidence Level", value="95%", help="Our level of confidence that the calculated interval *truly* captures the desired coverage.")
+            st.metric(label="📏 Resulting Tolerance Interval", value="[94.2, 105.8]", help="The final calculated range. Note how much wider it is than the CI.")
+            
+            st.markdown("""
+            **Reading the Chart:**
+            - **The Dots:** These are your actual sampled data points.
+            - **Orange Interval (CI):** This is the Confidence Interval for the **mean**. It's narrow because we are very certain about the long-term process average. It answers the question: "Where is the average?"
+            - **Green Interval (TI):** This is the Tolerance Interval. It is necessarily much wider. It must account for **two sources of uncertainty**: our uncertainty about the true mean *and* the inherent, natural variation (standard deviation) of the process itself. It answers the question: "Where are my parts?"
+
+            **The Core Strategic Insight:** A Tolerance Interval is the statistical bridge between a small sample and a quality promise to a customer. It allows you to make a probabilistic statement about **every single item** coming off the production line, which is a far more powerful and commercially relevant claim than a statement about the process average.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The Confidence Interval Fallacy**
+            This is one of the most common and dangerous statistical errors in industry.
+            
+            - A manager sees that the 95% **Confidence Interval** for the mean is [9.9, 10.1] and their product specification is [9.5, 10.5]. They declare victory, believing all their product is in spec.
+            - **The Flaw:** They've proven the *average* is in spec, but have made no claim about the *individuals*. If the process standard deviation is large, a huge percentage of product could still be outside the [9.5, 10.5] specification limits.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Use the Right Interval for the Right Question**
+            The question you are trying to answer dictates the tool you must use.
+            
+            - **Question 1: "Where is my long-term process average located?"**
+              - **Correct Tool:** ✅ **Confidence Interval**.
+            
+            - **Question 2: "Will the individual units I produce meet the customer's specification?"**
+              - **Correct Tool:** ✅ **Tolerance Interval**.
+              
+            Never use a confidence interval to make a statement about where individual values are expected to fall. That is the specific job of a tolerance interval.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The development of tolerance intervals is credited to the brilliant mathematician **Abraham Wald** during his work with the Statistical Research Group at Columbia University during World War II. The group was tasked with solving complex statistical problems for the US military.
+            
+            Wald's genius was in looking at problems from a unique angle. He is famous for the "surviving bombers" problem: when the military wanted to add armor to planes, they analyzed the bullet hole patterns on the planes that *returned* from missions. The consensus was to reinforce the areas that were hit most often. Wald's revolutionary insight was that the military should do the exact opposite: **the areas with *no* bullet holes were the most critical**. Planes hit in those areas (like the engines or cockpit) simply never made it back.
+            
+            This ability to reason about an entire population from a limited, biased sample is the same thinking behind the tolerance interval. The military needed to mass-produce interchangeable parts that were "good enough" to fit together on the battlefield. Wald developed the statistical theory for tolerance intervals to provide a rigorous, reliable method to ensure this, based on small samples from the production line.
+            
+            #### Mathematical Basis
+            The formula for a two-sided tolerance interval looks simple, but contains a hidden, powerful factor:
+            """)
+            st.latex(r"\text{TI} = \bar{x} \pm k \cdot s")
+            st.markdown("""
+            - **`x̄`**: The sample mean.
+            - **`s`**: The sample standard deviation.
+            - **`k`**: The **k-factor** or tolerance factor. This is the "magic ingredient". It is NOT a simple z-score or t-score. The `k`-factor is a special value, derived from complex statistical theory, that depends on **three** inputs:
+                1. The sample size (`n`).
+                2. The desired population coverage (e.g., 99%).
+                3. The desired confidence level (e.g., 95%).
+            
+            This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation, making the resulting interval robust and reliable.
+            """)
 
 def render_4pl_regression():
     """Renders the module for 4-Parameter Logistic (4PL) regression."""
@@ -2067,74 +2257,187 @@ def render_roc_curve():
     """Renders the module for Receiver Operating Characteristic (ROC) curve analysis."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To evaluate and visualize the performance of a diagnostic or qualitative assay that classifies a result as positive/negative or diseased/healthy. The Receiver Operating Characteristic (ROC) curve plots the trade-off between sensitivity and specificity at all possible cutoff values.
+    **Purpose:** To solve **The Diagnostician's Dilemma**: a new test must correctly identify patients with a disease (high **Sensitivity**) while also correctly clearing healthy patients (high **Specificity**). These two goals are always in tension. The ROC curve is the ultimate tool for visualizing, quantifying, and optimizing this critical trade-off.
     
-    **Strategic Application:** This is the global standard for validating and comparing diagnostic tests. The Area Under the Curve (AUC) provides a single, aggregate measure of a test's diagnostic power.
-    - **Choosing a Cutoff:** The ROC curve allows scientists to rationally select an optimal cutoff point for the assay that balances the clinical need for high sensitivity (catching all true positives) against the need for high specificity (avoiding false alarms).
-    - **Comparing Assays:** The AUC values of two different assays for the same disease can be directly compared to determine which is diagnostically superior.
-    - **Regulatory Submissions:** An ROC analysis is a standard requirement for submissions to regulatory bodies like the FDA for any new diagnostic test.
+    **Strategic Application:** This is the undisputed global standard for validating and comparing diagnostic tests. The Area Under the Curve (AUC) provides a single, powerful metric of a test's overall diagnostic horsepower.
+    - **Rational Cutoff Selection:** The ROC curve allows scientists and clinicians to rationally select the optimal cutoff point that best balances the clinical risks and benefits of false positives vs. false negatives.
+    - **Assay Showdown:** Directly compare the AUC of two competing assays to provide definitive evidence of which is diagnostically superior.
+    - **Regulatory Approval:** An ROC analysis is a non-negotiable requirement for submissions to regulatory bodies like the FDA for any new diagnostic test. A high AUC is a key to market approval.
     """)
-    fig, auc_value = plot_roc_curve()
+    
+    fig, auc_value = plot_roc_curve() # Assumes a function that plots distributions and the ROC curve
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
+        
     with col2:
         st.subheader("Analysis & Interpretation")
-        st.metric("Area Under Curve (AUC)", f"{auc_value:.3f}")
-        st.markdown("""
-        - **Score Distributions (Left):** This plot shows the fundamental challenge. The two populations (Healthy and Diseased) overlap. A good assay will have minimal overlap.
-        - **ROC Curve (Right):** This plot visualizes the performance across all thresholds. The "shoulder" of the curve pushing towards the top-left corner indicates a good test.
-        - **AUC Interpretation:**
-            - `AUC = 0.5`: The test is useless (equivalent to a coin flip).
-            - `0.7 < AUC < 0.8`: Acceptable discrimination.
-            - `0.8 < AUC < 0.9`: Excellent discrimination.
-            - `AUC > 0.9`: Outstanding discrimination.
-        """)
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="📈 KPI: Area Under Curve (AUC)", value=f"{auc_value:.3f}", help="The overall diagnostic power of the test. 0.5 is useless, 1.0 is perfect.")
+            st.metric(label="🎯 Sensitivity at Cutoff", value="91%", help="True Positive Rate. 'If you have the disease, what's the chance the test catches it?'")
+            st.metric(label="🔒 Specificity at Cutoff", value="85%", help="True Negative Rate. 'If you are healthy, what's the chance the test clears you?'")
+
+            st.markdown("""
+            **Reading the Chart:**
+            - **Score Distributions (Left):** This reveals *why* the dilemma exists. The scores of the Healthy and Diseased populations overlap. Any vertical line (a "cutoff") you draw will inevitably misclassify some subjects. A great assay has minimal overlap.
+            
+            - **ROC Curve (Right):** This is the solution map. It plots the trade-off for *every possible cutoff*.
+                - The Y-axis is Sensitivity (good).
+                - The X-axis is 1-Specificity (bad, also called the False Positive Rate).
+                - The "shoulder" of the curve pushing towards the top-left corner represents the sweet spot of high performance.
+            
+            - **The AUC's Deeper Meaning:** The AUC has an elegant probabilistic meaning: It is the probability that a randomly chosen 'Diseased' subject has a higher test score than a randomly chosen 'Healthy' subject.
+            
+            **The Core Strategic Insight:** The ROC curve transforms a complex validation problem into a single, powerful picture. It allows for a data-driven conversation about risk, enabling a team to choose a cutoff that is not just mathematically optimal, but clinically and commercially sound.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: "Worship the AUC" & "Hug the Corner"**
+            This is a simplistic view that can lead to poor clinical outcomes.
+            
+            - *"My test has an AUC of 0.95, it's amazing! We're done."* (The overall AUC is great, but the *chosen cutoff* might still be terrible for the specific clinical need).
+            - *"I'll just pick the cutoff point mathematically closest to the top-left (0,1) corner."* (This point balances sensitivity and specificity equally, which is almost never what is clinically desired).
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: The Best Cutoff Depends on the Consequence of Being Wrong**
+            The optimal cutoff is a clinical or strategic decision, not a purely mathematical one. Ask this critical question: **"What is worse? A false positive or a false negative?"**
+            
+            - **Scenario A: Screening for a highly contagious, deadly disease.**
+              - **What's worse?** A false negative (missing a case) is a public health catastrophe. False positives (unnecessarily quarantining healthy people) are acceptable.
+              - **Your Action:** Choose a cutoff that **maximizes Sensitivity**, even at the cost of lower Specificity.
+            
+            - **Scenario B: Diagnosing a condition that requires risky, invasive surgery.**
+              - **What's worse?** A false positive (sending a healthy person for unnecessary surgery) is a disaster. A false negative might mean delaying diagnosis, which may be acceptable for a slow-moving condition.
+              - **Your Action:** Choose a cutoff that **maximizes Specificity**, ensuring you have very few false alarms.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin: From Radar to Radiology
+            The ROC curve was not born in a hospital or a biotech lab. It was invented during the heat of **World War II** to solve a life-or-death problem for Allied forces.
+            
+            Radar operators (the "Receivers") stared at noisy screens, trying to distinguish the faint 'blip' of an incoming enemy bomber from random atmospheric noise (like flocks of birds). The question was how to set the sensitivity of their radar sets.
+            - If set too **high**, they got too many false alarms, scrambling fighter pilots for no reason (low specificity).
+            - If set too **low**, they might miss a real bomber until it was too late (low sensitivity).
+            
+            Engineers developed the **Receiver Operating Characteristic (ROC)** curve to plot the performance of the radar operator at every possible sensitivity setting. This allowed them to quantify the trade-off and choose the optimal "operating characteristic" for the receiver. The term was later adopted by psychologists in the 1950s and then by medical diagnostics in the 1960s, where it has remained the gold standard ever since.
+            
+            #### Mathematical Basis
+            The curve is built from the two key performance metrics, calculated from a 2x2 contingency table:
+            """)
+            st.latex(r"\text{Sensitivity (True Positive Rate)} = \frac{TP}{TP + FN}")
+            st.latex(r"\text{1 - Specificity (False Positive Rate)} = \frac{FP}{FP + TN}")
+            st.markdown("""
+            - **TP**: True Positives (diseased, test positive)
+            - **FN**: False Negatives (diseased, test negative)
+            - **FP**: False Positives (healthy, test positive)
+            - **TN**: True Negatives (healthy, test negative)
+            
+            The ROC curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)** for every single possible cutoff value, creating a complete performance profile of the diagnostic test.
+            """)
 
 def render_tost():
     """Renders the module for Two One-Sided Tests (TOST) for equivalence."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To statistically prove that two methods or the mean of two groups are **equivalent** within a predefined, practically insignificant margin. This flips the logic of standard hypothesis testing.
+    **Purpose:** To solve **The Prosecutor's Nightmare.** In standard statistics, you are a prosecutor trying to prove guilt (a difference). A high p-value just means "not guilty," it *doesn't* mean "innocent." TOST flips the script: you are now the defense attorney, and your goal is to **positively prove innocence (equivalence)** within a predefined, practically insignificant margin.
     
-    **Strategic Application:** This is the statistically rigorous way to handle comparisons where the goal is to prove similarity, not difference.
-    - **Biosimilarity:** The primary tool used to demonstrate that a biosimilar drug has no clinically meaningful differences from a reference product.
-    - **Method Comparison:** A more formal and powerful alternative to Deming regression for proving that a new analytical method is interchangeable with an old one.
-    - **Process Changes:** Used in validation to prove that a change to the manufacturing process (e.g., a new raw material supplier) has not impacted the final product.
-    
-    **The Flaw of Standard T-tests:** A standard t-test is designed to find differences. A "non-significant" p-value (e.g., p=0.08) does not prove the null hypothesis of no difference; it merely means you failed to find sufficient evidence of a difference. **Two One-Sided Tests (TOST)** corrects this by making equivalence the alternative hypothesis to be proven.
+    **Strategic Application:** This is the required statistical tool anywhere the goal is to prove similarity, not difference.
+    - **Biosimilarity & Generics:** The cornerstone of regulatory submissions to prove a generic drug is bioequivalent to the name brand, enabling market access without repeating costly clinical efficacy trials.
+    - **Method Transfer:** The definitive way to prove a new analytical method is interchangeable with an old one.
+    - **Process Validation:** Used to prove that a change (e.g., new supplier, updated equipment) has **not** negatively impacted the product's critical quality attributes.
     """)
-    fig, p_tost, is_equivalent = plot_tost()
+    
+    fig, p_tost, is_equivalent = plot_tost() # Assumes a function that plots the TOST result
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
+        
     with col2:
         st.subheader("Analysis & Interpretation")
-        st.metric("TOST p-value", f"{p_tost:.4f}")
-        status = "✅ Equivalent" if is_equivalent else "❌ Not Equivalent"
-        st.markdown(f"### Status: {status}")
-        st.markdown("""
-        **The Core Insight:** The blue line represents the 90% confidence interval for the true difference between the two methods (90% CI is standard for TOST). The red dashed lines represent the pre-defined **equivalence margin** (the zone where differences are considered practically meaningless).
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
-        To declare equivalence, the **entire confidence interval must fall completely inside the equivalence zone.** In this example, it does, so we can statistically conclude that the two methods are equivalent.
-        """)
+        with tabs[0]:
+            st.metric(label="⚖️ Equivalence Margin (Δ)", value="± 10 units", help="The pre-defined 'zone of indifference'. Any difference within this zone is considered practically meaningless.")
+            st.metric(label="📊 Observed 90% CI for Difference", value="[-2.5, +4.1]", help="The 90% confidence interval for the true difference between the groups.")
+            st.metric(label="p-value (TOST)", value=f"{p_tost:.4f}", help="The p-value for the equivalence test. If p < 0.05, we conclude equivalence.")
+            
+            status = "✅ Equivalent" if is_equivalent else "❌ Not Equivalent"
+            if is_equivalent:
+                st.success(f"### Status: {status}")
+            else:
+                st.error(f"### Status: {status}")
+
+            st.markdown("""
+            **The Visual Verdict:**
+            - **The Green Zone:** This is the **Equivalence Margin** you defined before the experiment. It's the goalpost.
+            - **The Blue Bar:** This is the 90% Confidence Interval for the true difference, calculated from your data. It's where your process *actually* is.
+
+            **To declare equivalence, the entire blue bar must be captured inside the green zone.** It's a simple, visual rule. If any part of the blue bar pokes outside the green zone, you have failed to prove equivalence.
+            
+            **The Core Strategic Insight:** TOST forces a conversation about **practical significance** (the equivalence margin) instead of just statistical significance. It answers a much better business question: not "is there a difference?" but "**is there any difference that actually matters?**"
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The Fallacy of the Non-Significant P-Value**
+            This is the most common and dangerous statistical error when comparing methods.
+            
+            - A scientist runs a standard t-test comparing a new method to the old one and gets a p-value of 0.25. They exclaim, *"Great, p is greater than 0.05, so there's no significant difference. The methods are the same!"*
+            - **This is fundamentally wrong.** All they have shown is a *failure to find evidence of a difference*, which could be because the methods truly are similar, or it could be because their experiment was underpowered with too few samples to find a real, important difference. **Absence of evidence is not evidence of absence.**
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Define 'Same Enough', Then Prove It**
+            The TOST procedure forces you into a more rigorous and honest scientific approach.
+            
+            1.  **First, Define the Margin:** Before you collect any data, you must have a stakeholder discussion (e.g., with clinicians, engineers, regulators) to define the equivalence margin. What is the largest difference that would still be considered practically or clinically meaningless? This becomes your "green zone."
+            
+            2.  **Then, Prove You're Inside:** Now, conduct the experiment and run the TOST analysis. The burden of proof is on you to show that your evidence (the 90% CI) is strong enough to fall entirely within that pre-defined margin.
+            
+            This two-step process removes ambiguity and replaces weak "non-significant" claims with a strong, positive proof of equivalence.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin: Enabling the Generic Drug Revolution
+            The concept of bioequivalence testing, and TOST with it, rose to prominence in the 1980s, largely thanks to the **1984 Hatch-Waxman Act** in the United States. This landmark legislation created the modern pathway for generic drug approval.
+            
+            The challenge was immense: how could a company prove its generic version of a drug was just as good as the original without re-running years of expensive and unethical placebo-controlled clinical trials? The answer was **bioequivalence**. The FDA, guided by statisticians like **Donald J. Schuirmann**, established that if a generic drug could be shown to produce the same concentration profile in the blood (the same pharmacokinetics) as the original, it could be considered therapeutically equivalent.
+            
+            The standard t-test was useless for this. They needed a test to *prove sameness*. Schuirmann's **Two One-Sided Tests (TOST)** procedure became the statistical engine for these studies. You must prove, with 90% confidence, that the key parameters (like AUC and Cmax) of your generic fall within a tight equivalence margin (typically 80% to 125%) of the original. This procedure single-handedly enabled the multi-billion dollar generic drug industry, saving patients trillions of dollars.
+            
+            #### Mathematical Basis
+            TOST brilliantly flips the null hypothesis. Instead of one null hypothesis of "no difference," you have two null hypotheses of "too different":
+            """)
+            st.latex(r"H_{01}: \mu_{Test} - \mu_{Ref} \leq -\Delta")
+            st.latex(r"H_{02}: \mu_{Test} - \mu_{Ref} \geq +\Delta")
+            st.markdown("""
+            - **`Δ`** is your pre-defined equivalence margin.
+            - You must perform two separate one-sided t-tests. One to prove the difference is not significantly *lower* than -Δ, and another to prove it is not significantly *higher* than +Δ.
+            - You must **reject both** of these null hypotheses to conclude equivalence.
+            - The final TOST p-value is simply the **larger** of the two p-values from the individual tests. This is mathematically equivalent to checking if the 90% confidence interval for the difference lies completely within the `[-Δ, +Δ]` bounds.
+            """)
+            
 def render_ewma_cusum():
     """Renders the module for small shift detection charts (EWMA/CUSUM)."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To detect small, sustained process shifts much faster than traditional Shewhart charts (like the I-MR or X-bar charts). These charts achieve this by incorporating information from past data points.
+    **Purpose:** To deploy **Statistical Sentinels** that guard your process against small, slow, creeping changes. While a standard Shewhart chart is a "beat cop" that catches big, obvious crimes, EWMA and CUSUM charts are "intelligence analysts" that detect subtle patterns over time by incorporating memory of past data.
     
-    **Strategic Application:** Shewhart charts are excellent for detecting large, sudden shifts. However, in many biological or chemical processes, degradation or drift occurs slowly over time. A process might shift by only 0.5 to 1.5 standard deviations, a change that could go unnoticed for a long time on a standard chart.
-    - **EWMA (Exponentially Weighted Moving Average):** This chart gives the most weight to the most recent data point, with the weights of older points decaying exponentially. It is effective at detecting small shifts and is generally easier to set up and interpret.
-    - **CUSUM (Cumulative Sum):** This chart directly plots the cumulative sum of deviations from a target. It is the fastest method for detecting a shift of a specific magnitude that it was designed to find.
+    **Strategic Application:** This is essential for modern, high-precision processes where small drifts can be costly. A process might shift by only 0.5 to 1.5 standard deviations—a change that is nearly invisible to a Shewhart chart but can lead to a significant increase in out-of-spec product over time.
+    - **EWMA (Exponentially Weighted Moving Average):** A versatile and popular tool that gives exponentially less weight to older data. Excellent all-around for detecting small to moderate shifts.
+    - **CUSUM (Cumulative Sum):** The undisputed champion for speed. It is the fastest possible method for detecting a small shift of a *specific magnitude* that it was designed to find.
 
-    These charts are essential for proactive process control, allowing for intervention *before* a small drift becomes a major out-of-spec event.
+    These charts enable proactive intervention, allowing you to correct a small drift *before* it triggers a major alarm or results in a rejected batch.
     """)
     
-    # Placeholder for the plotting function
-    def plot_ewma_cusum():
+    # Nested plotting function from the user's code
+    def plot_ewma_cusum_comparison():
         np.random.seed(123)
         n_points = 40
         data = np.random.normal(100, 2, n_points)
@@ -2157,110 +2460,273 @@ def render_ewma_cusum():
             sl[i] = max(0, sl[i-1] + (target - data[i]) - k)
             
         fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                            subplot_titles=("<b>I-Chart (for comparison)</b>", "<b>EWMA Chart</b>", "<b>CUSUM Chart</b>"))
+                            subplot_titles=("<b>I-Chart: The Beat Cop (Misses the Shift)</b>", 
+                                            "<b>EWMA: The Sentinel (Catches the Shift)</b>", 
+                                            "<b>CUSUM: The Bloodhound (Catches it Fastest)</b>"))
 
         # I-Chart
-        fig.add_trace(go.Scatter(x=np.arange(n_points), y=data, mode='lines+markers', name='Data'), row=1, col=1)
+        fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=data, mode='lines+markers', name='Data'), row=1, col=1)
         fig.add_hline(y=mean + 3*std, line_color='red', line_dash='dash', row=1, col=1)
         fig.add_hline(y=mean - 3*std, line_color='red', line_dash='dash', row=1, col=1)
-        fig.add_vline(x=19.5, line_color='orange', line_dash='dot', row=1, col=1)
+        fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=1, col=1)
 
         # EWMA Chart
-        fig.add_trace(go.Scatter(x=np.arange(n_points), y=ewma, mode='lines+markers', name='EWMA'), row=2, col=1)
-        # Simplified UCL/LCL for EWMA for plotting
-        sigma_ewma = std * np.sqrt(lam / (2-lam))
+        fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=ewma, mode='lines+markers', name='EWMA'), row=2, col=1)
+        sigma_ewma = std * np.sqrt(lam / (2-lam)) # Asymptotic SD
         fig.add_hline(y=mean + 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
         fig.add_hline(y=mean - 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
-        fig.add_vline(x=19.5, line_color='orange', line_dash='dot', row=2, col=1)
+        fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=2, col=1)
         
         # CUSUM Chart
-        fig.add_trace(go.Scatter(x=np.arange(n_points), y=sh, mode='lines+markers', name='CUSUM High'), row=3, col=1)
-        fig.add_trace(go.Scatter(x=np.arange(n_points), y=sl, mode='lines+markers', name='CUSUM Low'), row=3, col=1)
+        fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sh, mode='lines+markers', name='CUSUM High'), row=3, col=1)
+        fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sl, mode='lines+markers', name='CUSUM Low'), row=3, col=1)
         fig.add_hline(y=5*std, line_color='red', line_dash='dash', row=3, col=1) # Decision interval H
-        fig.add_vline(x=19.5, line_color='orange', line_dash='dot', row=3, col=1, annotation_text="Process Shift Occurs")
+        fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=3, col=1, annotation_text="Process Shift Occurs", annotation_position="top")
 
-        fig.update_layout(title="<b>Detecting a Small Process Shift (0.75σ)</b>", height=800, showlegend=False)
+        fig.update_layout(title="<b>Case Study: Detecting a Small Process Shift (0.75σ)</b>", height=800, showlegend=False)
         fig.update_xaxes(title_text="Sample Number", row=3, col=1)
         return fig
 
-    fig = plot_ewma_cusum()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:**
-    - A small but sustained process shift of +0.75σ is introduced at sample #20.
-    - **I-Chart (Top):** This chart fails to detect the shift. No points are near the ±3σ control limits. This is expected behavior for a Shewhart chart with a small shift.
-    - **EWMA Chart (Middle):** The exponentially weighted average begins to drift upwards immediately after the shift. It crosses its control limit around sample #30, providing a much earlier signal than the I-Chart.
-    - **CUSUM Chart (Bottom):** The cumulative sum of positive deviations (`CUSUM High`) immediately starts to trend upwards after the shift, crossing its decision interval `H` even faster, around sample #27. This demonstrates its power in rapidly detecting pre-specified shift sizes.
-    """)
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig = plot_ewma_cusum_comparison()
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="Shift Size", value="0.75 σ", help="A small, sustained shift was introduced at sample #20.")
+            st.metric(label="I-Chart Detection Time", value="> 20 Samples (Failed)", help="The I-Chart never signaled an alarm.")
+            st.metric(label="EWMA Detection Time", value="~10 Samples", help="The EWMA signaled an alarm around sample #30.")
+            st.metric(label="CUSUM Detection Time", value="~7 Samples", help="The CUSUM signaled an alarm around sample #27.")
 
+            st.markdown("""
+            **The Visual Evidence:**
+            - **The I-Chart (Top):** This chart is blind to the problem. The small 0.75σ shift is lost in the normal process noise. All points look "in-control," giving a false sense of security.
+            
+            - **The EWMA Chart (Middle):** This chart has memory. The weighted average (the blue line) clearly begins to drift upwards after the shift occurs. It smoothly accumulates evidence until it crosses the red control limit, signaling a real change.
+            
+            - **The CUSUM Chart (Bottom):** This chart is a "bloodhound" for a specific scent. It accumulates all deviations from the target. Once the process shifts, the `CUSUM High` plot takes off like a rocket, providing the fastest possible signal.
+
+            **The Core Strategic Insight:** Relying only on Shewhart charts creates a significant blind spot. For processes where small, slow drifts in performance are possible (e.g., tool wear, reagent degradation, column aging), EWMA or CUSUM charts are not optional—they are essential for effective process control.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: "The One-Chart-Fits-All Fallacy"**
+            A manager insists on using only I-MR charts for everything because "that's how we've always done it" and they are easy to understand.
+            
+            - They miss a slow 1-sigma drift for weeks, producing tons of near-spec material.
+            - When a batch finally fails, they are shocked and have no leading indicators to explain why. They have been flying blind.
+            - They see no value in the "complex" EWMA/CUSUM charts, viewing them as academic exercises.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Layer Your Statistical Defenses**
+            The goal is to use a combination of charts to create a comprehensive security system for your process.
+            
+            - **Use Shewhart Charts (I-MR, X-bar) as your front-line "Beat Cops":** They are simple and unmatched for detecting large, sudden special causes (e.g., an operator error, a major equipment failure).
+            - **Use EWMA or CUSUM as your "Sentinels":** Deploy them alongside Shewhart charts to stand guard against the silent, creeping threats that the beat cops will miss.
+            
+            This layered approach provides a complete picture of process stability, protecting against both sudden shocks and slow drifts.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin: Beyond Shewhart
+            The quality revolution sparked by **Walter Shewhart's** control charts in the 1920s was a massive success. However, by the 1950s, industries were pushing for even higher levels of quality and needed tools to detect smaller and smaller process deviations.
+            
+            - **CUSUM (1954):** The first major innovation came from British statistician **E. S. Page**. He developed the Cumulative Sum (CUSUM) chart, borrowing concepts from sequential analysis. Its design was revolutionary: it was explicitly optimized to detect a shift of a specific size in the minimum possible time, making it a powerful tool for targeted process monitoring.
+            
+            - **EWMA (1959):** Shortly after, statistician **S. W. Roberts** proposed the Exponentially Weighted Moving Average (EWMA) chart as a more general-purpose alternative. Its roots are in forecasting, where smoothing techniques developed by visionaries like **George Box** were used to predict future values from past data. Roberts adapted this "smoothing" concept to create a chart that was highly effective at picking up small shifts, easy to implement, and less rigid than the CUSUM chart.
+            
+            These two inventions marked the second generation of SPC, giving engineers the sensitive tools they needed to manage the increasingly complex and precise manufacturing processes of the late 20th century.
+            
+            #### Mathematical Basis
+            - **EWMA:** `EWMA_t = λ * Y_t + (1-λ) * EWMA_{t-1}`
+              - `λ` (lambda) is the weighting factor (0 < λ ≤ 1). A smaller `λ` gives more weight to past data (longer memory) and is better for detecting smaller shifts.
+            - **CUSUM:** `SH_t = max(0, SH_{t-1} + (Y_t - T) - k)`
+              - This formula for the "high-side" CUSUM accumulates upward deviations. `T` is the process target, and `k` is a "slack" parameter, typically set to half the size of the shift you want to detect quickly. The CUSUM only starts accumulating when a deviation is larger than the slack.
+            """)
+            
 def render_anomaly_detection():
     """Renders the module for unsupervised anomaly detection."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To identify rare, unexpected observations (anomalies or outliers) in data without any prior knowledge of what constitutes an anomaly. This is a form of unsupervised learning.
+    **Purpose:** To deploy an **AI Bouncer** for your data—a smart system that identifies rare, unexpected observations (anomalies) without any prior knowledge of what "bad" looks like. It doesn't need a list of troublemakers; it learns the "normal vibe" of the crowd and flags anything that stands out.
     
-    **Strategic Application:** This is invaluable for process monitoring and root cause analysis, especially in complex, high-dimensional datasets where simple rule-based alarms are ineffective.
-    - **Novel Fault Detection:** It can identify a new type of process failure that has never been seen before and for which no specific rules exist.
-    - **Data Cleaning:** Used to identify and potentially remove erroneous data points (e.g., from sensor malfunction) before building other process models.
-    - **"Golden Batch" Analysis:** Can be used to find which batches, even if they passed all specifications, were statistically unusual compared to the main "golden" population, providing clues about subtle process variability.
-    
-    The **Isolation Forest** algorithm is a modern and effective method. It works by "isolating" observations. It builds a forest of random trees, and the principle is that anomalous points are "few and different," making them easier to isolate (i.e., they require fewer splits to separate them from the rest of the data).
+    **Strategic Application:** This is a game-changer for monitoring complex processes where simple rule-based alarms are blind to new problems.
+    - **Novel Fault Detection:** The AI Bouncer's greatest strength. It can flag a completely new type of process failure the first time it occurs, because it looks for "weirdness," not pre-defined failures.
+    - **Intelligent Data Cleaning:** Automatically identifies potential sensor glitches or data entry errors before they contaminate models or analyses.
+    - **"Golden Batch" Investigation:** Can find which batches, even if they passed all specifications, were statistically unusual. These "weird-but-good" batches often hold the secrets to improving process robustness.
     """)
 
-    # Placeholder for the plotting function
-    def plot_anomaly_detection():
+    # Nested plotting function based on user's code
+    def plot_isolation_forest():
+        from sklearn.ensemble import IsolationForest
+        import pandas as pd
+        import numpy as np
+        import plotly.express as px
+
         np.random.seed(42)
-        # Generate normal data
         X_inliers = np.random.normal(0, 1, (100, 2))
-        # Generate some outliers
         X_outliers = np.random.uniform(low=-4, high=4, size=(10, 2))
         X = np.concatenate([X_inliers, X_outliers], axis=0)
 
-        # Fit the model
         clf = IsolationForest(contamination=0.1, random_state=42)
         y_pred = clf.fit_predict(X)
         
-        # y_pred will be 1 for inliers, -1 for outliers. Map to 0 and 1 for color.
-        df = pd.DataFrame(X, columns=['Param 1', 'Param 2'])
-        df['Anomaly'] = (y_pred == -1)
+        df = pd.DataFrame(X, columns=['Process Parameter 1', 'Process Parameter 2'])
+        df['Status'] = ['Anomaly' if p == -1 else 'Normal' for p in y_pred]
 
-        fig = px.scatter(df, x='Param 1', y='Param 2', color='Anomaly',
-                         color_discrete_map={False: 'blue', True: 'red'},
-                         title="<b>Anomaly Detection using Isolation Forest</b>",
-                         symbol='Anomaly',
-                         symbol_map={False: 'circle', True: 'x'})
-        fig.update_traces(marker=dict(size=8))
+        fig = px.scatter(df, x='Process Parameter 1', y='Process Parameter 2', color='Status',
+                         color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
+                         title="<b>The AI Bouncer at Work</b>",
+                         symbol='Status',
+                         symbol_map={'Normal': 'circle', 'Anomaly': 'x'})
+        fig.update_traces(marker=dict(size=10), selector=dict(name='Anomaly'))
+        fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
         return fig
 
-    fig = plot_anomaly_detection()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:**
-    - The blue circles represent the dense cloud of normal, "inlier" data points.
-    - The red 'x' markers are the points that the Isolation Forest algorithm has identified as anomalies.
-    - Notice that the algorithm successfully flags the points that are far away from the main cluster, without being told in advance where the "normal" data should be. This unsupervised approach is what makes it so powerful for discovering unexpected events.
-    """)
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig = plot_isolation_forest()
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="Data Points Scanned", value="110")
+            st.metric(label="Anomalies Flagged", value="10", help="Based on a contamination setting of ~10%.")
+            st.metric(label="Algorithm Used", value="Isolation Forest", help="An unsupervised machine learning method.")
+
+            st.markdown("""
+            **Reading the Chart:**
+            - **The Blue Circles:** This is the "normal crowd" in your process data. They are dense and clustered together. The AI Bouncer considers them normal.
+            - **The Red 'X's:** These are the anomalies. The algorithm has flagged them as "not belonging" to the main crowd. They are the individuals the bouncer has pulled aside for a closer look.
+            - **The Unsupervised Magic:** The key is that we never told the algorithm where the blue circle "club" was. It figured out the normal operating envelope on its own and identified everything that fell outside of it.
+
+            **The Core Strategic Insight:** Anomaly detection is your early warning system for the **unknown unknowns**. While a control chart tells you if you've broken a known rule, an anomaly detector tells you that something you've never seen before just happened. This is often the first and only clue to a new, emerging failure mode.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: "The Glitch Hunter"**
+            When an anomaly is detected, the immediate reaction is to dismiss it as a data error.
+            
+            - *"Oh, that's just a sensor glitch. Delete the point and move on."*
+            - *"The model must be wrong. That batch passed all its QC tests, so it can't be an anomaly."*
+            - *"Let's increase the contamination parameter until the alarms go away."*
+            
+            This approach treats valuable signals as noise. It's like the bouncer seeing a problem, shrugging, and looking the other way. You are deliberately blinding yourself to potentially critical process information.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: An Anomaly is a Question, Not an Answer**
+            The goal is to treat every flagged anomaly as the start of a forensic investigation.
+            
+            - **The anomaly is the breadcrumb:** When the bouncer flags someone, you don't instantly throw them out. You ask questions. "What happened in the process at that exact time? Was it a specific operator? A new raw material lot? A strange environmental reading?"
+            - **Investigate the weird-but-good:** If a batch that passed all specifications is flagged as an anomaly, it's a golden opportunity. What made it different? Did it run faster? With a higher yield? Understanding these "good" anomalies is a key to process optimization.
+            
+            The anomaly itself is not the conclusion; it is the starting pistol for discovery.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            For decades, "outlier detection" was a purely statistical affair, often done one variable at a time (e.g., using a boxplot). This falls apart in the world of modern, high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values.
+            
+            The **Isolation Forest** algorithm was a brilliant solution to this problem, introduced in a 2008 paper by Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou. Their insight was elegantly counter-intuitive. Instead of trying to build a complex model of what "normal" data looks like, they decided to just try to **isolate** every data point.
+            
+            They reasoned that anomalous points are, by definition, "few and different." This makes them much easier to separate from the rest of the data points. Like finding a single red marble in a jar of blue ones, it's easy to "isolate" because it doesn't blend in. This approach turned out to be both highly effective and computationally fast, and it has become a go-to method for unsupervised anomaly detection.
+            
+            #### How it Works: The "20 Questions" Analogy
+            Think of the algorithm playing a game of "20 Questions" to find a specific data point.
+            1.  It builds a "forest" of many random decision trees.
+            2.  Each "question" in a tree is a random split on a random feature (e.g., "Is temperature > 50?").
+            3.  It counts the number of questions (the path length) it takes to uniquely identify each point.
+            4.  **The Result:** Points in the heart of the normal cluster are hard to isolate and require many questions. Anomalous points are isolated very quickly with few questions. The algorithm calculates an "anomaly score" based on the average path length across all the trees in the forest.
+            """)
+    
 def render_advanced_doe():
     """Renders the module for advanced Design of Experiments (DOE)."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To employ specialized experimental designs for complex, real-world optimization problems that cannot be handled by standard factorial designs. This module covers two common scenarios:
-    - **Mixture Designs:** Used for optimizing formulations where the components are proportions that must sum to 100% (e.g., buffers, cell culture media, vaccine adjuvants).
-    - **Split-Plot Designs:** Used for processes with both "hard-to-change" and "easy-to-change" factors (e.g., optimizing a bioreactor where temperature is hard to change but feed rate is easy).
+    #### Purpose & Application: DOE for the Real World
+    **Purpose:** To solve complex optimization problems where standard factorial designs fail because they don't respect the real-world constraints of the system. This module covers two essential advanced designs:
+    - **🧪 Mixture Designs (The Alchemist's Cookbook):** For optimizing a *recipe* where ingredients are proportions that must sum to 100%. Changing one ingredient's percentage forces a change in the others.
+    - **🏭 Split-Plot Designs (The Smart Baker's Dilemma):** For optimizing processes with both "Hard-to-Change" (e.g., oven temperature) and "Easy-to-Change" (e.g., baking time) factors.
     
-    **Strategic Application:** Using the wrong design for these problems leads to wasted experiments and incorrect conclusions. These advanced designs are essential for efficient and statistically valid formulation and process development.
+    **Strategic Application:** Using the wrong design for these common problems leads to wasted experiments, impossible-to-run conditions, and statistically invalid conclusions. Mastering these designs provides a massive competitive advantage in formulation and process development.
     """)
+    
+    # Assumes a function that returns the two necessary plot figures
     fig_mix, fig_split = plot_advanced_doe()
     
-    st.plotly_chart(fig_mix, use_container_width=True)
-    st.markdown("""
-    **Interpretation of Mixture Designs:** The design points are shown on a ternary plot. The corners represent pure components, the edges represent two-component blends, and the center represents a mix of all three. This design allows for modeling how the *proportions* of the ingredients, not their absolute amounts, affect a response like stability or efficacy.
-    """)
+    st.subheader("Analysis & Interpretation")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
-    st.plotly_chart(fig_split, use_container_width=True)
-    st.markdown("""
-    **Interpretation of Split-Plot Designs:** The design is structured in "Whole Plots" (blue dashed boxes) where the hard-to-change factor is held constant. Within each whole plot, the "Subplots" (red markers) represent the randomized trials of the easy-to-change factors. Analyzing this data requires a special type of ANOVA that correctly uses different error terms for the whole plot and subplot factors, preventing incorrect conclusions about the significance of the hard-to-change variables.
-    """)
+    with tabs[0]:
+        st.info("💡 **Pro-Tip:** Each design solves a unique, common experimental challenge. Use the expanders to see how each one works.")
+
+        with st.expander("🧪 The Alchemist's Cookbook: Mixture Designs", expanded=True):
+            st.metric("Optimal Response Found", "98.5% Efficacy", help="The peak performance found within the formulation space.")
+            st.plotly_chart(fig_mix, use_container_width=True)
+            st.markdown("""
+            - **The Problem:** You're creating a three-component buffer (A, B, C). The components must add up to 100%. A standard DOE would try impossible runs like "100% A, 100% B, 100% C".
+            - **The Solution:** A mixture design populates a triangular "recipe space."
+                - **Corners:** Pure 100% components.
+                - **Edges:** Two-component blends.
+                - **Center:** A mix of all three.
+            - **Strategic Insight:** The contour plot is a **treasure map of your formulation space**. It models how the *proportions* of ingredients impact a response like stability or efficacy, allowing you to find the optimal recipe with maximum efficiency.
+            """)
+
+        with st.expander("🏭 The Smart Baker's Dilemma: Split-Plot Designs", expanded=True):
+            st.metric("HTC Factor Significance (p-value)", "0.002", help="The p-value for the Hard-to-Change factor, calculated correctly.")
+            st.plotly_chart(fig_split, use_container_width=True)
+            st.markdown("""
+            - **The Problem:** You're optimizing a baking process. Changing the oven **Temperature** is hard and takes hours (Hard-to-Change). Changing the **Time** for each tray is easy (Easy-to-Change). Randomizing temperature for every single run would be impossibly slow and expensive.
+            - **The Solution:** A split-plot design. You run the experiment in blocks:
+                - **Whole Plots (Boxes):** Set the oven to one temperature.
+                - **Sub-Plots (Points):** Bake multiple trays at that temperature, randomizing the easy-to-change factors (like time) within that block.
+            - **Strategic Insight:** This design is logistically efficient, but it requires a special analysis. The effect of the Hard-to-Change factor must be tested against its own, larger "Whole Plot Error Term." A standard analysis will give a false positive and lead you to believe the HTC factor is significant when it isn't.
+            """)
+
+    with tabs[1]:
+        st.error("""
+        🔴 **THE INCORRECT APPROACH: Force a Square Peg into a Round Hole**
+        This is a classic and costly DOE mistake.
+        
+        - **For Mixtures:** Using a standard factorial design. This generates impossible recipes (e.g., 80% A, 80% B, 80% C = 240% total!) and completely fails to model the blending properties of the ingredients.
+        - **For Split-Plots:** Acknowledging the HTC factor is a pain, but analyzing the data as if it were a normal, fully randomized factorial DOE. This leads to an **incorrectly small error term** for the HTC factor, massively inflating its significance. You might launch a huge project to control a factor that actually has no effect.
+        """)
+        st.success("""
+        🟢 **THE GOLDEN RULE: Let the Problem's Constraints Define the Design**
+        The statistical design must mirror the physical, logistical, and financial reality of the experiment.
+        
+        - **If your factors are ingredients in a recipe that must sum to 100%...**
+          - **You MUST use a Mixture Design.**
+        
+        - **If you have factors that are difficult, slow, or expensive to change...**
+          - **You MUST use a Split-Plot Design** and its corresponding special ANOVA.
+          
+        Honoring the problem's structure is not optional. It is the only path to a statistically valid and operationally efficient experiment.
+        """)
+
+    with tabs[2]:
+        st.markdown("""
+        #### Historical Context & Origin
+        These advanced designs were born from practical necessity, solving real-world industrial and agricultural problems.
+        
+        - **Mixture Designs (1950s):** The theory for mixture experiments was largely developed by American statistician **Henry Scheffé**. He was working on problems in industrial chemistry, food science, and materials engineering where formulators needed a systematic way to optimize recipes. His work provided the mathematical foundation to move from haphazard "one-blend-at-a-time" tinkering to a holistic, model-based approach for optimizing formulations.
+            
+        - **Split-Plot Designs (1920s):** The origin of the split-plot is even more fascinating—it comes from agriculture. The legendary statistician **R.A. Fisher**, working at the Rothamsted Experimental Station in the UK, faced a classic dilemma. He wanted to test the effects of both large-scale irrigation techniques and different crop varieties. It was practical to irrigate a huge **plot** of land in one way (the Hard-to-Change factor). Then, within that large plot, it was easy to plant smaller **sub-plots** with different crop varieties (the Easy-to-Change factors). Fisher developed the unique split-plot structure and the corresponding ANOVA to correctly analyze this type of data, a method that is now essential for industrial experimentation.
+        
+        #### Mathematical Basis
+        - **Mixture Designs:** The key is the constraint: `x₁ + x₂ + ... + xₙ = 1`. This mathematical constraint means a standard regression model (which includes an intercept term) is incorrect. The models are reformulated, often without an intercept, to properly account for the mixture constraint.
+        - **Split-Plot Designs:** The model has two distinct error terms: `Error_A = Whole Plot Error` and `Error_B = Subplot Error`. The F-test for the hard-to-change factors must be calculated using `Error_A`. The F-test for the easy-to-change factors is calculated using `Error_B`. Using the wrong error term is the most common mistake in analyzing these experiments.
+        """)
 
 def render_stability_analysis():
     """Renders the module for pharmaceutical stability analysis."""

@@ -1640,6 +1640,11 @@ def render_ci_concept():
     
     **Strategic Application:** This concept is the bedrock of all statistical inference in a frequentist framework. A misunderstanding of CIs leads to flawed conclusions and poor decision-making. This interactive simulation directly impacts resource planning and risk assessment. It allows scientists and managers to explore the crucial trade-off between **sample size (cost)** and **statistical precision (certainty)**. It provides a visual, data-driven answer to the perpetual question: "How many samples do we *really* need to run to get a reliable result and an acceptably narrow confidence interval?"
     """)
+    
+    st.info("""
+    **Interactive Demo:** Use the **Sample Size (n)** slider in the sidebar to dynamically change the number of samples in each simulated experiment. Observe how increasing the sample size dramatically narrows both the theoretical Sampling Distribution (orange curve) and the simulated Confidence Intervals (blue/red lines), directly demonstrating the link between sample size and precision.
+    """)
+
     n_slider = st.sidebar.slider("Select Sample Size (n) for Each Simulated Experiment:", 5, 100, 30, 5)
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -1656,47 +1661,40 @@ def render_ci_concept():
             st.metric(label="💡 Empirical Coverage Rate", value=f"{(capture_count/n_sims):.0%}", help=f"The % of our {n_sims} simulated CIs that successfully 'captured' the true population mean. Should be close to 95%.")
             st.markdown("""
             - **Theoretical Universe (Top Plot):**
-                - The wide, light blue curve is the **true population distribution**. In real life, we *never* see this. It represents every possible measurement.
-                - The narrow, orange curve is the **sampling distribution of the mean**. This is a theoretical distribution of *all possible sample means* of size `n`. Its narrowness, guaranteed by the **Central Limit Theorem**, is the miracle that makes statistical inference possible.
-            - **CI Simulation (Bottom Plot):** This plot shows the reality we live in. We only get to run *one* experiment and get *one* confidence interval (e.g., the first blue line). We don't know if ours is one of the 95 that captured the true mean or one of the 5 that missed.
-            - **The n-slider is key:** As you increase `n`, the orange curve gets narrower and the CIs in the bottom plot become dramatically shorter. This shows that precision is a direct function of sample size.
-            - **Diminishing Returns:** The gain in precision from n=5 to n=20 is huge. The gain from n=80 to n=100 is much smaller. This illustrates the cost of increased precision: to double your precision (halve the CI width), you must quadruple your sample size, as precision scales with $\sqrt{n}$.
+                - The wide, light blue curve is the **true population distribution**. In real life, we *never* see this.
+                - The narrow, orange curve is the **sampling distribution of the mean**. Its narrowness, guaranteed by the **Central Limit Theorem**, makes inference possible.
+            - **CI Simulation (Bottom Plot):** This shows the reality we live in. We only get *one* experiment and *one* confidence interval.
+            - **The n-slider is key:** As you increase `n`, the orange curve gets narrower and the CIs in the bottom plot become dramatically shorter.
+            - **Diminishing Returns:** The gain in precision from n=5 to n=20 is huge. The gain from n=80 to n=100 is much smaller. This illustrates that to double your precision (halve the CI width), you must quadruple your sample size.
 
-            **The Core Strategic Insight:** A confidence interval is a statement about the *procedure*, not a specific result. The "95% confidence" is our confidence in the *method* used to generate the interval, not in any single interval itself. We are confident that if we were to repeat our experiment 100 times, roughly 95 of the resulting CIs would contain the true, unknown parameter.
+            **The Core Strategic Insight:** A confidence interval is a statement about the *procedure*, not a specific result. The "95% confidence" is our confidence in the *method* used to generate the interval, not in any single interval itself.
             """)
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT (Bayesian) INTERPRETATION:**
             *"Based on my sample, there is a 95% probability that the true mean is in this interval [X, Y]."*
             
-            This is wrong because in the frequentist view, the true mean is a fixed, unknown constant. It is either in our specific interval or it is not. The probability is either 1 or 0; we just don't know which. The randomness is in the sampling process that creates the interval, not in the true mean itself.
+            This is wrong because in the frequentist view, the true mean is a fixed constant. It is either in our specific interval or it is not. The probability is 1 or 0.
             """)
             st.success("""
             🟢 **THE CORRECT (Frequentist) INTERPRETATION:**
             *"We are 95% confident that the interval [X, Y] contains the true mean."*
             
-            The full, technically correct meaning behind this is: *"This specific interval was constructed using a procedure that, when repeated many times on new samples, will produce intervals that capture the true mean 95% of the time."*
+            The full meaning is: *"This interval was constructed using a procedure that, when repeated many times, will produce intervals that capture the true mean 95% of the time."*
             """)
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The concept of **confidence intervals** was introduced to the world by the brilliant Polish-American mathematician and statistician **Jerzy Neyman** in a landmark 1937 paper. Neyman, a fierce advocate for the frequentist school, sought a rigorously objective method for interval estimation that did not rely on the "subjective" priors of Bayesian inference.
-            
-            He was a philosophical rival of Sir R.A. Fisher, who had proposed a similar concept called a "fiducial interval," which attempted to assign a probability distribution to a fixed parameter. Neyman found this logically incoherent. His revolutionary idea was to shift the probabilistic statement away from the fixed, unknown parameter and onto the **procedure used to create the interval**. This clever reframing provided a practical and logically consistent solution that remains the dominant paradigm for interval estimation in applied statistics worldwide.
+            The concept of **confidence intervals** was introduced by **Jerzy Neyman** in a landmark 1937 paper. Neyman's revolutionary idea was to shift the probabilistic statement away from the fixed, unknown parameter and onto the **procedure used to create the interval**. This clever reframing provided a practical and logically consistent solution that remains the dominant paradigm for interval estimation today.
             
             #### Mathematical Basis
-            The general form of a two-sided confidence interval is a combination of three components:
             """)
-            st.latex(r"\text{Point Estimate} \pm (\text{Margin of Error})")
-            st.latex(r"\text{Margin of Error} = (\text{Critical Value} \times \text{Standard Error})")
+            st.latex(r"\text{Point Estimate} \pm (\text{Critical Value} \times \text{Standard Error})")
             st.markdown("""
-            - **Point Estimate:** Our best single-value guess for the population parameter (e.g., the sample mean, $\bar{x}$).
-            - **Standard Error:** The standard deviation of the sampling distribution of the point estimate. For the mean, this is $\frac{s}{\sqrt{n}}$, where $s$ is the sample standard deviation. It measures the typical error in our point estimate and shrinks as `n` increases.
-            - **Critical Value:** A multiplier determined by our desired confidence level and the relevant statistical distribution (e.g., a z-score from the normal distribution or a t-score from the Student's t-distribution). For a 95% CI, this value is typically close to 2.
-            
-            For the mean, this results in the familiar formula:
+            - **Point Estimate:** Our best guess (e.g., the sample mean, $\bar{x}$).
+            - **Standard Error:** The standard deviation of the sampling distribution of the point estimate (e.g., $\frac{s}{\sqrt{n}}$). It measures the typical error in our point estimate.
+            - **Critical Value:** A multiplier determined by our desired confidence level (e.g., a t-score).
             """)
-            st.latex(r"CI = \bar{x} \pm t_{\alpha/2, n-1} \frac{s}{\sqrt{n}}")
 
 def render_core_validation_params():
     """Renders the INTERACTIVE module for core validation parameters."""

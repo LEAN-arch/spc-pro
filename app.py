@@ -1224,31 +1224,47 @@ def plot_bayesian(prior_type):
 ##=================================================================================================================================================================================================
 def plot_westgard_scenario(scenario='Stable'):
     """Generates a dynamic, high-quality Westgard chart based on a selected process scenario."""
-    np.random.seed(42)
+    # Establish the historical process parameters for the control limits
+    mean, std = 100, 2
     n_points = 25
-    data = np.random.normal(100, 2, n_points)
-    mean, std = np.mean(data[:10]), np.std(data[:10], ddof=1)
-
-    if scenario == 'Large Random Error': data[15] = 107.5
-    elif scenario == 'Systematic Shift': data[18:] += 4.5
-    elif scenario == 'Increased Imprecision': data[20], data[21] = 105, 95
-    elif scenario == 'Complex Failure':
-        np.random.seed(45); data = np.random.normal(100, 2, n_points)
-        data[10], data[14:16] = 107, [105, 105.5]
+    
+    # --- Generate data based on the selected scenario ---
+    np.random.seed(42) # Seed for reproducibility of unstable scenarios
+    
+    # FIX: Create a special, visually "perfect" stable dataset
+    if scenario == 'Stable':
+        np.random.seed(101) # Use a different seed for a nice visual
+        # Generate data with a smaller SD to ensure it looks stable
+        data = np.random.normal(mean, std * 0.75, n_points) 
+    else:
+        # Start with a base of stable data before injecting a problem
+        data = np.random.normal(mean, std, n_points)
+        if scenario == 'Large Random Error':
+            data[15] = 107.5
+        elif scenario == 'Systematic Shift':
+            data[18:] += 4.5
+        elif scenario == 'Increased Imprecision':
+            data[20], data[21] = 105, 95
+        elif scenario == 'Complex Failure':
+            np.random.seed(45); data = np.random.normal(mean, std, n_points)
+            data[10], data[14:16] = 107, [105, 105.5]
         
     fig = go.Figure()
     
+    # Add shaded regions for control zones
     fig.add_hrect(y0=mean - 3*std, y1=mean + 3*std, line_width=0, fillcolor='rgba(255, 165, 0, 0.1)', layer='below', name='±3σ Zone')
     fig.add_hrect(y0=mean - 2*std, y1=mean + 2*std, line_width=0, fillcolor='rgba(0, 128, 0, 0.1)', layer='below', name='±2σ Zone')
     fig.add_hrect(y0=mean - 1*std, y1=mean + 1*std, line_width=0, fillcolor='rgba(0, 128, 0, 0.1)', layer='below', name='±1σ Zone')
 
+    # Add SD lines with labels
     for i in [-3, -2, -1, 1, 2, 3]:
         fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), annotation_text=f"{'+' if i > 0 else ''}{i}σ", annotation_position="bottom right")
     fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean', annotation_position="bottom right")
 
+    # Add data trace
     fig.add_trace(go.Scatter(x=np.arange(1, n_points + 1), y=data, mode='lines+markers', name='Control Data', line=dict(color='#636EFA', width=3), marker=dict(size=10, symbol='circle', line=dict(width=2, color='black'))))
 
-    # Add violation annotations
+    # Add violation annotations for non-stable scenarios
     if scenario == 'Large Random Error':
         fig.add_trace(go.Scatter(x=[16], y=[107.5], mode='markers', marker=dict(color='red', size=16, symbol='diamond', line=dict(width=2, color='black')), name='1-3s Violation'))
     elif scenario == 'Systematic Shift':
@@ -1258,10 +1274,6 @@ def plot_westgard_scenario(scenario='Stable'):
     elif scenario == 'Complex Failure':
         fig.add_trace(go.Scatter(x=[11], y=[107], mode='markers', marker=dict(color='red', size=16, symbol='diamond', line=dict(width=2, color='black')), name='1-3s Violation'))
         fig.add_trace(go.Scatter(x=[15, 16], y=[105, 105.5], mode='markers', marker=dict(color='orange', size=16, symbol='diamond', line=dict(width=2, color='black')), name='2-2s Violation'))
-    elif scenario == 'Stable':
-        # For a stable run, there are no violations to highlight.
-        # This block explicitly does nothing.
-        pass
         
     fig.update_layout(title=f"<b>Westgard Rules: {scenario} Scenario</b>",
                       xaxis_title="Measurement Number", yaxis_title="Control Value",

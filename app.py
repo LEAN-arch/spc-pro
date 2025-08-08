@@ -1221,7 +1221,6 @@ def render_introduction_content():
     st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
     st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
     
-    # Section 1
     st.header("📖 The Scientist's/Engineer's Journey: A Three-Act Story")
     st.markdown("""The journey from a novel idea to a robust, routine process can be viewed as a three-act story, with each act presenting unique analytical challenges. The toolkit is structured to follow that narrative.""")
     act1, act2, act3 = st.columns(3)
@@ -1237,18 +1236,14 @@ def render_introduction_content():
     
     st.divider()
 
-    # Section 2
     st.header("🚀 The V&V Model: A Strategic Framework")
     st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
-    # FIX: UNCOMMENTED THE PLOTTING CALL
     st.plotly_chart(plot_v_model(), use_container_width=True)
     
     st.divider()
     
-    # Section 3
     st.header("📈 Project Workflow")
     st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value, and are ordered chronologically within each phase.")
-    # FIX: UNCOMMENTED THE PLOTTING CALL
     st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True)
 
 def render_introduction_content():

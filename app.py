@@ -1315,93 +1315,81 @@ def render_core_validation_params():
     - **🏹 Precision (Random Error):** How consistent are your measurements with each other? Think of it as the tightness of your arrow grouping.
     - **🔬 Specificity (Selectivity):** Can your method find the target analyte in a crowded room, ignoring all the imposters?
 
-    **Strategic Application:** These parameters are the non-negotiable core of any formal assay validation report submitted to regulatory bodies like the FDA or EMA. They provide the objective evidence that the method is fit for its intended purpose—be it for QC release testing, stability studies, or clinical sample analysis. A weakness in any of these three areas is a critical deficiency that can lead to rejected submissions, product recalls, or flawed R&D conclusions. This is not just a statistical exercise; it's a cornerstone of patient safety and product quality.
+    **Strategic Application:** These parameters are the non-negotiable pillars of any formal assay validation report submitted to regulatory bodies like the FDA or EMA. They provide the objective evidence that the method is the bedrock of product quality and patient safety. A weakness in any of these three areas is a critical deficiency that can lead to rejected submissions, product recalls, or flawed R&D conclusions. This isn't just a statistical exercise; it's the license to operate.
     """)
-
-    # The plot generation function would be called here
-    # For demonstration, we assume it returns three figures.
-    fig1, fig2, fig3 = plot_core_validation_params() 
-
-    tabs = st.tabs(["🎯 The 'Big Three' Explained", "⚠️ Common Pitfalls & Red Flags", "🏛️ The ICH & The 'Why'"])
-
-    with tabs[0]:
-        st.info("💡 **Pro-Tip:** Use the expanders below to dive into each validation parameter. The plots visualize the data, and the interpretation guides you on what to look for.")
+    
+    # The plot generation function would be called here.
+    # We assume it returns three figures for demonstration.
+    fig1, fig2, fig3 = plot_core_validation_params()
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig3, use_container_width=True)
         
-        with st.expander("🎯 **Accuracy: Hitting the Bullseye**", expanded=True):
-            st.metric(label="📈 KPI: Mean % Recovery", value="99.2%", help="The key metric for accuracy. Regulators typically look for this to be within 80-120% for biotech assays or 98-102% for small molecules.")
-            st.plotly_chart(fig1, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🎯 Accuracy KPI: Mean % Recovery", value="99.2%", help="The key metric for accuracy. Regulators typically look for this to be within 80-120% for biotech assays or 98-102% for small molecules.")
+            st.metric(label="🏹 Precision KPI: Max %CV", value="< 8%", help="The key metric for precision. Lower is better. A common acceptance criterion for intermediate precision is <15-20%.")
+            st.metric(label="🔬 Specificity KPI: Interference Test", value="Pass (p > 0.05)", help="A non-significant p-value in a t-test between 'Analyte' and 'Analyte + Interferent' is the goal.")
+            
             st.markdown("""
-            - **What We're Seeing:** The box plots show the distribution of measured results against the known true values (the dashed line). The goal is for the median of each box plot (the line inside the box) to sit directly on top of the "true value" line.
-            - **Interpretation:** The distance between the median and the true value represents the **bias** or systematic error of the method. A small bias means the method is accurate. The overall %Recovery across all levels is the ultimate reportable value.
-            - **The Bullseye Analogy:** If the true value is the bullseye, each measurement is an arrow shot at the target. Accuracy measures how close the *center of your arrow cluster* is to the bullseye, regardless of how spread out the arrows are.
+            - **Accuracy (Top Plot):** This plot reveals **bias**. The goal is for the center of each box plot to sit on the dashed 'True Value' line. The distance between the center and that line is the systematic error. A method can be precise but wildly inaccurate.
+            
+            - **Precision (Middle Plot):** This plot reveals **random error**. The 'violins' show the data spread.
+                - **Repeatability:** Is the 'best-case' spread. A tight violin is good.
+                - **Intermediate Precision:** Is the 'real-world' spread, accounting for different days, analysts, etc. It will always be wider than repeatability. The key question is: *by how much*? A large increase signals the method is not robust.
+            
+            - **Specificity (Bottom Plot):** This plot tests for **interference**. The "Analyte + Interferent" bar must be statistically identical to the "Analyte Only" bar. If it's different, your method can't distinguish your target from other components, making it unfit for real samples.
+
+            **The Core Strategic Insight:** Accuracy, Precision, and Specificity are not independent checkboxes. They form an interconnected triangle of evidence. A non-specific method can never be truly accurate. A highly imprecise method makes it impossible to reliably assess accuracy. The goal of validation is to present a holistic, data-driven argument that the method is **fit for its intended purpose.**
             """)
 
-        with st.expander("🏹 **Precision: Tight Groupings**", expanded=True):
-            st.metric(label="📈 KPI: % Coefficient of Variation (%CV)", value="< 8%", help="The key metric for precision. Also known as Relative Standard Deviation (RSD). Lower is better. A common acceptance criterion is <15-20%.")
-            st.plotly_chart(fig2, use_container_width=True)
-            st.markdown("""
-            - **What We're Seeing:** The violin plots visualize the spread or 'scatter' of the data at two levels of precision.
-                - **Repeatability (Intra-assay):** This is the 'best-case scenario'—the spread you get in one lab, on one day, with one analyst. It measures the inherent random error of the method itself. It's like shooting a group of arrows all at once.
-                - **Intermediate Precision (Inter-assay):** This measures the method's robustness to real-world variability by introducing changes like different days, analysts, or equipment. The spread is expected to be wider here. It's like shooting arrows on different days, with changing wind conditions.
-            - **Interpretation:** A narrow distribution (low %CV) means the method is precise. A large increase in spread from repeatability to intermediate precision can indicate the method is sensitive to operational changes and may not be robust.
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: "Validation Theater"**
+            The goal of validation is to get the protocol to pass by any means necessary.
+            
+            - *"My precision looks bad, so I'll have my most experienced 'super-analyst' run the experiment to guarantee a low %CV."*
+            - *"The method failed accuracy at the low concentration. I'll just change the reportable range to exclude that level."*
+            - *"I'll only test for interference from things I know won't be a problem and ignore the complex sample matrix."*
+            
+            This approach treats validation as a bureaucratic hurdle. It produces a method that is fragile, unreliable in the real world, and a major compliance risk.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Rigorously Prove "Fitness for Purpose"**
+            The goal of validation is to **honestly and rigorously challenge the method to prove it is robust and reliable for its specific, intended analytical application.**
+            
+            - This means deliberately including variability (different analysts, days, instruments) to prove the method can handle it.
+            - It means understanding and documenting *why* a method fails at a certain level, not just hiding the failure.
+            - It means demonstrating specificity in the actual, messy matrix the method will be used for.
+            
+            This approach builds a truly robust method that generates trustworthy data, ensuring product quality and patient safety.
             """)
 
-        with st.expander("🔬 **Specificity: Finding the Target in a Crowd**", expanded=True):
-            st.metric(label="📈 KPI: Statistical Equivalence", value="p > 0.05", help="A non-significant p-value in a t-test between 'Analyte' and 'Analyte + Interferent' is the goal here.")
-            st.plotly_chart(fig3, use_container_width=True)
+        with tabs[2]:
             st.markdown("""
-            - **What We're Seeing:** This plot compares the method's signal for the analyte alone, the analyte mixed with potential interferents (like degradants or matrix components), and a blank sample.
-            - **The Cocktail Party Analogy:** Your analyte is your friend you're trying to listen to at a loud party. The interferents are the crowd noise. Specificity is your ability to hear your friend's voice clearly without the crowd noise changing what you hear.
-            - **Interpretation:** The goal is to show that the "Analyte + Interferent" bar is statistically identical to the "Analyte Only" bar. If the interferent significantly increases or decreases the signal, it's like a heckler shouting over your friend—the method is not specific and cannot be trusted in complex samples.
+            #### Historical Context & Origin
+            Before the 1990s, a pharmaceutical company wishing to market a new drug globally had to prepare different, massive submission packages for each region (USA, Europe, Japan), each with slightly different technical requirements for method validation. This created enormous, costly, and scientifically redundant work.
+            
+            In 1990, the **International Council for Harmonisation (ICH)** was formed, bringing together regulators and industry to create a single set of harmonized guidelines. The **ICH Q2(R1) guideline, "Validation of Analytical Procedures,"** is the direct result. It is the global "bible" for this topic, and the parameters of Accuracy, Precision, and Specificity form its core. Adhering to ICH Q2(R1) ensures your data is acceptable to major regulators worldwide.
+            
+            #### Mathematical Basis
+            The validation report is a statistical argument built on quantitative metrics.
             """)
-
-    with tabs[1]:
-        st.subheader("Common Pitfalls & Regulatory Red Flags")
-        st.error("""
-        #### 🔴 Red Flag: The "Precise but Inaccurate" Method
-        **The Scenario:** Your data has a beautifully low %CV (great precision!), but the mean %Recovery is 130% (terrible accuracy!).
-        **The Problem:** This is a classic sign of a significant, consistent systematic error (bias). You are consistently getting the *wrong answer*. 
-        **Why it's a Red Flag:** This method is unreliable for making decisions. It might be caused by a faulty reference standard, incorrect instrument calibration, or a consistent pipetting error. It demonstrates a fundamental misunderstanding of the method's behavior.
-        """)
-        st.warning("""
-        #### 🟡 Yellow Flag: Artificially Good Precision
-        **The Scenario:** A validation study shows an unbelievably low %CV for intermediate precision, barely higher than repeatability.
-        **The Problem:** While it looks great, this can suggest the study didn't adequately challenge the method. The "different" conditions (day, analyst) may not have been different enough, or the analyst may be an expert "super-user" not representative of routine operators.
-        **Why it's a Red Flag:** A regulator might suspect the validation was a "showcase" and not a true reflection of real-world performance. The method's robustness is questionable.
-        """)
-        st.warning("""
-        #### 🟡 Yellow Flag: Overlooking Matrix Effects
-        **The Scenario:** A specificity study only tests for interference from other pure drug-related impurities but ignores the sample matrix (e.g., blood serum, formulation buffers).
-        **The Problem:** The complex components of a biological or formulation matrix are often the biggest source of interference.
-        **Why it's a Red Flag:** The method is only proven to work on clean, simple samples. It is not validated for its intended purpose of analyzing complex real-world samples.
-        """)
-        st.info("""
-        **The Interdependence of Validation:** Accuracy, Precision, and Specificity are not isolated islands. A non-specific method can never be truly accurate, because interference will skew the results. A highly imprecise method makes it difficult to even assess accuracy, as the random noise obscures any systematic bias. They must be evaluated holistically.
-        """)
-
-    with tabs[2]:
-        st.subheader("The 'Why' Behind the Work")
-        st.markdown("""
-        #### Historical Context: The Birth of ICH
-        Before the 1990s, a pharmaceutical company wishing to market a new drug globally had to prepare a different, massive submission package for each region (e.g., USA, Europe, Japan), each with slightly different technical requirements for method validation. This created enormous, costly, and scientifically redundant work.
-        
-        In 1990, the **International Council for Harmonisation of Technical Requirements for Pharmaceuticals for Human Use (ICH)** was formed. This groundbreaking project brought together the regulatory authorities and pharmaceutical industry of Europe, Japan, and the US to develop a single set of harmonized technical guidelines.
-        
-        The **ICH Q2(R1) guideline, "Validation of Analytical Procedures,"** is the direct result of this effort. It is the global "bible" for this topic, and the parameters of Accuracy, Precision, and Specificity form its core. Adhering to ICH Q2(R1) ensures that your validation data will be acceptable to major regulators worldwide, streamlining global drug development.
-        
-        #### Statistical Underpinnings
-        The validation report isn't just plots; it's a statistical argument built on quantitative metrics.
-        
-        **Accuracy is measured by Percent Recovery:**
-        """)
-        st.latex(r"\% \text{Recovery} = \frac{\text{Mean Experimental Value}}{\text{Known True Value}} \times 100\%")
-        
-        st.markdown("**Precision is measured by Percent Coefficient of Variation (%CV):**")
-        st.latex(r"\% \text{CV} = \frac{\text{Standard Deviation (SD)}}{\text{Mean}} \times 100\%")
-        
-        st.markdown("""
-        **Specificity is assessed via Hypothesis Testing:** Typically, a Student's t-test is used to compare the means of the "Analyte Only" and "Analyte + Interferent" groups. The null hypothesis ($H_0$) is that the means are equal. A high p-value (e.g., > 0.05) means we fail to reject $H_0$, providing evidence that the interferent has no significant effect.
-        """)
+            st.markdown("**Accuracy is measured by Percent Recovery:**")
+            st.latex(r"\% \text{Recovery} = \frac{\text{Mean Experimental Value}}{\text{Known True Value}} \times 100\%")
+            
+            st.markdown("**Precision is measured by Percent Coefficient of Variation (%CV):**")
+            st.latex(r"\% \text{CV} = \frac{\text{Standard Deviation (SD)}}{\text{Mean}} \times 100\%")
+            
+            st.markdown("""
+            **Specificity is often assessed via Hypothesis Testing:** A Student's t-test compares the means of the "Analyte Only" and "Analyte + Interferent" groups. The null hypothesis ($H_0$) is that the means are equal. A high p-value (e.g., > 0.05) means we fail to reject $H_0$, providing evidence that the interferent has no significant effect.
+            """)
 
 def render_gage_rr():
     """Renders the interactive module for Gage R&R."""

@@ -311,9 +311,8 @@ def plot_chronological_timeline():
 
 @st.cache_data
 def create_toolkit_conceptual_map():
-    """Creates an improved conceptual map with algorithmic spacing and color-coding by origin."""
+    """Creates an improved conceptual map with algorithmic spacing, origin colors, and a clean legend."""
     
-    # Define the data structure for tools, now including their intellectual origin
     tools = {
         'CI': {'name': 'Confidence Interval Concept', 'short': 'Confidence<br>Intervals', 'origin': 'Statistics'},
         'TOST': {'name': 'Equivalence Testing (TOST)', 'short': 'Equivalence<br>Testing (TOST)', 'origin': 'Biostatistics'},
@@ -333,29 +332,28 @@ def create_toolkit_conceptual_map():
         'XAI': {'name': 'Explainable AI (XAI)', 'short': 'Explainable AI<br>(XAI)', 'origin': 'Data Science / ML'},
         'ANOMALY': {'name': 'Anomaly Detection', 'short': 'Anomaly<br>Detection', 'origin': 'Data Science / ML'},
         'CLUSTER': {'name': 'Clustering (Unsupervised)', 'short': 'Clustering<br>(Unsupervised)', 'origin': 'Data Science / ML'},
-        # Adding missing tools to the map
         'ROC': {'name': 'ROC Curve Analysis', 'short': 'ROC Curve<br>Analysis', 'origin': 'Statistics'},
         'MVA': {'name': 'Multivariate Analysis (MVA)', 'short': 'Multivariate<br>Analysis (MVA)', 'origin': 'Data Science / ML'},
         'TIME_SERIES': {'name': 'Time Series Analysis', 'short': 'Time Series<br>Analysis', 'origin': 'Statistics'},
     }
     
     structure = {
-        'STAT_INF': { 'pos': (1.5, 9), 'name': 'Statistical Inference', 'short': 'Statistical<br>Inference', 'children': ['CI', 'TOST', 'BAYES', 'ROC'] },
+        'STAT_INF': { 'pos': (1.5, 11), 'name': 'Statistical Inference', 'short': 'Statistical<br>Inference', 'children': ['CI', 'TOST', 'BAYES', 'ROC'] },
         'REG_MOD': { 'pos': (1.5, 5), 'name': 'Regression Models', 'short': 'Regression<br>Models', 'children': ['LIN', '4PL', 'STABILITY', 'TIME_SERIES'] },
-        'MSA': { 'pos': (1.5, 2), 'name': 'Measurement Systems Analysis', 'short': 'Measurement<br>Systems Analysis', 'children': ['GAGE', 'METH_COMP'] },
-        'SPC': { 'pos': (1.5, -1), 'name': 'Statistical Process Control', 'short': 'Statistical<br>Process Control', 'children': ['SPC_CHART', 'SMALL_SHIFT', 'MV_SPC'] },
-        'VALIDATION': { 'pos': (1.5, -4.5), 'name': 'Validation & Lifecycle', 'short': 'Validation &<br>Lifecycle', 'children': ['CAPA', 'TOL_INT', 'SURVIVAL'] },
-        'PRED_MOD': { 'pos': (1.5, -7.5), 'name': 'Predictive Modeling', 'short': 'Predictive<br>Modeling', 'children': ['PRED_QC', 'XAI', 'MVA'] },
-        'UNSUP_LRN': { 'pos': (1.5, -10.5), 'name': 'Unsupervised Learning', 'short': 'Unsupervised<br>Learning', 'children': ['ANOMALY', 'CLUSTER'] }
+        'MSA': { 'pos': (1.5, 1), 'name': 'Measurement Systems Analysis', 'short': 'Measurement<br>Systems Analysis', 'children': ['GAGE', 'METH_COMP'] },
+        'SPC': { 'pos': (1.5, -2.5), 'name': 'Statistical Process Control', 'short': 'Statistical<br>Process Control', 'children': ['SPC_CHART', 'SMALL_SHIFT', 'MV_SPC'] },
+        'VALIDATION': { 'pos': (1.5, -6.5), 'name': 'Validation & Lifecycle', 'short': 'Validation &<br>Lifecycle', 'children': ['CAPA', 'TOL_INT', 'SURVIVAL'] },
+        'PRED_MOD': { 'pos': (1.5, -10), 'name': 'Predictive Modeling', 'short': 'Predictive<br>Modeling', 'children': ['PRED_QC', 'XAI', 'MVA'] },
+        'UNSUP_LRN': { 'pos': (1.5, -13), 'name': 'Unsupervised Learning', 'short': 'Unsupervised<br>Learning', 'children': ['ANOMALY', 'CLUSTER'] }
     }
     
     nodes = {
-        'FOUND_STATS': {'name': 'Foundational Statistics', 'short': 'Foundational<br>Statistics', 'pos': (0, 7)},
-        'PROC_QC': {'name': 'Process & Quality Control', 'short': 'Process &<br>Quality Control', 'pos': (0, -1.75)},
-        'ADV_ANALYTICS': {'name': 'Advanced Analytics (ML/AI)', 'short': 'Advanced Analytics<br>(ML/AI)', 'pos': (0, -9)},
+        'FOUND_STATS': {'name': 'Foundational Statistics', 'short': 'Foundational<br>Statistics', 'pos': (0, 8)},
+        'PROC_QC': {'name': 'Process & Quality Control', 'short': 'Process &<br>Quality Control', 'pos': (0, -2.75)},
+        'ADV_ANALYTICS': {'name': 'Advanced Analytics (ML/AI)', 'short': 'Advanced Analytics<br>(ML/AI)', 'pos': (0, -11.5)},
     }
 
-    vertical_spacing = 1.3
+    vertical_spacing = 2.2 # Increased spacing
     for key, val in structure.items():
         nodes[key] = {'name': val['name'], 'short': val['short'], 'pos': val['pos']}
         num_children = len(val['children'])
@@ -372,55 +370,53 @@ def create_toolkit_conceptual_map():
     fig = go.Figure()
 
     for start, end in edges:
-        fig.add_trace(go.Scatter(
-            x=[nodes[start]['pos'][0], nodes[end]['pos'][0]], y=[nodes[start]['pos'][1], nodes[end]['pos'][1]],
-            mode='lines', line=dict(color='lightgrey', width=2), hoverinfo='none'
-        ))
-
-    # Define colors for origins
+        fig.add_trace(go.Scatter(x=[nodes[start]['pos'][0], nodes[end]['pos'][0]], y=[nodes[start]['pos'][1], nodes[end]['pos'][1]],
+                                 mode='lines', line=dict(color='lightgrey', width=2), hoverinfo='none'))
+    
     origin_colors = {
-        'Statistics': '#1f77b4',  # Muted Blue
-        'Biostatistics': '#2ca02c',  # Cooked Asparagus Green
-        'Industrial Quality Control': '#ff7f0e',  # Safety Orange
-        'Data Science / ML': '#d62728',  # Brick Red
+        'Statistics': '#1f77b4', 'Biostatistics': '#2ca02c',
+        'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728'
     }
     
-    # Draw structural nodes separately (Levels 0 and 1)
+    # Draw nodes in groups to handle the legend correctly
+    drawn_legends = set()
+    for origin_name, color in origin_colors.items():
+        # Get all tool nodes for this origin
+        origin_nodes = {k: v for k, v in nodes.items() if v.get('origin') == origin_name}
+        if not origin_nodes: continue
+
+        fig.add_trace(go.Scatter(
+            x=[v['pos'][0] for v in origin_nodes.values()],
+            y=[v['pos'][1] for v in origin_nodes.values()],
+            text=[v['short'] for v in origin_nodes.values()],
+            mode='markers+text', textposition="middle center",
+            marker=dict(size=90, color=color, symbol='circle', line=dict(width=2, color='black')),
+            textfont=dict(size=11, color='white', family="Arial"),
+            hovertext=[v['name'] for v in origin_nodes.values()], hoverinfo='text',
+            name=origin_name,
+            legendgroup=origin_name
+        ))
+
+    # Draw structural nodes (Levels 0 and 1) without adding to legend
     structural_nodes = {k: v for k, v in nodes.items() if 'origin' not in v}
     fig.add_trace(go.Scatter(
         x=[v['pos'][0] for v in structural_nodes.values()],
         y=[v['pos'][1] for v in structural_nodes.values()],
         text=[v['short'] for v in structural_nodes.values()],
         mode='markers+text', textposition="middle center",
-        marker=dict(size=85, color='#636EFA', symbol='square', line=dict(width=2, color='black')),
+        marker=dict(size=100, color='#6A5ACD', symbol='square', line=dict(width=2, color='black')),
         textfont=dict(size=11, color='white', family="Arial"),
         hovertext=[v['name'] for v in structural_nodes.values()], hoverinfo='text',
         showlegend=False
     ))
 
-    # Draw tool nodes (Level 2) grouped by origin to create a legend
-    for origin_name, color in origin_colors.items():
-        origin_nodes = {k: v for k, v in nodes.items() if v.get('origin') == origin_name}
-        if not origin_nodes: continue
-        
-        fig.add_trace(go.Scatter(
-            x=[v['pos'][0] for v in origin_nodes.values()],
-            y=[v['pos'][1] for v in origin_nodes.values()],
-            text=[v['short'] for v in origin_nodes.values()],
-            mode='markers+text', textposition="middle center",
-            marker=dict(size=85, color=color, symbol='circle', line=dict(width=2, color='black')),
-            textfont=dict(size=11, color='white', family="Arial"),
-            hovertext=[v['name'] for v in origin_nodes.values()], hoverinfo='text',
-            name=origin_name # This name creates the legend entry
-        ))
-
     fig.update_layout(
         title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
         showlegend=True,
-        legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.6)'),
+        legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-12.5, 12.5]),
-        height=1200,
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-15, 15]),
+        height=1400, # Increased height for more space
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#f0f2f6'

@@ -2400,6 +2400,9 @@ def render_bayesian():
     - **Adaptive Clinical Trials:** Data from an interim analysis can serve as a prior for the final analysis, allowing trials to be stopped early.
     - **Quantifying Belief & Risk:** It provides a natural framework to answer the question: "Given what we already knew, and what this new data shows, what is the probability that the pass rate is actually above 95%?"
     """)
+    st.info("""
+    **Interactive Demo:** Use the **Prior Belief** radio buttons in the sidebar to simulate how different levels of existing knowledge impact your conclusions. Observe how the final **Posterior (blue curve)** is always a weighted compromise between your initial **Prior (green curve)** and the new **Data (red curve)**. A strong prior will be very influential, while a weak or non-informative prior lets the new data speak for itself.
+    """)
     prior_type_bayes = st.sidebar.radio("Select Prior Belief:", ("Strong R&D Prior", "No Prior (Frequentist)", "Skeptical/Regulatory Prior"))
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -4120,6 +4123,7 @@ def render_causal_inference():
             
             **The Impact:** This was a paradigm shift. By making causal assumptions explicit in a DAG, Pearl developed a complete mathematical framework—including his famous **do-calculus**—to determine if a causal question *could* be answered from observational data, and if so, how. This "Causal Revolution" provided the first-ever rigorous, mathematical language to move from seeing (`P(Y|X)`) to doing (`P(Y|do(X))`), transforming fields from epidemiology to economics. For this work, Judea Pearl was awarded the Turing Award in 2011, the highest honor in computer science.
             """)
+            
 def render_classification_models():
     """Renders the module for Predictive QC (Classification)."""
     st.markdown("""

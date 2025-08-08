@@ -2136,7 +2136,7 @@ def render_method_comparison():
     **Interactive Demo:** Use the sliders in the sidebar to simulate different types of disagreement between a "Test" method and a "Reference" method. See in real-time how each diagnostic plot (Deming, Bland-Altman, %Bias) reveals a different aspect of the problem, helping you build a deep intuition for method comparison statistics.
     """)
     
-    # --- NEW: Sidebar controls for this specific module ---
+    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("Method Comparison Controls")
     constant_bias_slider = st.sidebar.slider(
         "⚖️ Constant Bias", 
@@ -2168,6 +2168,7 @@ def render_method_comparison():
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        
         with tabs[0]:
             st.metric(label="📈 Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference.")
             st.metric(label="💡 Deming Slope", value=f"{slope:.3f}", help="Ideal = 1.0. Measures proportional bias.")
@@ -2189,14 +2190,22 @@ def render_method_comparison():
             """)
 
         with tabs[2]:
+            # FIX: Restored the full, detailed content for this tab
             st.markdown("""
             #### Historical Context & Origin
-            For decades, scientists mistakenly used standard OLS regression and correlation to compare methods. This is flawed because OLS assumes the x-axis (reference method) is measured without error, an impossibility.
+            For decades, scientists committed a cardinal sin: using **Ordinary Least Squares (OLS) regression** and the **correlation coefficient (r)** to compare methods. This is flawed because OLS assumes the x-axis (reference method) is measured without error, an impossibility.
             
-            - **Deming's Correction:** Popularized by **W. Edwards Deming**, this regression correctly assumes both methods have error, providing an unbiased estimate of the true relationship.
+            - **Deming's Correction:** While known to statisticians, **W. Edwards Deming** championed this type of regression in the 1940s. It correctly assumes both methods have measurement error, providing an unbiased estimate of the true relationship. **Passing-Bablok regression** is a robust non-parametric alternative.
             
-            - **The Bland-Altman Revolution:** A 1986 paper in *The Lancet* by **J. Martin Bland and Douglas G. Altman** ruthlessly exposed the misuse of correlation and proposed their brilliantly simple alternative: plotting the **Difference vs. the Average**. This directly visualizes disagreement and is now the undisputed gold standard.
+            - **The Bland-Altman Revolution:** A 1986 paper in *The Lancet* by **J. Martin Bland and Douglas G. Altman** ruthlessly exposed the misuse of correlation and proposed their brilliantly simple alternative. Instead of plotting Y vs. X, they plotted the **Difference (Y-X) vs. the Average ((Y+X)/2)**. This directly visualizes the magnitude and patterns of disagreement and is now the undisputed gold standard.
+            
+            #### Mathematical Basis
+            **Deming Regression:** OLS minimizes the sum of squared vertical distances. Deming regression minimizes the sum of squared distances from the points to the line, weighted by the ratio of the error variances of the two methods.
+            
+            **Bland-Altman Plot:** This is a graphical analysis. The key metrics are the **mean difference (bias)**, $\bar{d}$, and the **standard deviation of the differences**, $s_d$. The 95% Limits of Agreement (LoA) are calculated assuming the differences are approximately normally distributed:
             """)
+            st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
+            st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
 def render_capability():
     """Renders the interactive module for Process Capability (Cpk)."""
     st.markdown("""

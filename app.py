@@ -311,71 +311,77 @@ def plot_chronological_timeline():
 
 @st.cache_data
 def create_toolkit_conceptual_map():
-    """Creates an improved conceptual map of all the tools in the toolkit."""
+    """Creates an improved conceptual map with algorithmic spacing to prevent overlap."""
     
-    # FIX: Node dictionary is updated with a "short name" for rendering and adjusted coordinates to prevent overlap.
-    # Structure is {KEY: (Full Name, 'Short<br>Name', x_pos, y_pos)}
-    nodes = {
-        # Level 0: Broadest Categories
-        'FOUND_STATS': ('Foundational Statistics', 'Foundational<br>Statistics', 0, 6),
-        'PROC_QC': ('Process & Quality Control', 'Process &<br>Quality Control', 0, 0),
-        'ADV_ANALYTICS': ('Advanced Analytics (ML/AI)', 'Advanced Analytics<br>(ML/AI)', 0, -6),
-        
-        # Level 1: Core Methodologies
-        'STAT_INF': ('Statistical Inference', 'Statistical<br>Inference', 1.5, 9),
-        'REG_MOD': ('Regression Models', 'Regression<br>Models', 1.5, 6),
-        'MSA': ('Measurement Systems Analysis', 'Measurement<br>Systems Analysis', 1.5, 3),
-        'SPC': ('Statistical Process Control', 'Statistical<br>Process Control', 1.5, 0),
-        'VALIDATION': ('Validation & Lifecycle', 'Validation &<br>Lifecycle', 1.5, -3),
-        'PRED_MOD': ('Predictive Modeling', 'Predictive<br>Modeling', 1.5, -6),
-        'UNSUP_LRN': ('Unsupervised Learning', 'Unsupervised<br>Learning', 1.5, -9),
-        
-        # Level 2: Specific App Tools (y-coordinates are spaced out)
-        'CI': ('Confidence Interval Concept', 'Confidence<br>Intervals', 3, 10.5),
-        'TOST': ('Equivalence Testing (TOST)', 'Equivalence<br>Testing (TOST)', 3, 9.5),
-        'BAYES': ('Bayesian Inference', 'Bayesian<br>Inference', 3, 8.5),
-        'LIN': ('Linearity & Range', 'Linearity<br>& Range', 3, 7),
-        '4PL': ('Non-Linear Regression (4PL/5PL)', 'Non-Linear<br>Regression', 3, 6),
-        'STABILITY': ('Stability Analysis (Shelf-Life)', 'Stability<br>Analysis', 3, 5),
-        'GAGE': ('Gage R&R / VCA', 'Gage R&R<br>/ VCA', 3, 3.5),
-        'METH_COMP': ('Method Comparison', 'Method<br>Comparison', 3, 2.5),
-        'SPC_CHART': ('Process Stability (SPC)', 'Process<br>Stability (SPC)', 3, 1.5),
-        'SMALL_SHIFT': ('Small Shift Detection', 'Small Shift<br>Detection', 3, 0.5),
-        'MV_SPC': ('Multivariate SPC', 'Multivariate<br>SPC', 3, -0.5),
-        'CAPA': ('Process Capability (Cpk)', 'Process<br>Capability (Cpk)', 3, -2),
-        'TOL_INT': ('Tolerance Intervals', 'Tolerance<br>Intervals', 3, -3),
-        'SURVIVAL': ('Reliability / Survival Analysis', 'Reliability /<br>Survival Analysis', 3, -4),
-        'PRED_QC': ('Predictive QC (Classification)', 'Predictive QC<br>(Classification)', 3, -5.5),
-        'XAI': ('Explainable AI (XAI)', 'Explainable AI<br>(XAI)', 3, -6.5),
-        'ANOMALY': ('Anomaly Detection', 'Anomaly<br>Detection', 3, -8),
-        'CLUSTER': ('Clustering (Unsupervised)', 'Clustering<br>(Unsupervised)', 3, -9),
+    # Define the nodes with a new structure for easier algorithmic placement
+    # { 'LEVEL_1_KEY': {'pos': (x, y), 'name': '...', 'short': '...', 'children': ['TOOL_1', 'TOOL_2']}, ... }
+    # { 'TOOL_KEY': {'name': '...', 'short': '...'}, ... }
+    
+    structure = {
+        'STAT_INF': { 'pos': (1.5, 9), 'name': 'Statistical Inference', 'short': 'Statistical<br>Inference', 'children': ['CI', 'TOST', 'BAYES'] },
+        'REG_MOD': { 'pos': (1.5, 5.5), 'name': 'Regression Models', 'short': 'Regression<br>Models', 'children': ['LIN', '4PL', 'STABILITY'] },
+        'MSA': { 'pos': (1.5, 2.5), 'name': 'Measurement Systems Analysis', 'short': 'Measurement<br>Systems Analysis', 'children': ['GAGE', 'METH_COMP'] },
+        'SPC': { 'pos': (1.5, -0.5), 'name': 'Statistical Process Control', 'short': 'Statistical<br>Process Control', 'children': ['SPC_CHART', 'SMALL_SHIFT', 'MV_SPC'] },
+        'VALIDATION': { 'pos': (1.5, -4), 'name': 'Validation & Lifecycle', 'short': 'Validation &<br>Lifecycle', 'children': ['CAPA', 'TOL_INT', 'SURVIVAL'] },
+        'PRED_MOD': { 'pos': (1.5, -7), 'name': 'Predictive Modeling', 'short': 'Predictive<br>Modeling', 'children': ['PRED_QC', 'XAI'] },
+        'UNSUP_LRN': { 'pos': (1.5, -10), 'name': 'Unsupervised Learning', 'short': 'Unsupervised<br>Learning', 'children': ['ANOMALY', 'CLUSTER'] }
     }
+
+    tools = {
+        'CI': {'name': 'Confidence Interval Concept', 'short': 'Confidence<br>Intervals'},
+        'TOST': {'name': 'Equivalence Testing (TOST)', 'short': 'Equivalence<br>Testing (TOST)'},
+        'BAYES': {'name': 'Bayesian Inference', 'short': 'Bayesian<br>Inference'},
+        'LIN': {'name': 'Linearity & Range', 'short': 'Linearity<br>& Range'},
+        '4PL': {'name': 'Non-Linear Regression (4PL/5PL)', 'short': 'Non-Linear<br>Regression'},
+        'STABILITY': {'name': 'Stability Analysis (Shelf-Life)', 'short': 'Stability<br>Analysis'},
+        'GAGE': {'name': 'Gage R&R / VCA', 'short': 'Gage R&R<br>/ VCA'},
+        'METH_COMP': {'name': 'Method Comparison', 'short': 'Method<br>Comparison'},
+        'SPC_CHART': {'name': 'Process Stability (SPC)', 'short': 'Process<br>Stability (SPC)'},
+        'SMALL_SHIFT': {'name': 'Small Shift Detection', 'short': 'Small Shift<br>Detection'},
+        'MV_SPC': {'name': 'Multivariate SPC', 'short': 'Multivariate<br>SPC'},
+        'CAPA': {'name': 'Process Capability (Cpk)', 'short': 'Process<br>Capability (Cpk)'},
+        'TOL_INT': {'name': 'Tolerance Intervals', 'short': 'Tolerance<br>Intervals'},
+        'SURVIVAL': {'name': 'Reliability / Survival Analysis', 'short': 'Reliability /<br>Survival Analysis'},
+        'PRED_QC': {'name': 'Predictive QC (Classification)', 'short': 'Predictive QC<br>(Classification)'},
+        'XAI': {'name': 'Explainable AI (XAI)', 'short': 'Explainable AI<br>(XAI)'},
+        'ANOMALY': {'name': 'Anomaly Detection', 'short': 'Anomaly<br>Detection'},
+        'CLUSTER': {'name': 'Clustering (Unsupervised)', 'short': 'Clustering<br>(Unsupervised)'}
+    }
+
+    nodes = {
+        'FOUND_STATS': {'name': 'Foundational Statistics', 'short': 'Foundational<br>Statistics', 'pos': (0, 7.25)},
+        'PROC_QC': {'name': 'Process & Quality Control', 'short': 'Process &<br>Quality Control', 'pos': (0, -0.75)},
+        'ADV_ANALYTICS': {'name': 'Advanced Analytics (ML/AI)', 'short': 'Advanced Analytics<br>(ML/AI)', 'pos': (0, -8.5)},
+    }
+
+    # Algorithmically add positions for Level 1 and Level 2 nodes
+    vertical_spacing = 1.2 # Controls the space between tool circles
+    for key, val in structure.items():
+        nodes[key] = {'name': val['name'], 'short': val['short'], 'pos': val['pos']}
+        num_children = len(val['children'])
+        start_y = val['pos'][1] - (num_children - 1) / 2.0 * vertical_spacing
+        for i, child_key in enumerate(val['children']):
+            nodes[child_key] = {'name': tools[child_key]['name'], 'short': tools[child_key]['short'], 'pos': (3, start_y + i * vertical_spacing)}
 
     edges = [
         ('FOUND_STATS', 'STAT_INF'), ('FOUND_STATS', 'REG_MOD'),
         ('PROC_QC', 'MSA'), ('PROC_QC', 'SPC'), ('PROC_QC', 'VALIDATION'),
         ('ADV_ANALYTICS', 'PRED_MOD'), ('ADV_ANALYTICS', 'UNSUP_LRN'),
-        ('STAT_INF', 'CI'), ('STAT_INF', 'TOST'), ('STAT_INF', 'BAYES'),
-        ('REG_MOD', 'LIN'), ('REG_MOD', '4PL'), ('REG_MOD', 'STABILITY'),
-        ('MSA', 'GAGE'), ('MSA', 'METH_COMP'),
-        ('SPC', 'SPC_CHART'), ('SPC', 'SMALL_SHIFT'), ('SPC', 'MV_SPC'),
-        ('VALIDATION', 'CAPA'), ('VALIDATION', 'TOL_INT'), ('VALIDATION', 'SURVIVAL'),
-        ('UNSUP_LRN', 'ANOMALY'), ('UNSUP_LRN', 'CLUSTER'),
-        ('PRED_MOD', 'PRED_QC'), ('PRED_MOD', 'XAI'),
-    ]
+    ] + [ (parent, child) for parent, data in structure.items() for child in data['children'] ]
 
     fig = go.Figure()
 
     for start, end in edges:
         fig.add_trace(go.Scatter(
-            x=[nodes[start][2], nodes[end][2]], y=[nodes[start][3], nodes[end][3]],
+            x=[nodes[start]['pos'][0], nodes[end]['pos'][0]],
+            y=[nodes[start]['pos'][1], nodes[end]['pos'][1]],
             mode='lines', line=dict(color='lightgrey', width=2), hoverinfo='none'
         ))
 
-    node_x = [v[2] for v in nodes.values()]
-    node_y = [v[3] for v in nodes.values()]
-    short_text = [v[1] for v in nodes.values()]
-    full_text = [v[0] for v in nodes.values()]
+    node_x = [v['pos'][0] for v in nodes.values()]
+    node_y = [v['pos'][1] for v in nodes.values()]
+    short_text = [v['short'] for v in nodes.values()]
+    full_text = [v['name'] for v in nodes.values()]
     
     node_colors = []
     for x in node_x:
@@ -387,9 +393,8 @@ def create_toolkit_conceptual_map():
         x=node_x, y=node_y, text=short_text,
         mode='markers+text',
         textposition="middle center",
-        # FIX: Increased marker size
-        marker=dict(size=80, color=node_colors, symbol='circle', line=dict(width=2, color='black')),
-        textfont=dict(size=10, color='white'),
+        marker=dict(size=85, color=node_colors, symbol='circle', line=dict(width=2, color='black')),
+        textfont=dict(size=11, color='white', family="Arial"),
         hovertext=full_text,
         hoverinfo='text'
     ))
@@ -398,9 +403,8 @@ def create_toolkit_conceptual_map():
         title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
         showlegend=False,
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        # FIX: Adjusted y-axis range to fit new layout
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 11.5]),
-        height=1000,
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-11.5, 11.5]),
+        height=1200, # Increased height to accommodate spacing
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#f0f2f6'

@@ -1813,7 +1813,7 @@ def render_gage_rr():
     
     **Strategic Application:** A foundational checkpoint in any technology transfer or process validation. An unreliable measurement system creates a "fog of uncertainty," leading to two costly errors: rejecting good product (False Alarm) or accepting bad product (Missed Signal). **Use the sliders in the sidebar to simulate different sources of variation and see their impact on the final % Gage R&R.**
     """)
-        st.info("""
+    st.info("""
     **Interactive Demo:** Now, when you navigate to the "Gage R&R / VCA" tool, you will see a new set of dedicated sliders in the sidebar. You can now dynamically simulate how a precise (low repeatability) or imprecise (high repeatability) instrument performs, and how well-trained (low operator variation) or poorly-trained (high operator variation) teams affect the final result.    """)
     # --- NEW: Sidebar controls for this specific module ---
     st.sidebar.subheader("Gage R&R Controls")

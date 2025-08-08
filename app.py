@@ -190,6 +190,93 @@ def plot_ci_concept(n=30):
     fig1.add_vline(x=pop_mean, line=dict(color='black', dash='dash'), annotation_text="True Mean (μ)")
     fig1.update_layout(title=f"<b>Population vs. Sampling Distribution of the Mean (n={n})</b>", showlegend=True, legend=dict(x=0.01, y=0.99))
 
+@st.cache_data
+def plot_chronological_timeline():
+    # Data has been updated with a new 'reason' key for each tool
+    all_tools_data = [
+        {'name': 'Process Stability', 'year': 1924, 'inventor': 'Walter Shewhart', 'reason': 'The dawn of mass manufacturing (telephones) required new methods for controlling process variation.'},
+        {'name': 'Assay Robustness (DOE)', 'year': 1926, 'inventor': 'R.A. Fisher', 'reason': 'To revolutionize agricultural science by efficiently testing multiple factors (fertilizers, varieties) at once.'},
+        {'name': 'Pass/Fail Analysis', 'year': 1927, 'inventor': 'Edwin B. Wilson', 'reason': 'To solve the poor performance of the standard binomial confidence interval, especially for small samples.'},
+        {'name': 'Split-Plot Designs', 'year': 1930, 'inventor': 'R.A. Fisher & F. Yates', 'reason': 'To solve agricultural experiments with factors that were difficult or expensive to change on a small scale.'},
+        {'name': 'Multivariate SPC', 'year': 1931, 'inventor': 'Harold Hotelling', 'reason': 'To generalize the t-test and control charts to monitor multiple correlated variables simultaneously.'},
+        {'name': 'CI Concept', 'year': 1937, 'inventor': 'Jerzy Neyman', 'reason': 'A need for rigorous, objective methods in the growing field of mathematical statistics.'},
+        {'name': 'Tolerance Intervals', 'year': 1942, 'inventor': 'Abraham Wald', 'reason': 'WWII demanded mass production of interchangeable military parts that would fit together reliably.'},
+        {'name': 'ROC Curve Analysis', 'year': 1945, 'inventor': 'Signal Processing Labs', 'reason': 'Developed during WWII to distinguish enemy radar signals from noise, a classic signal detection problem.'},
+        {'name': 'Variance Components', 'year': 1950, 'inventor': 'Charles Henderson', 'reason': 'Advances in genetics and complex systems required methods to partition sources of variation.'},
+        {'name': 'Assay Robustness (RSM)', 'year': 1951, 'inventor': 'Box & Wilson', 'reason': 'The post-war chemical industry boom created demand for efficient process optimization techniques.'},
+        {'name': 'Small Shift Detection', 'year': 1954, 'inventor': 'Page (CUSUM) & Roberts (EWMA)', 'reason': 'Maturing industries required charts more sensitive to small, slow process drifts than Shewhart\'s original design.'},
+        {'name': 'Clustering', 'year': 1957, 'inventor': 'Stuart Lloyd', 'reason': 'The advent of early digital computing at Bell Labs made iterative, data-driven grouping algorithms feasible.'},
+        {'name': 'Predictive QC', 'year': 1958, 'inventor': 'David Cox', 'reason': 'A need to model binary outcomes (pass/fail, live/die) in a regression framework.'},
+        {'name': 'Reliability Analysis', 'year': 1958, 'inventor': 'Kaplan & Meier', 'reason': 'The rise of clinical trials necessitated a formal way to handle \'censored\' data (e.g., patients who survived past the study\'s end).'},
+        {'name': 'Mixture Designs', 'year': 1958, 'inventor': 'Henry Scheffé', 'reason': 'To provide a systematic way for chemists and food scientists to optimize recipes and formulations.'},
+        {'name': 'LOD & LOQ', 'year': 1968, 'inventor': 'Lloyd Currie (NIST)', 'reason': 'To create a harmonized, statistically rigorous framework for defining the sensitivity of analytical methods.'},
+        {'name': 'Time Series Analysis', 'year': 1970, 'inventor': 'Box & Jenkins', 'reason': 'To provide a comprehensive statistical methodology for forecasting and control in industrial and economic processes.'},
+        {'name': 'Non-Linear Regression', 'year': 1975, 'inventor': 'Bioassay Field', 'reason': 'The proliferation of immunoassays (like ELISA) required models for their characteristic S-shaped curves.'},
+        {'name': 'Multivariate Analysis', 'year': 1975, 'inventor': 'Herman Wold', 'reason': 'To model "data-rich but theory-poor" systems in social science, later adapted for chemometrics.'},
+        {'name': 'Core Validation Params', 'year': 1980, 'inventor': 'ICH / FDA', 'reason': 'Globalization of the pharmaceutical industry required harmonized standards for drug approval.'},
+        {'name': 'Run Validation', 'year': 1981, 'inventor': 'James Westgard', 'reason': 'The automation of clinical labs demanded a more sensitive, diagnostic system for daily quality control.'},
+        {'name': 'Gage R&R', 'year': 1982, 'inventor': 'AIAG', 'reason': 'The US auto industry, facing a quality crisis, needed to formalize the analysis of their measurement systems.'},
+        {'name': 'Method Comparison', 'year': 1986, 'inventor': 'Bland & Altman', 'reason': 'A direct response to the widespread misuse of correlation for comparing clinical measurement methods.'},
+        {'name': 'Process Capability', 'year': 1986, 'inventor': 'Bill Smith (Motorola)', 'reason': 'The Six Sigma quality revolution at Motorola popularized a simple metric to quantify process capability.'},
+        {'name': 'Equivalence Testing (TOST)', 'year': 1987, 'inventor': 'Donald Schuirmann', 'reason': 'The rise of the generic drug industry created a regulatory need to statistically *prove* equivalence.'},
+        {'name': 'Bayesian Inference', 'year': 1990, 'inventor': 'Metropolis et al.', 'reason': 'The explosion in computing power made simulation-based methods (MCMC) practical, unlocking Bayesian inference.'},
+        {'name': 'Stability Analysis', 'year': 1993, 'inventor': 'ICH', 'reason': 'To harmonize global pharmaceutical regulations for determining a product\'s shelf-life.'},
+        {'name': 'Advanced AI/ML', 'year': 2017, 'inventor': 'Vaswani, Lundberg et al.', 'reason': 'The Deep Learning revolution created powerful but opaque "black box" models, necessitating methods to explain them (XAI).'},
+        {'name': 'Causal Inference', 'year': 2018, 'inventor': 'Judea Pearl et al.', 'reason': 'The limitations of purely predictive models spurred a "causal revolution" to answer "why" questions.'},
+    ]
+
+    all_tools_data.sort(key=lambda x: x['year'])
+    y_offsets = [3.0, -3.0, 3.5, -3.5, 2.5, -2.5, 4.0, -4.0, 2.0, -2.0, 4.5, -4.5, 1.5, -1.5]
+    for i, tool in enumerate(all_tools_data):
+        tool['y'] = y_offsets[i % len(y_offsets)]
+    
+    fig = go.Figure()
+    eras = {
+        'The Foundations (1920-1949)': {'color': 'rgba(0, 128, 128, 0.7)', 'boundary': (1920, 1949)},
+        'Post-War & Industrial Boom (1950-1979)': {'color': 'rgba(0, 104, 201, 0.7)', 'boundary': (1950, 1979)},
+        'The Quality Revolution (1980-1999)': {'color': 'rgba(100, 0, 100, 0.7)', 'boundary': (1980, 1999)},
+        'The AI & Data Era (2000-Present)': {'color': 'rgba(214, 39, 40, 0.7)', 'boundary': (2000, 2025)}
+    }
+    
+    for era_name, era_info in eras.items():
+        x0, x1 = era_info['boundary']
+        fig.add_shape(type="rect", x0=x0, y0=-5.5, x1=x1, y1=5.5, line=dict(width=0), fillcolor=era_info['color'], opacity=0.15, layer='below')
+        fig.add_annotation(x=(x0 + x1) / 2, y=6.5, text=f"<b>{era_name}</b>", showarrow=False, font=dict(size=18, color=era_info['color']))
+
+    fig.add_shape(type="line", x0=1920, y0=0, x1=2025, y1=0, line=dict(color="black", width=3), layer='below')
+
+    for tool in all_tools_data:
+        x_coord = tool['year']
+        y_coord = tool['y']
+        
+        tool_color = 'grey'
+        for era_info in eras.values():
+            if era_info['boundary'][0] <= x_coord <= era_info['boundary'][1]:
+                tool_color = era_info['color']
+                break
+
+        fig.add_trace(go.Scatter(
+            x=[x_coord], y=[y_coord], mode='markers',
+            marker=dict(size=12, color=tool_color, line=dict(width=2, color='black')),
+            # FIX: Updated the hover text to include the new 'reason'
+            hoverinfo='text', text=f"<b>{tool['name']} ({tool['year']})</b><br><i>Inventor(s): {tool['inventor']}</i><br><br><b>Reason:</b> {tool['reason']}"
+        ))
+        fig.add_shape(type="line", x0=x_coord, y0=0, x1=x_coord, y1=y_coord, line=dict(color='grey', width=1))
+        fig.add_annotation(
+            x=x_coord, y=y_coord, text=f"<b>{tool['name']}</b>",
+            showarrow=False, yshift=25 if y_coord > 0 else -25, font=dict(size=11, color=tool_color), align="center"
+        )
+
+    fig.update_layout(
+        title_text='<b>A Chronological Timeline of V&V Analytics</b>',
+        title_font_size=28, title_x=0.5,
+        xaxis=dict(range=[1920, 2025], showgrid=True),
+        yaxis=dict(visible=False, range=[-8, 8]),
+        plot_bgcolor='white', paper_bgcolor='white',
+        height=700, margin=dict(l=20, r=20, t=100, b=20),
+        showlegend=False
+    )
+    return fig
     # --- Plot 2: CI Simulation ---
     n_sims = 1000
     samples = np.random.normal(pop_mean, pop_std, size=(n_sims, n))
@@ -1245,6 +1332,11 @@ def render_introduction_content():
     st.header("📈 Project Workflow")
     st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value, and are ordered chronologically within each phase.")
     st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True)
+
+        # --- ADDED THIS NEW SECTION ---
+    st.header("⏳ A Chronological View of V&V Analytics")
+    st.markdown("This timeline organizes the same tools purely by their year of invention, showing the evolution of statistical and machine learning thought over the last century.")
+    st.plotly_chart(plot_chronological_timeline(), use_container_width=True)
 
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)

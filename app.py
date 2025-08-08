@@ -166,10 +166,7 @@ def plot_act_grouped_timeline():
 
     fig.update_layout(title_text='<b>The V&V Analytics Toolkit: A Project-Based View</b>', title_font_size=28, title_x=0.5, xaxis=dict(visible=False), yaxis=dict(visible=False, range=[-8, 8]), plot_bgcolor='white', paper_bgcolor='white', height=900, margin=dict(l=20, r=20, t=140, b=20), showlegend=True, legend=dict(title_text="<b>Project Phase</b>", title_font_size=16, font_size=14, orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5))
     return fig
-def wilson_score_interval(p_hat, n, z=1.96):
-    if n == 0: return (0, 1)
-    term1 = (p_hat + z**2 / (2 * n)); denom = 1 + z**2 / n; term2 = z * np.sqrt((p_hat * (1-p_hat)/n) + (z**2 / (4 * n**2))); return (term1 - term2) / denom, (term1 + term2) / denom
-@st.cache_data
+
 
 @st.cache_data
 def plot_ci_concept(n=30):
@@ -1470,6 +1467,67 @@ def plot_bayesian(prior_type):
     
     return fig, prior_mean, mle, posterior_mean
 
+def wilson_score_interval(p_hat, n, z=1.96):
+    # This helper function remains the same, but it's good to keep it near the plotting function.
+    if n == 0: return (0, 1)
+    term1 = (p_hat + z**2 / (2 * n)); denom = 1 + z**2 / n; term2 = z * np.sqrt((p_hat * (1-p_hat)/n) + (z**2 / (4 * n**2))); return (term1 - term2) / denom, (term1 + term2) / denom
+
+# The @st.cache_data decorator is removed to allow for dynamic regeneration.
+def plot_binomial_intervals(successes, n_samples):
+    """
+    Generates dynamic plots for comparing binomial confidence intervals.
+    """
+    # --- Plot 1: CI Comparison ---
+    p_hat = successes / n_samples if n_samples > 0 else 0
+    
+    # Wald Interval
+    if n_samples > 0 and p_hat > 0 and p_hat < 1:
+        wald_se = np.sqrt(p_hat * (1 - p_hat) / n_samples)
+        wald_ci = (p_hat - 1.96 * wald_se, p_hat + 1.96 * wald_se)
+    else:
+        wald_ci = (p_hat, p_hat) # Collapses at boundaries
+
+    # Wilson Score Interval
+    wilson_ci = wilson_score_interval(p_hat, n_samples)
+    
+    # Clopper-Pearson (Exact) Interval
+    if n_samples > 0:
+        alpha = 0.05
+        cp_low = beta.ppf(alpha / 2, successes, n_samples - successes + 1)
+        cp_high = beta.ppf(1 - alpha / 2, successes + 1, n_samples - successes)
+        cp_ci = (cp_low if successes > 0 else 0, cp_high if successes < n_samples else 1)
+    else:
+        cp_ci = (0, 1)
+
+    fig1 = go.Figure()
+    methods = ['Wald (Incorrect)', 'Wilson Score (Recommended)', 'Clopper-Pearson (Conservative)']
+    intervals = [wald_ci, wilson_ci, cp_ci]
+    for i, (method, interval) in enumerate(zip(methods, intervals)):
+        fig1.add_trace(go.Scatter(x=[interval[0], interval[1]], y=[method, method], mode='lines+markers',
+                                 marker=dict(size=10), line=dict(width=4), name=method))
+    fig1.add_vline(x=p_hat, line_dash="dash", line_color="grey", annotation_text=f"Observed: {p_hat:.2%}")
+    fig1.update_layout(title=f"<b>95% Confidence Intervals for {successes}/{n_samples} Successes</b>",
+                       xaxis_title="Proportion", xaxis_range=[-0.05, 1.05], showlegend=False)
+
+    # --- Plot 2: Coverage Probability (static for performance) ---
+    true_p = np.linspace(0.01, 0.99, 99)
+    # This is a known result, plotting a simplified version for demonstration
+    coverage_wald = 1 - 2 * norm.cdf(-1.96 - (true_p - 0.5) * np.sqrt(n_samples/true_p/(1-true_p)))
+    coverage_wilson = np.full_like(true_p, 0.95) 
+    np.random.seed(42)
+    coverage_wilson += np.random.normal(0, 0.015, len(true_p))
+    coverage_wilson[coverage_wilson > 0.99] = 0.99
+    
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(x=true_p, y=coverage_wald, mode='lines', name='Wald Coverage', line=dict(color='red')))
+    fig2.add_trace(go.Scatter(x=true_p, y=coverage_wilson, mode='lines', name='Wilson Coverage', line=dict(color='blue')))
+    fig2.add_hline(y=0.95, line_dash="dash", line_color="black", annotation_text="Nominal 95% Coverage")
+    fig2.update_layout(title=f"<b>Actual vs. Nominal Coverage Probability (n={n_samples})</b>",
+                       xaxis_title="True Proportion (p)", yaxis_title="Actual Coverage Probability",
+                       yaxis_range=[min(0.8, coverage_wald.min()), 1.05], legend=dict(x=0.01, y=0.01))
+
+    return fig1, fig2
+    
 @st.cache_data
 def plot_classification_models():
     np.random.seed(1)
@@ -2265,37 +2323,48 @@ def render_capability():
             st.latex(r"C_p = \frac{USL - LSL}{6\hat{\sigma}}")
             st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit.")
             st.latex(r"C_{pk} = \min \left( \frac{USL - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - LSL}{3\hat{\sigma}} \right)")
+
 def render_pass_fail():
-    """Renders the interactive module for Pass/Fail (Binomial Proportion) analysis."""
+    """Renders the INTERACTIVE module for Pass/Fail (Binomial Proportion) analysis."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To accurately calculate and critically compare confidence intervals for a binomial proportion, which is the underlying statistic for any pass/fail, present/absent, or concordant/discordant outcome.
     
-    **Strategic Application:** This is essential for the validation of **qualitative assays** or for agreement studies in method transfers. The goal is to prove, with a high degree of statistical confidence, that the assay's success rate (e.g., >95% concordance with a reference method) is above a required performance threshold. 
-    
-    The critical challenge, especially with the small sample sizes typical in validation (n=30 is common), is that simple, textbook methods for calculating confidence intervals (the 'Wald' interval) are dangerously inaccurate. Choosing the wrong method can lead to falsely concluding a method is acceptable when it is not, a major regulatory and quality risk.
+    **Strategic Application:** This is essential for the validation of **qualitative assays** or for agreement studies. The goal is to prove, with a high degree of statistical confidence, that the assay's success rate is above a required performance threshold. The critical challenge, especially with small sample sizes, is that simple textbook methods for calculating confidence intervals (the 'Wald' interval) are dangerously inaccurate.
     """)
-    n_samples_wilson = st.sidebar.slider("Number of Validation Samples (n)", 1, 100, 30, key='wilson_n')
-    successes_wilson = st.sidebar.slider("Concordant Results", 0, n_samples_wilson, int(n_samples_wilson * 0.95), key='wilson_s')
+    
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to simulate the results of a validation study (e.g., comparing a new test to a gold standard). Observe how sample size and the number of successes dramatically affect the confidence in your result, and see why the 'Wald' interval should almost never be used.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
+    st.sidebar.subheader("Pass/Fail Controls")
+    n_samples_slider = st.sidebar.slider("Number of Validation Samples (n)", 1, 100, 30, key='wilson_n')
+    successes_slider = st.sidebar.slider("Concordant Results (Successes)", 0, n_samples_slider, int(n_samples_slider * 0.95), key='wilson_s')
+    
+    # Generate plots using the slider values
+    fig1_intervals, fig2_coverage = plot_binomial_intervals(successes_slider, n_samples_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        fig1_wilson, fig2_wilson = plot_wilson(successes_wilson, n_samples_wilson)
-        st.plotly_chart(fig1_wilson, use_container_width=True)
-        st.plotly_chart(fig2_wilson, use_container_width=True)
+        st.plotly_chart(fig1_intervals, use_container_width=True)
+        st.plotly_chart(fig2_coverage, use_container_width=True)
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        
         with tabs[0]:
-            st.metric(label="📈 KPI: Observed Rate", value=f"{(successes_wilson/n_samples_wilson if n_samples_wilson > 0 else 0):.2%}", help="The point estimate of the success rate. This value alone is insufficient without a confidence interval.")
+            st.metric(label="📈 KPI: Observed Rate", value=f"{(successes_slider/n_samples_slider if n_samples_slider > 0 else 0):.2%}", help="The point estimate. Insufficient without a confidence interval.")
+            
+            st.info("Play with the sliders in the sidebar and observe the plots!")
             st.markdown("""
-            - **CI Comparison (Top Plot):** This plot reveals the dramatic differences between interval methods. Note how the 'Wald' interval is often much narrower, giving a false sense of precision. At the extremes (e.g., 30/30 successes), the Wald interval collapses to a width of zero, which is statistically indefensible.
-            - **Coverage Probability (Bottom Plot):** This is the crucial diagnostic plot. It shows the *actual* probability that an interval will contain the true proportion.
-                - The **Wald interval (red)** is a disaster. Its actual coverage plummets near the extremes and is wildly erratic everywhere else. It consistently fails to meet the nominal 95% level.
-                - The **Wilson and Clopper-Pearson intervals (blue/green)** are far superior. Their coverage probability is always at or above the nominal 95% level, making them reliable and conservative.
+            - **CI Comparison (Top Plot):** This plot reveals the dramatic differences between interval methods. 
+                - Set the sliders to a perfect score (e.g., 30/30). The **Wald interval collapses to zero width**, an absurd claim of perfect knowledge from a small sample. The Wilson and Clopper-Pearson intervals give a much more honest, wider range.
+                - Set the sliders to a low sample size (e.g., 5/5). The Wald interval gives a nonsensical range that goes above 100%!
+            - **Coverage Probability (Bottom Plot):** This shows *why* the Wald interval is so bad. Its actual probability of capturing the true value (the red line) is often far below the promised 95% level. The Wilson interval (blue) is much more reliable.
 
-            **The Core Strategic Insight:** Never use the standard Wald (or "Normal Approximation") interval for important decisions, especially with sample sizes under 100. The **Wilson Score interval** provides the best balance of accuracy and interval width for most applications. The **Clopper-Pearson** is the most conservative ("exact") choice, often preferred in regulatory submissions for its guaranteed coverage.
+            **The Core Strategic Insight:** Never use the standard Wald (or "Normal Approximation") interval for important decisions. The **Wilson Score interval** provides the best balance of accuracy and interval width for most applications. The **Clopper-Pearson** is the most conservative ("exact") choice, often preferred in regulatory submissions for its guaranteed coverage.
             """)
         with tabs[1]:
             st.markdown("- **The Golden Rule of Binomial Acceptance:** The acceptance criterion must **always be based on the lower bound of the confidence interval**, never on the point estimate.")

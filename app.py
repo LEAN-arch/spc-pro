@@ -3136,7 +3136,7 @@ def render_time_series_analysis():
             - **The Green Line (ARIMA):** The Watchmaker's forecast. Notice how it captures the core seasonal pattern and trend based on its statistical properties.
             - **The Red Line (Prophet):** The Smartwatch's forecast. It also captures the trend and seasonality, often being more robust to outliers or sudden changes.
 
-            **The Core Strategic Insight:** The choice is not about which model is "best," but which is **right for the job.** For a stable, well-understood industrial process where interpretability is key, the craftsmanship of ARIMA is superior. for a complex, noisy business time series with multiple layers of seasonality and a need for automated forecasting at scale, Prophet is often the better tool.
+            **The Core Strategic Insight:** The choice is not about which model is "best," but which is **right for the job.** For a stable, well-understood industrial process where interpretability is key, the craftsmanship of ARIMA is superior. For a complex, noisy business time series with multiple layers of seasonality and a need for automated forecasting at scale, Prophet is often the better tool.
             """)
 
         with tabs[1]:
@@ -3187,72 +3187,74 @@ def render_xai_shap():
     **Strategic Application:** This is arguably the **single most important enabling technology for deploying advanced Machine Learning in regulated GxP environments.** A major barrier to using powerful models has been their lack of interpretability. **SHAP (SHapley Additive exPlanations)** is the state-of-the-art framework that provides this crucial evidence.
     - **🔬 Model Trust & Validation:** XAI confirms that the model is learning real, scientifically plausible relationships, not just memorizing spurious correlations.
     - **⚖️ Regulatory Compliance:** It provides the auditable, scientific rationale needed to justify a model-based decision to regulators and quality assurance.
-    - ** actionable insights:** It pinpoints which input variables are driving a prediction, guiding targeted corrective actions and deepening process understanding.
+    - **Actionable Insights:** It pinpoints which input variables are driving a prediction, guiding targeted corrective actions and deepening process understanding.
     """)
     
     summary_buf, force_html = plot_xai_shap() # Assumes a function returns these components
     
-    st.subheader("Analysis & Interpretation")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+    # FIX: Re-structured to use the standard two-column layout for consistency.
+    col1, col2 = st.columns([0.7, 0.3])
 
-    with tabs[0]:
-        st.info("💡 **Pro-Tip:** SHAP provides two levels of explanation: **Global** (how the model works overall) and **Local** (why it made one specific prediction).")
-
-        with st.expander("🔬 **Global Explanation: What has the model learned?**", expanded=True):
-            st.markdown("**SHAP Summary Plot**")
-            st.image(summary_buf, caption="Each dot represents the impact of that feature on a single prediction.")
-            st.markdown("""
-            - **Feature Importance (Y-axis):** This plot ranks the features by their total impact. We can see `Age` is the most important factor overall.
-            - **Impact on Prediction (X-axis):** Where a dot falls horizontally shows its SHAP value—how much it pushed the prediction for that one sample. Positive values push the prediction higher.
-            - **Original Value (Color):** The color shows the feature's original value (red=high, blue=low).
-            - **The Insight:** We can see a clear pattern: high `Age` (red dots) has a high positive SHAP value. This tells us the model has learned a simple rule: "Older age strongly increases the predicted outcome."
-            """)
-
-        with st.expander("🕵️ **Local Explanation: Why this specific prediction?**", expanded=True):
-            st.markdown("**SHAP Force Plot**")
-            st.components.v1.html(f"<body>{force_html}</body>", height=150, scrolling=True)
-            st.markdown("""
-            - **This plot is a tug-of-war for a single prediction.**
-            - **Base Value:** The average prediction across all data. This is the starting point.
-            - **Red Forces (Pushing Higher):** Features shown in red pushed this specific prediction *higher* than the average. The size of the red bar shows the strength of the push. Here, a high `Capital Gain` was the dominant factor.
-            - **Blue Forces (Pushing Lower):** Features shown in blue pushed the prediction *lower*.
-            - **Final Prediction:** The `f(x)` value is the final prediction, after all the pushes and pulls are tallied up.
-            """)
-
-    with tabs[1]:
-        st.error("""
-        🔴 **THE INCORRECT APPROACH: The "Accuracy is Everything" Fallacy**
-        This is a dangerous mindset that leads to deploying untrustworthy models.
+    with col1:
+        st.subheader("Global Feature Importance")
+        st.image(summary_buf, caption="The SHAP Summary Plot shows the overall impact of each feature.")
         
-        - An analyst builds a model with 99% accuracy. They declare victory and push to put it into production without any further checks.
-        - **The Flaw:** The model might be a "Clever Hans"—like the horse that could supposedly do math but was actually just reacting to its trainer's subtle cues. The model might have learned a nonsensical, spurious correlation in the training data (e.g., "batches made on a Monday always pass"). The high accuracy is an illusion that will shatter when the model sees new data where that spurious correlation doesn't hold.
-        """)
-        st.success("""
-        🟢 **THE GOLDEN RULE: Explainability Builds Trust and Uncovers Flaws**
-        The goal of XAI is not just to explain predictions, but to use those explanations to **validate the model's reasoning and build trust** in its decisions.
+        st.subheader("Local Prediction Explanation")
+        st.components.v1.html(f"<body>{force_html}</body>", height=150, scrolling=True)
+        st.caption("The SHAP Force Plot explains a single, specific prediction.")
         
-        1.  **Build the Model:** Train your powerful "black box" model (e.g., XGBoost, Random Forest) to achieve high predictive accuracy.
-        2.  **Interrogate with SHAP:** Apply SHAP to the model's predictions on a validation set.
-        3.  **Consult the Expert:** Show the SHAP plots (especially the global summary plot) to a Subject Matter Expert (SME) who knows the process science. Ask them: *"Does this make sense?"*
-            - **If YES:** The model has likely learned real, scientifically valid relationships. You can now trust its predictions.
-            - **If NO:** The model has learned a spurious correlation. XAI has just saved you from deploying a flawed model. Use the insight to improve your feature engineering and retrain.
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+
+        with tabs[0]:
+            st.info("💡 **Pro-Tip:** SHAP provides two levels of explanation: **Global** (how the model works overall) and **Local** (why it made one specific prediction).")
+
+            st.markdown("""
+            **Global Explanation (Top-Left Plot):**
+            - **Feature Importance (Y-axis):** This plot ranks features by their total impact. We can see `Age` is the most important factor overall.
+            - **Impact (X-axis) & Value (Color):** We can see a clear pattern: high `Age` (red dots) has a high positive SHAP value, meaning it strongly pushes the model to predict a higher income.
             
-        XAI transforms machine learning from a pure data science exercise into a collaborative process between data scientists and domain experts.
-        """)
+            **Local Explanation (Bottom-Left Plot):**
+            - This plot is a **tug-of-war for a single prediction**.
+            - **Red Forces:** Features pushing the prediction higher. For this person, `Capital Gain` was the dominant factor.
+            - **Blue Forces:** Features pushing the prediction lower.
+            - **Final Prediction (`f(x)`):** The result after all pushes and pulls are tallied up.
+            """)
 
-    with tabs[2]:
-        st.markdown("""
-        #### Historical Context & Origin: From Game Theory to AI
-        The theoretical foundation of SHAP comes from a surprising place: **cooperative game theory**. In 1951, the brilliant mathematician and economist **Lloyd Shapley** developed a concept to solve the "fair payout" problem.
-        
-        Imagine a team of players collaborates to win a prize. How do you divide the winnings fairly based on each player's individual contribution? **Shapley values** provided a mathematically rigorous and unique solution.
-        
-        Fast forward to 2017. Scott Lundberg and Su-In Lee at the University of Washington had a genius insight. They realized that a machine learning model's prediction could be seen as a "game" and the model's features could be seen as the "players." They adapted Shapley's game theory concepts to create **SHAP (SHapley Additive exPlanations)**, a method to fairly distribute the "payout" (the prediction) among the features. This clever fusion of game theory and machine learning provided the first unified and theoretically sound framework for explaining the output of any machine learning model, a breakthrough that is driving the adoption of AI in high-stakes fields.
-        
-        #### How it Works
-        SHAP calculates the contribution of each feature to a prediction by simulating every possible combination of features ("coalitions"). It asks: "How much does the prediction change, on average, when we add this specific feature to all possible subsets of other features?" This exhaustive, computationally intensive approach is the only method proven to have a unique set of desirable properties (Local Accuracy, Missingness, and Consistency) that guarantee a fair and accurate explanation.
-        """)
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Accuracy is Everything" Fallacy**
+            This is a dangerous mindset that leads to deploying untrustworthy models.
+            
+            - An analyst builds a model with 99% accuracy. They declare victory and push to put it into production without any further checks.
+            - **The Flaw:** The model might be a "Clever Hans"—like the horse that could supposedly do math but was actually just reacting to its trainer's subtle cues. The model might have learned a nonsensical, spurious correlation in the training data (e.g., "batches made on a Monday always pass"). The high accuracy is an illusion that will shatter when the model sees new data where that spurious correlation doesn't hold.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Explainability Builds Trust and Uncovers Flaws**
+            The goal of XAI is not just to explain predictions, but to use those explanations to **validate the model's reasoning and build trust** in its decisions.
+            
+            1.  **Build the Model:** Train your powerful "black box" model (e.g., XGBoost, Random Forest) to achieve high predictive accuracy.
+            2.  **Interrogate with SHAP:** Apply SHAP to the model's predictions on a validation set.
+            3.  **Consult the Expert:** Show the SHAP plots (especially the global summary plot) to a Subject Matter Expert (SME) who knows the process science. Ask them: *"Does this make sense?"*
+                - **If YES:** The model has likely learned real, scientifically valid relationships. You can now trust its predictions.
+                - **If NO:** The model has learned a spurious correlation. XAI has just saved you from deploying a flawed model. Use the insight to improve your feature engineering and retrain.
+                
+            XAI transforms machine learning from a pure data science exercise into a collaborative process between data scientists and domain experts.
+            """)
 
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin: From Game Theory to AI
+            The theoretical foundation of SHAP comes from a surprising place: **cooperative game theory**. In 1951, the brilliant mathematician and economist **Lloyd Shapley** developed a concept to solve the "fair payout" problem.
+            
+            Imagine a team of players collaborates to win a prize. How do you divide the winnings fairly based on each player's individual contribution? **Shapley values** provided a mathematically rigorous and unique solution.
+            
+            Fast forward to 2017. Scott Lundberg and Su-In Lee at the University of Washington had a genius insight. They realized that a machine learning model's prediction could be seen as a "game" and the model's features could be seen as the "players." They adapted Shapley's game theory concepts to create **SHAP (SHapley Additive exPlanations)**, a method to fairly distribute the "payout" (the prediction) among the features. This clever fusion of game theory and machine learning provided the first unified and theoretically sound framework for explaining the output of any machine learning model, a breakthrough that is driving the adoption of AI in high-stakes fields.
+            
+            #### How it Works
+            SHAP calculates the contribution of each feature to a prediction by simulating every possible combination of features ("coalitions"). It asks: "How much does the prediction change, on average, when we add this specific feature to all possible subsets of other features?" This exhaustive, computationally intensive approach is the only method proven to have a unique set of desirable properties (Local Accuracy, Missingness, and Consistency) that guarantee a fair and accurate explanation.
+            """)
 
 def render_advanced_ai_concepts():
     """Renders the module for advanced AI concepts."""
@@ -3458,7 +3460,6 @@ def render_causal_inference():
             The entire goal of causal inference is to find a way to estimate the `do` quantity using data where you could only `see`.
             """)
 
-
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
 # ==============================================================================
@@ -3492,7 +3493,6 @@ with tab_journey:
         st.markdown("Once live, the journey isn't over. This final act is about continuous guardianship: monitoring process health, detecting subtle drifts, and using advanced analytics to predict and prevent future failures.")
 st.divider()
 
-# --- Sidebar Navigation ---
 # --- Sidebar Navigation ---
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")

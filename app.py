@@ -312,22 +312,13 @@ def plot_chronological_timeline():
 # REPLACE the existing create_toolkit_conceptual_map function with this one.
 @st.cache_data
 def create_toolkit_conceptual_map():
-    """Creates a visually appealing, fast, and non-overlapping conceptual map using Graphviz."""
-    import graphviz
-
-    # Define the data structure
-    structure = {
-        'Foundational Statistics': {
-            'children': ['Statistical Inference', 'Regression Models']
-        },
-        'Process & Quality Control': {
-            'children': ['Measurement Systems Analysis', 'Statistical Process Control', 'Validation & Lifecycle']
-        },
-        'Advanced Analytics (ML/AI)': {
-            'children': ['Predictive Modeling', 'Unsupervised Learning']
-        }
-    }
+    """Creates a visually superior, non-overlapping conceptual map with a clean legend."""
     
+    structure = {
+        'Foundational Statistics': ['Statistical Inference', 'Regression Models'],
+        'Process & Quality Control': ['Measurement Systems Analysis', 'Statistical Process Control', 'Validation & Lifecycle'],
+        'Advanced Analytics (ML/AI)': ['Predictive Modeling', 'Unsupervised Learning']
+    }
     sub_structure = {
         'Statistical Inference': ['Confidence Interval Concept', 'Equivalence Testing (TOST)', 'Bayesian Inference', 'ROC Curve Analysis'],
         'Regression Models': ['Linearity & Range', 'Non-Linear Regression (4PL/5PL)', 'Stability Analysis (Shelf-Life)', 'Time Series Analysis'],
@@ -337,7 +328,6 @@ def create_toolkit_conceptual_map():
         'Predictive Modeling': ['Predictive QC (Classification)', 'Explainable AI (XAI)', 'Multivariate Analysis (MVA)'],
         'Unsupervised Learning': ['Anomaly Detection', 'Clustering (Unsupervised)']
     }
-
     tool_origins = {
         'Confidence Interval Concept': 'Statistics', 'Equivalence Testing (TOST)': 'Biostatistics', 'Bayesian Inference': 'Statistics', 'ROC Curve Analysis': 'Statistics',
         'Linearity & Range': 'Statistics', 'Non-Linear Regression (4PL/5PL)': 'Biostatistics', 'Stability Analysis (Shelf-Life)': 'Biostatistics', 'Time Series Analysis': 'Statistics',
@@ -347,43 +337,93 @@ def create_toolkit_conceptual_map():
         'Predictive QC (Classification)': 'Data Science / ML', 'Explainable AI (XAI)': 'Data Science / ML', 'Multivariate Analysis (MVA)': 'Data Science / ML',
         'Anomaly Detection': 'Data Science / ML', 'Clustering (Unsupervised)': 'Data Science / ML'
     }
-
     origin_colors = {
         'Statistics': '#1f77b4', 'Biostatistics': '#2ca02c',
         'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728',
+        'Structure': '#6A5ACD'
     }
 
-    dot = graphviz.Digraph(comment='V&V Toolkit Map')
-    dot.attr(rankdir='LR', splines='spline', overlap='false', nodesep='0.6', ranksep='2.5')
-    dot.attr('node', shape='box', style='rounded,filled', fontname='Arial', fontsize='12')
+    nodes = {}
     
-    # Create a subgraph for the legend
-    with dot.subgraph(name='cluster_legend') as c:
-        c.attr(label='Tool Origin', style='rounded', color='lightgrey')
-        for origin, color in origin_colors.items():
-            c.node(origin, style='filled', fillcolor=color, fontcolor='white', shape='circle')
-        # Create invisible edges to order the legend items
-        keys = list(origin_colors.keys())
-        for i in range(len(keys) - 1):
-            c.edge(keys[i], keys[i+1], style='invis')
+    # --- Algorithmic Layout ---
+    # 1. Place all tool nodes (Level 3) with guaranteed spacing
+    all_tools_flat = [tool for sublist in sub_structure.values() for tool in sublist]
+    y_coords = np.linspace(len(all_tools_flat) * 1.5, -len(all_tools_flat) * 1.5, len(all_tools_flat))
+    x_positions = [4, 5] # Intercalating x-positions
+    for i, tool_key in enumerate(all_tools_flat):
+        nodes[tool_key] = {'x': x_positions[i % 2], 'y': y_coords[i], 'name': tool_key.replace(' (', '\n('), 'origin': tool_origins.get(tool_key)}
 
-    # Create the nodes and edges for the main map
-    dot.node('CENTER', 'V&V Analytics\nToolkit', shape='doubleoctagon', style='filled', fillcolor='#6A5ACD', fontcolor='white', fontsize='16')
+    # 2. Place sub-categories (Level 2) based on the average position of their children
+    for l2_key, l3_keys in sub_structure.items():
+        child_ys = [nodes[child_key]['y'] for child_key in l3_keys]
+        nodes[l2_key] = {'x': 2.5, 'y': np.mean(child_ys), 'name': l2_key.replace(' ', '\n'), 'origin': 'Structure'}
 
-    for l1_key, l1_val in structure.items():
-        dot.node(l1_key, l1_key.replace(' (', '\n('), style='filled', fillcolor='#6A5ACD', fontcolor='white', fontsize='14')
-        dot.edge('CENTER', l1_key)
-        for l2_key in l1_val['children']:
-            dot.node(l2_key, l2_key.replace(' ', '\n'), style='filled', fillcolor='#6A5ACD', fontcolor='white')
-            dot.edge(l1_key, l2_key)
-            for l3_key in sub_structure[l2_key]:
-                origin = tool_origins.get(l3_key, 'Statistics')
-                color = origin_colors.get(origin, '#1f77b4')
-                dot.node(l3_key, l3_key.replace(' (', '\n(').replace(' /', '\n/'), shape='circle', style='filled', fillcolor=color, fontcolor='white')
-                dot.edge(l2_key, l3_key)
+    # 3. Place main categories (Level 1) based on the average position of their children
+    for l1_key, l2_keys in structure.items():
+        child_ys = [nodes[child_key]['y'] for child_key in l2_keys]
+        nodes[l1_key] = {'x': 1, 'y': np.mean(child_ys), 'name': l1_key.replace(' ', '\n'), 'origin': 'Structure'}
+
+    # 4. Place the center node
+    nodes['CENTER'] = {'x': -0.5, 'y': 0, 'name': 'V&V Analytics\nToolkit', 'origin': 'Structure'}
+
+    fig = go.Figure()
+
+    # --- Draw Edges using Shapes (to avoid legend pollution) ---
+    all_edges = [('CENTER', l1) for l1 in structure.keys()] + \
+                [(l1, l2) for l1, l2s in structure.items() for l2 in l2s] + \
+                [(l2, l3) for l2, l3s in sub_structure.items() for l3 in l3s]
     
-    return dot
+    for start_key, end_key in all_edges:
+        x0, y0 = nodes[start_key]['x'], nodes[start_key]['y']
+        x1, y1 = nodes[end_key]['x'], nodes[end_key]['y']
+        fig.add_shape(type="line", x0=x0, y0=y0, x1=x1, y1=y1, line=dict(color="lightgrey", width=1.5))
 
+    # --- Draw Nodes by Origin (for a clean legend) ---
+    data_by_origin = {name: {'x': [], 'y': [], 'name': []} for name in origin_colors.keys()}
+    for key, data in nodes.items():
+        data_by_origin[data['origin']]['x'].append(data['x'])
+        data_by_origin[data['origin']]['y'].append(data['y'])
+        data_by_origin[data['origin']]['name'].append(data['name'])
+        
+    for origin_name, data in data_by_origin.items():
+        is_tool = origin_name != 'Structure'
+        fig.add_trace(go.Scatter(
+            x=data['x'], y=data['y'],
+            mode='markers+text' if is_tool else 'markers', # Text is added via annotations for structural nodes
+            text=data['name'] if is_tool else None,
+            textposition="top center",
+            textfont=dict(size=12, color='black'),
+            marker=dict(
+                size=18 if is_tool else 40,
+                color=origin_colors[origin_name],
+                symbol='circle' if is_tool else 'square',
+                line=dict(width=2, color='black')
+            ),
+            hoverinfo='text',
+            hovertext=[name.replace('\n', ' ') for name in data['name']],
+            name=origin_name
+        ))
+        
+    # Add text annotations for structural nodes separately for better control
+    for key, data in nodes.items():
+        if data['origin'] == 'Structure':
+            fig.add_annotation(
+                x=data['x'], y=data['y'], text=f"<b>{data['name']}</b>",
+                showarrow=False, font=dict(color='white', size=14 if key=='CENTER' else 12)
+            )
+
+    fig.update_layout(
+        title_text='<b>Conceptual Map of the V&V Analytics Toolkit</b>',
+        showlegend=True,
+        legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
+        xaxis=dict(visible=False, range=[-1, 6]),
+        yaxis=dict(visible=False, range=[-25, 25]),
+        height=2000, # Tall canvas to ensure no overlaps
+        margin=dict(l=20, r=20, t=60, b=20),
+        plot_bgcolor='#FFFFFF',
+        paper_bgcolor='#f0f2f6'
+    )
+    return fig
 
 @st.cache_data
 def plot_ci_concept(n=30):
@@ -3791,7 +3831,7 @@ with st.sidebar:
         for tool in act_tools:
             if st.button(tool, key=tool, use_container_width=True):
                 st.session_state.current_view = tool
-               
+                st.rerun()
 
 # --- Main Content Area Dispatcher ---
 # This logic checks the session state and decides what to render.
@@ -3840,4 +3880,4 @@ else:
     else:
         st.error("Error: Could not find the selected tool to render.")
         st.session_state.current_view = 'V&V Strategic Framework'
-
+        st.rerun()

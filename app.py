@@ -1352,21 +1352,21 @@ def plot_clustering():
                      labels={'X': 'Process Parameter 1 (e.g., Temperature)', 'Y': 'Process Parameter 2 (e.g., Pressure)'})
     fig.update_traces(marker=dict(size=8, line=dict(width=1, color='black')))
     return fig
-@st.cache_data
-def plot_method_comparison():
+def plot_method_comparison(constant_bias=2.0, proportional_bias=3.0, random_error_sd=3.0):
     """
-    Generates plots for the method comparison module.
+    Generates dynamic plots for the method comparison module based on user inputs.
     """
     np.random.seed(1)
-    # Generate correlated data with proportional and constant bias
     n_samples = 50
     true_values = np.linspace(20, 200, n_samples)
-    error_ref = np.random.normal(0, 3, n_samples)
-    error_test = np.random.normal(0, 3, n_samples)
     
-    # New method (Test) has a constant bias of +2 and proportional bias of 3%
+    # Simulate data based on the slider inputs
+    error_ref = np.random.normal(0, random_error_sd, n_samples)
+    error_test = np.random.normal(0, random_error_sd, n_samples)
+    
     ref_method = true_values + error_ref
-    test_method = 2 + true_values * 1.03 + error_test
+    # The 'Test' method's results are a function of the true value and the biases
+    test_method = constant_bias + true_values * (1 + proportional_bias / 100) + error_test
     
     df = pd.DataFrame({'Reference': ref_method, 'Test': test_method})
 
@@ -1374,8 +1374,8 @@ def plot_method_comparison():
     mean_x, mean_y = df['Reference'].mean(), df['Test'].mean()
     cov_xy = np.cov(df['Reference'], df['Test'])[0, 1]
     var_x, var_y = df['Reference'].var(ddof=1), df['Test'].var(ddof=1)
-    # Assuming equal variances (lambda=1)
-    deming_slope = ( (var_y - var_x) + np.sqrt((var_y - var_x)**2 + 4 * cov_xy**2) ) / (2 * cov_xy)
+    lambda_val = var_y / var_x if var_x > 0 else 1.0 # Ratio of variances
+    deming_slope = ( (var_y - lambda_val*var_x) + np.sqrt((var_y - lambda_val*var_x)**2 + 4 * lambda_val * cov_xy**2) ) / (2 * cov_xy)
     deming_intercept = mean_y - deming_slope * mean_x
 
     # Bland-Altman
@@ -1389,10 +1389,10 @@ def plot_method_comparison():
     # % Bias
     df['%Bias'] = (df['Difference'] / df['Reference']) * 100
 
-    # Create plot
+    # --- Plotting ---
     fig = make_subplots(
         rows=3, cols=1,
-        subplot_titles=("<b>1. Deming Regression (Agreement)</b>", "<b>2. Bland-Altman Plot (Bias & Limits of Agreement)</b>", "<b>3. Percent Bias Plot</b>"),
+        subplot_titles=("<b>1. Deming Regression</b>", "<b>2. Bland-Altman Plot</b>", "<b>3. Percent Bias Plot</b>"),
         vertical_spacing=0.15
     )
 
@@ -1403,9 +1403,9 @@ def plot_method_comparison():
     
     # Bland-Altman Plot
     fig.add_trace(go.Scatter(x=df['Average'], y=df['Difference'], mode='markers', name='Difference'), row=2, col=1)
-    fig.add_hline(y=mean_diff, line=dict(color='blue', dash='dash'), name='Mean Bias', row=2, col=1)
-    fig.add_hline(y=upper_loa, line=dict(color='red', dash='dash'), name='Upper LoA', row=2, col=1)
-    fig.add_hline(y=lower_loa, line=dict(color='red', dash='dash'), name='Lower LoA', row=2, col=1)
+    fig.add_hline(y=mean_diff, line=dict(color='blue', dash='dash'), name='Mean Bias', row=2, col=1, annotation_text=f"Bias: {mean_diff:.2f}")
+    fig.add_hline(y=upper_loa, line=dict(color='red', dash='dash'), name='Upper LoA', row=2, col=1, annotation_text=f"Upper LoA: {upper_loa:.2f}")
+    fig.add_hline(y=lower_loa, line=dict(color='red', dash='dash'), name='Lower LoA', row=2, col=1, annotation_text=f"Lower LoA: {lower_loa:.2f}")
     
     # % Bias Plot
     fig.add_trace(go.Scatter(x=df['Reference'], y=df['%Bias'], mode='markers', name='% Bias'), row=3, col=1)
@@ -2124,64 +2124,79 @@ def render_lod_loq():
             st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
             st.markdown("The factor of 10 for LOQ is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.")
 def render_method_comparison():
-    """Renders the interactive module for Method Comparison."""
+    """Renders the INTERACTIVE module for Method Comparison."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To formally assess and quantify the degree of agreement and systemic bias between two different measurement methods intended to measure the same quantity. This analysis moves beyond simple correlation to determine if the two methods can be used **interchangeably** in practice.
+    **Purpose:** To formally assess and quantify the degree of agreement and systemic bias between two different measurement methods intended to measure the same quantity.
     
-    **Strategic Application:** This study is the "crucible" of method transfer, validation, or replacement. A failed comparison study can halt a tech transfer, delay a product launch, or invalidate a clinical study. Key scenarios include:
-    - **Tech Transfer:** Proving a QC lab's assay is equivalent to the original R&D method.
-    - **Method Modernization:** Demonstrating a new, faster, or cheaper assay yields clinically equivalent results to an older gold standard.
-    - **Cross-Site Harmonization:** Ensuring results from different facilities are comparable.
-    
-    This analysis answers the critical business and regulatory question: “Do these two methods produce the same result, for the same sample, within medically or technically acceptable limits?”
+    **Strategic Application:** This study is the "crucible" of method transfer, validation, or replacement. It answers the critical business and regulatory question: “Do these two methods produce the same result, for the same sample, within medically or technically acceptable limits?”
     """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to simulate different types of disagreement between a "Test" method and a "Reference" method. See in real-time how each diagnostic plot (Deming, Bland-Altman, %Bias) reveals a different aspect of the problem, helping you build a deep intuition for method comparison statistics.
+    """)
+    
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("Method Comparison Controls")
+    constant_bias_slider = st.sidebar.slider(
+        "⚖️ Constant Bias", 
+        min_value=-10.0, max_value=10.0, value=2.0, step=0.5,
+        help="A fixed offset where the Test method reads consistently higher (+) or lower (-) than the Reference method across the entire range."
+    )
+    proportional_bias_slider = st.sidebar.slider(
+        "📈 Proportional Bias (%)", 
+        min_value=-10.0, max_value=10.0, value=3.0, step=0.5,
+        help="A concentration-dependent error. A positive value means the Test method reads progressively higher than the Reference at high concentrations."
+    )
+    random_error_slider = st.sidebar.slider(
+        "🎲 Random Error (SD)", 
+        min_value=0.5, max_value=10.0, value=3.0, step=0.5,
+        help="The imprecision or 'noise' of the methods. Higher error widens the Limits of Agreement on the Bland-Altman plot."
+    )
+
+    # Generate plots using the slider values
+    fig, slope, intercept, bias, ua, la = plot_method_comparison(
+        constant_bias=constant_bias_slider,
+        proportional_bias=proportional_bias_slider,
+        random_error_sd=random_error_slider
+    )
+    
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        fig, slope, intercept, bias, ua, la = plot_method_comparison()
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference between the Test and Reference methods. Positive value = Test method measures higher on average.")
-            st.metric(label="💡 Metric: Deming Slope", value=f"{slope:.3f}", help="Ideal = 1.0. Measures proportional bias, which is concentration-dependent.")
-            st.metric(label="💡 Metric: Deming Intercept", value=f"{intercept:.2f}", help="Ideal = 0.0. Measures constant bias, a fixed offset across the entire range.")
+            st.metric(label="📈 Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference.")
+            st.metric(label="💡 Deming Slope", value=f"{slope:.3f}", help="Ideal = 1.0. Measures proportional bias.")
+            st.metric(label="💡 Deming Intercept", value=f"{intercept:.2f}", help="Ideal = 0.0. Measures constant bias.")
+            
+            st.info("Play with the sliders in the sidebar and observe the plots!")
             st.markdown("""
-            - **Deming Regression:** The correct regression for method comparison. Unlike standard OLS, it accounts for measurement error in *both* methods, providing an unbiased estimate of slope (proportional bias) and intercept (constant bias). The goal is to see the red Deming line perfectly overlay the black Line of Identity.
-            - **Bland-Altman Plot:** This plot transforms the question from "are they correlated?" to "how much do they differ?". It visualizes the random error and quantifies the **95% Limits of Agreement (LoA)**, the expected range of disagreement for 95% of future measurements.
-            - **% Bias Plot:** This plot assesses **practical significance**. It shows if the bias at any specific concentration exceeds a pre-defined acceptable limit (e.g., ±15%).
-
-            **The Core Strategic Insight:** This dashboard provides a multi-faceted verdict on method interchangeability. Deming regression diagnoses the *type* of bias (constant vs. proportional), the Bland-Altman plot quantifies the *magnitude* of expected random disagreement, and the % Bias plot confirms *local* acceptability.
+            - **Add `Constant Bias`:** The Deming line shifts up/down but stays parallel to the identity line. The Bland-Altman plot's mean bias line moves away from zero.
+            - **Add `Proportional Bias`:** The Deming line *rotates* away from the identity line. The Bland-Altman and %Bias plots now show a clear trend, a major red flag.
+            - **Increase `Random Error`:** The points scatter more widely. This has little effect on the average bias but dramatically **widens the Limits of Agreement**, making the methods less interchangeable.
             """)
+
         with tabs[1]:
-            st.markdown("Acceptance criteria must be pre-defined in the validation protocol and be clinically or technically justified.")
-            st.markdown("- **Deming Regression:** The 95% confidence interval for the **slope must contain 1.0**, and the 95% CI for the **intercept must contain 0**. This provides statistical proof of no systematic bias.")
-            st.markdown(f"- **Bland-Altman:** The primary criterion is that the **95% Limits of Agreement (`{la:.2f}` to `{ua:.2f}`) must be clinically or technically acceptable**. A 20-unit LoA might be acceptable for a glucose monitor but catastrophic for a cancer biomarker.")
-            st.markdown("- **Total Analytical Error (TAE):** An advanced approach where, across the entire range, `|Bias| + 1.96 * SD_of_difference` must be less than a predefined Total Allowable Error (TEa).")
+            st.markdown("Acceptance criteria must be pre-defined and clinically/technically justified.")
+            st.markdown("- **Deming Regression:** The 95% confidence interval for the **slope must contain 1.0**, and the 95% CI for the **intercept must contain 0**.")
+            st.markdown(f"- **Bland-Altman:** The primary criterion is that the **95% Limits of Agreement (`{la:.2f}` to `{ua:.2f}`) must be clinically or technically acceptable**.")
             st.error("""
-            **The Correlation Catastrophe**
-            Do not, under any circumstances, use the correlation coefficient (R or R²) as a measure of agreement. Two methods can be perfectly correlated (R=1.0) but have a huge bias (e.g., one method always reads exactly twice as high as the other). A high correlation is a prerequisite for agreement, but it is **not** evidence of agreement.
+            **The Correlation Catastrophe:** Never use the correlation coefficient (R²) to assess agreement. Two methods can be perfectly correlated (R²=1.0) but have a huge bias (e.g., one method always reads twice as high).
             """)
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            For decades, scientists committed a cardinal sin: using **Ordinary Least Squares (OLS) regression** and the **correlation coefficient (r)** to compare methods. This is flawed because OLS assumes the x-axis (reference method) is measured without error, an impossibility.
+            For decades, scientists mistakenly used standard OLS regression and correlation to compare methods. This is flawed because OLS assumes the x-axis (reference method) is measured without error, an impossibility.
             
-            - **Deming's Correction:** While known to statisticians, **W. Edwards Deming** championed this type of regression in the 1940s. It correctly assumes both methods have measurement error, providing an unbiased estimate of the true relationship. **Passing-Bablok regression** is a robust non-parametric alternative.
+            - **Deming's Correction:** Popularized by **W. Edwards Deming**, this regression correctly assumes both methods have error, providing an unbiased estimate of the true relationship.
             
-            - **The Bland-Altman Revolution:** A 1986 paper in *The Lancet* by **J. Martin Bland and Douglas G. Altman** ruthlessly exposed the misuse of correlation and proposed their brilliantly simple alternative. Instead of plotting Y vs. X, they plotted the **Difference (Y-X) vs. the Average ((Y+X)/2)**. This directly visualizes the magnitude and patterns of disagreement and is now the undisputed gold standard.
-            
-            #### Mathematical Basis
-            **Deming Regression:** OLS minimizes the sum of squared vertical distances. Deming regression minimizes the sum of squared distances from the points to the line, weighted by the ratio of the error variances of the two methods.
-            
-            **Bland-Altman Plot:** This is a graphical analysis. The key metrics are the **mean difference (bias)**, $\bar{d}$, and the **standard deviation of the differences**, $s_d$. The 95% Limits of Agreement (LoA) are calculated assuming the differences are approximately normally distributed:
+            - **The Bland-Altman Revolution:** A 1986 paper in *The Lancet* by **J. Martin Bland and Douglas G. Altman** ruthlessly exposed the misuse of correlation and proposed their brilliantly simple alternative: plotting the **Difference vs. the Average**. This directly visualizes disagreement and is now the undisputed gold standard.
             """)
-            st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
-            st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
-
 def render_capability():
     """Renders the interactive module for Process Capability (Cpk)."""
     st.markdown("""

@@ -1818,14 +1818,86 @@ def render_multi_rule():
     """Renders the module for Multi-Rule SPC (Westgard Rules)."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To apply a combination of statistical rules to a single control run to determine if it is in-control or out-of-control. This provides a high probability of detecting true errors while maintaining a low false rejection rate.
+    **Purpose:** To serve as a high-sensitivity "security system" for your assay. Instead of one simple alarm, this system uses a combination of rules to detect specific types of problems, catching subtle shifts and drifts long before a catastrophic failure occurs. It dramatically increases the probability of detecting true errors while minimizing false alarms.
     
-    **Strategic Application:** This is the standard for run validation and system suitability in clinical chemistry and regulated QC laboratories. While a standard control chart (like an I-MR chart) uses a single rule (e.g., a point outside ±3 SD), Westgard rules use a more sensitive combination to detect various types of errors:
-    - **Systematic Errors (Bias/Shifts):** Detected by rules like 2-2s, 4-1s, or 10-x.
-    - **Random Errors (Imprecision):** Detected primarily by the 1-3s and R-4s rules.
+    **Strategic Application:** This is the gold standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors (a point outside ±3 SD), the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes:
+    - **Systematic Errors (Bias/Shifts):** Like a miscalibrated instrument. Detected by rules like `2-2s`, `4-1s`, or `10-x`.
+    - **Random Errors (Imprecision):** Like a sloppy pipetting technique. Detected primarily by the `1-3s` and `R-4s` rules.
 
-    Implementing these rules prevents the release of results from an assay run that has failed, ensuring the quality and reliability of patient or product data.
+    Implementing these rules prevents the release of bad data, which is the cornerstone of ensuring patient safety and product quality. It's the difference between a simple smoke detector and an advanced security system with motion sensors, heat sensors, and tripwires.
     """)
+    
+    fig = plot_westgard_chart() # Assumes this function returns a chart with rule violations
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🕵️ Run Verdict", value="Out-of-Control", help="The overall judgment on the analytical run based on the triggered rules.")
+            st.metric(label="🚨 Triggered Rule", value="2-2s Violation", help="The specific rule that caused the 'Out-of-Control' signal.")
+            
+            st.markdown("""
+            **The Detective's Toolkit (Common Rules):**
+            - 🚨 **1-3s Rule:** One point is beyond 3 standard deviations. This is a "smoking gun" – a major, often random, error occurred. **Likely Culprit:** Big blunder like wrong reagent, major instrument failure, or calculation error.
+            
+            - 🧐 **2-2s Rule (Warning):** Two consecutive points are on the same side of the mean and beyond 2 standard deviations. This is your first major clue of a **systematic error** or bias. **Likely Culprit:** A new lot of calibrator or reagent has caused a shift.
+            
+            - 🕵️ **4-1s Rule:** Four consecutive points are on the same side of the mean and beyond 1 standard deviation. This detects a smaller, but persistent, shift. **Likely Culprit:** Minor instrument drift or subtle degradation of a standard.
+            
+            - 🔭 **R-4s Rule:** The range between two consecutive points exceeds 4 standard deviations. This detects a sudden increase in **random error** or imprecision. **Likely Culprit:** Inconsistent pipetting, instrument instability (e.g., fluctuating temperature).
+
+            **The Core Strategic Insight:** The multi-rule system gives you a **diagnostic-level** understanding of your assay's health. It doesn't just tell you *that* something is wrong, it gives you a powerful clue as to *what* is wrong, dramatically speeding up your investigation and corrective action.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
+            This operator sees any alarm, immediately discards the run, and starts over from scratch without thinking.
+            
+            - They see a `2-2s` warning and panic, treating it the same as a `1-3s` failure.
+            - They don't use the specific rule (`4-1s` vs `R-4s`) to guide their troubleshooting.
+            - They might re-run the control sample over and over, hoping to get a "pass," which is a serious compliance violation known as "testing into compliance."
+            
+            This approach is inefficient, costly, and completely misses the diagnostic power of the rules.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: The Rule is the First Clue**
+            The goal is to treat the specific rule violation as the starting point of a targeted investigation.
+            
+            - **Think like a detective:** "The chart shows a `4-1s` violation. This suggests a small, systematic shift. The first thing I should check is the calibration curve or the expiration date of my reagents, not my pipetting technique."
+            - **Respect the Hierarchy:** A `1-3s` rule violation typically means "Stop, reject the run." A `2-2s` or `4-1s` might mean "Accept the run, but investigate immediately as a trend is developing."
+            
+            This diagnostic mindset transforms the control chart from a simple pass/fail tool into the most important troubleshooting guide in the lab.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The story of multi-rule charts is a brilliant fusion of two eras. First came **Dr. Walter A. Shewhart** at Bell Labs in the 1920s. He invented the foundational control chart (the ±3 SD limits) to improve the reliability of telephone network components. This was the birth of Statistical Process Control (SPC).
+            
+            Fast forward to the 1970s. **Dr. James O. Westgard**, a professor of pathology and laboratory medicine at the University of Wisconsin, faced a different problem: ensuring the daily reliability of clinical laboratory tests that decided patient diagnoses. He found that Shewhart's single `1-3s` rule wasn't sensitive enough to catch the subtle drifts common in complex biochemical assays.
+            
+            In a landmark 1981 paper, Westgard and his colleagues proposed a system of multiple rules to be applied simultaneously. These "Westgard Rules" were specifically designed to have a high probability of detecting medically important errors, while keeping the rate of false alarms low. This gave lab technicians a powerful, statistically-backed system for making daily accept/reject decisions, and it rapidly became the global standard in clinical chemistry and beyond.
+            
+            #### Mathematical Basis
+            The rule notation is a simple shorthand:
+            """)
+            st.latex(r"A_{BC}")
+            st.markdown("""
+            - **`A`**: The number of control points.
+            - **`B`**: The standard deviation limit (the "B"oundary).
+            - **`C`**: The control material or run (often implied as the last C points).
+            
+            **Examples:**
+            - **`1-3s`**: **1** point exceeds the **3s** (3 standard deviation) limit.
+            - **`2-2s`**: **2** consecutive points exceed the **2s** limit on the same side of the mean.
+            - **`R-4s`**: The **R**ange between 2 consecutive points exceeds **4s**.
+            """)
     
     # Placeholder for the plotting function
     # In a real app, this function would generate data and check Westgard rule violations

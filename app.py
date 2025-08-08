@@ -846,48 +846,68 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     return fig, p_tost, is_equivalent, ci_lower, ci_upper
     
 @st.cache_data
-def plot_advanced_doe():
-    # --- Mixture Design Plot ---
-    fig_mix = go.Figure(go.Scatterternary({
-        'mode': 'markers+text',
-        'a': [0.6, 0.2, 0.2, 0.33, 0.33, 0.33, 0.8, 0.1, 0.1],
-        'b': [0.2, 0.6, 0.2, 0.33, 0.33, 0.33, 0.1, 0.8, 0.1],
-        'c': [0.2, 0.2, 0.6, 0.33, 0.33, 0.33, 0.1, 0.1, 0.8],
-        'text': ['Vtx 1', 'Vtx 2', 'Vtx 3', 'Center 1', 'Center 2', 'Center 3', 'Axial 1', 'Axial 2', 'Axial 3'],
-        'marker': {'symbol': 0, 'color': '#DB7365', 'size': 14, 'line': {'width': 2}}
-    }))
-    fig_mix.update_layout({
-        'ternary': {
-            'sum': 1,
-            'aaxis': {'title': 'Buffer A (%)', 'min': 0, 'linewidth': 2, 'ticks': 'outside'},
-            'baxis': {'title': 'Excipient B (%)', 'min': 0, 'linewidth': 2, 'ticks': 'outside'},
-            'caxis': {'title': 'API C (%)', 'min': 0, 'linewidth': 2, 'ticks': 'outside'}
-        },
-        'title': '<b>1. Mixture Design (Formulation)</b>'
-    })
+def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, ph_quad_effect=-5.0, temp_quad_effect=-5.0, noise_sd=1.0):
+    """
+    Generates dynamic RSM plots for the DOE module based on a Central Composite Design.
+    """
+    np.random.seed(42)
+    
+    # 1. Design the experiment (Central Composite Design)
+    alpha = 1.414
+    design = {
+        'pH':  [-1, 1, -1, 1, -alpha, alpha, 0, 0, 0, 0, 0, 0, 0],
+        'Temp':[-1, -1, 1, 1, 0, 0, -alpha, alpha, 0, 0, 0, 0, 0]
+    }
+    df = pd.DataFrame(design)
+    
+    # 2. Simulate the response using a full quadratic model
+    true_response = 100 + \
+                    ph_effect * df['pH'] + \
+                    temp_effect * df['Temp'] + \
+                    interaction_effect * df['pH'] * df['Temp'] + \
+                    ph_quad_effect * (df['pH']**2) + \
+                    temp_quad_effect * (df['Temp']**2)
+    
+    df['Response'] = true_response + np.random.normal(0, noise_sd, len(df))
 
-    # --- Split-Plot Design Plot ---
-    fig_split = go.Figure()
-    # Whole plots (hard-to-change)
-    fig_split.add_shape(type="rect", x0=0.5, y0=0.5, x1=3.5, y1=4.5, line=dict(color="RoyalBlue", width=3, dash="dash"), fillcolor="rgba(0,0,255,0.05)")
-    fig_split.add_shape(type="rect", x0=4.5, y0=0.5, x1=7.5, y1=4.5, line=dict(color="RoyalBlue", width=3, dash="dash"), fillcolor="rgba(0,0,255,0.05)")
-    fig_split.add_annotation(x=2, y=5, text="<b>Whole Plot 1<br>(e.g., Temperature = 50°C)</b>", showarrow=False, font=dict(color="RoyalBlue"))
-    fig_split.add_annotation(x=6, y=5, text="<b>Whole Plot 2<br>(e.g., Temperature = 70°C)</b>", showarrow=False, font=dict(color="RoyalBlue"))
-    # Subplots (easy-to-change)
-    np.random.seed(1)
-    x_coords, y_coords, texts = [], [], []
-    for i in range(2): # Two whole plots
-        for j in range(4): # Four subplots each
-            x = i*4 + np.random.uniform(1,3)
-            y = np.random.uniform(1,4)
-            x_coords.append(x)
-            y_coords.append(y)
-            texts.append(f"Subplot<br>Recipe {(i*4)+j+1}")
-    fig_split.add_trace(go.Scatter(x=x_coords, y=y_coords, mode="markers+text", text=texts,
-                                  marker=dict(size=15, color="Crimson"), textposition="bottom center"))
-    fig_split.update_layout(title="<b>2. Split-Plot Design (Process)</b>", xaxis=dict(visible=False), yaxis=dict(visible=False), showlegend=False)
+    # 3. Analyze the results with a quadratic OLS model
+    model = ols('Response ~ pH + Temp + I(pH**2) + I(Temp**2) + pH:Temp', data=df).fit()
+    
+    # 4. Create the prediction grid for the surfaces
+    x_range = np.linspace(-1.5, 1.5, 50)
+    y_range = np.linspace(-1.5, 1.5, 50)
+    xx, yy = np.meshgrid(x_range, y_range)
+    grid = pd.DataFrame({'pH': xx.ravel(), 'Temp': yy.ravel()})
+    pred = model.predict(grid).values.reshape(xx.shape)
+    
+    # 5. Create the 2D Contour Plot
+    fig_contour = go.Figure(data=[
+        go.Contour(z=pred, x=x_range, y=y_range, colorscale='Viridis', contours=dict(coloring='lines', showlabels=True)),
+        go.Scatter(x=df['pH'], y=df['Temp'], mode='markers', marker=dict(color='red', size=12, line=dict(width=2, color='black')), name='Design Points')
+    ])
+    fig_contour.update_layout(title='<b>2D Response Surface (Contour Plot)</b>', xaxis_title="Factor: pH", yaxis_title="Factor: Temperature", showlegend=False)
 
-    return fig_mix, fig_split
+    # 6. Create the 3D Surface Plot
+    fig_3d = go.Figure(data=[
+        go.Surface(z=pred, x=x_range, y=y_range, colorscale='Viridis', opacity=0.8),
+        go.Scatter3d(x=df['pH'], y=df['Temp'], z=df['Response'], mode='markers', 
+                      marker=dict(color='red', size=5, line=dict(width=2, color='black')), name='Design Points')
+    ])
+    fig_3d.update_layout(title='<b>3D Response Surface Plot</b>', scene=dict(xaxis_title='pH', yaxis_title='Temp', zaxis_title='Response'), showlegend=False)
+
+    # 7. Create the effects plots
+    fig_effects = make_subplots(rows=1, cols=3, subplot_titles=("<b>Main Effect: pH</b>", "<b>Main Effect: Temp</b>", "<b>Interaction: pH*Temp</b>"))
+    me_ph = df.groupby('pH')['Response'].mean()
+    fig_effects.add_trace(go.Scatter(x=me_ph.index, y=me_ph.values, mode='lines+markers'), row=1, col=1)
+    me_temp = df.groupby('Temp')['Response'].mean()
+    fig_effects.add_trace(go.Scatter(x=me_temp.index, y=me_temp.values, mode='lines+markers'), row=1, col=2)
+    interaction_data = df[df['pH'].isin([-1, 1]) & df['Temp'].isin([-1, 1])].groupby(['pH', 'Temp'])['Response'].mean().reset_index()
+    for temp_level in [-1, 1]:
+        subset = interaction_data[interaction_data['Temp'] == temp_level]
+        fig_effects.add_trace(go.Scatter(x=subset['pH'], y=subset['Response'], mode='lines+markers', name=f'Temp = {temp_level}'), row=1, col=3)
+    fig_effects.update_layout(showlegend=False)
+
+    return fig_contour, fig_3d, fig_effects, model.params
 
 @st.cache_data
 def plot_spc_charts():
@@ -3115,79 +3135,108 @@ def render_anomaly_detection():
             4.  **The Result:** Points in the heart of the normal cluster are hard to isolate and require many questions. Anomalous points are isolated very quickly with few questions. The algorithm calculates an "anomaly score" based on the average path length across all the trees in the forest.
             """)
     
-def render_advanced_doe():
-    """Renders the module for advanced Design of Experiments (DOE)."""
+def render_assay_robustness_doe():
+    """Renders the comprehensive, interactive module for Assay Robustness (DOE/RSM)."""
     st.markdown("""
-    #### Purpose & Application: DOE for the Real World
-    **Purpose:** To solve complex optimization problems where standard factorial designs fail because they don't respect the real-world constraints of the system. This module covers two essential advanced designs:
-    - **🧪 Mixture Designs (The Alchemist's Cookbook):** For optimizing a *recipe* where ingredients are proportions that must sum to 100%. Changing one ingredient's percentage forces a change in the others.
-    - **🏭 Split-Plot Designs (The Smart Baker's Dilemma):** For optimizing processes with both "Hard-to-Change" (e.g., oven temperature) and "Easy-to-Change" (e.g., baking time) factors.
+    #### Purpose & Application: Process Cartography - The GPS for Optimization
+    **Purpose:** To create a detailed topographical map of your process landscape. This analysis moves beyond simple robustness checks to full **process optimization**, using **Response Surface Methodology (RSM)** to model curvature and find the true "peak of the mountain."
     
-    **Strategic Application:** Using the wrong design for these common problems leads to wasted experiments, impossible-to-run conditions, and statistically invalid conclusions. Mastering these designs provides a massive competitive advantage in formulation and process development.
+    **Strategic Application:** This is the statistical engine for Quality by Design (QbD) and process characterization. By developing a predictive model, you can:
+    - **Find Optimal Conditions:** Identify the exact settings that maximize yield, efficacy, or any other Critical Quality Attribute (CQA).
+    - **Define a Design Space:** Create a multi-dimensional "safe operating zone" where the process is guaranteed to produce acceptable results. This is highly valued by regulatory agencies.
+    - **Minimize Variability:** Find a "robust plateau" on the response surface where performance is not only high, but also insensitive to small variations in input parameters.
     """)
     
-    fig_mix, fig_split = plot_advanced_doe()
+    st.info("""
+    **Interactive Demo:** You are the process expert. Use the sliders in the sidebar to define the "true" physics of a virtual assay. The plots will show how a DOE/RSM experiment can uncover this underlying response surface, allowing you to find the optimal operating conditions.
+    """)
     
-    # FIX: Restructured the layout to be consistent with other modules.
-    col1, col2 = st.columns([0.7, 0.3])
+    # --- Sidebar controls ---
+    st.sidebar.subheader("DOE / RSM Controls")
+    st.sidebar.markdown("**Linear & Interaction Effects**")
+    ph_slider = st.sidebar.slider("🧬 pH Main Effect", -10.0, 10.0, 2.0, 1.0, help="The 'true' linear impact of pH. A high value 'tilts' the surface along the pH axis.")
+    temp_slider = st.sidebar.slider("🌡️ Temperature Main Effect", -10.0, 10.0, 5.0, 1.0, help="The 'true' linear impact of Temperature. A high value 'tilts' the surface along the Temp axis.")
+    interaction_slider = st.sidebar.slider("🔄 pH x Temp Interaction Effect", -10.0, 10.0, 0.0, 1.0, help="The 'true' interaction. A non-zero value 'twists' the surface, creating a rising ridge.")
+    
+    st.sidebar.markdown("**Curvature (Quadratic) Effects**")
+    ph_quad_slider = st.sidebar.slider("🧬 pH Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley). This is the key to optimization.")
+    temp_quad_slider = st.sidebar.slider("🌡️ Temperature Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley).")
 
+    st.sidebar.markdown("**Experimental Noise**")
+    noise_slider = st.sidebar.slider("🎲 Random Noise (SD)", 0.1, 5.0, 1.0, 0.1, help="The inherent variability of the assay. High noise can hide the true effects.")
+    
+    # Generate plots
+    fig_contour, fig_3d, fig_effects, params = plot_doe_robustness(
+        ph_effect=ph_slider, temp_effect=temp_slider, interaction_effect=interaction_slider,
+        ph_quad_effect=ph_quad_slider, temp_quad_effect=temp_quad_slider, noise_sd=noise_slider
+    )
+    
+    st.header("Response Surface Plots")
+    col1, col2 = st.columns(2)
     with col1:
-        st.subheader("Experimental Designs & Results")
-        with st.expander("🧪 Mixture Design: The Alchemist's Cookbook", expanded=True):
-            st.plotly_chart(fig_mix, use_container_width=True)
-
-        with st.expander("🏭 Split-Plot Design: The Smart Baker's Dilemma", expanded=True):
-            st.plotly_chart(fig_split, use_container_width=True)
-
+        st.plotly_chart(fig_contour, use_container_width=True)
     with col2:
+        st.plotly_chart(fig_3d, use_container_width=True)
+
+    st.header("Effect Plots & Interpretation")
+    col3, col4 = st.columns([0.7, 0.3])
+    with col3:
+        st.plotly_chart(fig_effects, use_container_width=True)
+    with col4:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-
+        
         with tabs[0]:
-            st.info("💡 **Pro-Tip:** Each design solves a unique, common experimental challenge. Click the expanders on the left to see each plot.")
-            st.markdown("""
-            **Mixture Designs**
-            - **The Problem:** Optimizing a recipe where components must sum to 100%.
-            - **The Solution:** A triangular "recipe space" plot where corners are pure components.
-            - **Strategic Insight:** The contour plot is a **treasure map of your formulation space**, revealing the optimal blend with maximum efficiency.
+            # Find the optimal settings from the model predictions
+            pred_z = fig_3d.data[0].z
+            max_idx = np.unravel_index(np.argmax(pred_z), pred_z.shape)
+            opt_temp = fig_3d.data[0].y[max_idx[0]]
+            opt_ph = fig_3d.data[0].x[max_idx[1]]
+            max_response = np.max(pred_z)
 
-            **Split-Plot Designs**
-            - **The Problem:** Optimizing a process with both Hard-to-Change (HTC) and Easy-to-Change (ETC) factors.
-            - **The Solution:** An efficient blocked design where the HTC factor is changed less frequently.
-            - **Strategic Insight:** Requires a special analysis to avoid false positives. It correctly handles the different levels of experimental error, providing valid conclusions about all factors.
+            st.metric("Predicted Optimal pH", f"{opt_ph:.2f}")
+            st.metric("Predicted Optimal Temp", f"{opt_temp:.2f}")
+            st.metric("Predicted Max Response", f"{max_response:.1f} units")
+            
+            st.info("Play with the sliders and observe how the 'true' physics you define are reflected in the plots!")
+            st.markdown("""
+            - **Linear Effects:** Increasing a `Main Effect` slider is like **tilting the entire surface**. A high positive value for Temperature makes the response universally higher at high temperatures.
+            - **Interaction Effects:** A non-zero `Interaction Effect` **twists the surface**, creating a "rising ridge." The effect of pH is now different at high vs. low temperatures. The lines in the Interaction Plot become non-parallel.
+            - **Curvature Effects:** The `Curvature` sliders are the key to optimization. Setting them to negative values creates a **peak or dome** in the 3D surface, which corresponds to the "bullseye" of concentric circles in the 2D contour plot. This is the optimal zone you are trying to find.
+            - **Noise:** Increasing `Random Noise` makes the red data points scatter further from the true underlying surface, making it harder for the model to accurately map the landscape.
             """)
+
         with tabs[1]:
             st.error("""
-            🔴 **THE INCORRECT APPROACH: Force a Square Peg into a Round Hole**
-            This is a classic and costly DOE mistake.
+            🔴 **THE INCORRECT APPROACH: One-Factor-at-a-Time (OFAT)**
+            Imagine trying to find the highest point on a mountain by only walking in straight lines, first due North-South, then due East-West. You will almost certainly end up on a ridge or a local hill, convinced it's the summit, while the true peak was just a few steps to the northeast.
             
-            - **For Mixtures:** Using a standard factorial design. This generates impossible recipes (e.g., 80% A, 80% B, 80% C = 240% total!) and completely fails to model the blending properties of the ingredients.
-            - **For Split-Plots:** Analyzing the data as if it were a normal, fully randomized factorial DOE. This leads to an **incorrectly small error term** for the HTC factor, massively inflating its significance. You might launch a huge project to control a factor that actually has no effect.
+            - **The Flaw:** This is what OFAT does. It is statistically inefficient and, more importantly, it is **guaranteed to miss the true optimum** if any interaction between the factors exists.
             """)
             st.success("""
-            🟢 **THE GOLDEN RULE: Let the Problem's Constraints Define the Design**
-            The statistical design must mirror the physical, logistical, and financial reality of the experiment.
-            
-            - **If your factors are ingredients in a recipe that must sum to 100%...**
-              - **You MUST use a Mixture Design.**
-            
-            - **If you have factors that are difficult, slow, or expensive to change...**
-              - **You MUST use a Split-Plot Design** and its corresponding special ANOVA.
-              
-            Honoring the problem's structure is not optional. It is the only path to a statistically valid and operationally efficient experiment.
+            🟢 **THE GOLDEN RULE: Map the Entire Territory at Once (DOE/RSM)**
+            By testing factors in combination using a dedicated design (like a Central Composite Design), you send out scouts to explore the entire landscape simultaneously. This allows you to:
+            1.  **Be Highly Efficient:** Gain more information from fewer experimental runs compared to OFAT.
+            2.  **Understand the Terrain:** Uncover and quantify critical interaction and curvature effects that describe the true shape of the process space.
+            3.  **Find the True Peak:** Develop a predictive mathematical model that acts as a GPS, guiding you directly to the optimal operating conditions.
             """)
+
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            These advanced designs were born from practical necessity, solving real-world industrial and agricultural problems.
-            
-            - **Mixture Designs (1950s):** The theory for mixture experiments was largely developed by American statistician **Henry Scheffé**. He was working on problems in industrial chemistry and food science where formulators needed a systematic way to optimize recipes.
-                
-            - **Split-Plot Designs (1920s):** This design originated in agriculture with the legendary statistician **R.A. Fisher**. It was impractical to irrigate small, randomized plots differently, so he devised a method to apply irrigation (the Hard-to-Change factor) to large plots and then test different crop varieties (Easy-to-Change factors) within those larger plots.
+            - **The Genesis (1920s):** DOE was invented by **Sir Ronald A. Fisher** to screen for important factors in agriculture. His factorial designs were brilliant for figuring out *which* factors mattered.
+            - **The Optimization Revolution (1950s):** The post-war chemical industry boom created a new need: not just to know *which* factors mattered, but *how to find their optimal settings*. **George Box** and K.B. Wilson developed **Response Surface Methodology (RSM)** to solve this. They created efficient new designs, like the Central Composite Design (CCD) shown here, which cleverly add "axial" points to a factorial design. These extra points allow for the fitting of a **quadratic model**, which is the key to modeling curvature and finding the "peak of the mountain." This moved DOE from simple screening to true, powerful optimization.
             
             #### Mathematical Basis
-            - **Mixture Designs:** The constraint `x₁ + x₂ + ... + xₙ = 1` means the regression model is reformulated, often without an intercept, to properly account for the dependency.
-            - **Split-Plot Designs:** The model has two distinct error terms: a "Whole Plot Error" for testing the HTC factors and a "Subplot Error" for testing the ETC factors. Using the wrong error term is the most common mistake in analyzing these experiments.
+            RSM typically fits a second-order (quadratic) model to the experimental data:
+            """)
+            st.latex(r"Y = \beta_0 + \beta_1X_1 + \beta_2X_2 + \beta_{11}X_1^2 + \beta_{22}X_2^2 + \beta_{12}X_1X_2 + \epsilon")
+            st.markdown(r"""
+            - $\beta_0$: The intercept or baseline response.
+            - $\beta_1, \beta_2$: The **linear main effects** (the tilt of the surface).
+            - $\beta_{11}, \beta_{22}$: The **quadratic effects** (the curvature or "hill/bowl" shape).
+            - $\beta_{12}$: The **interaction effect** (the twist of the surface).
+            - $\epsilon$: The random experimental error.
             """)
 
 def render_stability_analysis():

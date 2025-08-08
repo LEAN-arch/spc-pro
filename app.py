@@ -2731,206 +2731,732 @@ def render_advanced_doe():
 def render_stability_analysis():
     """Renders the module for pharmaceutical stability analysis."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To statistically determine the shelf-life or retest period for a drug product, substance, or critical reagent. This involves modeling the degradation of a critical quality attribute (CQA) over time and finding the point where it is predicted to fail its specification.
+    #### Purpose & Application: The Expiration Date Contract
+    **Purpose:** To fulfill a statistical contract with patients and regulators. This analysis determines the shelf-life (or retest period) for a drug product by proving, with high confidence, that a Critical Quality Attribute (CQA) like potency will remain within its safety and efficacy specifications over time.
     
-    **Strategic Application:** This is a mandatory, high-stakes analysis for any commercial pharmaceutical product, as required by ICH Q1E guidelines. The analysis involves:
-    - Collecting data from multiple batches at various time points under specified storage conditions.
-    - Fitting a regression model to the data.
-    - Determining the time at which the 95% confidence interval for the mean degradation trend intersects the specification limit.
+    **Strategic Application:** This is a mandatory, high-stakes analysis for any commercial pharmaceutical product, as required by the **ICH Q1E guideline**. It is the data-driven foundation of the expiration date printed on every vial and box. An incorrectly calculated shelf-life can lead to ineffective medicine, patient harm, and massive product recalls. The analysis involves:
+    - Collecting stability data from at least three primary batches.
+    - Fitting a regression model to understand the degradation trend.
+    - Using a conservative confidence interval to set a shelf-life that accounts for future batch-to-batch variability.
     """)
-    fig = plot_stability_analysis()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** This plot shows potency data from three different batches collected over 24 months. A linear regression model is fitted to the pooled data to estimate the average degradation trend (black line). The critical line is the **95% Lower Confidence Interval (red dashed line)**. Per ICH guidelines, the shelf-life is the earliest time point where this lower confidence bound crosses the specification limit (red dotted line). This conservative approach ensures that, with 95% confidence, the mean potency of future batches will remain above the limit throughout the product's shelf-life.
-    """)
+    
+    fig = plot_stability_analysis() # Assumes a function that plots the stability data and model
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="📈 Approved Shelf-Life", value="31 Months", help="The time at which the lower confidence bound intersects the specification limit.")
+            st.metric(label="📉 Degradation Rate (Slope)", value="-0.21 %/month", help="The estimated average loss of potency per month.")
+            st.metric(label="🥅 Specification Limit", value="95.0 %", help="The minimum acceptable potency for the product to be considered effective.")
+
+            st.markdown("""
+            **Reading the Race Against Time:**
+            - **The Data Points:** These are your real-world potency measurements from three different production batches.
+            - **The Black Line (The Average Trend):** This is the best-fit regression line. It shows the *average* degradation path we expect.
+            - **The Red Dashed Line (The Safety Net):** This is the **95% Lower Confidence Bound**. This is the most important line on the chart. It represents a conservative, worst-case estimate for the *mean* degradation trend, accounting for uncertainty.
+            - **The Finish Line (Red Dotted Line):** This is the specification limit.
+
+            **The Verdict:** The shelf-life is declared at the exact moment **the Safety Net (red dashed line) hits the Finish Line.** This conservative approach ensures that even with the uncertainty of our model and the variability between batches, we are 95% confident the average product potency will not drop below the spec limit before the expiration date.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Happy Path" Fallacy**
+            This is a common and dangerous mistake that overestimates shelf-life.
+            
+            - A manager sees the solid black line (the average trend) and says, *"Let's set the shelf-life where the average trend crosses the spec limit. That gives us 36 months!"*
+            - **The Flaw:** This completely ignores uncertainty and batch-to-batch variability! About half of all future batches will, by definition, degrade *faster* than the average. This approach virtually guarantees that a significant portion of future product will fail specification before its expiration date, putting patients at risk.
+            - Another flaw is blindly pooling data from all batches without testing if their degradation rates are similar. If one batch is a "fast degrader," it must be evaluated separately.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: The Confidence Interval Sets the Expiration Date, Not the Average**
+            The ICH Q1E guideline is built on a principle of statistical conservatism to protect patients. The correct procedure is disciplined:
+            
+            1.  **First, Prove Poolability:** Before you can create a single model, you must perform a statistical test (like ANCOVA) to prove that the degradation slopes and intercepts of the different batches are not significantly different. You must *earn the right* to pool the data. If they are different, the shelf-life must be based on the worst-performing batch.
+            
+            2.  **Then, Use the Confidence Bound:** Once pooling is justified, fit the regression model and calculate the two-sided 95% confidence interval. The shelf-life is determined by the intersection of the appropriate confidence bound (lower bound for potency, upper bound for an impurity) with the specification limit.
+            
+            This rigorous approach ensures the expiration date is a reliable promise.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin: The ICH Revolution
+            Prior to the 1990s, the requirements for stability testing could differ significantly between major markets like the USA, Europe, and Japan. This forced pharmaceutical companies to run slightly different, redundant, and costly stability programs for each region to gain global approval.
+            
+            The **International Council for Harmonisation (ICH)** was formed to end this inefficiency. A key working group was tasked with creating a single, scientifically sound standard for stability testing. This resulted in a series of guidelines, with **ICH Q1A** defining the required study conditions and **ICH Q1E ("Evaluation of Stability Data")** providing the definitive statistical methodology.
+            
+            ICH Q1E, adopted in 2003, codified the use of regression analysis, formal tests for pooling data across batches, and the critical principle of using confidence intervals to determine shelf-life. It created a level playing field and a global gold standard, ensuring that the expiration date on a medicine means the same thing in New York, London, and Tokyo.
+            
+            #### Mathematical Basis
+            The core of the analysis is typically a linear regression model:
+            """)
+            st.latex(r"Y_i = \beta_0 + \beta_1 X_i + \epsilon_i")
+            st.markdown("""
+            - **`Yᵢ`**: The CQA measurement (e.g., Potency) at time point `i`.
+            - **`Xᵢ`**: The time point `i` (e.g., in months).
+            - **`β₁`**: The slope, representing the degradation rate.
+            - **`β₀`**: The intercept, representing the value at time zero.
+
+            The confidence interval for the regression line is not a pair of parallel lines. It is a **funnel shape**, narrowest at the center of the data and widest at the beginning and end. This reflects that our prediction is most certain near the average time point of our data and becomes less certain the further we extrapolate. The formula for the confidence bound at a given time point `x` depends on the sample size, the standard error of the model, and the distance of `x` from the mean of all time points.
+            """)
 
 def render_survival_analysis():
     """Renders the module for Survival Analysis."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To analyze and model "time-to-event" data, such as the time until a piece of equipment fails, a patient responds to treatment, or a reagent lot's performance drops below a threshold. It is uniquely designed to handle **censored data**, where the event has not yet occurred for some subjects at the end of the study.
+    #### Purpose & Application: The Statistician's Crystal Ball
+    **Purpose:** To model "time-to-event" data and forecast the probability of survival over time. Its superpower is its unique ability to handle **censored data**—observations where the study ends before the event (e.g., failure or death) occurs. It allows us to use every last drop of information, even from the subjects who "survived" the study.
     
-    **Strategic Application:** This is the core of **Reliability Engineering** and is essential for predictive maintenance and risk analysis.
-    - **Predictive Maintenance:** By modeling the failure time of critical components (e.g., an HPLC column), you can move from calendar-based replacement to condition-based replacement, saving costs and preventing unexpected downtime.
-    - **Clinical Trials:** It is the standard method for analyzing trial endpoints like "time to disease progression" or "overall survival."
-    - **Reagent Stability:** Can be used to model the probability that a reagent lot will "survive" (i.e., remain effective) past a certain number of months.
+    **Strategic Application:** This is the core methodology for reliability engineering and is essential for predictive maintenance, risk analysis, and clinical research.
+    - **⚙️ Predictive Maintenance:** Instead of replacing parts on a fixed schedule, you can model their failure probability over time. This answers: "What is the risk this HPLC column fails *in the next 100 injections*?" This moves maintenance from guesswork to a data-driven strategy.
+    - **⚕️ Clinical Trials:** The gold standard for analyzing endpoints like "time to disease progression" or "overall survival." It provides definitive proof if a new drug helps patients live longer or stay disease-free for longer.
+    - **🔬 Reagent & Product Stability:** A powerful way to model the "shelf-life" of a reagent lot or product by defining "failure" as dropping below a performance threshold.
     """)
-    fig = plot_survival_analysis()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** This plot shows a **Kaplan-Meier survival curve**. It visualizes the probability that an item from a given group will "survive" past a certain time. The vertical drops indicate when an event (e.g., failure) occurred, and the small vertical ticks represent censored observations (runs that ended before failure). Here, we can clearly see that Group B has a higher survival probability over time compared to Group A. A formal **Log-Rank test** would be used to determine if this difference is statistically significant.
-    """)
+    
+    fig = plot_survival_analysis() # Assumes a function that plots K-M curves
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="📊 Log-Rank Test p-value", value="0.008", help="A p-value < 0.05 indicates a statistically significant difference between the survival curves.")
+            st.metric(label="⏳ Median Survival (Group A)", value="17 Months", help="Time at which 50% of Group A have experienced the event.")
+            st.metric(label="⏳ Median Survival (Group B)", value="28 Months", help="Time at which 50% of Group B have experienced the event.")
+
+            st.markdown("""
+            **Reading the Curve:**
+            - **The Stepped Line:** This is the **Kaplan-Meier survival curve**. It shows the estimated probability of survival over time.
+            - **Vertical Drops:** Each "step down" represents a time when one or more "events" (e.g., equipment failures) occurred.
+            - **Vertical Ticks (Censoring):** These are the heroes of the story! They represent items that were still working perfectly when the study ended or they were removed for other reasons. We don't know their final failure time, but we know they survived *at least* this long.
+            
+            **The Visual Verdict:** The curve for **Group B** is consistently higher and "flatter" than the curve for Group A. This visually demonstrates that items in Group B have a higher probability of surviving longer. The low p-value from the Log-Rank test confirms this visual impression is statistically significant.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Pessimist's Fallacy"**
+            This is a catastrophic but common error that leads to dangerously biased results.
+            
+            - An analyst wants to know the average lifetime of a component. They take data from a one-year study, **throw away all the censored data** (the units that were still working at one year), and calculate the average time-to-failure for only the units that broke.
+            - **The Flaw:** This is a massive pessimistic bias. You have selected **only the weakest items** that failed early and completely ignored the strong, reliable items that were still going strong. The calculated "average lifetime" will be far lower than the true value.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Respect the Censored Data**
+            The core principle of survival analysis is that censored data is not missing data; it is valuable information.
+            
+            - A tick on the curve at 24 months is not an unknown. It is a powerful piece of information: **The lifetime of this unit is at least 24 months.**
+            - The correct approach is to **always use a method specifically designed to handle censoring**, like the Kaplan-Meier estimator. This method correctly incorporates the information from both the "failures" and the "survivors" to produce an unbiased estimate of the true survival function.
+            
+            Never discard censored data. It is just as important as the failure data for getting the right answer.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin: The 1958 Revolution
+            While the concept of life tables has existed for centuries in actuarial science, analyzing time-to-event data with censored observations was often messy and inconsistent. Different researchers used different ad-hoc methods, making it hard to compare results.
+            
+            This all changed in 1958 with a landmark paper in the *Journal of the American Statistical Association* by **Edward L. Kaplan** and **Paul Meier**. Their paper, "Nonparametric Estimation from Incomplete Observations," introduced the world to what we now universally call the **Kaplan-Meier estimator**.
+            
+            It was a revolutionary breakthrough. They provided a simple, elegant, and statistically robust non-parametric method to estimate the true survival function, even with heavily censored data. This single technique unlocked a new era of research in medicine, enabling the rigorous analysis of clinical trials that is now standard practice, and in engineering, forming the foundation of modern reliability analysis.
+            
+            #### Mathematical Basis
+            The Kaplan-Meier estimate of the survival function `S(t)` is a product of conditional probabilities:
+            """)
+            st.latex(r"S(t_i) = S(t_{i-1}) \times \left( \frac{n_i - d_i}{n_i} \right)")
+            st.markdown("""
+            - **`S(tᵢ)`** is the probability of surviving past time `tᵢ`.
+            - **`nᵢ`** is the number of subjects "at risk" (i.e., still surviving) just before time `tᵢ`.
+            - **`dᵢ`** is the number of events (e.g., failures) that occurred at time `tᵢ`.
+            
+            Essentially, the probability of surviving to a certain time is the probability you survived up to the last event, *times* the conditional probability you survived this current event. This step-wise calculation gracefully handles censored observations, as they simply exit the "at risk" pool (`nᵢ`) at the time they are censored.
+            """)
 
 def render_multivariate_spc():
     """Renders the module for Multivariate SPC."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To monitor multiple correlated process variables simultaneously in a single control chart. This is the multivariate extension of the Shewhart chart.
+    #### Purpose & Application: The Process Doctor
+    **Purpose:** To act as the **head physician for your process**. Instead of having 20 separate nurses (univariate charts) each reading one vital sign, Multivariate SPC looks at all the patient's vitals *together* to make a single, powerful diagnosis. It answers one question: "Is the overall process healthy?"
     
-    **Strategic Application:** In complex processes like a bioreactor, parameters like temperature, pH, and dissolved oxygen are all correlated. Monitoring them with individual control charts is inefficient and can be misleading. A small deviation in all variables simultaneously might go unnoticed on individual charts but represents a significant deviation in the process's overall state.
-    - **Hotelling's T² Chart:** This chart tracks the multivariate distance of a process observation from the center of the historical data, accounting for all correlations. It condenses dozens of variables into a single, powerful monitoring statistic.
+    **Strategic Application:** This is essential for complex processes where parameters are correlated (e.g., a bioreactor's temperature, pH, DO₂). A small, coordinated change in all variables—a "stealth shift"—can be invisible to individual charts but signals a significant change in the process state.
+    - **Hotelling's T² Chart:** The "Check Engine Light" for your process. It condenses dozens of variables into a single statistic that monitors the process "fingerprint." A T² alarm is an unambiguous signal that the system's overall health has changed.
+    - **Contribution Analysis:** Once the T² alarm sounds, this diagnostic tool tells you *which* variable(s) are the culprits behind the shift.
     """)
-    fig = plot_multivariate_spc()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** The left plot shows the raw data. The shift in the red points is only in the Y-direction; the X-values are still in control. An individual X-chart would not detect this shift. The **T² Chart (Right)** combines both variables into a single statistic. It clearly and immediately detects the out-of-control condition when the process shifts, providing a single, unambiguous signal that the overall process "fingerprint" has changed.
-    """)
+    
+    fig = plot_multivariate_spc() # Assumes a function that plots the comparison
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="📊 Multivariate Verdict", value="Out-of-Control", help="The T² Chart has detected a significant shift in the process state.")
+            st.metric(label="⏰ Trigger Point", value="Sample #21", help="The first point at which the T² statistic exceeded the control limit.")
+            st.metric(label="📈 Key Statistic", value="Hotelling's T²", help="A single number representing the multivariate distance from the process center.")
+            
+            st.markdown("""
+            **Reading the Diagnosis:**
+            - **Left Plot (The Vitals):** This shows the raw data for two correlated process parameters. Notice the shift after point 20 is mainly in the vertical direction. An individual control chart for "Parameter X" would likely miss this problem entirely.
+            - **Right Plot (The Diagnosis - T² Chart):** This is the Process Doctor's conclusion. It combines both X and Y into a single health score (the T² statistic). The moment the process shifts, the T² value immediately jumps above the red control limit, providing a clear, undeniable alarm.
+            
+            **The Core Strategic Insight:** A process doesn't live on a single axis; it lives in a multi-dimensional space. The T² chart monitors the process's position within its normal, correlated "operating cloud." The alarm triggers when the process moves outside this cloud, even if it hasn't crossed a limit on any single axis.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
+            A manager insists on using 20 separate I-MR charts for their 20 bioreactor parameters.
+            
+            - **The Problem 1: Alarm Fatigue.** With 20 charts, false alarms are constant. Soon, operators begin to ignore the signals, assuming they are just noise. The system becomes useless.
+            - **The Problem 2: The Stealth Shift.** A small, 1-sigma shift occurs simultaneously across 10 of the 20 parameters. This is a massive change in the process state, but **not a single one of the 20 charts will alarm.** The process is sick, but every "nurse" reports normal vitals.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Detect with T², Diagnose with Contributions**
+            The correct, two-stage approach to multivariate monitoring is disciplined and powerful.
+            
+            1.  **Stage 1: Detect.** Use a **single Hotelling's T² chart** as your primary process health monitor. Its job is to answer one question: "Is something wrong?" (YES/NO). Do not look at anything else until this chart alarms.
+            
+            2.  **Stage 2: Diagnose.** If the T² chart alarms, and only then, you bring in the diagnostic tools. You use **contribution plots** or other diagnostics to identify which of the original variables are most responsible for the alarm signal.
+            
+            This "Detect, then Diagnose" strategy provides the best of both worlds: a simple, unambiguous monitoring system and a powerful tool for root cause analysis.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin: Hotelling's T-Squared
+            The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. Working in the 1930s and 40s, he was a contemporary of legends like R.A. Fisher and Walter Shewhart.
+            
+            Hotelling's genius was in generalization. He recognized that Student's t-test was perfect for asking if a single variable's mean was different from a target. But what if you had multiple variables? In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which was a direct multivariate generalization of Student's t-statistic. It allowed one to test hypotheses about multiple means at once.
+            
+            When Shewhart's control charts became popular, it was a natural next step to apply Hotelling's powerful statistic to process monitoring. The T² chart is simply a time-series plot of the T-squared statistic, providing a way to apply Shewhart's SPC philosophy to complex, correlated, multivariate data.
+            
+            #### Mathematical Basis
+            The T² statistic is essentially a measure of the **Mahalanobis distance**, a "smart" distance that accounts for the correlation between variables. While a simple Euclidean distance is like measuring with a straight ruler, the Mahalanobis distance measures along the natural "grain" of the elliptical data cloud.
+            
+            The formula for a single observation `x` is:
+            """)
+            st.latex(r"T^2 = (\mathbf{x} - \mathbf{\bar{x}})' \mathbf{S}^{-1} (\mathbf{x} - \mathbf{\bar{x}})")
+            st.markdown("""
+            - **`x`**: The vector of a new observation's measurements.
+            - **`x̄`**: The vector of historical means for the variables.
+            - **`S⁻¹`**: The **inverse of the sample covariance matrix**. This is the secret sauce. It's the mathematical engine that de-correlates and correctly scales the variables, making the T² statistic a pure measure of "strangeness" from the process center.
+            """)
 
 def render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To model the relationship between a large set of highly correlated input variables (X, e.g., hundreds of spectral data points) and one or more output variables (Y, e.g., product concentration or purity). **Partial Least Squares (PLS)**, also known as Projection to Latent Structures, is the primary tool for this.
+    #### Purpose & Application: The Statistical Rosetta Stone
+    **Purpose:** To act as a **statistical Rosetta Stone**, translating a massive, complex, and correlated set of input variables (X, e.g., an entire spectrum) into a simple, actionable output (Y, e.g., product concentration). **Partial Least Squares (PLS)** is the key that deciphers this code.
     
-    **Strategic Application:** This is the engine behind **Process Analytical Technology (PAT)** and chemometrics. Standard regression fails when there are more input variables than samples or when inputs are highly correlated. PLS is designed for this "wide data" problem.
-    - **Spectroscopy Calibration:** Used to build models that predict a chemical concentration from its NIR or Raman spectrum, enabling real-time, non-destructive testing.
-    - **"Golden Batch" Monitoring:** PLS can model the normal relationship between all process parameters and the final quality attributes. Deviations from this model during a run can signal a problem in real-time.
+    **Strategic Application:** This is the statistical engine behind **Process Analytical Technology (PAT)** and modern chemometrics. It is specifically designed to solve the "curse of dimensionality"—problems where you have more input variables than samples and the inputs are highly correlated.
+    - **🔬 Real-Time Spectroscopy:** Builds models that predict a chemical concentration from its NIR or Raman spectrum in real-time. This eliminates the need for slow, offline lab tests, enabling real-time release.
+    - **🏭 "Golden Batch" Modeling:** PLS can learn the "fingerprint" of a perfect batch, modeling the complex relationship between hundreds of process parameters and final product quality. Deviations from this model can signal a problem *during* a run, not after it's too late.
     """)
-    fig = plot_mva_pls()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** The left plot shows the raw spectral data, where it is impossible to see any relationship with the response by eye. The **VIP (Variable Importance in Projection) Plot on the right** is a key output of a PLS model. It shows which input variables (in this case, which wavelengths) are the most influential in predicting the output. Variables with a VIP score > 1 are typically considered important. This allows scientists to understand the underlying chemical signals driving the model, turning a complex dataset into actionable knowledge.
-    """)
+    
+    fig = plot_mva_pls() # Assumes a function that plots the VIP chart
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="📈 Model R² (Goodness of Fit)", value="0.98", help="How well the model fits the training data. High is good, but can be misleading.")
+            st.metric(label="🎯 Model Q² (Predictive Power)", value="0.95", help="The cross-validated R². A measure of how well the model predicts *new* data. Q² is the most important performance metric.")
+            st.metric(label="🧬 Latent Variables (LVs)", value="3", help="The number of 'hidden' factors the model extracted. The complexity of the model.")
+            
+            st.markdown("""
+            **Decoding the VIP Plot:**
+            The plot on the left is the **Variable Importance in Projection (VIP)** plot. It's the key to understanding what the model has learned.
+            - **The Peaks:** These are the "magic words" in the Rosetta Stone. They represent the specific input variables (e.g., wavelengths) that are most influential for predicting the output.
+            - **The Red Line (VIP > 1):** This is the rule of thumb. Variables with a VIP score greater than 1 are considered important to the model.
+            
+            **The Core Strategic Insight:** PLS turns a "black box" instrument (like a spectrometer) into a "glass box" of process understanding. By identifying the most important variables via the VIP plot, scientists can gain fundamental insights into the underlying chemistry or physics of their process, leading to more robust control strategies.
+            """)
 
-def render_clustering():
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Overfitting" Trap**
+            This is the cardinal sin of predictive modeling.
+            
+            - An analyst keeps adding more and more Latent Variables (LVs) to their PLS model. They are thrilled to see the R-squared value climb to 0.999. The model perfectly "predicts" the data it was built on.
+            - **The Flaw:** The model hasn't learned the true signal; it has simply memorized the noise in the training data. When this model is shown new data from the process, its predictions will be terrible. It is a fragile model that is useless in the real world.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Thou Shalt Validate Thy Model on Unseen Data**
+            A model's R-squared on the data it was trained on is vanity. Its performance on new data is sanity.
+            
+            1.  **Partition Your Data:** Before you begin, split your data into a **Training Set** (to build the model) and a **Test Set** (to independently validate it).
+            
+            2.  **Use Cross-Validation:** Within the training set, use cross-validation to choose the optimal number of Latent Variables. The goal is to find the number of LVs that minimizes the **prediction error (RMSEP)**, not the number that maximizes the R-squared.
+            
+            3.  **Final Verdict:** The ultimate test of the model is its performance on the held-out Test Set. This simulates how the model will perform in the future when it encounters new process data.
+            
+            A model that predicts well is useful. A model that is *proven* to predict well is valuable.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            PLS was developed in the 1960s and 70s by the brilliant Swedish statistician **Herman Wold**. He originally developed it for the complex, "data-rich but theory-poor" problems found in econometrics and social sciences.
+            
+            However, its true potential was unlocked by his son, **Svante Wold**, a chemist. In the late 1970s and 80s, Svante recognized that the problems his father was solving were mathematically identical to the challenges in **chemometrics**—the science of extracting information from chemical systems by data-driven means. Analytical instruments like spectrometers were producing huge, highly correlated datasets that traditional statistics couldn't handle.
+            
+            Svante Wold and his colleagues adapted and popularized PLS, turning it into the powerhouse of modern chemometrics. This father-son legacy created a tool that bridged disciplines and became the statistical engine for the PAT revolution in the pharmaceutical industry.
+            
+            #### How It Works: The Consensus Group Analogy
+            How does PLS handle thousands of inputs? It doesn't use them directly.
+            - **Standard Regression** is like trying to listen to 1000 people shouting at once. It's chaos.
+            - **PLS is smarter.** It first tells the 1000 people (X variables) to form a few small "consensus groups" based on who is saying similar things. These groups are the **Latent Variables (LVs)**.
+            - Then, PLS simply listens to the summary from these few group leaders to make its prediction about the Y variable. This process of creating a few informative LVs from thousands of inputs is called **dimensionality reduction**, and it's the core of how PLS works.
+            """)
+
+ef render_clustering():
     """Renders the module for unsupervised clustering."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To use unsupervised machine learning to discover natural, hidden groupings or "regimes" within a dataset, without any prior knowledge of what those groups might be.
+    #### Purpose & Application: The Data Archeologist
+    **Purpose:** To act as a **data archeologist**, sifting through your process data to discover natural, hidden groupings or "regimes." Without any prior knowledge, it can uncover distinct "civilizations" within your data, answering the question: "Are all of my 'good' batches truly the same, or are there different ways to be good?"
     
-    **Strategic Application:** This is a powerful exploratory tool for process and data understanding. It helps answer the question: "Are all of my 'good' batches truly the same, or are there different ways to be good?"
-    - **Process Regime Identification:** It can reveal that a process is secretly operating in two or three different states (e.g., due to different raw material suppliers, seasonal effects, or operator techniques), even when all batches are passing specification.
-    - **Root Cause Analysis:** If a failure occurs, clustering can help determine which "family" of normal operation the failed batch was most similar to, providing clues for the investigation.
-    - **Customer Segmentation:** In a commercial context, it can be used to segment patients or customers into distinct groups based on their characteristics.
+    **Strategic Application:** This is a powerful exploratory tool for deep process understanding. It moves you from assumption to discovery.
+    - **Process Regime Identification:** Can reveal that a process is secretly operating in two or three different states (e.g., due to different raw material suppliers, seasonal effects, or operator techniques), even when all batches are passing specification. This is often the first clue to a major process improvement.
+    - **Root Cause Analysis:** If a failure occurs, clustering can help determine which "family" of normal operation the failed batch was most similar to, providing critical clues for the investigation.
+    - **Customer Segmentation:** In a commercial context, it can be used to segment patients or customers into distinct groups based on their characteristics, enabling targeted strategies.
     """)
-    fig = plot_clustering()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** This plot shows the results of a **K-Means clustering** algorithm applied to process data. The algorithm has automatically identified three distinct clusters, or "operating regimes," in the data that were not obvious from looking at the raw data. This discovery could prompt an investigation into what makes the three groups different (e.g., raw material, equipment, time of year), potentially revealing a hidden source of process variation and an opportunity for improvement.
-    """)
+    
+    fig = plot_clustering() # Assumes a function that plots the clusters
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🏺 Discovered 'Civilizations' (k)", value="3", help="The number of distinct clusters the K-Means algorithm identified.")
+            st.metric(label="🗺️ Cluster Quality (Silhouette Score)", value="0.72", help="A measure of how distinct the clusters are from each other. Higher is better (max 1.0).")
+            st.metric(label="⛏️ Algorithm Used", value="K-Means", help="A classic and robust partitioning-based clustering algorithm.")
+            
+            st.markdown("""
+            **The Dig Site Findings:**
+            - The plot reveals the results of our archeological dig. The algorithm, without any help, has found three distinct groups in the data, color-coded for clarity.
+            - Before this analysis, these data points were likely thought of as one single "in-control" population. We have now discovered this is not true.
+            - The high Silhouette Score (0.72) gives us confidence that these groupings are statistically meaningful and not just a random artifact.
+            
+            **The Core Strategic Insight:** The discovery of hidden clusters is one of the most valuable findings in data analysis. It proves that your single process is actually a collection of multiple sub-processes. Understanding the *causes* of this separation is the gateway to improved process control, robustness, and optimization.
+            """)
 
-def render_classification_models():
-    """Renders the module for classification models."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To build predictive models for a categorical outcome (e.g., Pass/Fail, Compliant/Non-compliant). This module compares a classical statistical model with a modern machine learning model.
-    - **Logistic Regression:** A "white-box" statistical model that is highly interpretable but assumes a linear relationship between the inputs and the log-odds of the outcome.
-    - **Random Forest:** A powerful, "black-box" machine learning model that can automatically capture complex, non-linear relationships and interactions. It is often more accurate but less interpretable.
-    
-    **Strategic Application:** These models are the core of **Predictive QC**. The choice between them involves a trade-off. In a highly regulated GxP environment, the interpretability of Logistic Regression is often preferred. For pure predictive performance where the "why" is less important than the "what," Random Forest often has the edge.
-    """)
-    fig = plot_classification_models()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** The data in this example has a non-linear circular relationship. 
-    - **Logistic Regression (Left)** attempts to separate the groups with a straight line. It performs poorly as a result.
-    - **Random Forest (Right)** is an ensemble of decision trees and can create a complex, non-linear decision boundary that perfectly captures the circular pattern. Its accuracy is much higher. This demonstrates the power of machine learning models for problems where the underlying relationships are not simple.
-    """)
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "If It Ain't Broke..." Fallacy**
+            This is the most common way to squander the value of a clustering analysis.
+            
+            - An analyst presents the discovery of three distinct clusters. A manager responds, *"Interesting, but all of those batches passed QC testing, so who cares? Let's move on."*
+            - **The Flaw:** This treats a treasure map as a doodle. The fact that all batches passed is what makes the discovery so important! It means there are different—and potentially more or less robust—paths to success. One of those "civilizations" might be living on the edge of a cliff (close to a specification limit), while another is safe in a valley.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: A Cluster is a Clue, Not a Conclusion**
+            The discovery of clusters is the **start** of the investigation, not the end. The correct approach is a disciplined forensic analysis.
+            
+            1.  **Find the Clusters:** Use an algorithm like K-Means to partition the data.
+            2.  **Validate the Clusters:** Use a metric like the Silhouette Score to ensure the clusters are meaningful.
+            3.  **Profile the Clusters (This is the most important step!):** Treat each cluster as a separate group. Overlay other information. Ask:
+                - Do batches in Cluster 1 use a different raw material lot than Cluster 2?
+                - Were the batches in Cluster 3 all run by the night shift?
+                - Is there a seasonal effect that separates the clusters?
+            
+            This profiling step is what turns a statistical finding into actionable process knowledge.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The K-Means algorithm is a foundational pillar of machine learning, with a history that predates many modern techniques. While the core idea was explored by several researchers, it was first proposed by **Stuart Lloyd** at Bell Labs in 1957 as a technique for pulse-code modulation. The term "k-means" itself was first coined by **James MacQueen** in a 1967 paper.
+            
+            Its simplicity, coupled with the explosion of computational power, has made it one of the most widely used and taught clustering algorithms. It represents a fundamental shift in data analysis—from testing pre-defined hypotheses to exploring data to generate *new* hypotheses.
+            
+            #### How K-Means Works: The "Pizza Shop" Analogy
+            Imagine you want to open 3 new pizza shops in a city to best serve its residents. How do you find the optimal locations?
+            1.  **Step 1 (Random Start):** You randomly drop 3 pins on a map of the city. These are your initial "cluster centroids."
+            2.  **Step 2 (Assignment):** You draw a boundary around each pin. Every house (data point) in the city is assigned to its *closest* pizza shop. You now have 3 customer bases.
+            3.  **Step 3 (Update):** For each of the 3 customer bases, you find its true geographic center. You then **move the pizza shop's pin** to that new center.
+            4.  **Step 4 (Repeat):** Now that the shops have moved, you repeat from Step 2. Re-assign every house to its new closest shop, then update the shop locations again.
+            
+            You repeat this "Assign-Update" process until the pins stop moving. The final locations of the pizza shops are the centers of your discovered clusters.
+            """)
 
 def render_time_series_analysis():
     """Renders the module for Time Series analysis."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To model and forecast time series data by explicitly accounting for its internal structure, such as trend, seasonality, and autocorrelation.
+    #### Purpose & Application: The Watchmaker vs. The Smartwatch
+    **Purpose:** To model and forecast time-dependent data by understanding its internal structure, such as trend, seasonality, and autocorrelation. This module compares two powerful philosophies for this task.
     
-    **Strategic Application:** While modern tools like Prophet are often easier to use, classical models like **ARIMA (AutoRegressive Integrated Moving Average)** provide a deep statistical framework for process understanding.
-    - **ARIMA:** A powerful and flexible "white-box" model where the parameters are interpretable, making it highly defensible in regulatory environments. It often excels at short-term forecasting.
-    - **Prophet:** A modern forecasting tool from Facebook designed for ease-of-use and automatic handling of business time series features like multiple seasonalities and holidays.
-    This module provides a comparison of the two approaches.
+    **Strategic Application:** This is fundamental for demand forecasting, resource planning, and proactive process monitoring.
+    - **⌚ ARIMA (The Classical Watchmaker):** A powerful and flexible "white-box" model. Like a master watchmaker, you must understand every gear (p,d,q parameters), but you get a highly interpretable model that is defensible in regulatory environments and excels at short-term forecasting of stable processes.
+    - **📱 Prophet (The Modern Smartwatch):** A modern forecasting tool from Facebook. It's packed with sensors and algorithms to automatically handle complex seasonalities, holidays, and changing trends with minimal user input. It's designed for speed and scale.
     """)
-    fig = plot_time_series_analysis()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** This plot shows the forecasts from both Prophet (red) and ARIMA (green) against the true future data. Both models can capture the overall trend and seasonality. The choice between them often depends on the specific characteristics of the data and the need for interpretability vs. automation. ARIMA requires more statistical expertise to tune but can be more precise for certain processes, while Prophet is designed to produce high-quality forecasts with minimal effort.
-    """)
+    
+    fig = plot_time_series_analysis() # Assumes a function that plots the forecasts
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value="3.15 units", help="Mean Absolute Error for the ARIMA model.")
+            st.metric(label="📱 Prophet Forecast Error (MAE)", value="2.89 units", help="Mean Absolute Error for the Prophet model.")
+            st.metric(label="🔮 Forecast Horizon", value="12 Months", help="The period into the future for which we are generating predictions.")
+
+            st.markdown("""
+            **Reading the Forecasts:**
+            - **The Black Line:** This is the historical data the models were trained on.
+            - **The Blue Line:** This is the *true* future data, which we held out to test the models' performance.
+            - **The Green Line (ARIMA):** The Watchmaker's forecast. Notice how it captures the core seasonal pattern and trend based on its statistical properties.
+            - **The Red Line (Prophet):** The Smartwatch's forecast. It also captures the trend and seasonality, often being more robust to outliers or sudden changes.
+
+            **The Core Strategic Insight:** The choice is not about which model is "best," but which is **right for the job.** For a stable, well-understood industrial process where interpretability is key, the craftsmanship of ARIMA is superior. for a complex, noisy business time series with multiple layers of seasonality and a need for automated forecasting at scale, Prophet is often the better tool.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
+            This is the most common path to a useless forecast.
+            
+            - An analyst takes a column of data, feeds it directly into `model.fit()` and `model.predict()`, and presents the resulting line.
+            - **The Flaw:** They've made no attempt to understand the data's structure. Is there a trend? Is it seasonal? Is the variance stable? They have no idea if the model's assumptions have been met. This "black box" approach produces a forecast that is fragile, unreliable, and likely to fail spectacularly the moment the underlying process changes.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Decompose, Validate, and Monitor**
+            A robust forecasting process is disciplined and applies regardless of the model you use.
+            
+            1.  **Decompose and Understand (The Pre-Flight Check):** Before you model, you must visualize. Use a time series decomposition plot to separate the series into its core components: **Trend, Seasonality, and Residuals.** This tells you what you're working with. Check for stationarity—a core assumption of ARIMA.
+            
+            2.  **Train, Validate, Test:** Never judge a model by its performance on data it has already seen. Split your historical data into a training set (to build the model) and a validation set (to tune it). Keep a final "test set" of the most recent data as a truly blind evaluation of forecast accuracy.
+            
+            3.  **Monitor for Drift:** A forecast is only a snapshot in time. You must continuously monitor its performance against incoming new data. When the error starts to increase, it's a signal that the underlying process has changed and the model needs to be retrained.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The story of time series forecasting is a tale of two distinct eras.
+            - **The Classical Era (ARIMA):** In their seminal 1970 book *Time Series Analysis: Forecasting and Control*, statisticians **George Box** and **Gwilym Jenkins** provided a comprehensive methodology for time series modeling. The **Box-Jenkins method**—a rigorous process of model identification, parameter estimation, and diagnostic checking—became the undisputed gold standard for decades. The ARIMA model is the heart of this methodology, a testament to deep statistical theory.
+            
+            - **The Modern Era (Prophet):** Fast forward to the 2010s. **Facebook** faced a new kind of problem: thousands of internal analysts needed to generate high-quality forecasts for business metrics at scale, without each of them needing a PhD in statistics. In 2017, their Core Data Science team, led by Sean J. Taylor and Ben Letham, released **Prophet**. It was designed from the ground up for automation, performance, and intuitive tuning, sacrificing some of the statistical purity of ARIMA for massive gains in usability and scale.
+            
+            #### How They Work
+            - **ARIMA (AutoRegressive Integrated Moving Average):**
+              - **AR (p):** The model uses the relationship between an observation and its own **p**ast values.
+              - **I (d):** It uses **d**ifferencing to make the series stationary (i.e., remove the trend).
+              - **MA (q):** It uses the relationship between an observation and the residual errors from its **q** past forecasts.
+            - **Prophet:** It works as a decomposable additive model:
+            """)
+            st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
+            st.markdown("""
+            Where `g(t)` is a saturating growth trend, `s(t)` models complex weekly and yearly seasonality using Fourier series, `h(t)` is a flexible component for user-specified holidays, and `ε` is the error.
+            """)
 
 def render_xai_shap():
     """Renders the module for Explainable AI (XAI) using SHAP."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To "look inside the black box" of complex machine learning models (like Random Forest or Gradient Boosting) and explain their predictions. **Explainable AI (XAI)** provides tools to understand *why* a model made a specific prediction.
+    #### Purpose & Application: The AI Interrogator
+    **Purpose:** To deploy an **AI Interrogator** that forces a complex "black box" model (like Gradient Boosting or a Neural Network) to confess exactly *why* it made a specific prediction. **Explainable AI (XAI)** cracks open the black box to reveal the model's internal logic.
     
-    **Strategic Application:** This is arguably the **single most important enabling technology for deploying advanced ML in regulated GxP environments.** A major barrier to using powerful models has been their lack of interpretability. If a model predicts a batch will fail, regulators and scientists need to know *why*. **SHAP (SHapley Additive exPlanations)** is a state-of-the-art XAI framework that provides this insight.
-    - **Model Trust & Validation:** XAI helps confirm that the model is learning real, scientifically plausible relationships, not just spurious correlations.
-    - **Regulatory Compliance:** It provides the auditable evidence needed to justify a model-based decision.
-    - **Actionable Insights:** It tells you which input variables are driving a prediction, guiding corrective actions.
+    **Strategic Application:** This is arguably the **single most important enabling technology for deploying advanced Machine Learning in regulated GxP environments.** A major barrier to using powerful models has been their lack of interpretability. **SHAP (SHapley Additive exPlanations)** is the state-of-the-art framework that provides this crucial evidence.
+    - **🔬 Model Trust & Validation:** XAI confirms that the model is learning real, scientifically plausible relationships, not just memorizing spurious correlations.
+    - **⚖️ Regulatory Compliance:** It provides the auditable, scientific rationale needed to justify a model-based decision to regulators and quality assurance.
+    - ** actionable insights:** It pinpoints which input variables are driving a prediction, guiding targeted corrective actions and deepening process understanding.
     """)
     
-    summary_buf, force_html = plot_xai_shap()
+    summary_buf, force_html = plot_xai_shap() # Assumes a function returns these components
     
-    st.subheader("Global Feature Importance (SHAP Summary Plot)")
-    st.image(summary_buf)
-    st.markdown("""
-    **Interpretation:** This beeswarm plot shows the global importance of each feature. Each dot is a single prediction.
-    - **Feature Importance:** Features are ranked by their total impact (top is most important). `Age` is the most important factor.
-    - **Impact:** Where a dot falls on the x-axis shows its impact on the prediction (positive SHAP values push the prediction higher).
-    - **Correlation:** The color shows the original value of the feature (high/low). We can see that high `Age` (red dots) has a high positive SHAP value, meaning it strongly pushes the model to predict a higher income.
-    """)
-    
-    st.subheader("Local Prediction Explanation (Single SHAP Force Plot)")
-    st.components.v1.html(f"<body>{force_html}</body>", height=150, scrolling=True)
-    st.markdown("""
-    **Interpretation:** This plot explains a *single prediction*.
-    - **Base Value:** The average prediction across all data.
-    - **Pushing Forces:** Features in red pushed the prediction higher (towards 1). Features in blue pushed it lower (towards 0).
-    - **Magnitude:** The size of the bar shows the magnitude of that feature's impact on this specific prediction.
-    For this specific person, their high `Capital Gain` was the biggest factor pushing the prediction higher, while their `Age` and `Hours per week` pushed it lower.
-    """)
+    st.subheader("Analysis & Interpretation")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+
+    with tabs[0]:
+        st.info("💡 **Pro-Tip:** SHAP provides two levels of explanation: **Global** (how the model works overall) and **Local** (why it made one specific prediction).")
+
+        with st.expander("🔬 **Global Explanation: What has the model learned?**", expanded=True):
+            st.markdown("**SHAP Summary Plot**")
+            st.image(summary_buf, caption="Each dot represents the impact of that feature on a single prediction.")
+            st.markdown("""
+            - **Feature Importance (Y-axis):** This plot ranks the features by their total impact. We can see `Age` is the most important factor overall.
+            - **Impact on Prediction (X-axis):** Where a dot falls horizontally shows its SHAP value—how much it pushed the prediction for that one sample. Positive values push the prediction higher.
+            - **Original Value (Color):** The color shows the feature's original value (red=high, blue=low).
+            - **The Insight:** We can see a clear pattern: high `Age` (red dots) has a high positive SHAP value. This tells us the model has learned a simple rule: "Older age strongly increases the predicted outcome."
+            """)
+
+        with st.expander("🕵️ **Local Explanation: Why this specific prediction?**", expanded=True):
+            st.markdown("**SHAP Force Plot**")
+            st.components.v1.html(f"<body>{force_html}</body>", height=150, scrolling=True)
+            st.markdown("""
+            - **This plot is a tug-of-war for a single prediction.**
+            - **Base Value:** The average prediction across all data. This is the starting point.
+            - **Red Forces (Pushing Higher):** Features shown in red pushed this specific prediction *higher* than the average. The size of the red bar shows the strength of the push. Here, a high `Capital Gain` was the dominant factor.
+            - **Blue Forces (Pushing Lower):** Features shown in blue pushed the prediction *lower*.
+            - **Final Prediction:** The `f(x)` value is the final prediction, after all the pushes and pulls are tallied up.
+            """)
+
+    with tabs[1]:
+        st.error("""
+        🔴 **THE INCORRECT APPROACH: The "Accuracy is Everything" Fallacy**
+        This is a dangerous mindset that leads to deploying untrustworthy models.
+        
+        - An analyst builds a model with 99% accuracy. They declare victory and push to put it into production without any further checks.
+        - **The Flaw:** The model might be a "Clever Hans"—like the horse that could supposedly do math but was actually just reacting to its trainer's subtle cues. The model might have learned a nonsensical, spurious correlation in the training data (e.g., "batches made on a Monday always pass"). The high accuracy is an illusion that will shatter when the model sees new data where that spurious correlation doesn't hold.
+        """)
+        st.success("""
+        🟢 **THE GOLDEN RULE: Explainability Builds Trust and Uncovers Flaws**
+        The goal of XAI is not just to explain predictions, but to use those explanations to **validate the model's reasoning and build trust** in its decisions.
+        
+        1.  **Build the Model:** Train your powerful "black box" model (e.g., XGBoost, Random Forest) to achieve high predictive accuracy.
+        2.  **Interrogate with SHAP:** Apply SHAP to the model's predictions on a validation set.
+        3.  **Consult the Expert:** Show the SHAP plots (especially the global summary plot) to a Subject Matter Expert (SME) who knows the process science. Ask them: *"Does this make sense?"*
+            - **If YES:** The model has likely learned real, scientifically valid relationships. You can now trust its predictions.
+            - **If NO:** The model has learned a spurious correlation. XAI has just saved you from deploying a flawed model. Use the insight to improve your feature engineering and retrain.
+            
+        XAI transforms machine learning from a pure data science exercise into a collaborative process between data scientists and domain experts.
+        """)
+
+    with tabs[2]:
+        st.markdown("""
+        #### Historical Context & Origin: From Game Theory to AI
+        The theoretical foundation of SHAP comes from a surprising place: **cooperative game theory**. In 1951, the brilliant mathematician and economist **Lloyd Shapley** developed a concept to solve the "fair payout" problem.
+        
+        Imagine a team of players collaborates to win a prize. How do you divide the winnings fairly based on each player's individual contribution? **Shapley values** provided a mathematically rigorous and unique solution.
+        
+        Fast forward to 2017. Scott Lundberg and Su-In Lee at the University of Washington had a genius insight. They realized that a machine learning model's prediction could be seen as a "game" and the model's features could be seen as the "players." They adapted Shapley's game theory concepts to create **SHAP (SHapley Additive exPlanations)**, a method to fairly distribute the "payout" (the prediction) among the features. This clever fusion of game theory and machine learning provided the first unified and theoretically sound framework for explaining the output of any machine learning model, a breakthrough that is driving the adoption of AI in high-stakes fields.
+        
+        #### How it Works
+        SHAP calculates the contribution of each feature to a prediction by simulating every possible combination of features ("coalitions"). It asks: "How much does the prediction change, on average, when we add this specific feature to all possible subsets of other features?" This exhaustive, computationally intensive approach is the only method proven to have a unique set of desirable properties (Local Accuracy, Missingness, and Consistency) that guarantee a fair and accurate explanation.
+        """)
+
 
 def render_advanced_ai_concepts():
     """Renders the module for advanced AI concepts."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To provide a high-level, conceptual overview of cutting-edge AI architectures that represent the future of process analytics. While coding them is beyond the scope of this toolkit, understanding their capabilities is crucial for future strategy.
+    #### Purpose & Application: A Glimpse into the AI Frontier
+    **Purpose:** To provide a high-level, conceptual overview of cutting-edge AI architectures that represent the future of process analytics. While coding them is beyond the scope of this toolkit, understanding their capabilities is crucial for shaping future strategy and envisioning what's possible.
     """)
     
-    concept = st.radio("Select an Advanced Concept:", ["Transformers", "Graph Neural Networks (GNNs)", "Reinforcement Learning (RL)", "Generative AI"], horizontal=True)
-    fig = plot_advanced_ai_concepts(concept)
-    st.plotly_chart(fig, use_container_width=True)
+    col1, col2 = st.columns([0.7, 0.3])
+    
+    with col2:
+        st.subheader("Select a Concept")
+        concept = st.radio(
+            "Select an Advanced AI Concept:", 
+            ["Transformers", "Graph Neural Networks (GNNs)", "Reinforcement Learning (RL)", "Generative AI"],
+            label_visibility="collapsed"
+        )
+        
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        # Dynamically populate tabs based on concept selection
+        if concept == "Transformers":
+            with tabs[0]:
+                st.metric(label="🧠 Core Concept", value="Self-Attention", help="The mechanism that allows the model to weigh the importance of all other data points in a sequence.")
+                st.metric(label="📇 Data Structure", value="Sequences", help="Primarily designed for ordered data like text or a time series of process events.")
+                st.markdown("""
+                **The AI Historian:** A Transformer is like a brilliant historian who reads the entire book of your batch record at once. It understands how an event on page 1 (cell thaw) influences the story's conclusion on page 300 (final purity).
 
-    if concept == "Transformers":
-        st.markdown("""
-        **Transformers (2017):** The architecture behind ChatGPT. Its "self-attention" mechanism allows it to understand long-range dependencies in sequential data.
-        - **Application:** Modeling an entire batch manufacturing process as a sequence. A Transformer can learn how a deviation in an early step (e.g., cell thaw) impacts a much later step (e.g., final purification), a task that is difficult for traditional models.
-        """)
-    elif concept == "GNNs":
-        st.markdown("""
-        **Graph Neural Networks (GNNs) (~2018):** AI models that operate on data structured as a graph (nodes and edges).
-        - **Application:** Modeling a manufacturing plant or supply chain as a graph. GNNs can predict how a failure in one node (e.g., a specific vendor's raw material) will propagate through the network to affect downstream processes.
-        """)
-    elif concept == "RL":
-        st.markdown("""
-        **Reinforcement Learning (RL) (~2019):** An AI "agent" learns an optimal control policy by interacting with an environment (like a digital twin of a process) and maximizing a reward.
-        - **Application:** Creating an AI that can learn to dynamically control a bioreactor in real-time, adjusting feed rates and gas mixtures to maximize yield in response to live sensor data, far exceeding static setpoints.
-        """)
-    elif concept == "Generative AI":
-        st.markdown("""
-        **Generative AI (GANs, Diffusion) (~2020):** AI models that can generate new, synthetic data that is statistically indistinguishable from real data.
-        - **Application:** High-quality manufacturing failure data is rare. A Generative model can be trained on a few failure examples to create thousands of realistic synthetic failure profiles. This augmented dataset can then be used to train much more robust predictive QC and anomaly detection models.
-        """)
+                **Key Idea:** Its **"self-attention"** mechanism allows it to understand long-range dependencies. When looking at a single step, it can "pay attention" to all other steps, learning which ones are most relevant to the current context.
+
+                **Strategic Insight:** This moves beyond simple time-series forecasting to modeling the entire **process narrative**. It unlocks a deep understanding of long-range cause and effect that is invisible to most other models.
+                """)
+            with tabs[1]:
+                st.error("🔴 **The Incorrect Approach:** Simply feeding in raw sensor data as a long sequence and hoping for the best.")
+                st.success("""
+                🟢 **THE GOLDEN RULE: Tokenize Your Process Narrative**
+                The success of a Transformer depends entirely on how you structure the "story." You must first convert your continuous process data into a discrete sequence of **events** or **"tokens"**. 
+                
+                Examples: `[Thaw_Completed, Temp=37.1, Feed_Event_1, pH_Excursion_Detected, ...]`. 
+                
+                This "tokenization" is the most critical step. It transforms raw data into a language the AI Historian can read and understand.
+                """)
+            with tabs[2]:
+                st.markdown("""
+                **Origin:** Revolutionized AI with the 2017 Google Brain paper, **"Attention Is All You Need."** It destroyed previous benchmarks in Natural Language Processing (NLP), forming the basis for models like BERT and the "T" in GPT. Its application to industrial process data is a new and exciting frontier.
+                """)
+
+        elif concept == "GNNs":
+            with tabs[0]:
+                st.metric(label="🧠 Core Concept", value="Message Passing", help="Nodes in the graph 'talk' to their neighbors, sharing information and learning from the network structure.")
+                st.metric(label="📇 Data Structure", value="Graphs", help="Data represented as a network of nodes and edges.")
+                st.markdown("""
+                **The Network Navigator:** A GNN is like a brilliant logistics expert who sees your entire supply chain or manufacturing site as an interconnected network, not just a list of individual assets.
+
+                **Key Idea:** It operates on graph data. Nodes in the graph iteratively update their state by **"passing messages"** to and from their neighbors. This allows information—and the prediction of failures—to propagate through the network.
+
+                **Strategic Insight:** This moves beyond analyzing single pieces of equipment to modeling the **entire system's interconnectedness**. It's essential for understanding and predicting systemic risk.
+                """)
+            with tabs[1]:
+                st.error("🔴 **The Incorrect Approach:** Analyzing each piece of equipment in isolation, ignoring how it is connected to and affected by its neighbors.")
+                st.success("""
+                🟢 **THE GOLDEN RULE: Your Graph IS Your Model**
+                The most important work in a GNN project is not the algorithm, but the **definition of the graph itself.** You must answer:
+                - What are my **nodes**? (e.g., equipment, raw material lots, batches)
+                - What are my **edges**? (e.g., physical pipes, 'used-in' relationships, sequence order)
+                
+                The quality and thoughtfulness of this graph representation will determine the model's success.
+                """)
+            with tabs[2]:
+                st.markdown("""
+                **Origin:** While graph-based neural networks have existed for longer, they exploded in popularity and capability around 2018. They represent a generalization of deep learning beyond grids (like images) and sequences (like text) to the more flexible and powerful structure of graphs.
+                """)
+
+        elif concept == "RL":
+            with tabs[0]:
+                st.metric(label="🧠 Core Concept", value="Reward Maximization", help="The AI learns by taking actions that maximize a cumulative reward signal over time.")
+                st.metric(label="📇 Data Structure", value="Interactive Environment", help="An 'agent' interacts with a 'world' and learns from the consequences.")
+                st.markdown("""
+                **The AI Pilot:** Reinforcement Learning creates an AI pilot that learns by "flying" a process and getting feedback. It learns not just to predict what will happen, but how to **control** the process to achieve an optimal outcome.
+
+                **Key Idea:** An **agent** takes an **action** in an **environment**. The environment's state changes, and the agent receives a **reward** (or penalty). The agent's goal is to learn a policy that maximizes its long-term reward.
+
+                **Strategic Insight:** This is the leap from passive process modeling to **active, real-time process optimization**. The goal is no longer to just understand the process, but to command it.
+                """)
+            with tabs[1]:
+                st.error("🔴 **The Incorrect Approach:** Attempting to train the RL agent on the live, physical manufacturing process. This is a recipe for disaster, as the agent must learn through trial and **error**.")
+                st.success("""
+                🟢 **THE GOLDEN RULE: The Digital Twin is the Dojo**
+                An RL agent must be trained in a high-fidelity simulation or **"digital twin"** of the process. This is the safe "dojo" where the AI can perform millions of experiments, make mistakes, and learn optimal control strategies with zero real-world cost or risk. Only a fully trained and validated policy is ever deployed to the physical system.
+                """)
+            with tabs[2]:
+                st.markdown("""
+                **Origin:** Has deep roots in control theory and psychology. Modern **Deep RL** was supercharged by DeepMind in the mid-2010s, famously teaching AI agents to master Atari games and defeat the world champion at Go (AlphaGo). Applying this to industrial process control is a major area of current research.
+                """)
+        
+        elif concept == "Generative AI":
+            with tabs[0]:
+                st.metric(label="🧠 Core Concept", value="Distribution Learning", help="The AI learns the underlying probability distribution of the data, allowing it to create new samples.")
+                st.metric(label="📇 Data Structure", value="Unstructured or Tabular", help="Can be used for images, text, or process data.")
+                st.markdown("""
+                **The Synthetic Data Forger:** Generative AI is like a master art forger who studies a thousand real paintings and then creates a new one that is so convincing, even experts can't tell it's not real.
+
+                **Key Idea:** It **learns the underlying statistical distribution** of a dataset. It can then "sample" from this learned distribution to create new, synthetic data that is statistically indistinguishable from the real data.
+
+                **Strategic Insight:** It solves the **"rare event" problem**. High-quality manufacturing failure data is gold, but you never have enough. Generative AI can create thousands of realistic synthetic failure profiles, which can then be used to train much more robust anomaly detection and predictive maintenance models.
+                """)
+            with tabs[1]:
+                st.error("🔴 **The Incorrect Approach:** Assuming all synthetic data is good data and using it blindly to augment a dataset.")
+                st.success("""
+                🟢 **THE GOLDEN RULE: Validate the Forgeries**
+                The generated data is only useful if it is realistic. You must use a rigorous process to validate the synthetic data. This involves:
+                - **Visual Inspection:** Do experts agree it looks real?
+                - **Statistical Comparison:** Does the distribution of the synthetic data match the distribution of the real data?
+                
+                The quality of the generator dictates the quality of any model trained on its output.
+                """)
+            with tabs[2]:
+                st.markdown("""
+                **Origin:** Ian Goodfellow's 2014 invention of **Generative Adversarial Networks (GANs)** was a major catalyst. More recently, **Diffusion Models** (the technology behind DALL-E 2, Midjourney, and Stable Diffusion) have become the state-of-the-art for generating incredibly high-fidelity data.
+                """)
+
+    with col1:
+        fig = plot_advanced_ai_concepts(concept)
+        st.plotly_chart(fig, use_container_width=True)
 
 def render_causal_inference():
     """Renders the module for Causal Inference."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To move beyond correlation and attempt to identify and quantify true **causal relationships** within a process. It is the science of asking "why?".
+    #### Purpose & Application: Beyond the Shadow - The Science of "Why"
+    **Purpose:** To move beyond mere correlation ("what") and ascend to the level of causation ("why"). While predictive models see shadows on a cave wall (associations), Causal Inference provides the tools to understand the true objects casting them (the underlying causal mechanisms).
     
-    **Strategic Application:** This is the ultimate goal of root cause analysis. While a predictive model might tell you that high temperature is *associated* with low purity, Causal Inference provides a framework to determine if high temperature *causes* low purity, or if both are actually caused by a third, hidden variable (a "confounder").
-    - **Effective CAPA:** By identifying true causal drivers, we can implement Corrective and Preventive Actions that are far more likely to be effective.
-    - **Process Understanding:** It allows for the creation of a **Directed Acyclic Graph (DAG)**, which is a formal causal map of the process, documenting the scientific understanding of how variables influence each other.
+    **Strategic Application:** This is the ultimate goal of root cause analysis and the foundation of intelligent intervention.
+    - **💡 Effective CAPA:** Why did a batch fail? A predictive model might say high temperature is *associated* with failure. Causal Inference helps determine if high temperature *causes* failure, or if both are driven by a third hidden variable (a "confounder"). This prevents wasting millions on fixing the wrong problem.
+    - **🗺️ Process Cartography:** It allows for the creation of a **Directed Acyclic Graph (DAG)**, which is a formal causal map of your process, documenting scientific understanding and guiding future analysis.
+    - **🔮 "What If" Scenarios:** It provides a framework to answer hypothetical questions like, "What *would* have been the yield if we had kept the temperature at 40°C?" using only observational data.
     """)
-    fig = plot_causal_inference()
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("""
-    **Interpretation:** A DAG is a visual representation of our causal assumptions. The arrows represent hypothesized causal effects.
-    - `Reagent Lot -> Purity`: The lot has a direct causal effect on purity.
-    - `Temp -> Purity`: Temperature has a direct causal effect on purity.
-    - `Temp -> Pressure`: Temperature also causes changes in pressure.
-    - `Reagent Lot -> Pressure`: A confounding path exists between Reagent Lot and Purity through Pressure.
     
-    By building this graph based on SME knowledge, we can use statistical techniques (like do-calculus or structural equation modeling) to estimate the true, isolated causal effect of one variable on another, even in the presence of confounding.
-    """)
+    fig = plot_causal_inference() # Assumes a function that plots the DAG
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(label="🔎 Causal Question", value="Does Temp cause low Purity?", help="The specific causal relationship we want to isolate and quantify.")
+            st.metric(label="🔬 Intervention of Interest", value="Setting Temp to 40°C", help="The hypothetical action whose effect we want to estimate.")
+            st.metric(label="🚨 Identified Confounder", value="Reagent Lot", help="A variable that provides a non-causal 'backdoor' path between Temp and Purity.")
+
+            st.markdown("""
+            **Reading the Causal Map (The DAG):**
+            - This graph is not a flowchart; it's a map of **causal assumptions** based on expert knowledge. Arrows represent direct causal effects.
+            - **The Causal Path (Green Arrow):** We want to estimate the strength of the `Temp -> Purity` link.
+            - **The Confounding Path (Red Arrows):** There is a "backdoor" path from Temp to Purity. A `Reagent Lot` can affect both the `Temp` of the reaction and the final `Purity`. If we don't account for this, we might wrongly attribute the effect of the Reagent Lot to the Temperature.
+            
+            **The Core Strategic Insight:** The DAG makes our assumptions explicit. By mapping out all causal relationships, we can use advanced statistical methods to mathematically "block" the confounding paths and isolate the true, unbiased causal effect we care about.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The Correlation Trap**
+            This is the oldest and most dangerous fallacy in data analysis: **"Correlation equals causation."**
+            
+            - An analyst observes that ice cream sales are highly correlated with shark attacks. They recommend banning ice cream to improve beach safety.
+            - **The Flaw:** They failed to account for a confounder: **Hot Weather.** Hot weather causes more people to buy ice cream AND causes more people to go swimming, leading to more shark attacks. Ice cream has no causal effect on shark attacks.
+            - In a lab, this is like seeing that `Pressure` is correlated with `Purity` and launching a huge project to control pressure, not realizing both are driven by `Temperature`.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Draw the Map, Find the Path, Block the Backdoors**
+            A robust causal analysis follows a disciplined, three-step process.
+            
+            1.  **Draw the Map (Build the DAG):** This is a collaborative effort between data scientists and Subject Matter Experts. You must encode all your domain knowledge and causal beliefs into a formal DAG.
+            
+            2.  **Find the Path:** Clearly identify the causal path you want to measure (e.g., `Temp -> Purity`).
+            
+            3.  **Block the Backdoors:** Use the DAG to identify all non-causal "backdoor" paths (confounding). Then, use the appropriate statistical technique (e.g., stratification, regression adjustment) to "block" these paths, leaving only the true causal effect.
+            
+            This structured thinking is what separates guessing from genuine causal discovery.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin: The Causal Revolution
+            For most of the 20th century, mainstream statistics was deeply allergic to the language of causation. The mantra was "correlation is not causation," and statisticians were trained to only discuss associations.
+            
+            This dogma was shattered by the computer scientist and philosopher **Judea Pearl** in the 1980s and 90s. Building on earlier work in path analysis by geneticist **Sewall Wright**, Pearl developed a complete mathematical framework for causal reasoning. He introduced the **Directed Acyclic Graph (DAG)** as the primary tool for encoding causal assumptions and invented the **do-calculus**, a formal symbolic language for describing interventions.
+            
+            His 2000 book *Causality* and his more recent *The Book of Why* sparked a "causal revolution," providing a clear, powerful, and mathematically rigorous language for asking and answering causal questions. For this work, Judea Pearl was awarded the Turing Award in 2011, the highest honor in computer science.
+            
+            #### The Language of Causation: `see` vs. `do`
+            The `do-calculus` introduces a critical distinction:
+            """)
+            st.latex(r"P(\text{Purity} | \text{Temp}) \quad \text{vs.} \quad P(\text{Purity} | do(\text{Temp}))")
+            st.markdown("""
+            - **`P(Purity | Temp)` (Seeing):** This is standard conditional probability. It asks, "If I go into the lab and I *see* that the temperature is 40°C, what is the expected purity?" This is a passive observation, full of potential confounding.
+            
+            - **`P(Purity | do(Temp))` (Doing):** This is the causal quantity. It asks, "If I go into the lab and I *intervene*, setting the temperature to 40°C for everyone, what would the expected purity be?" This represents a perfect, randomized experiment.
+            
+            The entire goal of causal inference is to find a way to estimate the `do` quantity using data where you could only `see`.
+            """)
 
 
 # ==============================================================================

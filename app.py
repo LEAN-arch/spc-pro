@@ -1593,7 +1593,8 @@ def render_4pl_regression():
     """)
     fig, params = plot_4pl_regression()
     
-col1, col2 = st.columns([0.7, 0.3])
+    # This entire block was incorrectly indented. It now belongs inside the function.
+    col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
     with col2:
@@ -1606,6 +1607,9 @@ col1, col2 = st.columns([0.7, 0.3])
         st.metric("EC50 (c)", f"{c_fit:.3f}")
         st.metric("Lower Asymptote (d)", f"{d_fit:.3f}")
         st.markdown("**Interpretation:** The 4PL model fits four key parameters to describe the curve's shape. The `EC50` (parameter 'c') is often the most important KPI, representing the potency of the analyte. A good fit is characterized by the red dashed line closely tracking the measured data points and by a high R-squared value for the non-linear fit.")
+
+# The code below was incorrectly merged. It is now its own separate function.
+def render_roc_curve():
     """Renders the module for Receiver Operating Characteristic (ROC) curve analysis."""
     st.markdown("""
     #### Purpose & Application

@@ -926,12 +926,12 @@ def plot_classification_models():
     # Plot Logistic Regression
     Z_lr = lr.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
     fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=1)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', showline=True, line_width=1, line_color='black')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', line=dict(width=1, color='black'))), row=1, col=1)
 
     # Plot Random Forest
     Z_rf = rf.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
     fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=2)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', showline=True, line_width=1, line_color='black')), row=1, col=2)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', line=dict(width=1, color='black'))), row=1, col=2)
 
     fig.update_layout(title="<b>Predictive QC: Linear vs. Non-Linear Models</b>", showlegend=False, height=500)
     fig.update_xaxes(title_text="Parameter 1", row=1, col=1); fig.update_yaxes(title_text="Parameter 2", row=1, col=1)
@@ -942,11 +942,54 @@ def plot_classification_models():
 def plot_xai_shap():
     # This function uses matplotlib backend for SHAP, so we need to handle image conversion
     plt.style.use('default')
-    X, y = shap.datasets.adult()
-    X_display, _ = shap.datasets.adult(display=True)
+    
+    # Fix for PermissionError: Manually load the dataset from the URL
+    # This avoids shap.datasets.adult() trying to write to a read-only filesystem
+    github_data_url = "https://github.com/slundberg/shap/raw/master/data/"
+    data_url = github_data_url + "adult.data"
+    
+    dtypes = [
+        ("Age", "float32"), ("Workclass", "category"), ("fnlwgt", "float32"),
+        ("Education", "category"), ("Education-Num", "float32"),
+        ("Marital Status", "category"), ("Occupation", "category"),
+        ("Relationship", "category"), ("Race", "category"), ("Sex", "category"),
+        ("Capital Gain", "float32"), ("Capital Loss", "float32"),
+        ("Hours per week", "float32"), ("Country", "category"), ("Target", "category")
+    ]
+    
+    raw_data = pd.read_csv(
+        data_url,
+        names=[d[0] for d in dtypes],
+        na_values="?",
+        dtype=dict(dtypes)
+    )
+    
+    X_display = raw_data.drop("Target", axis=1)
+    y = (raw_data["Target"] == " >50K").astype(int)
+    
+    # Factorize categorical columns for the model
+    X = X_display.copy()
+    for col in X.select_dtypes(include=['category']).columns:
+        X[col] = X[col].cat.codes
+
     model = RandomForestClassifier(random_state=42).fit(X, y)
     explainer = shap.Explainer(model, X)
-    shap_values_obj = explainer(X.iloc[:100])
+    # Use a smaller subset for faster explanation in a demo app
+    shap_values_obj = explainer(X.iloc[:100]) 
+    
+    # Beeswarm plot as an image
+    shap.summary_plot(shap_values_obj.values[:,:,1], X.iloc[:100], show=False)
+    buf_summary = io.BytesIO()
+    plt.savefig(buf_summary, format='png', bbox_inches='tight')
+    plt.close()
+    buf_summary.seek(0)
+    
+    # Force plot as html
+    # Use X_display for interpretable feature names in the plot
+    force_plot_html = shap.force_plot(explainer.expected_value[1], shap_values_obj.values[0,:,1], X_display.iloc[0,:], show=False)
+    html_string = force_plot_html.html()
+
+    return buf_summary, html_string
     
     # Beeswarm plot as an image
     shap.summary_plot(shap_values_obj.values[:,:,1], X.iloc[:100], show=False)

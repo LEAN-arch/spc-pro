@@ -198,6 +198,7 @@ def plot_ci_concept(n=30):
     sample_means = samples.mean(axis=1)
     sample_stds = samples.std(axis=1, ddof=1)
     
+    # Using t-distribution for CIs as is proper
     t_crit = t.ppf(0.975, df=n-1)
     margin_of_error = t_crit * sample_stds / np.sqrt(n)
     
@@ -218,7 +219,6 @@ def plot_ci_concept(n=30):
     fig2.add_vline(x=pop_mean, line=dict(color='black', dash='dash'), annotation_text="True Mean (μ)")
     fig2.update_layout(title=f"<b>{min(n_sims, 100)} Simulated 95% Confidence Intervals</b>", yaxis_visible=False)
     
-    # FIX: Added the missing return statement
     return fig1, fig2, capture_count, n_sims, avg_width
 
 @st.cache_data

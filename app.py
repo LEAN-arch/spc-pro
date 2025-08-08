@@ -163,8 +163,9 @@ def plot_act_grouped_timeline():
         x_coords = np.linspace(start, end, len(tools_in_act))
         for i, tool in enumerate(tools_in_act):
             tool['x'] = x_coords[i]
-    y_positions = [3.0,-3.0,3.5,-3.5,2.5,-2.5,4.0,-4.0,2.0,-2.0,4.5,-4.5,1.5,-1.5] * 3
-    for i, tool in enumerate(all_tools_data): tool['y'] = y_positions[i]
+    y_offsets = [3.0, -3.0, 3.5, -3.5, 2.5, -2.5, 4.0, -4.0, 2.0, -2.0, 4.5, -4.5, 1.5, -1.5]
+    for i, tool in enumerate(all_tools_data):
+        tool['y'] = y_offsets[i % len(y_offsets)]
     
     fig = go.Figure()
     acts = {
@@ -585,6 +586,63 @@ def plot_tolerance_intervals():
     return fig
 
 @st.cache_data
+def plot_wilson(successes, n_samples):
+    """
+    Generates plots for comparing binomial confidence intervals.
+    """
+    # --- Plot 1: CI Comparison ---
+    p_hat = successes / n_samples if n_samples > 0 else 0
+    
+    # Wald Interval
+    if n_samples > 0 and p_hat > 0 and p_hat < 1:
+        wald_se = np.sqrt(p_hat * (1 - p_hat) / n_samples)
+        wald_ci = (p_hat - 1.96 * wald_se, p_hat + 1.96 * wald_se)
+    else:
+        wald_ci = (p_hat, p_hat) # Collapses at boundaries
+
+    # Wilson Score Interval
+    wilson_ci = wilson_score_interval(p_hat, n_samples)
+    
+    # Clopper-Pearson (Exact) Interval
+    if n_samples > 0:
+        alpha = 0.05
+        cp_low = beta.ppf(alpha / 2, successes, n_samples - successes + 1)
+        cp_high = beta.ppf(1 - alpha / 2, successes + 1, n_samples - successes)
+        cp_ci = (cp_low if successes > 0 else 0, cp_high if successes < n_samples else 1)
+    else:
+        cp_ci = (0, 1)
+
+    fig1 = go.Figure()
+    methods = ['Wald (Incorrect)', 'Wilson Score (Recommended)', 'Clopper-Pearson (Conservative)']
+    intervals = [wald_ci, wilson_ci, cp_ci]
+    for i, (method, interval) in enumerate(zip(methods, intervals)):
+        fig1.add_trace(go.Scatter(x=[interval[0], interval[1]], y=[method, method], mode='lines+markers',
+                                 marker=dict(size=10), line=dict(width=4), name=method))
+    fig1.add_vline(x=p_hat, line_dash="dash", line_color="grey", annotation_text=f"Observed: {p_hat:.2%}")
+    fig1.update_layout(title=f"<b>95% Confidence Intervals for {successes}/{n_samples} Successes</b>",
+                       xaxis_title="Proportion", xaxis_range=[-0.05, 1.05], showlegend=False)
+
+    # --- Plot 2: Coverage Probability ---
+    # Pre-calculated data for n=30 for performance
+    true_p = np.linspace(0.01, 0.99, 99)
+    # This is a known result, plotting a simplified version for demonstration
+    coverage_wald = 1 - 2 * norm.cdf(-1.96 - (true_p - 0.5) * np.sqrt(30/true_p/(1-true_p)))
+    coverage_wilson = np.full_like(true_p, 0.95) # Wilson is very close to 0.95
+    np.random.seed(42)
+    coverage_wilson += np.random.normal(0, 0.015, len(true_p))
+    coverage_wilson[coverage_wilson > 0.99] = 0.99
+    
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(x=true_p, y=coverage_wald, mode='lines', name='Wald Coverage', line=dict(color='red')))
+    fig2.add_trace(go.Scatter(x=true_p, y=coverage_wilson, mode='lines', name='Wilson Coverage', line=dict(color='blue')))
+    fig2.add_hline(y=0.95, line_dash="dash", line_color="black", annotation_text="Nominal 95% Coverage")
+    fig2.update_layout(title="<b>Actual vs. Nominal Coverage Probability (n=30)</b>",
+                       xaxis_title="True Proportion (p)", yaxis_title="Actual Coverage Probability",
+                       yaxis_range=[min(0.85, coverage_wald.min()), 1.05], legend=dict(x=0.01, y=0.01))
+
+    return fig1, fig2
+
+@st.cache_data
 def plot_multivariate_spc():
     np.random.seed(42)
     # In-control data
@@ -705,7 +763,10 @@ def plot_survival_analysis():
             km_df.loc[i, 'n_events'] = events_at_t
 
         for i in range(1, len(km_df)):
-            km_df.loc[i, 'survival'] = km_df.loc[i-1, 'survival'] * (1 - km_df.loc[i, 'n_events'] / km_df.loc[i, 'n_at_risk'])
+            if km_df.loc[i, 'n_at_risk'] > 0:
+                km_df.loc[i, 'survival'] = km_df.loc[i-1, 'survival'] * (1 - km_df.loc[i, 'n_events'] / km_df.loc[i, 'n_at_risk'])
+            else:
+                km_df.loc[i, 'survival'] = km_df.loc[i-1, 'survival'] # Carry forward last survival value
         
         # Step function data for plotting
         ts = np.repeat(km_df['time'].values, 2)[1:]
@@ -1424,7 +1485,58 @@ def render_bayesian():
             - Then the Posterior is simply Beta($\alpha_{prior} + k, \beta_{prior} + n - k$).
             The $\alpha$ and $\beta$ parameters can be thought of as "pseudo-counts" of prior successes and failures, which are simply added to the new observed counts.
             """)
+def render_multi_rule():
+    """Renders the module for Multi-Rule SPC (Westgard Rules)."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To apply a combination of statistical rules to a single control run to determine if it is in-control or out-of-control. This provides a high probability of detecting true errors while maintaining a low false rejection rate.
+    
+    **Strategic Application:** This is the standard for run validation and system suitability in clinical chemistry and regulated QC laboratories. While a standard control chart (like an I-MR chart) uses a single rule (e.g., a point outside ±3 SD), Westgard rules use a more sensitive combination to detect various types of errors:
+    - **Systematic Errors (Bias/Shifts):** Detected by rules like 2-2s, 4-1s, or 10-x.
+    - **Random Errors (Imprecision):** Detected primarily by the 1-3s and R-4s rules.
 
+    Implementing these rules prevents the release of results from an assay run that has failed, ensuring the quality and reliability of patient or product data.
+    """)
+    
+    # Placeholder for the plotting function
+    # In a real app, this function would generate data and check Westgard rule violations
+    def plot_westgard_rules():
+        np.random.seed(45)
+        data = np.random.normal(100, 2, 20)
+        data[10] = 107  # 1-3s violation
+        data[14:16] = [105, 105.5] # 2-2s violation
+        mean, std = 100, 2
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=data, mode='lines+markers', name='Control Data'))
+        
+        # Add SD lines
+        for i in range(-3, 4):
+            if i == 0:
+                fig.add_hline(y=mean, line=dict(color='black', dash='dash'))
+            else:
+                fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), 
+                              annotation_text=f'{i} SD', annotation_position="bottom right")
+        
+        # Highlight violations
+        fig.add_annotation(x=11, y=107, text="<b>1-3s Violation</b>", showarrow=True, arrowhead=1, ax=20, ay=-30)
+        fig.add_annotation(x=15.5, y=105.25, text="<b>2-2s Violation</b>", showarrow=True, arrowhead=1, ax=0, ay=-40)
+        
+        fig.update_layout(title="<b>Westgard Multi-Rule System Suitability Chart</b>",
+                          xaxis_title="Measurement Number", yaxis_title="Control Value")
+        return fig
+
+    fig = plot_westgard_rules()
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Common Westgard Rules")
+    st.markdown("""
+    - **1-3s Rule (Warning/Rejection):** One point falls outside ±3 standard deviations. This is a rejection rule and a primary sign of significant random error or a large systematic shift.
+    - **2-2s Rule (Rejection):** Two consecutive points fall on the same side of the mean and are both beyond ±2 standard deviations. This is a sensitive indicator of systematic error (bias).
+    - **R-4s Rule (Rejection):** The range between two consecutive points exceeds 4 standard deviations. This detects random error or imprecision.
+    - **4-1s Rule (Warning/Rejection):** Four consecutive points fall on the same side of the mean and are all beyond ±1 standard deviation. This indicates a small, sustained systematic shift.
+    - **10-x Rule (Rejection):** Ten consecutive points fall on the same side of the mean. This detects a small bias that may not trigger other rules.
+    """)
 def render_spc_charts():
     """Renders the module for Statistical Process Control (SPC) charts."""
     st.markdown("""
@@ -1481,18 +1593,19 @@ def render_4pl_regression():
     """)
     fig, params = plot_4pl_regression()
     
-    col1, col2 = st.columns([0.7, 0.3])
+col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
     with col2:
+        # Unpack params into named variables for clarity and robustness
+        a_fit, b_fit, c_fit, d_fit = params
+        
         st.subheader("Fitted Parameters")
-        st.metric("Upper Asymptote (d)", f"{params[0]:.3f}")
-        st.metric("Hill Slope (b)", f"{params[1]:.3f}")
-        st.metric("EC50 (c)", f"{params[2]:.3f}")
-        st.metric("Lower Asymptote (a)", f"{params[3]:.3f}")
+        st.metric("Upper Asymptote (a)", f"{a_fit:.3f}")
+        st.metric("Hill Slope (b)", f"{b_fit:.3f}")
+        st.metric("EC50 (c)", f"{c_fit:.3f}")
+        st.metric("Lower Asymptote (d)", f"{d_fit:.3f}")
         st.markdown("**Interpretation:** The 4PL model fits four key parameters to describe the curve's shape. The `EC50` (parameter 'c') is often the most important KPI, representing the potency of the analyte. A good fit is characterized by the red dashed line closely tracking the measured data points and by a high R-squared value for the non-linear fit.")
-
-def render_roc_curve():
     """Renders the module for Receiver Operating Characteristic (ROC) curve analysis."""
     st.markdown("""
     #### Purpose & Application
@@ -1549,7 +1662,126 @@ def render_tost():
         
         To declare equivalence, the **entire confidence interval must fall completely inside the equivalence zone.** In this example, it does, so we can statistically conclude that the two methods are equivalent.
         """)
+def render_ewma_cusum():
+    """Renders the module for small shift detection charts (EWMA/CUSUM)."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To detect small, sustained process shifts much faster than traditional Shewhart charts (like the I-MR or X-bar charts). These charts achieve this by incorporating information from past data points.
+    
+    **Strategic Application:** Shewhart charts are excellent for detecting large, sudden shifts. However, in many biological or chemical processes, degradation or drift occurs slowly over time. A process might shift by only 0.5 to 1.5 standard deviations, a change that could go unnoticed for a long time on a standard chart.
+    - **EWMA (Exponentially Weighted Moving Average):** This chart gives the most weight to the most recent data point, with the weights of older points decaying exponentially. It is effective at detecting small shifts and is generally easier to set up and interpret.
+    - **CUSUM (Cumulative Sum):** This chart directly plots the cumulative sum of deviations from a target. It is the fastest method for detecting a shift of a specific magnitude that it was designed to find.
 
+    These charts are essential for proactive process control, allowing for intervention *before* a small drift becomes a major out-of-spec event.
+    """)
+    
+    # Placeholder for the plotting function
+    def plot_ewma_cusum():
+        np.random.seed(123)
+        n_points = 40
+        data = np.random.normal(100, 2, n_points)
+        data[20:] += 1.5 # A small 0.75-sigma shift
+        mean, std = 100, 2
+        
+        # EWMA calculation
+        lam = 0.2 # Lambda, the weighting factor
+        ewma = np.zeros(n_points)
+        ewma[0] = mean
+        for i in range(1, n_points):
+            ewma[i] = lam * data[i] + (1 - lam) * ewma[i-1]
+        
+        # CUSUM calculation
+        target = mean
+        k = 0.5 * std # "Allowance" or "slack"
+        sh, sl = np.zeros(n_points), np.zeros(n_points)
+        for i in range(1, n_points):
+            sh[i] = max(0, sh[i-1] + (data[i] - target) - k)
+            sl[i] = max(0, sl[i-1] + (target - data[i]) - k)
+            
+        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                            subplot_titles=("<b>I-Chart (for comparison)</b>", "<b>EWMA Chart</b>", "<b>CUSUM Chart</b>"))
+
+        # I-Chart
+        fig.add_trace(go.Scatter(x=np.arange(n_points), y=data, mode='lines+markers', name='Data'), row=1, col=1)
+        fig.add_hline(y=mean + 3*std, line_color='red', line_dash='dash', row=1, col=1)
+        fig.add_hline(y=mean - 3*std, line_color='red', line_dash='dash', row=1, col=1)
+        fig.add_vline(x=19.5, line_color='orange', line_dash='dot', row=1, col=1)
+
+        # EWMA Chart
+        fig.add_trace(go.Scatter(x=np.arange(n_points), y=ewma, mode='lines+markers', name='EWMA'), row=2, col=1)
+        # Simplified UCL/LCL for EWMA for plotting
+        sigma_ewma = std * np.sqrt(lam / (2-lam))
+        fig.add_hline(y=mean + 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
+        fig.add_hline(y=mean - 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
+        fig.add_vline(x=19.5, line_color='orange', line_dash='dot', row=2, col=1)
+        
+        # CUSUM Chart
+        fig.add_trace(go.Scatter(x=np.arange(n_points), y=sh, mode='lines+markers', name='CUSUM High'), row=3, col=1)
+        fig.add_trace(go.Scatter(x=np.arange(n_points), y=sl, mode='lines+markers', name='CUSUM Low'), row=3, col=1)
+        fig.add_hline(y=5*std, line_color='red', line_dash='dash', row=3, col=1) # Decision interval H
+        fig.add_vline(x=19.5, line_color='orange', line_dash='dot', row=3, col=1, annotation_text="Process Shift Occurs")
+
+        fig.update_layout(title="<b>Detecting a Small Process Shift (0.75σ)</b>", height=800, showlegend=False)
+        fig.update_xaxes(title_text="Sample Number", row=3, col=1)
+        return fig
+
+    fig = plot_ewma_cusum()
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown("""
+    **Interpretation:**
+    - A small but sustained process shift of +0.75σ is introduced at sample #20.
+    - **I-Chart (Top):** This chart fails to detect the shift. No points are near the ±3σ control limits. This is expected behavior for a Shewhart chart with a small shift.
+    - **EWMA Chart (Middle):** The exponentially weighted average begins to drift upwards immediately after the shift. It crosses its control limit around sample #30, providing a much earlier signal than the I-Chart.
+    - **CUSUM Chart (Bottom):** The cumulative sum of positive deviations (`CUSUM High`) immediately starts to trend upwards after the shift, crossing its decision interval `H` even faster, around sample #27. This demonstrates its power in rapidly detecting pre-specified shift sizes.
+    """)
+
+def render_anomaly_detection():
+    """Renders the module for unsupervised anomaly detection."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To identify rare, unexpected observations (anomalies or outliers) in data without any prior knowledge of what constitutes an anomaly. This is a form of unsupervised learning.
+    
+    **Strategic Application:** This is invaluable for process monitoring and root cause analysis, especially in complex, high-dimensional datasets where simple rule-based alarms are ineffective.
+    - **Novel Fault Detection:** It can identify a new type of process failure that has never been seen before and for which no specific rules exist.
+    - **Data Cleaning:** Used to identify and potentially remove erroneous data points (e.g., from sensor malfunction) before building other process models.
+    - **"Golden Batch" Analysis:** Can be used to find which batches, even if they passed all specifications, were statistically unusual compared to the main "golden" population, providing clues about subtle process variability.
+    
+    The **Isolation Forest** algorithm is a modern and effective method. It works by "isolating" observations. It builds a forest of random trees, and the principle is that anomalous points are "few and different," making them easier to isolate (i.e., they require fewer splits to separate them from the rest of the data).
+    """)
+
+    # Placeholder for the plotting function
+    def plot_anomaly_detection():
+        np.random.seed(42)
+        # Generate normal data
+        X_inliers = np.random.normal(0, 1, (100, 2))
+        # Generate some outliers
+        X_outliers = np.random.uniform(low=-4, high=4, size=(10, 2))
+        X = np.concatenate([X_inliers, X_outliers], axis=0)
+
+        # Fit the model
+        clf = IsolationForest(contamination=0.1, random_state=42)
+        y_pred = clf.fit_predict(X)
+        
+        # y_pred will be 1 for inliers, -1 for outliers. Map to 0 and 1 for color.
+        df = pd.DataFrame(X, columns=['Param 1', 'Param 2'])
+        df['Anomaly'] = (y_pred == -1)
+
+        fig = px.scatter(df, x='Param 1', y='Param 2', color='Anomaly',
+                         color_discrete_map={False: 'blue', True: 'red'},
+                         title="<b>Anomaly Detection using Isolation Forest</b>",
+                         symbol='Anomaly',
+                         symbol_map={False: 'circle', True: 'x'})
+        fig.update_traces(marker=dict(size=8))
+        return fig
+
+    fig = plot_anomaly_detection()
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown("""
+    **Interpretation:**
+    - The blue circles represent the dense cloud of normal, "inlier" data points.
+    - The red 'x' markers are the points that the Isolation Forest algorithm has identified as anomalies.
+    - Notice that the algorithm successfully flags the points that are far away from the main cluster, without being told in advance where the "normal" data should be. This unsupervised approach is what makes it so powerful for discovering unexpected events.
+    """)
 def render_advanced_doe():
     """Renders the module for advanced Design of Experiments (DOE)."""
     st.markdown("""

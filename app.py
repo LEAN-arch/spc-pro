@@ -755,12 +755,16 @@ def plot_4pl_regression(a_true=1.5, b_true=1.2, c_true=10.0, d_true=0.05, noise_
                       yaxis_title="Signal Response", legend=dict(x=0.01, y=0.99))
     return fig, params
     
-@st.cache_data
-def plot_roc_curve():
+def plot_roc_curve(diseased_mean=65, population_sd=10):
+    """
+    Generates dynamic plots for the ROC curve module based on user inputs.
+    """
     np.random.seed(0)
-    # Generate scores for two populations (diseased and healthy)
-    scores_diseased = np.random.normal(loc=65, scale=10, size=100)
-    scores_healthy = np.random.normal(loc=45, scale=10, size=100)
+    
+    # Healthy population is fixed, diseased population is controlled by sliders
+    healthy_mean = 45
+    scores_diseased = np.random.normal(loc=diseased_mean, scale=population_sd, size=100)
+    scores_healthy = np.random.normal(loc=healthy_mean, scale=population_sd, size=100)
     
     y_true = np.concatenate([np.ones(100), np.zeros(100)]) # 1 for diseased, 0 for healthy
     y_scores = np.concatenate([scores_diseased, scores_healthy])
@@ -2697,17 +2701,32 @@ def render_4pl_regression():
             """)
 # The code below was incorrectly merged. It is now its own separate function.
 def render_roc_curve():
-    """Renders the module for Receiver Operating Characteristic (ROC) curve analysis."""
+    """Renders the INTERACTIVE module for Receiver Operating Characteristic (ROC) curve analysis."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To solve **The Diagnostician's Dilemma**: a new test must correctly identify patients with a disease (high **Sensitivity**) while also correctly clearing healthy patients (high **Specificity**). These two goals are always in tension. The ROC curve is the ultimate tool for visualizing, quantifying, and optimizing this critical trade-off.
-    **Strategic Application:** This is the undisputed global standard for validating and comparing diagnostic tests. The Area Under the Curve (AUC) provides a single, powerful metric of a test's overall diagnostic horsepower.
-    - **Rational Cutoff Selection:** The ROC curve allows scientists and clinicians to rationally select the optimal cutoff point that best balances the clinical risks and benefits of false positives vs. false negatives.
-    - **Assay Showdown:** Directly compare the AUC of two competing assays to provide definitive evidence of which is diagnostically superior.
-    - **Regulatory Approval:** An ROC analysis is a non-negotiable requirement for submissions to regulatory bodies like the FDA for any new diagnostic test. A high AUC is a key to market approval.
+    **Purpose:** To solve **The Diagnostician's Dilemma**: a test must correctly identify patients with a disease (high **Sensitivity**) while also correctly clearing healthy patients (high **Specificity**). The ROC curve visualizes this trade-off.
+    
+    **Strategic Application:** This is the global standard for validating diagnostic tests. The Area Under the Curve (AUC) provides a single metric of a test's diagnostic power. **Use the sliders in the sidebar to see how population separation and overlap affect diagnostic performance.**
     """)
     
-    fig, auc_value = plot_roc_curve() # Assumes a function that plots distributions and the ROC curve
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("ROC Curve Controls")
+    separation_slider = st.sidebar.slider(
+        "📈 Separation (Diseased Mean)", 
+        min_value=50.0, max_value=80.0, value=65.0, step=1.0,
+        help="Controls the distance between the Healthy and Diseased populations. More separation = better test."
+    )
+    overlap_slider = st.sidebar.slider(
+        "🌫️ Overlap (Population SD)", 
+        min_value=5.0, max_value=20.0, value=10.0, step=0.5,
+        help="Controls the 'noise' or spread of the populations. More overlap (a higher SD) = worse test."
+    )
+
+    # Generate plots using the slider values
+    fig, auc_value = plot_roc_curve(
+        diseased_mean=separation_slider, 
+        population_sd=overlap_slider
+    )
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -2718,29 +2737,18 @@ def render_roc_curve():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="📈 KPI: Area Under Curve (AUC)", value=f"{auc_value:.3f}", help="The overall diagnostic power of the test. 0.5 is useless, 1.0 is perfect.")
-            st.metric(label="🎯 Sensitivity at Cutoff", value="91%", help="True Positive Rate. 'If you have the disease, what's the chance the test catches it?'")
-            st.metric(label="🔒 Specificity at Cutoff", value="85%", help="True Negative Rate. 'If you are healthy, what's the chance the test clears you?'")
-
+            st.metric(label="📈 KPI: Area Under Curve (AUC)", value=f"{auc_value:.3f}", help="The overall diagnostic power of the test. 0.5 is useless, 1.0 is perfect. Updates with sliders.")
+            st.info("Play with the sliders in the sidebar to see how assay quality affects the results!")
             st.markdown("""
-            **Reading the Chart:**
-            - **Score Distributions (Left):** This reveals *why* the dilemma exists. The scores of the Healthy and Diseased populations overlap. Any vertical line (a "cutoff") you draw will inevitably misclassify some subjects. A great assay has minimal overlap.
+            - **Increase `Separation`:** Watch the red distribution move to the right, away from the blue one. The overlap shrinks, the ROC curve pushes towards the perfect top-left corner, and the **AUC value increases dramatically.** This simulates developing a more specific antibody or a more sensitive probe.
+            - **Increase `Overlap`:** Watch both distributions get wider and flatter. Even if the means are far apart, the increased noise creates more overlap, making it harder to find a good cutoff. The ROC curve flattens towards the diagonal line of no-discrimination, and the **AUC value decreases.** This simulates a noisy or imprecise assay.
             
-            - **ROC Curve (Right):** This is the solution map. It plots the trade-off for *every possible cutoff*.
-                - The Y-axis is Sensitivity (good).
-                - The X-axis is 1-Specificity (bad, also called the False Positive Rate).
-                - The "shoulder" of the curve pushing towards the top-left corner represents the sweet spot of high performance.
-            
-            - **The AUC's Deeper Meaning:** The AUC has an elegant probabilistic meaning: It is the probability that a randomly chosen 'Diseased' subject has a higher test score than a randomly chosen 'Healthy' subject.
-            
-            **The Core Strategic Insight:** The ROC curve transforms a complex validation problem into a single, powerful picture. It allows for a data-driven conversation about risk, enabling a team to choose a cutoff that is not just mathematically optimal, but clinically and commercially sound.
+            **The Core Strategic Insight:** A great diagnostic test is one that maximizes the separation between populations while minimizing their overlap (noise). The AUC provides a single, objective score of how well a test achieves this.
             """)
 
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: "Worship the AUC" & "Hug the Corner"**
-            This is a simplistic view that can lead to poor clinical outcomes.
-            
             - *"My test has an AUC of 0.95, it's amazing! We're done."* (The overall AUC is great, but the *chosen cutoff* might still be terrible for the specific clinical need).
             - *"I'll just pick the cutoff point mathematically closest to the top-left (0,1) corner."* (This point balances sensitivity and specificity equally, which is almost never what is clinically desired).
             """)
@@ -2749,37 +2757,24 @@ def render_roc_curve():
             The optimal cutoff is a clinical or strategic decision, not a purely mathematical one. Ask this critical question: **"What is worse? A false positive or a false negative?"**
             
             - **Scenario A: Screening for a highly contagious, deadly disease.**
-              - **What's worse?** A false negative (missing a case) is a public health catastrophe. False positives (unnecessarily quarantining healthy people) are acceptable.
-              - **Your Action:** Choose a cutoff that **maximizes Sensitivity**, even at the cost of lower Specificity.
+              - **Action:** Choose a cutoff that **maximizes Sensitivity**, even at the cost of lower Specificity.
             
             - **Scenario B: Diagnosing a condition that requires risky, invasive surgery.**
-              - **What's worse?** A false positive (sending a healthy person for unnecessary surgery) is a disaster. A false negative might mean delaying diagnosis, which may be acceptable for a slow-moving condition.
-              - **Your Action:** Choose a cutoff that **maximizes Specificity**, ensuring you have very few false alarms.
+              - **Action:** Choose a cutoff that **maximizes Specificity**, ensuring you have very few false alarms.
             """)
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin: From Radar to Radiology
-            The ROC curve was not born in a hospital or a biotech lab. It was invented during the heat of **World War II** to solve a life-or-death problem for Allied forces.
-            
-            Radar operators (the "Receivers") stared at noisy screens, trying to distinguish the faint 'blip' of an incoming enemy bomber from random atmospheric noise (like flocks of birds). The question was how to set the sensitivity of their radar sets.
-            - If set too **high**, they got too many false alarms, scrambling fighter pilots for no reason (low specificity).
-            - If set too **low**, they might miss a real bomber until it was too late (low sensitivity).
-            
-            Engineers developed the **Receiver Operating Characteristic (ROC)** curve to plot the performance of the radar operator at every possible sensitivity setting. This allowed them to quantify the trade-off and choose the optimal "operating characteristic" for the receiver. The term was later adopted by psychologists in the 1950s and then by medical diagnostics in the 1960s, where it has remained the gold standard ever since.
+            The ROC curve was invented during **World War II** to help radar operators distinguish the faint 'blip' of an enemy bomber from random noise. The curve allowed them to quantify the trade-off between sensitivity (catching a real bomber) and false alarms. The term was later adopted by medical diagnostics, where it has remained the gold standard ever since.
             
             #### Mathematical Basis
-            The curve is built from the two key performance metrics, calculated from a 2x2 contingency table:
+            The curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)** for every possible cutoff value.
             """)
-            st.latex(r"\text{Sensitivity (True Positive Rate)} = \frac{TP}{TP + FN}")
-            st.latex(r"\text{1 - Specificity (False Positive Rate)} = \frac{FP}{FP + TN}")
+            st.latex(r"\text{Sensitivity} = \frac{TP}{TP + FN} \quad , \quad \text{Specificity} = \frac{TN}{TN + FP}")
             st.markdown("""
-            - **TP**: True Positives (diseased, test positive)
-            - **FN**: False Negatives (diseased, test negative)
-            - **FP**: False Positives (healthy, test positive)
-            - **TN**: True Negatives (healthy, test negative)
-            
-            The ROC curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)** for every single possible cutoff value, creating a complete performance profile of the diagnostic test.
+            - **TP**: True Positives, **FN**: False Negatives
+            - **FP**: False Positives, **TN**: True Negatives
             """)
 
 def render_tost():

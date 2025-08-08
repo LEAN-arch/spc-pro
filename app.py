@@ -393,7 +393,7 @@ def create_toolkit_conceptual_map():
             textfont=dict(size=12, color='black'),
             marker=dict(
                 # FIX: Increased the size of the structural nodes (purple boxes)
-                size=30 if is_tool else 70,
+                size=30 if is_tool else 120,
                 color=origin_colors[origin_name],
                 symbol='circle' if is_tool else 'square',
                 line=dict(width=2, color='black')

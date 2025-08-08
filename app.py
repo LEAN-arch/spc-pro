@@ -1892,7 +1892,11 @@ def render_linearity():
     **Strategic Application:** This is a cornerstone of quantitative assay validation. A method exhibiting non-linearity might be accurate at a central control point but dangerously inaccurate at the specification limits. **Use the sliders in the sidebar to simulate different types of non-linear behavior and error.**
     """)
     
-    # --- NEW: Sidebar controls for this specific module ---
+    st.info("""
+    **Interactive Demo:** Now, when you navigate to the "Linearity & Range" tool, you will see a new set of dedicated sliders in the sidebar. You can now dynamically simulate how a perfect assay, one with detector saturation, or one with increasing error at higher concentrations would appear in a validation report, providing a powerful learning experience.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("Linearity Controls")
     curvature_slider = st.sidebar.slider(
         "🧬 Curvature Effect", 
@@ -1961,7 +1965,6 @@ def render_linearity():
             - $\\beta_1$ (Slope): Proportional systematic error.
             - $\\epsilon$: Random measurement error.
             """)
-
 # REPLACE the existing render_lod_loq function with this one.
 
 def render_lod_loq():
@@ -2629,7 +2632,11 @@ def render_4pl_regression():
     **Strategic Application:** This is the workhorse model for potency assays and immunoassays. The 4PL model allows for the accurate calculation of critical assay parameters like the EC50. **Use the sliders in the sidebar to control the "true" shape of the curve and see how the curve-fitting algorithm performs.**
     """)
     
-    # --- NEW: Sidebar controls for this specific module ---
+    st.info("""
+    **Interactive Demo:** Now, when you select the "Non-Linear Regression" tool, you will have a full set of dedicated sliders in the sidebar. You can now build your own "true" 4PL curves and see how well the regression algorithm is able to recover those parameters from noisy data, providing a deep, intuitive feel for how these models work.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("4PL Curve Controls")
     d_slider = st.sidebar.slider(
         "🅾️ Lower Asymptote (d)", min_value=0.0, max_value=0.5, value=0.05, step=0.01,
@@ -2662,7 +2669,6 @@ def render_4pl_regression():
         
     with col2:
         a_fit, b_fit, c_fit, d_fit = params
-        
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
@@ -2674,46 +2680,35 @@ def render_4pl_regression():
             
             st.info("Play with the sliders in the sidebar to change the true curve and see how the fitted parameters (above) respond!")
             st.markdown("""
-            - **Asymptotes (a & d):** These sliders control the dynamic range of your assay. A larger gap between them means a wider measurement window.
+            - **Asymptotes (a & d):** These sliders control the dynamic range of your assay.
             - **EC50 (c):** This is your main potency result. Moving this slider shifts the entire curve left or right.
-            - **Hill Slope (b):** This slider controls the steepness. A very steep slope (high `b`) makes the assay highly sensitive in a narrow range. A shallow slope (low `b`) creates a wider, but less precise, reportable range.
+            - **Hill Slope (b):** This slider controls the steepness. A steep slope means a narrow, sensitive range.
             
-            **The Core Strategic Insight:** The 4PL curve is more than a calculation tool; it's a complete picture of your assay's performance. By monitoring all four parameters over time, you can detect subtle shifts in assay health long before a simple pass/fail result goes out of spec.
+            **The Core Strategic Insight:** The 4PL curve is a complete picture of your assay's performance. Monitoring all four parameters over time enables proactive troubleshooting.
             """)
             
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: "Force the Fit"**
-            - *"My data isn't perfectly S-shaped, so I'll use linear regression on the middle part of the curve."* (This is fundamentally wrong and will bias your results).
-            - *"The model doesn't fit the lowest point well. I'll just delete that point."* (This is data manipulation and invalidates the result).
-            - *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated and can be high even for a visibly poor fit).
+            - *"My data isn't S-shaped, so I'll use linear regression on the middle."* (Biases results).
+            - *"The model doesn't fit a point well. I'll delete the point."* (Data manipulation).
+            - *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated).
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: Model the Biology, Weight the Variance**
-            The goal is to use a mathematical model that honors the underlying biological/chemical reality of the system.
-            
-            - **Embrace the 'S' Shape:** The sigmoidal curve exists for a reason (e.g., receptor saturation). The 4PL is designed specifically for this. **Always use a non-linear model for non-linear data.**
-            - **Weight Your Points:** In many assays, the variance is not constant across the range of concentrations (heteroscedasticity). A good regression algorithm will apply less "weight" to the more variable points, resulting in a much more accurate and robust fit.
-            - **Look at the Residuals:** A good fit has residuals (the errors between the data and the curve) that are randomly scattered around zero. Any clear pattern in the residuals indicates the model is not capturing the data correctly.
+            - **Embrace the 'S' Shape:** Use a non-linear model for non-linear data.
+            - **Weight Your Points:** Apply less "weight" to more variable data points for a more robust fit.
+            - **Look at the Residuals:** Any pattern in the errors indicates the model is not capturing the data correctly.
             """)
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The 4PL model is a direct descendant of the **Hill Equation**, published in 1910 by **Archibald Hill** to describe the sigmoidal binding curve of oxygen to hemoglobin. In the 1970s and 80s, with the rise of ELISAs, scientists adapted the Hill equation into the four-parameter logistic function we use today.
+            The 4PL model is a direct descendant of the **Hill Equation** (1910) by Archibald Hill. It was adapted in the 1970s-80s for immunoassays like ELISA.
             
             #### Mathematical Basis
-            The 4PL equation describes the relationship between concentration (`x`) and the measured response (`y`):
             """)
             st.latex(r"y = d + \frac{a - d}{1 + (\frac{x}{c})^b}")
-            st.markdown("""
-            - **`y`**: The measured response.
-            - **`x`**: The concentration.
-            - **`a`**: Upper asymptote.
-            - **`d`**: Lower asymptote.
-            - **`c`**: EC50 (potency).
-            - **`b`**: Hill slope.
-            """)
 # The code below was incorrectly merged. It is now its own separate function.
 def render_roc_curve():
     """Renders the INTERACTIVE module for Receiver Operating Characteristic (ROC) curve analysis."""
@@ -2724,7 +2719,11 @@ def render_roc_curve():
     **Strategic Application:** This is the global standard for validating diagnostic tests. The Area Under the Curve (AUC) provides a single metric of a test's diagnostic power. **Use the sliders in the sidebar to see how population separation and overlap affect diagnostic performance.**
     """)
     
-    # --- NEW: Sidebar controls for this specific module ---
+    st.info("""
+    **Interactive Demo:** Now, when you select the "ROC Curve Analysis" tool, you will see the new dedicated sliders in the sidebar. You can dynamically create assays that are excellent (high separation, low overlap) or terrible (low separation, high overlap) and see in real-time how the score distributions, the ROC curve shape, and the final AUC value respond.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("ROC Curve Controls")
     separation_slider = st.sidebar.slider(
         "📈 Separation (Diseased Mean)", 
@@ -2755,43 +2754,34 @@ def render_roc_curve():
             st.metric(label="📈 KPI: Area Under Curve (AUC)", value=f"{auc_value:.3f}", help="The overall diagnostic power of the test. 0.5 is useless, 1.0 is perfect. Updates with sliders.")
             st.info("Play with the sliders in the sidebar to see how assay quality affects the results!")
             st.markdown("""
-            - **Increase `Separation`:** Watch the red distribution move to the right, away from the blue one. The overlap shrinks, the ROC curve pushes towards the perfect top-left corner, and the **AUC value increases dramatically.** This simulates developing a more specific antibody or a more sensitive probe.
-            - **Increase `Overlap`:** Watch both distributions get wider and flatter. Even if the means are far apart, the increased noise creates more overlap, making it harder to find a good cutoff. The ROC curve flattens towards the diagonal line of no-discrimination, and the **AUC value decreases.** This simulates a noisy or imprecise assay.
+            - **Increase `Separation`:** Watch the red distribution move away from the blue one. The ROC curve pushes towards the perfect top-left corner, and the **AUC value increases dramatically.**
+            - **Increase `Overlap`:** Watch both distributions get wider. The ROC curve flattens, and the **AUC value decreases.**
             
-            **The Core Strategic Insight:** A great diagnostic test is one that maximizes the separation between populations while minimizing their overlap (noise). The AUC provides a single, objective score of how well a test achieves this.
+            **The Core Strategic Insight:** A great diagnostic test is one that maximizes the separation between populations while minimizing their overlap (noise).
             """)
 
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: "Worship the AUC" & "Hug the Corner"**
-            - *"My test has an AUC of 0.95, it's amazing! We're done."* (The overall AUC is great, but the *chosen cutoff* might still be terrible for the specific clinical need).
-            - *"I'll just pick the cutoff point mathematically closest to the top-left (0,1) corner."* (This point balances sensitivity and specificity equally, which is almost never what is clinically desired).
+            - *"My AUC is 0.95, so we're done."* (The *chosen cutoff* might still be terrible).
+            - *"I'll just pick the cutoff closest to the top-left corner."* (This balances errors equally, which is rarely desired).
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: The Best Cutoff Depends on the Consequence of Being Wrong**
-            The optimal cutoff is a clinical or strategic decision, not a purely mathematical one. Ask this critical question: **"What is worse? A false positive or a false negative?"**
-            
-            - **Scenario A: Screening for a highly contagious, deadly disease.**
-              - **Action:** Choose a cutoff that **maximizes Sensitivity**, even at the cost of lower Specificity.
-            
-            - **Scenario B: Diagnosing a condition that requires risky, invasive surgery.**
-              - **Action:** Choose a cutoff that **maximizes Specificity**, ensuring you have very few false alarms.
+            Ask: **"What is worse? A false positive or a false negative?"**
+            - **For deadly disease screening:** Maximize Sensitivity.
+            - **For risky surgery diagnosis:** Maximize Specificity.
             """)
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin: From Radar to Radiology
-            The ROC curve was invented during **World War II** to help radar operators distinguish the faint 'blip' of an enemy bomber from random noise. The curve allowed them to quantify the trade-off between sensitivity (catching a real bomber) and false alarms. The term was later adopted by medical diagnostics, where it has remained the gold standard ever since.
+            #### Historical Context & Origin
+            The ROC curve was invented during **World War II** to help radar operators distinguish enemy bombers from noise. It allowed them to quantify the trade-off between sensitivity and false alarms.
             
             #### Mathematical Basis
-            The curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)** for every possible cutoff value.
+            The curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)**.
             """)
             st.latex(r"\text{Sensitivity} = \frac{TP}{TP + FN} \quad , \quad \text{Specificity} = \frac{TN}{TN + FP}")
-            st.markdown("""
-            - **TP**: True Positives, **FN**: False Negatives
-            - **FP**: False Positives, **TN**: True Negatives
-            """)
-
 def render_tost():
     """Renders the INTERACTIVE module for Two One-Sided Tests (TOST) for equivalence."""
     st.markdown("""

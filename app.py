@@ -3791,7 +3791,7 @@ with st.sidebar:
         for tool in act_tools:
             if st.button(tool, key=tool, use_container_width=True):
                 st.session_state.current_view = tool
-                st.rerun()
+               
 
 # --- Main Content Area Dispatcher ---
 # This logic checks the session state and decides what to render.
@@ -3840,4 +3840,4 @@ else:
     else:
         st.error("Error: Could not find the selected tool to render.")
         st.session_state.current_view = 'V&V Strategic Framework'
-        st.rerun()
+

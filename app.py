@@ -312,7 +312,7 @@ def plot_chronological_timeline():
 # REPLACE the existing create_toolkit_conceptual_map function with this one.
 @st.cache_data
 def create_toolkit_conceptual_map():
-    """Creates a visually superior, non-overlapping conceptual map with a clean legend."""
+    """Creates a visually superior, non-overlapping conceptual map with the correct aesthetics."""
     
     tools = {
         'CI': {'name': 'Confidence Interval Concept', 'short': 'Confidence<br>Intervals', 'origin': 'Statistics'},
@@ -338,23 +338,25 @@ def create_toolkit_conceptual_map():
         'TIME_SERIES': {'name': 'Time Series Analysis', 'short': 'Time Series<br>Analysis', 'origin': 'Statistics'},
     }
     
+    # FIX: Drastically increased the vertical separation between categories
     structure = {
-        'STAT_INF': { 'pos': (1.5, 14), 'name': 'Statistical Inference', 'short': 'Statistical<br>Inference', 'children': ['CI', 'TOST', 'BAYES', 'ROC'] },
-        'REG_MOD': { 'pos': (1.5, 8), 'name': 'Regression Models', 'short': 'Regression<br>Models', 'children': ['LIN', '4PL', 'STABILITY', 'TIME_SERIES'] },
-        'MSA': { 'pos': (1.5, 3), 'name': 'Measurement Systems Analysis', 'short': 'Measurement<br>Systems Analysis', 'children': ['GAGE', 'METH_COMP'] },
-        'SPC': { 'pos': (1.5, -2), 'name': 'Statistical Process Control', 'short': 'Statistical<br>Process Control', 'children': ['SPC_CHART', 'SMALL_SHIFT', 'MV_SPC'] },
-        'VALIDATION': { 'pos': (1.5, -7), 'name': 'Validation & Lifecycle', 'short': 'Validation &<br>Lifecycle', 'children': ['CAPA', 'TOL_INT', 'SURVIVAL'] },
-        'PRED_MOD': { 'pos': (1.5, -12), 'name': 'Predictive Modeling', 'short': 'Predictive<br>Modeling', 'children': ['PRED_QC', 'XAI', 'MVA'] },
-        'UNSUP_LRN': { 'pos': (1.5, -17), 'name': 'Unsupervised Learning', 'short': 'Unsupervised<br>Learning', 'children': ['ANOMALY', 'CLUSTER'] }
+        'STAT_INF': { 'pos': (1.5, 18), 'name': 'Statistical Inference', 'short': 'Statistical<br>Inference', 'children': ['CI', 'TOST', 'BAYES', 'ROC'] },
+        'REG_MOD': { 'pos': (1.5, 9), 'name': 'Regression Models', 'short': 'Regression<br>Models', 'children': ['LIN', '4PL', 'STABILITY', 'TIME_SERIES'] },
+        'MSA': { 'pos': (1.5, 2), 'name': 'Measurement Systems Analysis', 'short': 'Measurement<br>Systems Analysis', 'children': ['GAGE', 'METH_COMP'] },
+        'SPC': { 'pos': (1.5, -4), 'name': 'Statistical Process Control', 'short': 'Statistical<br>Process Control', 'children': ['SPC_CHART', 'SMALL_SHIFT', 'MV_SPC'] },
+        'VALIDATION': { 'pos': (1.5, -10), 'name': 'Validation & Lifecycle', 'short': 'Validation &<br>Lifecycle', 'children': ['CAPA', 'TOL_INT', 'SURVIVAL'] },
+        'PRED_MOD': { 'pos': (1.5, -16), 'name': 'Predictive Modeling', 'short': 'Predictive<br>Modeling', 'children': ['PRED_QC', 'XAI', 'MVA'] },
+        'UNSUP_LRN': { 'pos': (1.5, -21), 'name': 'Unsupervised Learning', 'short': 'Unsupervised<br>Learning', 'children': ['ANOMALY', 'CLUSTER'] }
     }
     
     nodes = {
-        'FOUND_STATS': {'name': 'Foundational Statistics', 'short': 'Foundational<br>Statistics', 'pos': (0, 11)},
-        'PROC_QC': {'name': 'Process & Quality Control', 'short': 'Process &<br>Quality Control', 'pos': (0, -2)},
-        'ADV_ANALYTICS': {'name': 'Advanced Analytics (ML/AI)', 'short': 'Advanced Analytics<br>(ML/AI)', 'pos': (0, -14.5)},
+        'FOUND_STATS': {'name': 'Foundational Statistics', 'short': 'Foundational<br>Statistics', 'pos': (0, 13.5)},
+        'PROC_QC': {'name': 'Process & Quality Control', 'short': 'Process &<br>Quality Control', 'pos': (0, -4)},
+        'ADV_ANALYTICS': {'name': 'Advanced Analytics (ML/AI)', 'short': 'Advanced Analytics<br>(ML/AI)', 'pos': (0, -18.5)},
     }
 
-    vertical_spacing = 2.5
+    # FIX: Increased the spacing factor to give circles plenty of room
+    vertical_spacing = 2.8
     x_positions = [3, 4]
     for key, val in structure.items():
         nodes[key] = {'name': val['name'], 'short': val['short'], 'pos': val['pos']}
@@ -372,6 +374,7 @@ def create_toolkit_conceptual_map():
 
     fig = go.Figure()
 
+    # FIX: Draw edges using fig.add_shape. This is the definitive fix for the legend bug.
     for start, end in edges:
         fig.add_shape(type="line",
             x0=nodes[start]['pos'][0], y0=nodes[start]['pos'][1],
@@ -384,6 +387,7 @@ def create_toolkit_conceptual_map():
         'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728'
     }
     
+    # Aggregate data to plot by group, ensuring a clean legend
     data_by_origin = {name: {'x': [], 'y': [], 'short': [], 'full': []} for name in origin_colors.keys()}
     structural_nodes_data = {'x': [], 'y': [], 'short': [], 'full': []}
 
@@ -416,13 +420,13 @@ def create_toolkit_conceptual_map():
         mode='markers+text', textposition="middle center",
         marker=dict(
             # FIX: Substantially increased marker size for squares
-            size=140, 
+            size=150, 
             color='#6A5ACD', symbol='square', line=dict(width=2, color='black')
         ),
         textfont=dict(
-            # FIX: Increased font size and changed color to black for better contrast
-            size=13, 
-            color='black', 
+            # FIX: Increased font size and restored white color
+            size=14, 
+            color='white', 
             family="Arial"
         ),
         hovertext=structural_nodes_data['full'], hoverinfo='text',
@@ -434,8 +438,9 @@ def create_toolkit_conceptual_map():
         showlegend=True,
         legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
         xaxis=dict(visible=False, range=[-0.5, 5.5]),
-        yaxis=dict(visible=False, range=[-20, 20]),
-        height=1800,
+        # FIX: Expanded y-axis range and plot height to accommodate generous spacing
+        yaxis=dict(visible=False, range=[-24, 24]),
+        height=2200,
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#f0f2f6'

@@ -1282,35 +1282,56 @@ def plot_westgard_scenario(scenario='Stable'):
     
 
 
-@st.cache_data
-def plot_multivariate_spc():
+def plot_multivariate_spc(scenario='Stable'):
+    """
+    Generates a dynamic multivariate SPC chart based on a selected process scenario.
+    """
     np.random.seed(42)
-    # In-control data
+    n_in_control = 20
+    n_out_of_control = 10
+    
+    # Define the in-control process parameters
     mean_vec = [10, 20]
-    cov_mat = [[1, 0.8], [0.8, 1]]
-    in_control = np.random.multivariate_normal(mean_vec, cov_mat, 20)
-    # Out-of-control data
-    out_of_control = np.random.multivariate_normal([10, 22.5], cov_mat, 10) # Shift in Y
+    cov_mat = [[1, 0.8], [0.8, 1]] # Strong positive correlation
+    in_control = np.random.multivariate_normal(mean_vec, cov_mat, n_in_control)
+    
+    # Generate out-of-control data based on the scenario
+    if scenario == 'Stable':
+        out_of_control = np.random.multivariate_normal(mean_vec, cov_mat, n_out_of_control)
+    elif scenario == 'Shift in Y Only':
+        out_of_control = np.random.multivariate_normal([10, 22.5], cov_mat, n_out_of_control)
+    elif scenario == 'Shift in Both':
+        out_of_control = np.random.multivariate_normal([11, 21], cov_mat, n_out_of_control)
+    elif scenario == 'Correlation Break':
+        # Mean stays the same, but the correlation structure is broken
+        cov_mat_broken = [[1, -0.8], [-0.8, 1]]
+        out_of_control = np.random.multivariate_normal(mean_vec, cov_mat_broken, n_out_of_control)
+        
     data = np.vstack([in_control, out_of_control])
     
-    # Calculate T-squared
+    # Calculate T-squared using the in-control data as the reference
     S_inv = np.linalg.inv(np.cov(in_control.T))
     t_squared = [((obs - mean_vec).T @ S_inv @ (obs - mean_vec)) for obs in data]
     
-    # UCL for T-squared (approximate)
-    p = 2; n = len(in_control)
+    # UCL for T-squared
+    p = 2; n = n_in_control
     UCL = ((p * (n+1) * (n-1)) / (n*n - n*p)) * stats.f.ppf(0.99, p, n-p)
     
+    # --- Plotting ---
     fig = make_subplots(rows=1, cols=2, subplot_titles=("<b>Process Data (Temp vs. Pressure)</b>", "<b>Hotelling's T² Control Chart</b>"))
-    fig.add_trace(go.Scatter(x=data[:n,0], y=data[:n,1], mode='markers', name='In-Control'), row=1, col=1)
+    
+    # Scatter plot of the process data
+    fig.add_trace(go.Scatter(x=data[:n,0], y=data[:n,1], mode='markers', name='In-Control', marker=dict(color='blue')), row=1, col=1)
     fig.add_trace(go.Scatter(x=data[n:,0], y=data[n:,1], mode='markers', name='Out-of-Control', marker=dict(color='red')), row=1, col=1)
     
+    # T-squared control chart
     fig.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=t_squared, mode='lines+markers', name="T² Statistic"), row=1, col=2)
     fig.add_hline(y=UCL, line=dict(color='red', dash='dash'), name='UCL', row=1, col=2)
     
-    fig.update_layout(title="<b>Multivariate SPC (Hotelling's T²)</b>", height=500, showlegend=False)
+    fig.update_layout(title=f"<b>Multivariate SPC: {scenario} Scenario</b>", height=500, showlegend=False)
     fig.update_xaxes(title_text="Temperature (°C)", row=1, col=1); fig.update_yaxes(title_text="Pressure (PSI)", row=1, col=1)
     fig.update_xaxes(title_text="Batch Number", row=1, col=2); fig.update_yaxes(title_text="T² Statistic", row=1, col=2)
+    
     return fig
 
 @st.cache_data
@@ -3182,6 +3203,83 @@ def render_multi_rule():
             - A point outside **±3σ** is a rare event (occurs ~1 in 370 times by chance). This is a high-confidence signal, hence the **1-3s** rejection rule.
             - A point outside **±2σ** is more common (~1 in 22 times). Seeing *two in a row* on the same side, however, is much rarer ($1/22 \times 1/22 \times 1/2 \approx$ 1 in 968). This makes the **2-2s** rule a powerful detector of systematic shifts with a low false alarm rate.
             """)
+
+def render_multivariate_spc():
+    """Renders the INTERACTIVE module for Multivariate SPC."""
+    st.markdown("""
+    #### Purpose & Application: The Process Doctor
+    **Purpose:** To act as the **head physician for your process**. Instead of having 20 separate nurses (univariate charts) each reading one vital sign, Multivariate SPC looks at all the patient's vitals *together* to make a single, powerful diagnosis.
+    
+    **Strategic Application:** This is essential for complex processes where parameters are correlated (e.g., a bioreactor's temperature and pH). A small, coordinated change in all variables—a "stealth shift"—can be invisible to individual charts but signals a significant change in the process state.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate different types of multivariate process failures. Notice how the T² chart can detect shifts that might be missed by looking at the raw process data alone. This demonstrates its power in monitoring the overall process "health" or "fingerprint."
+    """)
+
+    # --- NEW: Sidebar controls for this specific module ---
+    st.sidebar.subheader("Multivariate SPC Controls")
+    scenario = st.sidebar.radio(
+        "Select a Process Scenario to Simulate:",
+        ('Stable', 'Shift in Y Only', 'Shift in Both', 'Correlation Break'),
+        captions=[
+            "A normal, in-control process.",
+            "A 'stealth shift' hard to see on an X-chart.",
+            "A clear shift in the process center.",
+            "The means are stable, but the relationship breaks."
+        ]
+    )
+
+    fig = plot_multivariate_spc(scenario=scenario)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.info("Select a scenario from the sidebar and observe the plots!")
+            st.markdown("""
+            - **Shift in Y Only:** Notice in the left plot, the red (out-of-control) points are still within the horizontal range of the blue points. A simple control chart on Temperature (X-axis) would likely miss this shift! The T² chart, however, sees the deviation in the Y-direction and signals an alarm.
+            - **Correlation Break:** This is the most subtle and powerful case. The center of the red cloud is the same as the blue cloud, but the relationship between the variables has changed (from positive to negative correlation). This "broken fingerprint" is invisible to individual charts but is immediately detected by the T² chart.
+
+            **The Core Strategic Insight:** A process doesn't live on a single axis; it lives in a multi-dimensional space. The T² chart monitors the process's position within its normal, correlated "operating cloud" and alarms when it moves outside, even if no single variable has crossed a limit.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
+            A manager insists on using 20 separate I-MR charts for their 20 bioreactor parameters.
+            
+            - **Problem 1: Alarm Fatigue.** With 20 charts, false alarms are constant. Operators begin to ignore the signals.
+            - **Problem 2: The Stealth Shift.** A small, coordinated shift occurs across 10 parameters. This is a massive change in the process state, but **not a single one of the 20 charts will alarm.**
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Detect with T², Diagnose with Contributions**
+            The correct, two-stage approach to multivariate monitoring is disciplined and powerful.
+            1.  **Stage 1: Detect.** Use a **single Hotelling's T² chart** as your primary process health monitor. Its job is to answer one question: "Is something wrong?"
+            2.  **Stage 2: Diagnose.** If the T² chart alarms, and only then, use **contribution plots** to identify which of the original variables are most responsible for the alarm.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin: Hotelling's T-Squared
+            The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, a direct multivariate generalization of Student's t-statistic that allowed one to test hypotheses about multiple means at once.
+            
+            When Shewhart's control charts became popular, it was a natural next step to apply Hotelling's powerful statistic to process monitoring, creating the T² chart to apply SPC philosophy to complex, correlated, multivariate data.
+            
+            #### Mathematical Basis
+            The T² statistic is essentially a measure of the **Mahalanobis distance**, a "smart" distance that accounts for the correlation between variables.
+            """)
+            st.latex(r"T^2 = (\mathbf{x} - \mathbf{\bar{x}})' \mathbf{S}^{-1} (\mathbf{x} - \mathbf{\bar{x}})")
+            st.markdown("""
+            - **`x`**: The vector of a new observation's measurements.
+            - **`x̄`**: The vector of historical means for the variables.
+            - **`S⁻¹`**: The **inverse of the sample covariance matrix**. This is the secret sauce. It's the mathematical engine that de-correlates and correctly scales the variables.
+            """)
             
 def render_ewma_cusum():
     """Renders the module for small shift detection charts (EWMA/CUSUM)."""
@@ -3310,48 +3408,21 @@ def render_ewma_cusum():
               - This formula for the "high-side" CUSUM accumulates upward deviations. `T` is the process target, and `k` is a "slack" parameter, typically set to half the size of the shift you want to detect quickly. The CUSUM only starts accumulating when a deviation is larger than the slack.
             """)
             
-def render_anomaly_detection():
-    """Renders the module for unsupervised anomaly detection."""
+def render_time_series_analysis():
+    """Renders the module for Time Series analysis."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To deploy an **AI Bouncer** for your data—a smart system that identifies rare, unexpected observations (anomalies) without any prior knowledge of what "bad" looks like. It doesn't need a list of troublemakers; it learns the "normal vibe" of the crowd and flags anything that stands out.
+    #### Purpose & Application: The Watchmaker vs. The Smartwatch
+    **Purpose:** To model and forecast time-dependent data by understanding its internal structure, such as trend, seasonality, and autocorrelation. This module compares two powerful philosophies for this task.
     
-    **Strategic Application:** This is a game-changer for monitoring complex processes where simple rule-based alarms are blind to new problems.
-    - **Novel Fault Detection:** The AI Bouncer's greatest strength. It can flag a completely new type of process failure the first time it occurs, because it looks for "weirdness," not pre-defined failures.
-    - **Intelligent Data Cleaning:** Automatically identifies potential sensor glitches or data entry errors before they contaminate models or analyses.
-    - **"Golden Batch" Investigation:** Can find which batches, even if they passed all specifications, were statistically unusual. These "weird-but-good" batches often hold the secrets to improving process robustness.
+    **Strategic Application:** This is fundamental for demand forecasting, resource planning, and proactive process monitoring.
+    - **⌚ ARIMA (The Classical Watchmaker):** A powerful and flexible "white-box" model. Like a master watchmaker, you must understand every gear (p,d,q parameters), but you get a highly interpretable model that is defensible in regulatory environments and excels at short-term forecasting of stable processes.
+    - **📱 Prophet (The Modern Smartwatch):** A modern forecasting tool from Facebook. It's packed with sensors and algorithms to automatically handle complex seasonalities, holidays, and changing trends with minimal user input. It's designed for speed and scale.
     """)
-
-    # Nested plotting function based on user's code
-    def plot_isolation_forest():
-        from sklearn.ensemble import IsolationForest
-        import pandas as pd
-        import numpy as np
-        import plotly.express as px
-
-        np.random.seed(42)
-        X_inliers = np.random.normal(0, 1, (100, 2))
-        X_outliers = np.random.uniform(low=-4, high=4, size=(10, 2))
-        X = np.concatenate([X_inliers, X_outliers], axis=0)
-
-        clf = IsolationForest(contamination=0.1, random_state=42)
-        y_pred = clf.fit_predict(X)
-        
-        df = pd.DataFrame(X, columns=['Process Parameter 1', 'Process Parameter 2'])
-        df['Status'] = ['Anomaly' if p == -1 else 'Normal' for p in y_pred]
-
-        fig = px.scatter(df, x='Process Parameter 1', y='Process Parameter 2', color='Status',
-                         color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
-                         title="<b>The AI Bouncer at Work</b>",
-                         symbol='Status',
-                         symbol_map={'Normal': 'circle', 'Anomaly': 'x'})
-        fig.update_traces(marker=dict(size=10), selector=dict(name='Anomaly'))
-        fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-        return fig
-
+    
+    fig = plot_time_series_analysis() # Assumes a function that plots the forecasts
+    
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        fig = plot_isolation_forest()
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
@@ -3359,56 +3430,59 @@ def render_anomaly_detection():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="Data Points Scanned", value="110")
-            st.metric(label="Anomalies Flagged", value="10", help="Based on a contamination setting of ~10%.")
-            st.metric(label="Algorithm Used", value="Isolation Forest", help="An unsupervised machine learning method.")
+            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value="3.15 units", help="Mean Absolute Error for the ARIMA model.")
+            st.metric(label="📱 Prophet Forecast Error (MAE)", value="2.89 units", help="Mean Absolute Error for the Prophet model.")
+            st.metric(label="🔮 Forecast Horizon", value="12 Months", help="The period into the future for which we are generating predictions.")
 
             st.markdown("""
-            **Reading the Chart:**
-            - **The Blue Circles:** This is the "normal crowd" in your process data. They are dense and clustered together. The AI Bouncer considers them normal.
-            - **The Red 'X's:** These are the anomalies. The algorithm has flagged them as "not belonging" to the main crowd. They are the individuals the bouncer has pulled aside for a closer look.
-            - **The Unsupervised Magic:** The key is that we never told the algorithm where the blue circle "club" was. It figured out the normal operating envelope on its own and identified everything that fell outside of it.
+            **Reading the Forecasts:**
+            - **The Black Line:** This is the historical data the models were trained on.
+            - **The Blue Line:** This is the *true* future data, which we held out to test the models' performance.
+            - **The Green Line (ARIMA):** The Watchmaker's forecast. Notice how it captures the core seasonal pattern and trend based on its statistical properties.
+            - **The Red Line (Prophet):** The Smartwatch's forecast. It also captures the trend and seasonality, often being more robust to outliers or sudden changes.
 
-            **The Core Strategic Insight:** Anomaly detection is your early warning system for the **unknown unknowns**. While a control chart tells you if you've broken a known rule, an anomaly detector tells you that something you've never seen before just happened. This is often the first and only clue to a new, emerging failure mode.
+            **The Core Strategic Insight:** The choice is not about which model is "best," but which is **right for the job.** For a stable, well-understood industrial process where interpretability is key, the craftsmanship of ARIMA is superior. For a complex, noisy business time series with multiple layers of seasonality and a need for automated forecasting at scale, Prophet is often the better tool.
             """)
 
         with tabs[1]:
             st.error("""
-            🔴 **THE INCORRECT APPROACH: "The Glitch Hunter"**
-            When an anomaly is detected, the immediate reaction is to dismiss it as a data error.
+            🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
+            This is the most common path to a useless forecast.
             
-            - *"Oh, that's just a sensor glitch. Delete the point and move on."*
-            - *"The model must be wrong. That batch passed all its QC tests, so it can't be an anomaly."*
-            - *"Let's increase the contamination parameter until the alarms go away."*
-            
-            This approach treats valuable signals as noise. It's like the bouncer seeing a problem, shrugging, and looking the other way. You are deliberately blinding yourself to potentially critical process information.
+            - An analyst takes a column of data, feeds it directly into `model.fit()` and `model.predict()`, and presents the resulting line.
+            - **The Flaw:** They've made no attempt to understand the data's structure. Is there a trend? Is it seasonal? Is the variance stable? They have no idea if the model's assumptions have been met. This "black box" approach produces a forecast that is fragile, unreliable, and likely to fail spectacularly the moment the underlying process changes.
             """)
             st.success("""
-            🟢 **THE GOLDEN RULE: An Anomaly is a Question, Not an Answer**
-            The goal is to treat every flagged anomaly as the start of a forensic investigation.
+            🟢 **THE GOLDEN RULE: Decompose, Validate, and Monitor**
+            A robust forecasting process is disciplined and applies regardless of the model you use.
             
-            - **The anomaly is the breadcrumb:** When the bouncer flags someone, you don't instantly throw them out. You ask questions. "What happened in the process at that exact time? Was it a specific operator? A new raw material lot? A strange environmental reading?"
-            - **Investigate the weird-but-good:** If a batch that passed all specifications is flagged as an anomaly, it's a golden opportunity. What made it different? Did it run faster? With a higher yield? Understanding these "good" anomalies is a key to process optimization.
+            1.  **Decompose and Understand (The Pre-Flight Check):** Before you model, you must visualize. Use a time series decomposition plot to separate the series into its core components: **Trend, Seasonality, and Residuals.** This tells you what you're working with. Check for stationarity—a core assumption of ARIMA.
             
-            The anomaly itself is not the conclusion; it is the starting pistol for discovery.
+            2.  **Train, Validate, Test:** Never judge a model by its performance on data it has already seen. Split your historical data into a training set (to build the model) and a validation set (to tune it). Keep a final "test set" of the most recent data as a truly blind evaluation of forecast accuracy.
+            
+            3.  **Monitor for Drift:** A forecast is only a snapshot in time. You must continuously monitor its performance against incoming new data. When the error starts to increase, it's a signal that the underlying process has changed and the model needs to be retrained.
             """)
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            For decades, "outlier detection" was a purely statistical affair, often done one variable at a time (e.g., using a boxplot). This falls apart in the world of modern, high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values.
+            The story of time series forecasting is a tale of two distinct eras.
+            - **The Classical Era (ARIMA):** In their seminal 1970 book *Time Series Analysis: Forecasting and Control*, statisticians **George Box** and **Gwilym Jenkins** provided a comprehensive methodology for time series modeling. The **Box-Jenkins method**—a rigorous process of model identification, parameter estimation, and diagnostic checking—became the undisputed gold standard for decades. The ARIMA model is the heart of this methodology, a testament to deep statistical theory.
             
-            The **Isolation Forest** algorithm was a brilliant solution to this problem, introduced in a 2008 paper by Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou. Their insight was elegantly counter-intuitive. Instead of trying to build a complex model of what "normal" data looks like, they decided to just try to **isolate** every data point.
+            - **The Modern Era (Prophet):** Fast forward to the 2010s. **Facebook** faced a new kind of problem: thousands of internal analysts needed to generate high-quality forecasts for business metrics at scale, without each of them needing a PhD in statistics. In 2017, their Core Data Science team, led by Sean J. Taylor and Ben Letham, released **Prophet**. It was designed from the ground up for automation, performance, and intuitive tuning, sacrificing some of the statistical purity of ARIMA for massive gains in usability and scale.
             
-            They reasoned that anomalous points are, by definition, "few and different." This makes them much easier to separate from the rest of the data points. Like finding a single red marble in a jar of blue ones, it's easy to "isolate" because it doesn't blend in. This approach turned out to be both highly effective and computationally fast, and it has become a go-to method for unsupervised anomaly detection.
-            
-            #### How it Works: The "20 Questions" Analogy
-            Think of the algorithm playing a game of "20 Questions" to find a specific data point.
-            1.  It builds a "forest" of many random decision trees.
-            2.  Each "question" in a tree is a random split on a random feature (e.g., "Is temperature > 50?").
-            3.  It counts the number of questions (the path length) it takes to uniquely identify each point.
-            4.  **The Result:** Points in the heart of the normal cluster are hard to isolate and require many questions. Anomalous points are isolated very quickly with few questions. The algorithm calculates an "anomaly score" based on the average path length across all the trees in the forest.
+            #### How They Work
+            - **ARIMA (AutoRegressive Integrated Moving Average):**
+              - **AR (p):** The model uses the relationship between an observation and its own **p**ast values.
+              - **I (d):** It uses **d**ifferencing to make the series stationary (i.e., remove the trend).
+              - **MA (q):** It uses the relationship between an observation and the residual errors from its **q** past forecasts.
+            - **Prophet:** It works as a decomposable additive model:
             """)
+            st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
+            st.markdown("""
+            Where `g(t)` is a saturating growth trend, `s(t)` models complex weekly and yearly seasonality using Fourier series, `h(t)` is a flexible component for user-specified holidays, and `ε` is the error.
+            """)
+
 
 def render_stability_analysis():
     """Renders the module for pharmaceutical stability analysis."""
@@ -3564,79 +3638,7 @@ def render_survival_analysis():
             Essentially, the probability of surviving to a certain time is the probability you survived up to the last event, *times* the conditional probability you survived this current event. This step-wise calculation gracefully handles censored observations, as they simply exit the "at risk" pool (`nᵢ`) at the time they are censored.
             """)
 
-def render_multivariate_spc():
-    """Renders the module for Multivariate SPC."""
-    st.markdown("""
-    #### Purpose & Application: The Process Doctor
-    **Purpose:** To act as the **head physician for your process**. Instead of having 20 separate nurses (univariate charts) each reading one vital sign, Multivariate SPC looks at all the patient's vitals *together* to make a single, powerful diagnosis. It answers one question: "Is the overall process healthy?"
-    
-    **Strategic Application:** This is essential for complex processes where parameters are correlated (e.g., a bioreactor's temperature, pH, DO₂). A small, coordinated change in all variables—a "stealth shift"—can be invisible to individual charts but signals a significant change in the process state.
-    - **Hotelling's T² Chart:** The "Check Engine Light" for your process. It condenses dozens of variables into a single statistic that monitors the process "fingerprint." A T² alarm is an unambiguous signal that the system's overall health has changed.
-    - **Contribution Analysis:** Once the T² alarm sounds, this diagnostic tool tells you *which* variable(s) are the culprits behind the shift.
-    """)
-    
-    fig = plot_multivariate_spc() # Assumes a function that plots the comparison
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
-        with tabs[0]:
-            st.metric(label="📊 Multivariate Verdict", value="Out-of-Control", help="The T² Chart has detected a significant shift in the process state.")
-            st.metric(label="⏰ Trigger Point", value="Sample #21", help="The first point at which the T² statistic exceeded the control limit.")
-            st.metric(label="📈 Key Statistic", value="Hotelling's T²", help="A single number representing the multivariate distance from the process center.")
-            
-            st.markdown("""
-            **Reading the Diagnosis:**
-            - **Left Plot (The Vitals):** This shows the raw data for two correlated process parameters. Notice the shift after point 20 is mainly in the vertical direction. An individual control chart for "Parameter X" would likely miss this problem entirely.
-            - **Right Plot (The Diagnosis - T² Chart):** This is the Process Doctor's conclusion. It combines both X and Y into a single health score (the T² statistic). The moment the process shifts, the T² value immediately jumps above the red control limit, providing a clear, undeniable alarm.
-            
-            **The Core Strategic Insight:** A process doesn't live on a single axis; it lives in a multi-dimensional space. The T² chart monitors the process's position within its normal, correlated "operating cloud." The alarm triggers when the process moves outside this cloud, even if it hasn't crossed a limit on any single axis.
-            """)
 
-        with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
-            A manager insists on using 20 separate I-MR charts for their 20 bioreactor parameters.
-            
-            - **The Problem 1: Alarm Fatigue.** With 20 charts, false alarms are constant. Soon, operators begin to ignore the signals, assuming they are just noise. The system becomes useless.
-            - **The Problem 2: The Stealth Shift.** A small, 1-sigma shift occurs simultaneously across 10 of the 20 parameters. This is a massive change in the process state, but **not a single one of the 20 charts will alarm.** The process is sick, but every "nurse" reports normal vitals.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Detect with T², Diagnose with Contributions**
-            The correct, two-stage approach to multivariate monitoring is disciplined and powerful.
-            
-            1.  **Stage 1: Detect.** Use a **single Hotelling's T² chart** as your primary process health monitor. Its job is to answer one question: "Is something wrong?" (YES/NO). Do not look at anything else until this chart alarms.
-            
-            2.  **Stage 2: Diagnose.** If the T² chart alarms, and only then, you bring in the diagnostic tools. You use **contribution plots** or other diagnostics to identify which of the original variables are most responsible for the alarm signal.
-            
-            This "Detect, then Diagnose" strategy provides the best of both worlds: a simple, unambiguous monitoring system and a powerful tool for root cause analysis.
-            """)
-
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin: Hotelling's T-Squared
-            The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. Working in the 1930s and 40s, he was a contemporary of legends like R.A. Fisher and Walter Shewhart.
-            
-            Hotelling's genius was in generalization. He recognized that Student's t-test was perfect for asking if a single variable's mean was different from a target. But what if you had multiple variables? In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which was a direct multivariate generalization of Student's t-statistic. It allowed one to test hypotheses about multiple means at once.
-            
-            When Shewhart's control charts became popular, it was a natural next step to apply Hotelling's powerful statistic to process monitoring. The T² chart is simply a time-series plot of the T-squared statistic, providing a way to apply Shewhart's SPC philosophy to complex, correlated, multivariate data.
-            
-            #### Mathematical Basis
-            The T² statistic is essentially a measure of the **Mahalanobis distance**, a "smart" distance that accounts for the correlation between variables. While a simple Euclidean distance is like measuring with a straight ruler, the Mahalanobis distance measures along the natural "grain" of the elliptical data cloud.
-            
-            The formula for a single observation `x` is:
-            """)
-            st.latex(r"T^2 = (\mathbf{x} - \mathbf{\bar{x}})' \mathbf{S}^{-1} (\mathbf{x} - \mathbf{\bar{x}})")
-            st.markdown("""
-            - **`x`**: The vector of a new observation's measurements.
-            - **`x̄`**: The vector of historical means for the variables.
-            - **`S⁻¹`**: The **inverse of the sample covariance matrix**. This is the secret sauce. It's the mathematical engine that de-correlates and correctly scales the variables, making the T² statistic a pure measure of "strangeness" from the process center.
-            """)
 
 def render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
@@ -3785,21 +3787,49 @@ def render_clustering():
             You repeat this "Assign-Update" process until the pins stop moving. The final locations of the pizza shops are the centers of your discovered clusters.
             """)
 
-def render_time_series_analysis():
-    """Renders the module for Time Series analysis."""
+
+def render_anomaly_detection():
+    """Renders the module for unsupervised anomaly detection."""
     st.markdown("""
-    #### Purpose & Application: The Watchmaker vs. The Smartwatch
-    **Purpose:** To model and forecast time-dependent data by understanding its internal structure, such as trend, seasonality, and autocorrelation. This module compares two powerful philosophies for this task.
+    #### Purpose & Application
+    **Purpose:** To deploy an **AI Bouncer** for your data—a smart system that identifies rare, unexpected observations (anomalies) without any prior knowledge of what "bad" looks like. It doesn't need a list of troublemakers; it learns the "normal vibe" of the crowd and flags anything that stands out.
     
-    **Strategic Application:** This is fundamental for demand forecasting, resource planning, and proactive process monitoring.
-    - **⌚ ARIMA (The Classical Watchmaker):** A powerful and flexible "white-box" model. Like a master watchmaker, you must understand every gear (p,d,q parameters), but you get a highly interpretable model that is defensible in regulatory environments and excels at short-term forecasting of stable processes.
-    - **📱 Prophet (The Modern Smartwatch):** A modern forecasting tool from Facebook. It's packed with sensors and algorithms to automatically handle complex seasonalities, holidays, and changing trends with minimal user input. It's designed for speed and scale.
+    **Strategic Application:** This is a game-changer for monitoring complex processes where simple rule-based alarms are blind to new problems.
+    - **Novel Fault Detection:** The AI Bouncer's greatest strength. It can flag a completely new type of process failure the first time it occurs, because it looks for "weirdness," not pre-defined failures.
+    - **Intelligent Data Cleaning:** Automatically identifies potential sensor glitches or data entry errors before they contaminate models or analyses.
+    - **"Golden Batch" Investigation:** Can find which batches, even if they passed all specifications, were statistically unusual. These "weird-but-good" batches often hold the secrets to improving process robustness.
     """)
-    
-    fig = plot_time_series_analysis() # Assumes a function that plots the forecasts
-    
+
+    # Nested plotting function based on user's code
+    def plot_isolation_forest():
+        from sklearn.ensemble import IsolationForest
+        import pandas as pd
+        import numpy as np
+        import plotly.express as px
+
+        np.random.seed(42)
+        X_inliers = np.random.normal(0, 1, (100, 2))
+        X_outliers = np.random.uniform(low=-4, high=4, size=(10, 2))
+        X = np.concatenate([X_inliers, X_outliers], axis=0)
+
+        clf = IsolationForest(contamination=0.1, random_state=42)
+        y_pred = clf.fit_predict(X)
+        
+        df = pd.DataFrame(X, columns=['Process Parameter 1', 'Process Parameter 2'])
+        df['Status'] = ['Anomaly' if p == -1 else 'Normal' for p in y_pred]
+
+        fig = px.scatter(df, x='Process Parameter 1', y='Process Parameter 2', color='Status',
+                         color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
+                         title="<b>The AI Bouncer at Work</b>",
+                         symbol='Status',
+                         symbol_map={'Normal': 'circle', 'Anomaly': 'x'})
+        fig.update_traces(marker=dict(size=10), selector=dict(name='Anomaly'))
+        fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+        return fig
+
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
+        fig = plot_isolation_forest()
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
@@ -3807,57 +3837,55 @@ def render_time_series_analysis():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value="3.15 units", help="Mean Absolute Error for the ARIMA model.")
-            st.metric(label="📱 Prophet Forecast Error (MAE)", value="2.89 units", help="Mean Absolute Error for the Prophet model.")
-            st.metric(label="🔮 Forecast Horizon", value="12 Months", help="The period into the future for which we are generating predictions.")
+            st.metric(label="Data Points Scanned", value="110")
+            st.metric(label="Anomalies Flagged", value="10", help="Based on a contamination setting of ~10%.")
+            st.metric(label="Algorithm Used", value="Isolation Forest", help="An unsupervised machine learning method.")
 
             st.markdown("""
-            **Reading the Forecasts:**
-            - **The Black Line:** This is the historical data the models were trained on.
-            - **The Blue Line:** This is the *true* future data, which we held out to test the models' performance.
-            - **The Green Line (ARIMA):** The Watchmaker's forecast. Notice how it captures the core seasonal pattern and trend based on its statistical properties.
-            - **The Red Line (Prophet):** The Smartwatch's forecast. It also captures the trend and seasonality, often being more robust to outliers or sudden changes.
+            **Reading the Chart:**
+            - **The Blue Circles:** This is the "normal crowd" in your process data. They are dense and clustered together. The AI Bouncer considers them normal.
+            - **The Red 'X's:** These are the anomalies. The algorithm has flagged them as "not belonging" to the main crowd. They are the individuals the bouncer has pulled aside for a closer look.
+            - **The Unsupervised Magic:** The key is that we never told the algorithm where the blue circle "club" was. It figured out the normal operating envelope on its own and identified everything that fell outside of it.
 
-            **The Core Strategic Insight:** The choice is not about which model is "best," but which is **right for the job.** For a stable, well-understood industrial process where interpretability is key, the craftsmanship of ARIMA is superior. For a complex, noisy business time series with multiple layers of seasonality and a need for automated forecasting at scale, Prophet is often the better tool.
+            **The Core Strategic Insight:** Anomaly detection is your early warning system for the **unknown unknowns**. While a control chart tells you if you've broken a known rule, an anomaly detector tells you that something you've never seen before just happened. This is often the first and only clue to a new, emerging failure mode.
             """)
 
         with tabs[1]:
             st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
-            This is the most common path to a useless forecast.
+            🔴 **THE INCORRECT APPROACH: "The Glitch Hunter"**
+            When an anomaly is detected, the immediate reaction is to dismiss it as a data error.
             
-            - An analyst takes a column of data, feeds it directly into `model.fit()` and `model.predict()`, and presents the resulting line.
-            - **The Flaw:** They've made no attempt to understand the data's structure. Is there a trend? Is it seasonal? Is the variance stable? They have no idea if the model's assumptions have been met. This "black box" approach produces a forecast that is fragile, unreliable, and likely to fail spectacularly the moment the underlying process changes.
+            - *"Oh, that's just a sensor glitch. Delete the point and move on."*
+            - *"The model must be wrong. That batch passed all its QC tests, so it can't be an anomaly."*
+            - *"Let's increase the contamination parameter until the alarms go away."*
+            
+            This approach treats valuable signals as noise. It's like the bouncer seeing a problem, shrugging, and looking the other way. You are deliberately blinding yourself to potentially critical process information.
             """)
             st.success("""
-            🟢 **THE GOLDEN RULE: Decompose, Validate, and Monitor**
-            A robust forecasting process is disciplined and applies regardless of the model you use.
+            🟢 **THE GOLDEN RULE: An Anomaly is a Question, Not an Answer**
+            The goal is to treat every flagged anomaly as the start of a forensic investigation.
             
-            1.  **Decompose and Understand (The Pre-Flight Check):** Before you model, you must visualize. Use a time series decomposition plot to separate the series into its core components: **Trend, Seasonality, and Residuals.** This tells you what you're working with. Check for stationarity—a core assumption of ARIMA.
+            - **The anomaly is the breadcrumb:** When the bouncer flags someone, you don't instantly throw them out. You ask questions. "What happened in the process at that exact time? Was it a specific operator? A new raw material lot? A strange environmental reading?"
+            - **Investigate the weird-but-good:** If a batch that passed all specifications is flagged as an anomaly, it's a golden opportunity. What made it different? Did it run faster? With a higher yield? Understanding these "good" anomalies is a key to process optimization.
             
-            2.  **Train, Validate, Test:** Never judge a model by its performance on data it has already seen. Split your historical data into a training set (to build the model) and a validation set (to tune it). Keep a final "test set" of the most recent data as a truly blind evaluation of forecast accuracy.
-            
-            3.  **Monitor for Drift:** A forecast is only a snapshot in time. You must continuously monitor its performance against incoming new data. When the error starts to increase, it's a signal that the underlying process has changed and the model needs to be retrained.
+            The anomaly itself is not the conclusion; it is the starting pistol for discovery.
             """)
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The story of time series forecasting is a tale of two distinct eras.
-            - **The Classical Era (ARIMA):** In their seminal 1970 book *Time Series Analysis: Forecasting and Control*, statisticians **George Box** and **Gwilym Jenkins** provided a comprehensive methodology for time series modeling. The **Box-Jenkins method**—a rigorous process of model identification, parameter estimation, and diagnostic checking—became the undisputed gold standard for decades. The ARIMA model is the heart of this methodology, a testament to deep statistical theory.
+            For decades, "outlier detection" was a purely statistical affair, often done one variable at a time (e.g., using a boxplot). This falls apart in the world of modern, high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values.
             
-            - **The Modern Era (Prophet):** Fast forward to the 2010s. **Facebook** faced a new kind of problem: thousands of internal analysts needed to generate high-quality forecasts for business metrics at scale, without each of them needing a PhD in statistics. In 2017, their Core Data Science team, led by Sean J. Taylor and Ben Letham, released **Prophet**. It was designed from the ground up for automation, performance, and intuitive tuning, sacrificing some of the statistical purity of ARIMA for massive gains in usability and scale.
+            The **Isolation Forest** algorithm was a brilliant solution to this problem, introduced in a 2008 paper by Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou. Their insight was elegantly counter-intuitive. Instead of trying to build a complex model of what "normal" data looks like, they decided to just try to **isolate** every data point.
             
-            #### How They Work
-            - **ARIMA (AutoRegressive Integrated Moving Average):**
-              - **AR (p):** The model uses the relationship between an observation and its own **p**ast values.
-              - **I (d):** It uses **d**ifferencing to make the series stationary (i.e., remove the trend).
-              - **MA (q):** It uses the relationship between an observation and the residual errors from its **q** past forecasts.
-            - **Prophet:** It works as a decomposable additive model:
-            """)
-            st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
-            st.markdown("""
-            Where `g(t)` is a saturating growth trend, `s(t)` models complex weekly and yearly seasonality using Fourier series, `h(t)` is a flexible component for user-specified holidays, and `ε` is the error.
+            They reasoned that anomalous points are, by definition, "few and different." This makes them much easier to separate from the rest of the data points. Like finding a single red marble in a jar of blue ones, it's easy to "isolate" because it doesn't blend in. This approach turned out to be both highly effective and computationally fast, and it has become a go-to method for unsupervised anomaly detection.
+            
+            #### How it Works: The "20 Questions" Analogy
+            Think of the algorithm playing a game of "20 Questions" to find a specific data point.
+            1.  It builds a "forest" of many random decision trees.
+            2.  Each "question" in a tree is a random split on a random feature (e.g., "Is temperature > 50?").
+            3.  It counts the number of questions (the path length) it takes to uniquely identify each point.
+            4.  **The Result:** Points in the heart of the normal cluster are hard to isolate and require many questions. Anomalous points are isolated very quickly with few questions. The algorithm calculates an "anomaly score" based on the average path length across all the trees in the forest.
             """)
 
 def render_xai_shap():

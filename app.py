@@ -2906,7 +2906,7 @@ def plot_isolation_forest(contamination_rate=0.1):
     return fig, (y_pred == -1).sum()
     
 # ==============================================================================
-# HELPER & PLOTTING FUNCTION (XAI/SHAP) - SME ENHANCED
+# HELPER & PLOTTING FUNCTION (XAI/SHAP) - SME ENHANCED & CORRECTED
 # ==============================================================================
 @st.cache_data
 def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator Experience (Months)'):
@@ -2916,22 +2916,21 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     """
     plt.style.use('default')
     
-    # --- 1. SME Enhancement: Simulate more realistic and complex Assay Data ---
+    # 1. Simulate Assay Data
     np.random.seed(42)
     n_runs = 200
     operator_experience = np.random.randint(1, 25, n_runs)
-    cal_slope = np.random.normal(1.0, 0.05, n_runs) - (operator_experience * 0.0015) # Stronger effect
-    qc1_value = np.random.normal(50, 2, n_runs) - np.random.uniform(0, operator_experience / 8, n_runs) # Stronger effect
+    cal_slope = np.random.normal(1.0, 0.05, n_runs) - (operator_experience * 0.0015)
+    qc1_value = np.random.normal(50, 2, n_runs) - np.random.uniform(0, operator_experience / 8, n_runs)
     reagent_age_days = np.random.randint(5, 90, n_runs)
     instrument_id = np.random.choice(['Inst_A', 'Inst_B', 'Inst_C'], n_runs, p=[0.5, 0.3, 0.2])
     
-    # A more complex probability model for a better ML challenge
     prob_failure = 1 / (1 + np.exp(-(-2.0
                                      - 0.18 * operator_experience
-                                     + (reagent_age_days / 20)**1.5 # Non-linear effect
+                                     + (reagent_age_days / 20)**1.5
                                      - (cal_slope - 1.0) * 25
-                                     + (qc1_value < 48) * 0.5 # Threshold effect
-                                     + (instrument_id == 'Inst_C') * 1.5))) # Instrument C is worse
+                                     + (qc1_value < 48) * 0.5
+                                     + (instrument_id == 'Inst_C') * 1.5)))
     run_failed = np.random.binomial(1, prob_failure)
 
     X_display = pd.DataFrame({
@@ -2943,12 +2942,17 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     })
     y = pd.Series(run_failed, name="Run Failed")
     
-    # --- SME Enhancement: Use one-hot encoding for the model's input ---
-    X = pd.get_dummies(X_display, drop_first=True) 
+    X_encoded = pd.get_dummies(X_display, drop_first=True)
+    
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # Convert all columns to a consistent numerical type to avoid dtype('O') issues with SHAP's C-extensions.
+    # XGBoost can handle bools, but SHAP's TreeExplainer is stricter.
+    X = X_encoded.astype(int)
+    # --- END OF CORRECTION ---
 
-    # --- SME Enhancement: Use XGBoost for better performance ---
+    # Use XGBoost for better performance
     model = xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='logloss').fit(X, y)
-    explainer = shap.Explainer(model, X) # Pass X to explainer for better background handling
+    explainer = shap.Explainer(model, X)
     shap_values = explainer(X)
 
     # --- 2. Find the instance index for the local explanation ---
@@ -2969,16 +2973,8 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     buf_summary.seek(0)
     
     # --- 4. Generate Local Waterfall Plot ---
-    # We need to use the specific SHAP values for the "Failure" class (class 1)
-    class_1_shap_values = shap.Explanation(
-        values=shap_values.values[:,:,1],
-        base_values=shap_values.base_values[:,1],
-        data=X.values,
-        feature_names=X.columns.tolist()
-    )
-    
     fig_waterfall, ax_waterfall = plt.subplots()
-    shap.waterfall_plot(class_1_shap_values[instance_index], show=False)
+    shap.waterfall_plot(shap_values[instance_index], show=False)
     buf_waterfall = io.BytesIO()
     fig_waterfall.savefig(buf_waterfall, format='png', bbox_inches='tight')
     plt.close(fig_waterfall)
@@ -2986,14 +2982,19 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     
     # --- 5. Generate Interactive Dependence Plot ---
     fig_dependence, ax_dependence = plt.subplots()
+    
     # The feature name might be different after one-hot encoding, so we find it
+    plot_feature = dependence_feature
     if dependence_feature == 'Instrument ID':
-        # This is a simplification; a full implementation would let the user choose Inst_B or Inst_C
-        plot_feature = 'Instrument ID_Inst_B' 
-    else:
-        plot_feature = dependence_feature
-        
-    shap.dependence_plot(plot_feature, shap_values.values[:,:,1], X, interaction_index="auto", show=False)
+        # Find which instrument columns exist after one-hot encoding
+        inst_cols = [col for col in X.columns if 'Instrument ID_' in col]
+        if inst_cols:
+            plot_feature = inst_cols[0] # Default to the first one for the plot
+        else:
+             # Fallback if no instruments are other than the baseline 'Inst_A'
+            plot_feature = 'Operator Experience (Months)'
+
+    shap.dependence_plot(plot_feature, shap_values.values, X, interaction_index="auto", show=False)
     buf_dependence = io.BytesIO()
     fig_dependence.savefig(buf_dependence, format='png', bbox_inches='tight')
     plt.close(fig_dependence)
@@ -3001,7 +3002,6 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     
     actual_outcome = "Failed" if y.iloc[instance_index] == 1 else "Passed"
     
-    # Return all generated plot buffers and key info
     return buf_summary, buf_waterfall, buf_dependence, X_display.iloc[instance_index:instance_index+1], actual_outcome, instance_index
     
 @st.cache_data

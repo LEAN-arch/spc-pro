@@ -5265,11 +5265,11 @@ def render_survival_analysis():
     """Renders the module for Survival Analysis."""
     st.markdown("""
     #### Purpose & Application: The Statistician's Crystal Ball
-    **Purpose:** To model "time-to-event" data and forecast the probability of survival over time. Its superpower is its unique ability to handle **censored data**—observations where the study ends before the event (e.g., failure or death) occurs. It allows us to use every last drop of information, even from the subjects who "survived" the study.
+    **Purpose:** To model "time-to-event" data and forecast the probability of survival over time. Its superpower is its unique ability to handle **censored data**-observations where the study ends before the event (e.g., failure or death) occurs. It allows us to use every last drop of information, even from the subjects who "survived" the study.
     
     **Strategic Application:** This is the core methodology for reliability engineering and is essential for predictive maintenance, risk analysis, and clinical research.
-    - **⚙️ Predictive Maintenance:** Instead of replacing parts on a fixed schedule, you can model their failure probability over time, moving from guesswork to a data-driven strategy.
-    - **⚕️ Clinical Trials:** The gold standard for analyzing endpoints like "time to disease progression" or "overall survival."
+    - **Predictive Maintenance:** Instead of replacing parts on a fixed schedule, you can model their failure probability over time, moving from guesswork to a data-driven strategy.
+    - **Clinical Trials:** The gold standard for analyzing endpoints like "time to disease progression" or "overall survival."
     """)
 
     st.info("""
@@ -5281,12 +5281,12 @@ def render_survival_analysis():
     with st.sidebar:
         st.sidebar.subheader("Survival Analysis Controls")
         lifetime_slider = st.sidebar.slider(
-            "⚙️ Group B Reliability (Lifetime Scale)",
+            "Group B Reliability (Lifetime Scale)",
             min_value=15, max_value=45, value=30, step=1,
             help="Controls the characteristic lifetime of the 'New Component' (Group B). A higher value means it's more reliable."
         )
         censor_slider = st.sidebar.slider(
-            " Censoring Rate (%)",
+            "Censoring Rate (%)",
             min_value=0, max_value=80, value=20, step=5,
             help="The percentage of items that are still 'surviving' when the study ends. Simulates shorter vs. longer studies."
         )
@@ -5306,17 +5306,17 @@ def render_survival_analysis():
         
         with tabs[0]:
             st.metric(
-                label="📊 Log-Rank Test p-value", 
+                label="Log-Rank Test p-value", 
                 value=f"{p_value:.3f}", 
                 help="A p-value < 0.05 indicates a statistically significant difference between the survival curves."
             )
             st.metric(
-                label="⏳ Median Survival (Group A)", 
+                label="Median Survival (Group A)", 
                 value=f"{median_a:.1f} Months" if not np.isnan(median_a) else "Not Reached",
                 help="Time at which 50% of Group A have experienced the event."
             )
             st.metric(
-                label="⏳ Median Survival (Group B)", 
+                label="Median Survival (Group B)", 
                 value=f"{median_b:.1f} Months" if not np.isnan(median_b) else "Not Reached",
                 help="Time at which 50% of Group B have experienced the event."
             )
@@ -5355,14 +5355,17 @@ The core principle of survival analysis is that censored data is not missing dat
             - **`S(tᵢ)`** is the probability of surviving past time `tᵢ`.
             - **`nᵢ`** is the number of subjects "at risk" (i.e., still surviving and not yet censored) just before time `tᵢ`.
             - **`dᵢ`** is the number of events (e.g., failures) that occurred at time `tᵢ`.
-            The confidence interval for the survival probability is often calculated using **Greenwood's formula**, which estimates the variance of `S(t)`:
             """)
-            st.latex(r"\hat{Var}(S(t)) \approx S(t)^2 \sum_{t_i \leq t} \frac{d_i}{n_i(n_i - d_i)}"), the probability of surviving to a certain time is the probability you survived up to the last event, *times* the conditional probability you survived this current event. This step-wise calculation gracefully handles censored observations, as they simply exit the "at risk" pool (`nᵢ`) at the time they are censored without causing a drop in the survival curve.
-            """)
+            
+            # --- THIS IS THE CORRECTED BLOCK ---
+            st.markdown("The confidence interval for the survival probability is often calculated using **Greenwood's formula**, which estimates the variance of `S(t)`:")
+            st.latex(r"\hat{Var}(S(t)) \approx S(t)^2 \sum_{t_i \leq t} \frac{d_i}{n_i(n_i - d_i)}")
+            # --- END OF CORRECTION ---
 
 
 def render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
+    # CORRECTED: Rewritten multiline string to be safe.
     st.markdown("""
     #### Purpose & Application: The Statistical Rosetta Stone
     **Purpose:** To act as a **statistical Rosetta Stone**, translating a massive, complex, and correlated set of input variables (X, e.g., an entire spectrum) into a simple, actionable output (Y, e.g., product concentration). **Partial Least Squares (PLS)** is the key that deciphers this code.

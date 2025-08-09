@@ -2116,7 +2116,7 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=30, random_s
     
 
 # ==============================================================================
-# HELPER & PLOTTING FUNCTION (Small Shift) - SME ENHANCED
+# HELPER & PLOTTING FUNCTION (Small Shift) - SME ENHANCED & CORRECTED
 # ==============================================================================
 def plot_ewma_cusum_comparison(shift_size=0.75, scenario='Sudden Shift'):
     """
@@ -2148,7 +2148,11 @@ def plot_ewma_cusum_comparison(shift_size=0.75, scenario='Sudden Shift'):
 
     # EWMA
     lam = 0.2
-    ewma = pd.Series(data).ewma(alpha=lam, adjust=False).values
+    
+    # --- THIS IS THE CORRECTED LINE ---
+    ewma = pd.Series(data).ewm(alpha=lam, adjust=False).mean().values
+    # --- END OF CORRECTION ---
+    
     ewma_ucl = mean + 3 * (std * np.sqrt(lam / (2-lam)))
     ewma_lcl = mean - 3 * (std * np.sqrt(lam / (2-lam)))
     ewma_ooc = np.where((ewma[shift_point:] > ewma_ucl) | (ewma[shift_point:] < ewma_lcl))[0]

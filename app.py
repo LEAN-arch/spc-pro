@@ -1861,7 +1861,43 @@ def plot_binomial_intervals(successes, n_samples):
 
     return fig1, fig2
     
+def plot_isolation_forest(contamination_rate=0.1):
+    """
+    Generates dynamic anomaly detection plots based on a user-defined contamination rate.
+    """
+    np.random.seed(42)
+    n_normal = 100
+    n_anomalies = 15 # Generate a fixed number of potential anomalies
+    
+    # --- Data Generation ---
+    X_inliers = np.random.normal(0, 1, (n_normal, 2))
+    # Outliers are generated further away to be clearly distinct
+    X_outliers = np.random.uniform(low=-5, high=5, size=(n_anomalies, 2))
+    X = np.concatenate([X_inliers, X_outliers], axis=0)
+    
+    # --- Dynamic Model Fitting ---
+    # The 'contamination' parameter is now controlled by the slider
+    clf = IsolationForest(contamination=contamination_rate, random_state=42)
+    y_pred = clf.fit_predict(X)
+    
+    df = pd.DataFrame(X, columns=['Process Parameter 1', 'Process Parameter 2'])
+    df['Status'] = ['Anomaly' if p == -1 else 'Normal' for p in y_pred]
 
+    # --- Dynamic KPI Calculation ---
+    num_flagged = (y_pred == -1).sum()
+
+    # --- Plotting ---
+    fig = px.scatter(df, x='Process Parameter 1', y='Process Parameter 2', color='Status',
+                     color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
+                     title="<b>The AI Bouncer at Work</b>",
+                     symbol='Status',
+                     symbol_map={'Normal': 'circle', 'Anomaly': 'x'})
+    
+    fig.update_traces(marker=dict(size=12, line=dict(width=2)), selector=dict(type='scatter', mode='markers'))
+    fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+    
+    return fig, num_flagged
+    
 @st.cache_data
 def plot_xai_shap():
     # This function uses matplotlib backend for SHAP, so we need to handle image conversion

@@ -1366,6 +1366,7 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_s
         fig_contrib = px.bar(x=contributions.index, y=contributions.values, title=title_text, labels={'x':'Process Variable', 'y':'Contribution Value'})
 
     return fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc
+    
 def plot_ewma_cusum_comparison():
     np.random.seed(123)
     n_points = 40

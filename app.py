@@ -1325,57 +1325,94 @@ def plot_split_plot_doe(lot_variation_sd=0.5, interaction_effect=0.0):
 
     return fig_main, fig_interaction, anova_table
 
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Causal Inference) - SME ENHANCED
+# ==============================================================================
 def plot_causal_inference(confounding_strength=5.0):
     """
-    Generates dynamic plots for the Causal Inference module based on user inputs.
+    Generates enhanced, more realistic dynamic plots for the Causal Inference module,
+    using a classic Simpson's Paradox scenario.
     """
-    # 1. The DAG (same as before, but title is updated)
+    # --- 1. The Causal Map (DAG) ---
+    # SME Enhancement: A more realistic bioprocess scenario (calibration drift)
     fig_dag = go.Figure()
-    nodes = {'Reagent Lot': (0, 1), 'Temp': (1.5, 2), 'Pressure': (1.5, 0), 'Purity': (3, 2)}
-    fig_dag.add_trace(go.Scatter(x=[v[0] for v in nodes.values()], y=[v[1] for v in nodes.values()],
-                               mode="markers+text", text=list(nodes.keys()), textposition="top center",
-                               marker=dict(size=40, color='lightblue', line=dict(width=2, color='black')), textfont_size=14))
-    edges = [('Reagent Lot', 'Purity'), ('Reagent Lot', 'Temp'), ('Temp', 'Purity'), ('Temp', 'Pressure')]
+    nodes = {'Calibration Age': (0, 1), 'Sensor Reading': (2, 2), 'Product Purity': (4, 1)}
+    node_x = [v[0] for v in nodes.values()]
+    node_y = [v[1] for v in nodes.values()]
+
+    fig_dag.add_trace(go.Scatter(
+        x=node_x, y=node_y, mode="text", text=[f"<b>{k}</b>" for k in nodes.keys()],
+        textposition="middle center", textfont=dict(size=14, color='white')
+    ))
+    
+    # Add shapes for nodes
+    for x, y in zip(node_x, node_y):
+        fig_dag.add_shape(type="rect", x0=x-0.8, y0=y-0.4, x1=x+0.8, y1=y+0.4,
+                          fillcolor='royalblue', line=dict(width=2, color='black'))
+
+    # Causal relationships (arrows)
+    edges = [('Calibration Age', 'Sensor Reading'), ('Sensor Reading', 'Product Purity'), ('Calibration Age', 'Product Purity')]
     for start, end in edges:
-        fig_dag.add_annotation(x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
-                               xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowwidth=2, arrowcolor='black')
-    fig_dag.update_layout(title="<b>1. The Causal Map (DAG)</b>", showlegend=False, xaxis_visible=False, yaxis_visible=False, height=400, margin=dict(t=50))
+        fig_dag.add_annotation(
+            x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
+            xref='x', yref='y', axref='x', ayref='y', showarrow=True,
+            arrowhead=2, arrowwidth=3, arrowcolor='black', axshift=-80 if start=='Calibration Age' else -110, ayshift=0
+        )
+    fig_dag.update_layout(
+        title="<b>1. The Causal Map (DAG): Calibration Drift Scenario</b>",
+        showlegend=False, xaxis=dict(visible=False, range=[-1, 5]),
+        yaxis=dict(visible=False, range=[-0.5, 2.5]), height=400, margin=dict(t=50)
+    )
 
-    # 2. Simulate data based on the DAG and confounding strength
+    # --- 2. Simulate data demonstrating Simpson's Paradox ---
     np.random.seed(42)
-    n_samples = 100
-    # The confounder: Reagent Lot (0=Standard, 1=New)
-    reagent_lot = np.random.randint(0, 2, n_samples)
-    # The true causal effect of temperature on purity is fixed at -0.5
-    true_causal_effect = -0.5
+    n_samples = 200
+    # The confounder: Calibration Age (0 = Recently Calibrated, 1 = Old Calibration)
+    cal_age = np.random.randint(0, 2, n_samples)
     
-    # Generate data where Reagent Lot affects BOTH Temp and Purity
-    temp = 70 + confounding_strength * reagent_lot + np.random.normal(0, 2, n_samples)
-    purity = 95 + true_causal_effect * (temp - 70) + confounding_strength * reagent_lot + np.random.normal(0, 2, n_samples)
+    # Define true causal effects
+    # A higher sensor reading CAUSES higher purity (positive effect)
+    true_causal_effect_sensor_on_purity = 0.8
+    # An older calibration CAUSES lower purity (negative effect)
+    true_effect_age_on_purity = -confounding_strength
+    # An older calibration also CAUSES higher sensor readings (drift)
+    true_effect_age_on_sensor = confounding_strength
     
-    df = pd.DataFrame({'Temp': temp, 'Purity': purity, 'ReagentLot': reagent_lot.astype(str)})
+    # Generate data based on the causal graph
+    sensor = 50 + true_effect_age_on_sensor * cal_age + np.random.normal(0, 5, n_samples)
+    purity = 90 + true_causal_effect_sensor_on_purity * (sensor - 50) + true_effect_age_on_purity * cal_age + np.random.normal(0, 5, n_samples)
+    
+    df = pd.DataFrame({'SensorReading': sensor, 'Purity': purity, 'CalibrationAge': cal_age})
+    df['Calibration Status'] = df['CalibrationAge'].apply(lambda x: 'Old' if x == 1 else 'New')
 
-    # 3. Calculate effects
-    # Naive (biased) model: Purity ~ Temp
-    naive_model = ols('Purity ~ Temp', data=df).fit()
-    naive_effect = naive_model.params['Temp']
+    # --- 3. Calculate effects ---
+    # Naive (biased) model: Purity ~ SensorReading
+    naive_model = ols('Purity ~ SensorReading', data=df).fit()
+    naive_effect = naive_model.params['SensorReading']
     
-    # Adjusted (unbiased) model: Purity ~ Temp + ReagentLot
-    adjusted_model = ols('Purity ~ Temp + C(ReagentLot)', data=df).fit()
-    adjusted_effect = adjusted_model.params['Temp']
+    # Adjusted (unbiased) model: Purity ~ SensorReading + CalibrationAge
+    adjusted_model = ols('Purity ~ SensorReading + C(CalibrationStatus)', data=df).fit()
+    adjusted_effect = adjusted_model.params['SensorReading']
 
-    # 4. Create the scatter plot
-    fig_scatter = px.scatter(df, x='Temp', y='Purity', color='ReagentLot',
-                             title="<b>2. Confounding in Action</b>",
-                             color_discrete_map={'0': 'blue', '1': 'red'},
-                             labels={'ReagentLot': 'Reagent Lot'})
+    # --- 4. Create the scatter plot ---
+    fig_scatter = px.scatter(df, x='SensorReading', y='Purity', color='Calibration Status',
+                             title="<b>2. Simpson's Paradox: The Danger of Confounding</b>",
+                             color_discrete_map={'New': 'blue', 'Old': 'red'},
+                             labels={'SensorReading': 'In-Process Sensor Reading'})
     
     # Add regression lines
-    x_range = np.linspace(df['Temp'].min(), df['Temp'].max(), 2)
-    fig_scatter.add_trace(go.Scatter(x=x_range, y=naive_model.predict({'Temp': x_range}), mode='lines', 
-                                     name='Naive (Biased) Correlation', line=dict(color='orange', width=4, dash='dash')))
-    fig_scatter.add_trace(go.Scatter(x=x_range, y=adjusted_model.params['Intercept'] + adjusted_effect * x_range, mode='lines', 
-                                     name='True Causal Effect (Adjusted)', line=dict(color='darkgreen', width=4)))
+    x_range = np.array([df['SensorReading'].min(), df['SensorReading'].max()])
+    
+    # Naive line
+    fig_scatter.add_trace(go.Scatter(x=x_range, y=naive_model.predict({'SensorReading': x_range}), mode='lines', 
+                                     name='Naive Correlation (Misleading)', line=dict(color='orange', width=4, dash='dash')))
+    # Adjusted lines (within each group)
+    intercept_new = adjusted_model.params['Intercept']
+    intercept_old = intercept_new + adjusted_model.params['C(CalibrationStatus)[T.Old]']
+    fig_scatter.add_trace(go.Scatter(x=x_range, y=intercept_new + adjusted_effect * x_range, mode='lines', 
+                                     name='True Causal Effect (Within Groups)', line=dict(color='darkgreen', width=4)))
+    fig_scatter.add_trace(go.Scatter(x=x_range, y=intercept_old + adjusted_effect * x_range, mode='lines', 
+                                     showlegend=False, line=dict(color='darkgreen', width=4)))
 
     fig_scatter.update_layout(height=500, legend=dict(x=0.01, y=0.99))
     
@@ -3886,24 +3923,27 @@ The way you conduct your experiment dictates the only valid way to analyze it.
 def render_causal_inference():
     """Renders the INTERACTIVE module for Causal Inference."""
     st.markdown("""
-    #### Purpose & Application: Beyond the Shadow - The Science of "Why"
+    #### Purpose & Application: Beyond "What" to "Why"
     **Purpose:** To move beyond mere correlation ("what") and ascend to the level of causation ("why"). While predictive models see shadows on a cave wall (associations), Causal Inference provides the tools to understand the true objects casting them (the underlying causal mechanisms).
     
     **Strategic Application:** This is the ultimate goal of root cause analysis and the foundation of intelligent intervention.
-    - **💡 Effective CAPA:** Why did a batch fail? A predictive model might say high temperature is *associated* with failure. Causal Inference helps determine if high temperature *causes* failure, or if both are driven by a third hidden variable (a "confounder"). This prevents wasting millions on fixing the wrong problem.
+    - **💡 Effective CAPA:** A predictive model might say high sensor readings are *associated* with *low* purity. Causal Inference helps determine if the sensor readings *cause* low purity, or if both are driven by a third hidden variable (a "confounder") like calibration drift. This prevents wasting millions on fixing the wrong problem.
     - **🗺️ Process Cartography:** It allows for the creation of a **Directed Acyclic Graph (DAG)**, which is a formal causal map of your process, documenting scientific understanding and guiding future analysis.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the slider below to control the **Confounding Strength** of the `Reagent Lot`. As you increase it, watch the "Naive Correlation" (the orange line) become a terrible estimate of the "True Causal Effect" (the green line). This simulation visually demonstrates how a hidden variable can create a misleading correlation.
+    **Interactive Demo:** Use the slider to control the **Confounding Strength** of the `Calibration Age`. 
+    - At low strength, the naive correlation (orange) is close to the true effect (green).
+    - As you increase the strength, watch the naive correlation become not just wrong, but **completely inverted**—a classic demonstration of **Simpson's Paradox**.
     """)
     
-    st.sidebar.subheader("Causal Inference Controls")
-    confounding_slider = st.sidebar.slider(
-        "🚨 Confounding Strength", 
-        min_value=0.0, max_value=10.0, value=5.0, step=0.5,
-        help="How strongly the 'Reagent Lot' affects BOTH Temperature and Purity. At 0, the naive correlation equals the true causal effect."
-    )
+    with st.sidebar:
+        st.subheader("Causal Inference Controls")
+        confounding_slider = st.sidebar.slider(
+            "🚨 Confounding Strength", 
+            min_value=0.0, max_value=10.0, value=5.0, step=0.5,
+            help="How strongly the 'Calibration Age' affects BOTH the Sensor Reading (drift) and the Purity (degradation)."
+        )
     
     fig_dag, fig_scatter, naive_effect, adjusted_effect = plot_causal_inference(confounding_strength=confounding_slider)
     
@@ -3917,38 +3957,40 @@ def render_causal_inference():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="Biased Estimate (Naive Correlation)", value=f"{naive_effect:.3f}", help="The effect you would conclude by just plotting Purity vs. Temp. This is misleading!")
-            st.metric(label="Unbiased Estimate (True Causal Effect)", value=f"{adjusted_effect:.3f}", help="The true effect of Temp on Purity after adjusting for the confounder. Note how this stays stable.")
+            st.metric(label="Biased Estimate (Naive Correlation)", value=f"{naive_effect:.3f}",
+                      help="The misleading conclusion you would draw by just plotting Purity vs. Sensor Reading.")
+            st.metric(label="Unbiased Estimate (True Causal Effect)", value=f"{adjusted_effect:.3f}",
+                      help="The true effect of the Sensor Reading on Purity after adjusting for the confounder.")
 
-            st.info("Play with the 'Confounding Strength' slider and watch the metrics and plots!")
             st.markdown("""
-            - **The DAG (Top Plot):** This is our "causal map." It shows that `Reagent Lot` is a **common cause** of both `Temp` and `Purity`, creating a "backdoor" path that biases the `Temp -> Purity` relationship.
-            - **The Scatter Plot:** As you increase `Confounding Strength`, the orange line (naive correlation) becomes a worse and worse estimate of the green line (the true causal effect). The adjusted model correctly finds the true, steeper negative trend *within* each group.
+            **The Paradox Explained:**
+            - **The DAG (Top Plot):** This map shows our scientific belief. We believe a higher `Sensor Reading` *causes* higher `Purity`. However, `Calibration Age` is a **confounder**: it independently *increases* the Sensor Reading (drift) and *decreases* the Purity.
+            - **The Scatter Plot (Bottom):** The naive orange line looks at all data together and concludes that higher sensor readings are associated with *lower* purity. This is **Simpson's Paradox**. The green lines show the truth: *within each calibration group (New or Old)*, the relationship is positive. The adjusted model correctly identifies this true, positive causal effect.
             """)
 
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The Correlation Trap**
-- An analyst observes that ice cream sales are highly correlated with shark attacks. They recommend banning ice cream to improve beach safety.
-- **The Flaw:** They failed to account for a confounder: **Hot Weather.** Hot weather causes more people to buy ice cream AND causes more people to go swimming. Causal inference provides the tools to mathematically "control for" the weather to see that ice cream has no real effect.""")
+- An analyst observes that higher sensor readings are correlated with lower final purity. They recommend changing the process target to achieve lower sensor readings, believing this will improve purity.
+- **The Flaw:** This intervention would be a disaster. They are acting on a spurious correlation. The real cause of low purity is the old calibration. Their "fix" would actually make things worse by targeting the wrong variable.""")
             st.success("""🟢 **THE GOLDEN RULE: Draw the Map, Block the Backdoors**
 A robust causal analysis follows a disciplined process.
 1.  **Draw the Map (Build the DAG):** Collaborate with Subject Matter Experts to encode all domain knowledge and causal beliefs into a formal DAG.
-2.  **Identify the Backdoor Paths:** Use the DAG to identify all non-causal "backdoor" paths that create confounding.
-3.  **Block the Backdoors:** Use the appropriate statistical technique (like multiple regression) to "adjust for" or "condition on" the confounding variables, blocking the backdoor paths and isolating the true causal effect.""")
+2.  **Identify the Backdoor Paths:** Use the DAG to identify all non-causal "backdoor" paths that create confounding. In our case, the path `Sensor Reading <- Calibration Age -> Purity` is a backdoor.
+3.  **Block the Backdoors:** Use the appropriate statistical technique (like multiple regression) to "adjust for" the confounding variable (`Calibration Age`), blocking the backdoor path and isolating the true causal effect.""")
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context: The Causal Revolution
             **The Problem:** For most of the 20th century, mainstream statistics was deeply allergic to the language of causation. The mantra, famously drilled into every student, was **"correlation is not causation."** While true, this left a massive void: if correlation isn't the answer, what is? Statisticians were excellent at describing relationships but had no formal language to discuss *why* those relationships existed, leaving a critical gap between data and real-world action.
             
-            **The "Aha!" Moment:** The revolution was sparked by the computer scientist and philosopher **Judea Pearl** in the 1980s and 90s. His key insight was that the missing ingredient was **structure**. He argued that scientists carry causal models in their heads all the time, and that these models could be formally written down as graphs. He introduced the **Directed Acyclic Graph (DAG)** as the language for this structure. The arrows in a DAG are not mere correlations; they are bold claims about the direction of causal influence.
+            **The 'Aha!' Moment:** The revolution was sparked by the computer scientist and philosopher **Judea Pearl** in the 1980s and 90s. His key insight was that the missing ingredient was **structure**. He argued that scientists carry causal models in their heads all the time, and that these models could be formally written down as graphs. He introduced the **Directed Acyclic Graph (DAG)** as the language for this structure. The arrows in a DAG are not mere correlations; they are bold claims about the direction of causal influence.
             
             **The Impact:** This was a paradigm shift. By making causal assumptions explicit in a DAG, Pearl developed a complete mathematical framework—including his famous **do-calculus**—to determine if a causal question *could* be answered from observational data, and if so, how. This "Causal Revolution" provided the first-ever rigorous, mathematical language to move from seeing (`P(Y|X)`) to doing (`P(Y|do(X))`), transforming fields from epidemiology to economics. For this work, Judea Pearl was awarded the Turing Award in 2011, the highest honor in computer science.
             """)
             st.markdown("#### Mathematical Basis")
             st.markdown("The core difference is between **Observation** and **Intervention**.")
-            st.markdown("- **Observation (Correlation):** `P(Purity | Temp = t)` asks, \"What is the expected purity for the subset of batches that *we happened to observe* had a temperature of `t`?\" This is vulnerable to confounding.")
-            st.markdown("- **Intervention (Causation):** `P(Purity | do(Temp = t))` asks, \"What would the purity be if we *forced every batch* to have a temperature of `t`?\" This is the true causal effect.")
+            st.markdown("- **Observation (Correlation):** `P(Y | X = x)` asks, \"What is the expected Y for the subset of units that *we happened to observe* had a value of `x`?\" This is vulnerable to confounding.")
+            st.markdown("- **Intervention (Causation):** `P(Y | do(X = x))` asks, \"What would Y be if we *intervened and forced every unit* to have a value of `x`?\" This is the true causal effect.")
             st.markdown("Pearl's **backdoor adjustment formula** shows how to calculate the intervention from observational data. To find the effect of `X` on `Y` with a set of confounders `Z`, we calculate:")
             st.latex(r"P(Y | do(X=x)) = \sum_z P(Y | X=x, Z=z) P(Z=z)")
             st.markdown("In simple terms, this means: for each level of the confounder `z`, find the relationship between `X` and `Y`, and then average those relationships across the distribution of `z`. This is precisely what a multiple regression model does when you include `Z` as a covariate.")

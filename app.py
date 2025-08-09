@@ -1284,74 +1284,80 @@ def plot_westgard_scenario(scenario='Stable'):
 
 def plot_multivariate_spc(scenario='Stable'):
     """
-    Generates dynamic T² and SPE charts based on a selected process scenario.
+    Generates a dynamic 3-plot figure (Scatter, T², SPE) and a contribution plot for the MSPC module.
     """
     np.random.seed(42)
-    n_in_control = 20
-    n_out_of_control = 10
+    n_in_control, n_out_of_control = 20, 10
     
     mean_vec = [10, 20]
-    # In-control data is 2D, but we'll add a 3rd (noise) dimension later for SPE
-    cov_mat_2d = [[1, 0.8], [0.8, 1]]
-    in_control_2d = np.random.multivariate_normal(mean_vec, cov_mat_2d, n_in_control)
+    cov_mat = [[1, 0.8], [0.8, 1]]
+    in_control = np.random.multivariate_normal(mean_vec, cov_mat, n_in_control)
     
-    # Simulate a 3rd, uncorrelated variable that is normally noise around 5
-    in_control_z = np.random.normal(5, 0.1, n_in_control)
-    in_control_3d = np.hstack((in_control_2d, in_control_z.reshape(-1, 1)))
-
-    out_of_control_2d = np.random.multivariate_normal(mean_vec, cov_mat_2d, n_out_of_control)
-    out_of_control_z = np.random.normal(5, 0.1, n_out_of_control)
-
-    if scenario == 'Shift in Y Only':
-        out_of_control_2d = np.random.multivariate_normal([10, 22.5], cov_mat_2d, n_out_of_control)
+    # Generate data based on scenario
+    if scenario == 'Stable':
+        out_of_control = np.random.multivariate_normal(mean_vec, cov_mat, n_out_of_control)
+    elif scenario == 'Shift in Y Only':
+        out_of_control = np.random.multivariate_normal([10, 22.5], cov_mat, n_out_of_control)
     elif scenario == 'Correlation Break':
-        # This now manifests as an unexpected event in the 3rd dimension
-        out_of_control_z = np.random.normal(8, 0.1, n_out_of_control)
+        base = np.random.multivariate_normal(mean_vec, cov_mat, n_out_of_control)
+        base[:, 1] -= 2.5 * (base[:, 0] - mean_vec[0])
+        out_of_control = base
         
-    out_of_control_3d = np.hstack((out_of_control_2d, out_of_control_z.reshape(-1, 1)))
-    data_3d = np.vstack([in_control_3d, out_of_control_3d])
+    data = np.vstack([in_control, out_of_control])
     
-    # --- PCA Model for SPE ---
+    # --- T² and SPE Calculations ---
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler().fit(in_control)
+    scaled_data = scaler.transform(data)
+    scaled_in_control = scaled_data[:n_in_control]
+    
     from sklearn.decomposition import PCA
-    pca = PCA(n_components=2).fit(in_control_3d)
-    scores = pca.transform(data_3d)
+    pca = PCA(n_components=1).fit(scaled_in_control)
+    scores = pca.transform(scaled_data)
     
-    # --- T² Calculation (on PCA scores) ---
-    scores_in_control = scores[:n_in_control, :]
-    mean_scores = np.mean(scores_in_control, axis=0)
-    S_inv = np.linalg.inv(np.cov(scores_in_control.T))
-    t_squared = [((s - mean_scores).T @ S_inv @ (s - mean_scores)) for s in scores]
-    
-    p = 2; n = n_in_control
-    UCL_T2 = ((p * (n+1) * (n-1)) / (n*n - n*p)) * stats.f.ppf(0.9973, p, n-p) # 3-sigma equivalent
+    t_squared = scores[:, 0]**2 / np.var(scores[:n_in_control, 0], ddof=1)
+    UCL_T2 = stats.f.ppf(0.99, 1, n_in_control - 1)
 
-    # --- SPE Calculation ---
-    residuals = data_3d - pca.inverse_transform(scores)
+    residuals = scaled_data - pca.inverse_transform(scores)
     spe = np.sum(residuals**2, axis=1)
-    
-    # UCL for SPE (Q-statistic)
-    theta1 = np.sum(pca.explained_variance_[2:])
-    theta2 = np.sum(pca.explained_variance_[2:]**2)
-    theta3 = np.sum(pca.explained_variance_[2:]**3)
-    h0 = 1 - (2 * theta1 * theta3) / (3 * theta2**2)
-    c_alpha = stats.norm.ppf(0.99) # 99% confidence
-    UCL_SPE = theta1 * ( (c_alpha * np.sqrt(2 * theta2 * h0**2) / theta1) + 1 + (theta2 * h0 * (h0 - 1) / theta1**2) )**(1/h0)
+    g, h = np.mean(spe[:n_in_control]), np.var(spe[:n_in_control], ddof=1)
+    UCL_SPE = g * (1 + stats.norm.ppf(0.99) * np.sqrt(2*h) / g)
 
-    # --- Plotting ---
-    fig_main = make_subplots(rows=1, cols=2, subplot_titles=("<b>Hotelling's T² Chart</b>", "<b>SPE / DModX Chart</b>"))
-    
-    fig_main.add_trace(go.Scatter(x=np.arange(1, len(data_3d)+1), y=t_squared, mode='lines+markers', name="T²"), row=1, col=1)
-    fig_main.add_hline(y=UCL_T2, line=dict(color='red', dash='dash'), row=1, col=1)
+    # --- Contribution Plot Calculation ---
+    fig_contrib = None
+    if scenario != 'Stable':
+        first_ooc_index = n_in_control
+        contributions = []
+        if scenario == 'Shift in Y Only':
+            # T² contribution is related to the score's distance from the origin
+            contributions = (scaled_data[first_ooc_index] * pca.components_.T * scores[first_ooc_index, 0]).flatten()
+        elif scenario == 'Correlation Break':
+            # SPE contribution is simply the squared residual for each variable
+            contributions = residuals[first_ooc_index]**2
+        
+        df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions})
+        fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Variable Contributions to Alarm at Batch #{first_ooc_index+1}</b>",
+                               color='Variable', color_discrete_sequence=['#1f77b4', '#ff7f0e'])
+        fig_contrib.update_layout(showlegend=False)
 
-    fig_main.add_trace(go.Scatter(x=np.arange(1, len(data_3d)+1), y=spe, mode='lines+markers', name="SPE"), row=1, col=2)
-    # The calculated UCL for SPE can be NaN if there's no residual variance, handle this
+    # --- Main Plotting ---
+    fig_scatter = px.scatter(
+        x=data[:, 0], y=data[:, 1],
+        color=['In-Control'] * n_in_control + ['Out-of-Control'] * n_out_of_control,
+        title=f"<b>1. Process Data Scatter Plot ({scenario} Scenario)</b>",
+        labels={'x': 'Temperature (°C)', 'y': 'Pressure (PSI)', 'color': 'Status'}
+    )
+
+    fig_charts = make_subplots(rows=1, cols=2, subplot_titles=("<b>2. Hotelling's T² Chart</b>", "<b>3. SPE / DModX Chart</b>"))
+    fig_charts.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=t_squared, mode='lines+markers', name="T²"), row=1, col=1)
+    fig_charts.add_hline(y=UCL_T2, line=dict(color='red', dash='dash'), row=1, col=1)
+    fig_charts.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=spe, mode='lines+markers', name="SPE"), row=1, col=2)
     if not np.isnan(UCL_SPE):
-        fig_main.add_hline(y=UCL_SPE, line=dict(color='red', dash='dash'), row=1, col=2)
-
-    fig_main.update_layout(title=f"<b>Multivariate SPC: {scenario} Scenario</b>", height=400, showlegend=False)
-    fig_main.update_xaxes(title_text="Batch Number"); fig_main.update_yaxes(title_text="T² Statistic", row=1, col=1); fig_main.update_yaxes(title_text="SPE Statistic", row=1, col=2)
+        fig_charts.add_hline(y=UCL_SPE, line=dict(color='red', dash='dash'), row=1, col=2)
+    fig_charts.update_layout(height=400, showlegend=False); fig_charts.update_xaxes(title_text="Batch Number")
     
-    return fig_main
+    return fig_scatter, fig_charts, fig_contrib
+    
 @st.cache_data
 def plot_wilson(successes, n_samples):
     """
@@ -3226,81 +3232,77 @@ def render_multivariate_spc():
     """Renders the comprehensive, interactive module for Multivariate SPC."""
     st.markdown("""
     #### Purpose & Application: The Process Doctor
-    **Purpose:** To monitor the **holistic state of statistical control** for a process with multiple, correlated parameters. Instead of using an array of univariate charts, Multivariate SPC (MSPC) acts as the **head physician**, integrating all information into a single, powerful diagnosis.
+    **Purpose:** To monitor the **holistic state of statistical control** for a process with multiple, correlated parameters. Instead of using an array of univariate charts (like individual nurses reading single vital signs), Multivariate SPC (MSPC) acts as the **head physician**, integrating all information into a single, powerful diagnosis.
     
-    **Strategic Application:** This is an essential methodology for modern **Process Analytical Technology (PAT)**. In complex systems like bioreactors, parameters are interdependent. A small, coordinated deviation across several parameters—a "stealth shift"—can be invisible to individual charts but represents a significant excursion. MSPC is designed to detect exactly these events.
+    **Strategic Application:** This is an essential methodology for modern **Process Analytical Technology (PAT)** and real-time process monitoring. In complex systems like bioreactors or chromatography, parameters like temperature, pH, pressure, and flow rates are interdependent. A small, coordinated deviation across several parameters—a "stealth shift"—can be invisible to individual charts but represents a significant excursion from the normal operating state. MSPC is designed to detect exactly these events.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate different types of multivariate process failures. Observe how the T² and SPE charts work together to detect different kinds of problems. This demonstrates the power of monitoring both the process model and the error from the model.
+    **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate different types of multivariate process failures. First, observe the **Scatter Plot**, then see which **Control Chart (T² or SPE)** detects the problem, and finally, check the **Contribution Plot** in the 'Key Insights' tab to diagnose the root cause.
     """)
 
     st.sidebar.subheader("Multivariate SPC Controls")
     scenario = st.sidebar.radio(
         "Select a Process Scenario to Simulate:",
         ('Stable', 'Shift in Y Only', 'Correlation Break'),
-        captions=[
-            "A normal, in-control process.",
-            "A 'stealth shift' in one variable.",
-            "An unprecedented event breaks the model."
-        ]
+        captions=["A normal, in-control process.", "A 'stealth shift' in one variable.", "An unprecedented event breaks the model."]
     )
 
-    fig_main = plot_multivariate_spc(scenario=scenario)
+    fig_scatter, fig_charts, fig_contrib = plot_multivariate_spc(scenario=scenario)
     
-    # The main plot area now shows the two key charts
-    st.plotly_chart(fig_main, use_container_width=True)
+    st.plotly_chart(fig_scatter, use_container_width=True)
     
-    # The analysis is now in a single column below the plots
-    st.subheader("Analysis & Interpretation")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-    
-    with tabs[0]:
-        st.metric(label="📈 T² Chart Verdict", value="Out-of-Control" if scenario == 'Shift in Y Only' else "In-Control", help="Monitors deviation *within* the normal process model.")
-        st.metric(label="📈 SPE Chart Verdict", value="Out-of-Control" if scenario == 'Correlation Break' else "In-Control", help="Monitors deviation *from* the normal process model.")
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig_charts, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
-        st.info("Select a scenario from the sidebar and observe the charts!")
-        st.markdown("""
-        **A Car Analogy:**
-        - The **T² chart** is like your car's **GPS navigator**. It tells you if you've strayed too far from the expected route (the multivariate mean).
-        - The **SPE chart** is like your car's **"off-road" alarm**. It tells you if you've encountered a new type of terrain that was never on the map (a broken correlation).
-        
-        - **Shift in Y Only:** The GPS (T²) alarms because you're off-route, but the off-road alarm (SPE) is silent because you're still on a valid road. This is a common, predictable deviation.
-        - **Correlation Break:** The GPS (T²) might not alarm if you're still near the center of the map, but the "off-road" alarm (SPE) goes off loudly because the relationship between variables has changed in an unprecedented way. This signals a new, unknown failure mode.
+        with tabs[0]:
+            st.metric("📈 T² Chart Verdict", "Out-of-Control" if scenario == 'Shift in Y Only' else "In-Control", help="Monitors deviation *within* the normal process model.")
+            st.metric("📈 SPE Chart Verdict", "Out-of-Control" if scenario == 'Correlation Break' else "In-Control", help="Monitors deviation *from* the normal process model.")
+            
+            st.markdown("---")
+            st.markdown("##### Diagnostic: Contribution Plot")
+            if fig_contrib:
+                st.plotly_chart(fig_contrib, use_container_width=True)
+                if scenario == 'Shift in Y Only':
+                    st.markdown("The contribution plot confirms that the T² alarm was driven almost entirely by the **Pressure** (Y-axis) variable.")
+                elif scenario == 'Correlation Break':
+                    st.markdown("The contribution plot shows that both variables contributed to the SPE alarm, as their fundamental relationship broke down.")
+            else:
+                st.success("The process is stable, so no diagnostic plot is needed.")
 
-        **The Core Strategic Insight:** You need both charts. T² detects known types of variation and drifts. SPE detects novel events and failures that break the fundamental model of the process.
-        """)
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
+            Using dozens of individual charts is doomed to fail due to alarm fatigue and its blindness to "stealth shifts."
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Detect with T²/SPE, Diagnose with Contributions**
+            1.  **Stage 1: Detect.** Use **T² and SPE charts** as your primary health monitors to answer "Is something wrong?"
+            2.  **Stage 2: Diagnose.** If a chart alarms, then use **contribution plots** to identify which original variables are responsible for the signal. This is the path to the root cause.
+            """)
 
-    with tabs[1]:
-        st.error("""
-        🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
-        Using dozens of individual charts is doomed to fail due to:
-        - **Problem 1: Alpha Inflation & Alarm Fatigue.** The probability of at least one false alarm becomes extremely high, causing operators to ignore signals.
-        - **Problem 2: The Stealth Shift.** A small, coordinated shift across many parameters is a major process change but will not trigger any single alarm.
-        """)
-        st.success("""
-        🟢 **THE GOLDEN RULE: Detect with T²/SPE, Diagnose with Contributions**
-        The correct, two-stage approach is disciplined and powerful:
-        1.  **Stage 1: Detect.** Use **T² and SPE charts** as your primary health monitors to answer "Is something wrong?"
-        2.  **Stage 2: Diagnose.** If a chart alarms, then use **contribution plots** to identify which original variables are responsible for the signal.
-        """)
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context: The Crisis of Dimensionality
+            **The Problem:** In the 1930s, statistics was largely a univariate world. Tools like Student's t-test and Shewhart's control charts were brilliant for analyzing one variable at a time. But scientists and economists were facing increasingly complex problems with dozens of correlated measurements. How could you test if two groups were different, not just on one variable, but across a whole panel of them? A simple t-test on each variable was not only inefficient, it was statistically misleading due to the problem of multiple comparisons.
 
-    with tabs[2]:
-        st.markdown("""
-        #### Historical Context: The Crisis of Dimensionality
-        **The Problem:** In the 1930s, statistics was largely a univariate world. But scientists faced problems with dozens of correlated measurements. How could you test if groups were different across a whole panel of variables?
-        
-        **The "Aha!" Moment (Hotelling):** **Harold Hotelling** solved this in 1931 with the **T-squared statistic**, a direct multivariate generalization of Student's t-statistic. It provided a single number representing the "distance" between groups in a multi-dimensional space.
-        
-        **The Impact:** The T² chart is simply a time-series plot of this statistic. The SPE chart is a more modern addition, born from the field of chemometrics (led by pioneers like Svante Wold), which uses Principal Component Analysis (PCA) to build the underlying process model. Together, they form the foundation of modern MSPC.
-        
-        #### Mathematical Basis
-        The T² statistic is a measure of the **Mahalanobis distance**, a "smart" distance that accounts for correlation via the **inverse of the sample covariance matrix (`S⁻¹`)**.
-        """)
-        st.latex(r"T^2 = (\mathbf{x} - \mathbf{\bar{x}})' \mathbf{S}^{-1} (\mathbf{x} - \mathbf{\bar{x}})")
-        st.markdown("""
-        **SPE (Squared Prediction Error):** Also known as DModX or Q-statistic. It is the sum of squared residuals after projecting a data point onto the principal component model of the process. It answers, "How well does this observation conform to the correlation structure?"
-        """)
+            **The "Aha!" Moment (Hotelling):** The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. His genius was in generalization. He recognized that the squared t-statistic, $t^2 = (\bar{x} - \mu)^2 / (s^2/n)$, was a measure of squared distance, normalized by variance. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which replaced the univariate terms with their vector and matrix equivalents. It provided a single number that represented the "distance" of a point from the center of a multivariate distribution, elegantly solving the problem of testing multiple means at once while accounting for all their correlations.
+            
+            **The Impact:** When Shewhart's control charts became popular, it was a natural next step to apply Hotelling's powerful statistic to process monitoring. The T² chart is simply a time-series plot of this statistic, providing the first statistically rigorous way to apply SPC to complex, correlated data. This 90-year-old idea is now the engine of modern PAT and real-time quality assurance, especially when combined with the SPE chart, a more modern addition from the field of chemometrics.
+            
+            #### Mathematical Basis
+            The T² statistic is a measure of the **Mahalanobis distance**, a "smart" distance that accounts for the correlation between variables. It does this through the **inverse of the sample covariance matrix (`S⁻¹`)**, which acts as a "de-correlation engine." It mathematically transforms the tilted, elliptical cloud of normal data into a perfect, centered circle, so that any deviation from the center becomes a simple Euclidean distance.
+            """)
+            st.latex(r"T^2 = (\mathbf{x} - \mathbf{\bar{x}})' \mathbf{S}^{-1} (\mathbf{x} - \mathbf{\bar{x}})")
+            st.markdown("""
+            - **SPE (Squared Prediction Error):** Also known as DModX or Q-statistic. It is the sum of squared residuals after projecting a data point onto the principal component model of the process. It answers the question, "How well does this observation conform to the correlation structure?" For a new point **x**, it is the squared distance to the PCA model plane:
+            """)
+            st.latex(r"SPE = || \mathbf{x} - \mathbf{P}\mathbf{P}'\mathbf{x} ||^2")
+            st.markdown("where **P** is the matrix of PCA loadings (the model directions).")
             
 def render_ewma_cusum():
     """Renders the module for small shift detection charts (EWMA/CUSUM)."""

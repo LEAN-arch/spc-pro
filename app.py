@@ -1511,69 +1511,118 @@ def plot_spc_charts(scenario='Stable'):
 @st.cache_data
 def plot_capability(scenario='Ideal'):
     """
-    Generates plots for the process capability module based on a scenario.
+    Generates enhanced, more realistic dynamic plots for the process capability module,
+    including multiple 'out of control' types and a KDE overlay.
     """
     np.random.seed(42)
-    n = 100
+    n = 150
     LSL, USL, Target = 90, 110, 100
     
-    # Generate data based on scenario
-    if scenario == 'Ideal':
+    # --- Data Generation based on scenario ---
+    mean, std = 100, 1.5
+    is_stable = True
+    phase1_end = 75
+
+    if scenario == 'Ideal (High Cpk)':
         mean, std = 100, 1.5
-        data = np.random.normal(mean, std, n)
-    elif scenario == 'Shifted':
+    elif scenario == 'Shifted (Low Cpk)':
         mean, std = 104, 1.5
-        data = np.random.normal(mean, std, n)
-    elif scenario == 'Variable':
+    elif scenario == 'Variable (Low Cpk)':
         mean, std = 100, 3.5
+    elif scenario == 'Out of Control (Shift)':
+        is_stable = False
         data = np.random.normal(mean, std, n)
-    elif scenario == 'Out of Control':
-        mean, std = 100, 1.5
+        data[phase1_end:] += 6 # Add a shift
+    elif scenario == 'Out of Control (Trend)':
+        is_stable = False
         data = np.random.normal(mean, std, n)
-        data[70:] += 6 # Add a shift to make it out of control
+        data += np.linspace(0, 8, n) # Add a gradual trend
+    elif scenario == 'Out of Control (Bimodal)':
+        is_stable = False
+        data1 = np.random.normal(97, 1.5, n // 2)
+        data2 = np.random.normal(103, 1.5, n // 2)
+        data = np.concatenate([data1, data2])
+        np.random.shuffle(data)
+
+    if is_stable:
+        data = np.random.normal(mean, std, n)
         
     # --- Control Chart Calculations ---
-    mr = np.abs(np.diff(data))
-    # Use only stable part for limits if out of control
-    limit_data = data[:70] if scenario == 'Out of Control' else data
+    # Use only stable part for limits if a known instability is introduced
+    limit_data = data[:phase1_end] if scenario in ['Out of Control (Shift)', 'Out of Control (Trend)'] else data
     center_line = np.mean(limit_data)
     mr_mean = np.mean(np.abs(np.diff(limit_data)))
     sigma_est = mr_mean / 1.128 # d2 for n=2
     UCL_I, LCL_I = center_line + 3 * sigma_est, center_line - 3 * sigma_est
+    
+    ooc_indices = np.where((data > UCL_I) | (data < LCL_I))[0]
 
     # --- Capability Calculation ---
-    if scenario == 'Out of Control':
-        cpk_val = 0 # Invalid
+    if not is_stable or len(ooc_indices) > 0:
+        cpk_val = np.nan # Invalid if not stable
     else:
-        cpk_upper = (USL - mean) / (3 * std)
-        cpk_lower = (mean - LSL) / (3 * std)
+        # Use overall mean and std for capability calculation if stable
+        data_mean, data_std = np.mean(data), np.std(data, ddof=1)
+        cpk_upper = (USL - data_mean) / (3 * data_std)
+        cpk_lower = (data_mean - LSL) / (3 * data_std)
         cpk_val = min(cpk_upper, cpk_lower)
 
     # --- Plotting ---
     fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=False, vertical_spacing=0.15,
-        subplot_titles=("<b>Control Chart (Is the process stable?)</b>", "<b>Capability Histogram (Does it meet specs?)</b>")
+        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+        subplot_titles=("<b>1. Control Chart (Is the process stable?)</b>",
+                        "<b>2. Capability Histogram (Does it meet specs?)</b>")
     )
     # Control Chart
-    fig.add_trace(go.Scatter(x=np.arange(n), y=data, mode='lines+markers', name='Process Data'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=np.arange(n), y=data, mode='lines+markers', name='Process Data',
+                             marker=dict(color='#636EFA')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=ooc_indices, y=data[ooc_indices], mode='markers', name='Out of Control',
+                             marker=dict(color='#EF553B', size=10, symbol='x')), row=1, col=1)
     fig.add_hline(y=center_line, line_dash="dash", line_color="black", row=1, col=1)
     fig.add_hline(y=UCL_I, line_color="red", row=1, col=1)
     fig.add_hline(y=LCL_I, line_color="red", row=1, col=1)
+    if scenario in ['Out of Control (Shift)', 'Out of Control (Trend)']:
+        fig.add_vrect(x0=phase1_end - 0.5, x1=n - 0.5, fillcolor="rgba(255,150,0,0.15)", line_width=0,
+                      annotation_text="Process Change", annotation_position="top left", row=1, col=1)
     
     # Histogram
-    fig.add_trace(go.Histogram(x=data, name='Distribution', nbinsx=20, histnorm='probability density'), row=2, col=1)
-    # Add normal curve overlay
-    x_curve = np.linspace(min(data.min(), LSL-2), max(data.max(), USL+2), 200)
-    y_curve = norm.pdf(x_curve, mean, std)
-    fig.add_trace(go.Scatter(x=x_curve, y=y_curve, mode='lines', name='Process Voice', line=dict(color='blue')), row=2, col=1)
+    fig.add_trace(go.Histogram(x=data, name='Distribution', nbinsx=25, histnorm='probability density'), row=2, col=1)
     
+    # SME Enhancement: Use KDE instead of normal curve for flexibility
+    from scipy.stats import gaussian_kde
+    kde = gaussian_kde(data)
+    x_curve = np.linspace(min(data.min(), LSL-5), max(data.max(), USL+5), 200)
+    y_curve = kde(x_curve)
+    fig.add_trace(go.Scatter(x=x_curve, y=y_curve, mode='lines', name='Process Voice (KDE)',
+                             line=dict(color='darkblue', width=3)), row=2, col=1)
+    
+    # SME Enhancement: Highlight OOC points on the histogram
+    if len(ooc_indices) > 0:
+        fig.add_trace(go.Scatter(x=data[ooc_indices], y=np.zeros_like(ooc_indices), mode='markers',
+                                 name='OOC Points', marker=dict(color='#EF553B', size=8, symbol='circle')), row=2, col=1)
+
     # Add Spec Limits
-    fig.add_vline(x=LSL, line_dash="dot", line_color="darkred", annotation_text="LSL", row=2, col=1)
-    fig.add_vline(x=USL, line_dash="dot", line_color="darkred", annotation_text="USL", row=2, col=1)
+    fig.add_vline(x=LSL, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=2, col=1)
+    fig.add_vline(x=USL, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=2, col=1)
+    fig.add_vline(x=Target, line_dash="dash", line_color="grey", annotation_text="Target", row=2, col=1)
+    
+    # SME Enhancement: Add a Cpk Verdict annotation
+    if np.isnan(cpk_val):
+        verdict_text, verdict_color = "INVALID (Process Unstable)", "#EF553B"
+    elif cpk_val < 1.0:
+        verdict_text, verdict_color = f"POOR (Cpk = {cpk_val:.2f})", "#EF553B"
+    elif cpk_val < 1.33:
+        verdict_text, verdict_color = f"MARGINAL (Cpk = {cpk_val:.2f})", "#FECB52"
+    else:
+        verdict_text, verdict_color = f"GOOD (Cpk = {cpk_val:.2f})", "#00CC96"
+        
+    fig.add_annotation(x=0.98, y=0.98, xref="x2 domain", yref="y2 domain",
+                       text=f"<b>Capability Verdict:<br>{verdict_text}</b>",
+                       showarrow=False, font=dict(size=16, color='white'),
+                       bgcolor=verdict_color, borderpad=10, bordercolor='black', borderwidth=2)
 
-    fig.update_layout(height=700, showlegend=False)
+    fig.update_layout(height=700, showlegend=False, xaxis2_title="Measured Value")
     return fig, cpk_val
-
 def plot_tolerance_intervals(n=30, coverage_pct=99.0):
     """
     Generates dynamic plots for the Tolerance Interval module based on user inputs.
@@ -4025,7 +4074,6 @@ def render_spc_charts():
     **Interactive Demo:** Use the controls at the bottom of the sidebar to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
     """)
     
-    # --- Sidebar controls for this specific module ---
     st.sidebar.subheader("SPC Scenario Controls")
     scenario = st.sidebar.radio(
         "Select a Process Scenario to Simulate:",
@@ -4038,7 +4086,6 @@ def render_spc_charts():
         ]
     )
 
-    # Generate plots based on the selected scenario
     fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
     
     st.subheader(f"Analysis & Interpretation: {scenario} Process")
@@ -4060,59 +4107,55 @@ def render_spc_charts():
             st.markdown("- **Interpretation:** This chart tracks the proportion of defects. The control limits become tighter for larger batches, reflecting increased statistical certainty.")
 
     with tabs[1]:
-        st.error("""
-        🔴 **THE INCORRECT APPROACH: "Process Tampering"**
-        This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
-        
-        - *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
-        - *"This point is below the mean, I'll adjust the flow rate up."*
-        
-        Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.
-        """)
-        st.success("""
-        🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
-        The control chart's signal dictates one of two paths:
-        1.  **Process is IN-CONTROL (only common cause variation):**
-            - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).
-        2.  **Process is OUT-OF-CONTROL (a special cause is present):**
-            - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.
-        """)
+        st.error("""🔴 **THE INCORRECT APPROACH: "Process Tampering"**
+This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
+- *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
+Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.""")
+        st.success("""🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
+The control chart's signal dictates one of two paths:
+1.  **Process is IN-CONTROL (only common cause variation):**
+    - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).
+2.  **Process is OUT-OF-CONTROL (a special cause is present):**
+    - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.""")
 
     with tabs[2]:
-        # FIX: Replaced the old content with your new, more detailed version.
         st.markdown("""
-        #### Historical Context & Origin
-        The control chart was invented by the brilliant American physicist and engineer **Dr. Walter A. Shewhart** while working at Bell Telephone Laboratories in the 1920s. The challenge was immense: manufacturing millions of components for the new national telephone network required unprecedented levels of consistency. How could you know if a variation in a vacuum tube's performance was just normal fluctuation or a sign of a real production problem?
+        #### Historical Context: The Birth of Modern Quality
+        **The Problem:** In the early 1920s, manufacturing at Western Electric for the Bell Telephone system was a chaotic affair. The challenge was immense: how could you ensure consistency across millions of components when you couldn't tell the difference between normal, random variation and a real production problem? Engineers were lost in a "fog" of data, constantly "tampering" with the process based on noise, often making things worse.
 
-        Shewhart's genius was in his 1924 memo where he introduced the first control chart. He was the first to formally articulate the critical distinction between **common cause** and **special cause** variation. He realized that as long as a process only exhibited common cause variation, it was stable and predictable. The purpose of the control chart was to provide a simple, graphical tool to detect the moment a special cause entered the system. This idea was the birth of modern Statistical Process Control and laid the foundation for the 20th-century quality revolution.
-
-        #### Mathematical Basis
-        The control limits on a Shewhart chart are famously set at ±3 standard deviations from the center line.
+        **The 'Aha!' Moment:** A brilliant physicist at Bell Labs, **Dr. Walter A. Shewhart**, had a revolutionary insight. In a famous 1924 internal memo, he was the first to formally articulate the critical distinction between what he called **"chance cause"** (common cause) and **"assignable cause"** (special cause) variation. He realized that as long as a process only exhibited chance cause variation, it was stable, predictable, and in a "state of statistical control."
+        
+        **The Impact:** The control chart was the simple, graphical tool he invented to detect the exact moment an assignable cause entered the system. This single idea was the birth of modern Statistical Process Control and laid the foundation for the entire 20th-century quality revolution, influencing giants like W. Edwards Deming and the rise of Japanese manufacturing excellence.
         """)
-        st.latex(r"\text{Control Limits} = \text{Center Line} \pm 3 \times (\text{Standard Deviation of the Plotted Statistic})")
+        st.markdown("#### Mathematical Basis")
+        st.markdown("The control limits on a Shewhart chart are famously set at the process average plus or minus three standard deviations of the statistic being plotted.")
+        st.latex(r"\text{Control Limits} = \mu \pm 3\sigma_{\text{statistic}}")
         st.markdown("""
-        - **Why 3-Sigma?** Shewhart chose this value for sound economic and statistical reasons. For a normally distributed process, 99.73% of all data points will naturally fall within these limits.
-        - **Minimizing False Alarms:** This means there's only a 0.27% chance of a point falling outside the limits purely by chance. This makes the chart robust; when you get a signal, you can be very confident it's real and not just random noise. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
+        - **Why 3-Sigma?** Shewhart chose this value for sound economic and statistical reasons. For a normally distributed process, 99.73% of all data points will naturally fall within these limits. This means there's only a 0.27% chance of a point falling outside the limits purely by chance (a false alarm). This makes the chart robust; when you get a signal, you can be very confident it's real. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
+        - **Estimating Sigma:** In practice, the true `σ` is unknown. For an I-MR chart, it is estimated from the average moving range (`MR-bar`) using a statistical constant `d₂`:
         """)
+        st.latex(r"\hat{\sigma} = \frac{\overline{MR}}{d_2}")
 
 def render_capability():
     """Renders the interactive module for Process Capability (Cpk)."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To quantitatively determine if a process, once proven to be in a state of statistical control, is **capable** of consistently producing output that meets pre-defined specification limits (USL/LSL).
+    #### Purpose & Application: Voice of the Process vs. Voice of the Customer
+    **Purpose:** To quantitatively determine if a process, once proven to be in a state of statistical control, is **capable** of consistently producing output that meets pre-defined specification limits (the "Voice of the Customer").
     
-    **Strategic Application:** This is the ultimate verdict on process performance, often the final gate in a process validation or technology transfer. It directly answers the critical business question: "Is our process good enough to reliably meet customer or regulatory requirements with a high degree of confidence?" 
-    - A high capability index (Cpk) provides objective, statistical evidence that the process is robust, predictable, and delivers high quality.
-    - A low Cpk is a clear signal that the process requires fundamental improvement, either by **re-centering the process mean** or by **reducing the process variation**.
-    
-    In many ways, achieving a high Cpk is the statistical equivalent of "mission accomplished" for a process development or transfer team.
+    **Strategic Application:** This is the ultimate verdict on process performance, often the final gate in a process validation or technology transfer. It directly answers the critical business question: "Is our process good enough to reliably meet customer or regulatory requirements?" 
+    - A high Cpk provides objective evidence that the process is robust and delivers high quality.
+    - A low Cpk is a clear signal that the process requires fundamental improvement.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the **Process Scenario** radio buttons below to simulate four common real-world process states. Observe how the control chart (stability), the histogram's position relative to the spec limits, and the final Cpk value (capability) change for each scenario. This demonstrates the critical principle that a process must be stable *before* its capability can be meaningfully assessed.
+    **Interactive Demo:** Use the **Process Scenario** radio buttons below to simulate common real-world process states. Notice how the **Capability Verdict** is only valid when the top control chart shows a stable process. The bottom plot shows how the process distribution (blue line) fits within the specification limits (red lines).
     """)
 
-    scenario = st.radio("Select Process Scenario:", ('Ideal', 'Shifted', 'Variable', 'Out of Control'))
+    scenario = st.radio(
+        "Select Process Scenario:",
+        ('Ideal (High Cpk)', 'Shifted (Low Cpk)', 'Variable (Low Cpk)', 'Out of Control (Shift)', 'Out of Control (Trend)', 'Out of Control (Bimodal)'),
+        horizontal=True
+    )
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -4123,38 +4166,44 @@ def render_capability():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Process Capability (Cpk)", value=f"{cpk_val:.2f}" if scenario != 'Out of Control' else "INVALID", help="Measures how well the process fits within the spec limits, accounting for centering. Higher is better.")
+            st.metric(label="📈 KPI: Process Capability (Cpk)",
+                      value=f"{cpk_val:.2f}" if not np.isnan(cpk_val) else "INVALID",
+                      help="Measures how well the process fits within the spec limits, accounting for centering. Higher is better.")
+            
             st.markdown("""
-            - **The Mantra: Control Before Capability.** The control chart (top plot) is a prerequisite. The Cpk metric is only statistically valid and meaningful if the process is stable and in-control. The 'Out of Control' scenario yields an **INVALID** Cpk because an unstable process has no single, predictable "voice" to measure.
-            - **The Key Insight: Control ≠ Capability.** A process can be perfectly in-control (predictable) but not capable (producing bad product). 
-                - The **'Shifted'** scenario shows a process that is precise but inaccurate.
-                - The **'Variable'** scenario shows a process that is centered but imprecise.
-            Both are in control, but both have a poor Cpk.
+            **The Mantra: Stability First, Capability Second.**
+            - The control chart (top plot) is a prerequisite. The Cpk metric is **statistically invalid** if the process is unstable, as an unstable process has no single, predictable "voice" to measure.
+            - Notice how the **'Out of Control'** scenarios all produce an invalid result. You must fix the stability problem *before* you can assess capability.
+            
+            **The Key Insight: Control ≠ Capability.**
+            - A process can be perfectly stable but still produce bad product. The **'Shifted'** and **'Variable'** scenarios are stable but have poor Cpk values for different reasons (poor accuracy vs. poor precision).
+            
+            **The Bimodal Case:**
+            - The **'Bimodal'** scenario shows two distinct sub-processes running. This violates the normality assumption of Cpk and requires investigation to find and eliminate the source of the two populations.
             """)
         with tabs[1]:
-            st.markdown("These are industry-standard benchmarks, often required by customers, especially in automotive and aerospace. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
+            st.markdown("These are industry-standard benchmarks. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
             st.markdown("- `Cpk < 1.00`: Process is **not capable**.")
             st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**.")
             st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable** (a '4-sigma' quality level).")
             st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** (approaching 'Six Sigma').")
-            st.markdown("- `Cpk ≥ 2.00`: Process has achieved **Six Sigma capability**.")
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            The concept of comparing process output to specification limits is old, but the formalization into capability indices originated in the Japanese manufacturing industry in the 1970s as a core part of Total Quality Management (TQM).
-            
-            However, it was the **Six Sigma** initiative, pioneered by engineer Bill Smith at **Motorola in the 1980s**, that catapulted Cpk to global prominence. The 'Six Sigma' concept was born: a process so capable that the nearest specification limit is at least six standard deviations away from the process mean. Cpk became the standard metric for measuring progress toward this ambitious goal.
-            
-            #### Mathematical Basis
-            Capability analysis is a direct comparison between the **"Voice of the Customer"** (the allowable spread, USL - LSL) and the **"Voice of the Process"** (the actual, natural spread, conventionally 6σ).
+            #### Historical Context: The Six Sigma Revolution
+            **The Problem:** In the 1980s, the American electronics manufacturer Motorola was facing a quality crisis. Despite using traditional quality control methods, defect rates were too high to compete globally. They needed a new, more ambitious way to think about quality.
 
-            - **Cp (Potential Capability):** Measures if the process is narrow enough, ignoring centering.
+            **The 'Aha!' Moment:** An engineer named **Bill Smith**, with the backing of CEO Bob Galvin, championed a radical new idea. Instead of just being "in-spec," a process should be so good that the specification limits are at least **six standard deviations** away from the process mean. This "Six Sigma" concept was a quantum leap in quality thinking. The **Cpk index** became the simple, powerful metric to measure progress toward this goal. A Cpk of 2.0 was the statistical equivalent of achieving Six Sigma capability.
+
+            **The Impact:** The Six Sigma initiative was a spectacular success, reportedly saving Motorola billions of dollars. It was later adopted and popularized by companies like General Electric under Jack Welch, becoming one of the most influential business management strategies of the late 20th century. Cpk moved from a niche statistical tool to a globally recognized KPI for process excellence.
             """)
-            st.latex(r"C_p = \frac{USL - LSL}{6\hat{\sigma}}")
-            st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit.")
-            st.latex(r"C_{pk} = \min \left( \frac{USL - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - LSL}{3\hat{\sigma}} \right)")
-
+            st.markdown("#### Mathematical Basis")
+            st.markdown("Capability analysis is a direct comparison between the **\"Voice of the Customer\"** (the allowable spread, USL - LSL) and the **\"Voice of the Process\"** (the actual, natural spread, conventionally 6σ).")
+            st.markdown("- **Cp (Potential Capability):** Measures if the process is narrow enough, ignoring centering.")
+            st.latex(r"C_p = \frac{\text{USL} - \text{LSL}}{6\hat{\sigma}}")
+            st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit, in units of 3-sigma.")
+            st.latex(r"C_{pk} = \min \left( \frac{\text{USL} - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - \text{LSL}}{3\hat{\sigma}} \right)")
+            
 def render_tolerance_intervals():
     """Renders the INTERACTIVE module for Tolerance Intervals."""
     st.markdown("""

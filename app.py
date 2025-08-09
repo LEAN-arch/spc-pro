@@ -3439,7 +3439,7 @@ def render_ewma_cusum():
 
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        # Call the backend function which now returns the dynamic KPI values
+        # Call the backend function which returns the dynamic KPI values
         fig, i_time, ewma_time, cusum_time = plot_ewma_cusum_comparison(shift_size=shift_size_slider)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -3448,26 +3448,26 @@ def render_ewma_cusum():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
         with tabs[0]:
-            # --- FIX: Replaced all static 'value' arguments with the dynamic variables ---
+            # --- FIX: Updated metric labels and help text for clarity ---
             st.metric(
                 label="Shift Size",
                 value=f"{shift_size_slider} σ",
                 help="The simulated shift introduced at data point #20."
             )
             st.metric(
-                label="I-Chart Detection Time (post-shift)",
-                value=i_time, # Uses the dynamic variable from the backend
-                help="The I-Chart is only sensitive to large shifts (>3σ)."
+                label="I-Chart: # of Shifted Points to Detect",
+                value=i_time, 
+                help="This counter shows how many shifted data points occurred before the I-Chart signaled an alarm. 'Failed' means no alarm was triggered."
             )
             st.metric(
-                label="EWMA Detection Time (post-shift)",
-                value=ewma_time, # Uses the dynamic variable from the backend
-                help="The EWMA is sensitive to small and moderate shifts."
+                label="EWMA: # of Shifted Points to Detect",
+                value=ewma_time,
+                help="This counter shows how many shifted data points occurred before the EWMA chart signaled an alarm."
             )
             st.metric(
-                label="CUSUM Detection Time (post-shift)",
-                value=cusum_time, # Uses the dynamic variable from the backend
-                help="The CUSUM is the fastest at detecting small, sustained shifts."
+                label="CUSUM: # of Shifted Points to Detect",
+                value=cusum_time,
+                help="This counter shows how many shifted data points occurred before the CUSUM chart signaled an alarm."
             )
 
             st.markdown("""

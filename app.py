@@ -4161,7 +4161,6 @@ def render_ewma_cusum():
 
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        # --- FIX: Unpack the new integer count KPIs ---
         fig, i_count, ewma_count, cusum_count = plot_ewma_cusum_comparison(shift_size=shift_size_slider)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -4170,7 +4169,6 @@ def render_ewma_cusum():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
         with tabs[0]:
-            # --- FIX: Updated metrics to use the new counts and labels ---
             st.metric(
                 label="Shift Size",
                 value=f"{shift_size_slider} σ",
@@ -4202,57 +4200,40 @@ def render_ewma_cusum():
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: "The One-Chart-Fits-All Fallacy"**
-            A manager insists on using only I-MR charts for everything because they are easy to understand.
-            - They miss a slow 1-sigma drift for weeks, producing tons of near-spec material.
-            - When a batch finally fails, they are shocked and have no leading indicators to explain why. They have been flying blind.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Layer Your Statistical Defenses**
-            The goal is to use a combination of charts to create a comprehensive security system.
-            - **Use Shewhart Charts (I-MR, X-bar) as your front-line "Beat Cops":** They are unmatched for detecting large, sudden special causes.
-            - **Use EWMA or CUSUM as your "Sentinels":** Deploy them alongside Shewhart charts to stand guard against the silent, creeping threats that the beat cops will miss.
-            This layered approach provides a complete picture of process stability.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "One-Chart-Fits-All Fallacy"**
+A manager insists on using only I-MR charts for everything because they are easy to understand.
+- They miss a slow 1-sigma drift for weeks, producing tons of near-spec material.
+- When a batch finally fails, they are shocked and have no leading indicators to explain why. They have been flying blind.""")
+            st.success("""🟢 **THE GOLDEN RULE: Layer Your Statistical Defenses**
+The goal is to use a combination of charts to create a comprehensive security system.
+- **Use Shewhart Charts (I-MR, X-bar) as your front-line "Beat Cops":** They are unmatched for detecting large, sudden special causes.
+- **Use EWMA or CUSUM as your "Sentinels":** Deploy them alongside Shewhart charts to stand guard against the silent, creeping threats that the beat cops will miss.
+This layered approach provides a complete picture of process stability.""")
 
         with tabs[2]:
             st.markdown(r"""
-            #### Historical Context & Origin: The Second Generation of SPC
+            #### Historical Context: The Second Generation of SPC
+            **The Problem:** Dr. Walter Shewhart's control charts of the 1920s were a monumental success. However, they were designed like a **smoke detector**—brilliantly effective at detecting large, sudden events ("fires"), but intentionally insensitive to small, slow changes to avoid overreaction to random noise. By the 1950s, industries like chemistry and electronics required higher precision. The critical challenge was no longer just preventing large breakdowns, but detecting subtle, gradual drifts that could slowly degrade quality. A new kind of sensor was needed.
 
-            The quality revolution sparked by **Dr. Walter Shewhart's** control charts in the 1920s was a monumental success. For the first time, manufacturers had a tool to distinguish signal from noise, allowing them to achieve a state of statistical control. However, Shewhart's charts were designed like a **smoke detector**—brilliantly effective at detecting large, sudden events (a "fire"), but intentionally insensitive to small, slow changes. This design choice was deliberate, as it prevented "process tampering" by reacting to common cause noise.
+            **The 'Aha!' Moment (CUSUM - 1954):** The first breakthrough came from British statistician **E. S. Page**. Inspired by **sequential analysis** from WWII munitions testing, he realized that instead of looking at each data point in isolation, he could **accumulate the evidence** of small deviations over time. The Cumulative Sum (CUSUM) chart was born. It acts like a **bloodhound on a trail**, ignoring random noise by using a "slack" parameter `k`, but rapidly accumulating the signal once it detects a persistent scent in one direction.
 
-            By the 1950s, the industrial world had evolved. Processes in fields like chemistry and electronics were becoming more complex and precise. The critical challenge was no longer just preventing large breakdowns, but detecting subtle, gradual drifts that could slowly degrade quality over time. The "smoke detector" wasn't sensitive enough; a new kind of sensor was needed. This set the stage for the second generation of SPC.
+            **The 'Aha!' Moment (EWMA - 1959):** Five years later, **S. W. Roberts** of Bell Labs proposed a more flexible alternative, inspired by **time series forecasting**. The Exponentially Weighted Moving Average (EWMA) chart acts like a **sentinel with a memory**. It gives the most weight to the most recent data point, a little less to the one before, and so on, with the influence of old data decaying exponentially. This creates a smooth, sensitive trend line that effectively filters out noise while quickly reacting to the beginning of a real drift.
 
-            - **CUSUM (1954): The Bloodhound**
-                - **The Inventor:** The first major innovation came from British statistician **E. S. Page**. His work was rooted in **sequential analysis**, a field developed during WWII for efficiently testing munitions.
-                - **The "Aha!" Moment:** Page realized that instead of looking at each data point in isolation, he could **accumulate the evidence** of small deviations over time. The Cumulative Sum (CUSUM) chart was born. It acts like a **bloodhound on a trail**. It ignores random noise (scents off the trail) by using a "slack" parameter, `k`. But once it detects a persistent scent in one direction—a real process shift—it starts accumulating the signal rapidly, leading to the fastest possible detection for a shift of a known size. Its V-mask design made it a powerful, albeit somewhat rigid, diagnostic tool.
-
-            - **EWMA (1959): The Sentinel**
-                - **The Inventor:** Five years later, statistician **S. W. Roberts** of Bell Labs (Shewhart's old stomping ground) proposed a more flexible alternative. His inspiration came not from quality control, but from **time series forecasting**.
-                - **The "Aha!" Moment:** Forecasters like George Box had long used smoothing techniques to predict future values by giving more weight to recent data. Roberts ingeniously adapted this idea for process control. The Exponentially Weighted Moving Average (EWMA) chart acts like a **sentinel with a memory**. It doesn't treat all past data equally. By using the weighting parameter `λ`, it gives the most weight to the most recent data point, a little less to the one before, and so on, with the influence of old data decaying exponentially. This creates a smooth, sensitive trend line that effectively filters out noise while quickly reacting to the beginning of a real drift.
-
-            These two inventions were not replacements for Shewhart's charts but essential complements. They gave engineers the sensitive, memory-based tools they needed to manage the increasingly precise and complex manufacturing processes of the late 20th century.
-
-            #### Mathematical Basis
-            The elegance of these charts lies in their simple, recursive formulas.
-
-            - **EWMA (Exponentially Weighted Moving Average):**
+            **The Impact:** These two inventions were not replacements for Shewhart's charts but essential complements. They gave engineers the sensitive, memory-based tools they needed to manage the increasingly precise and complex manufacturing processes of the late 20th century.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The elegance of these charts lies in their simple, recursive formulas.")
+            st.markdown("- **EWMA (Exponentially Weighted Moving Average):**")
             st.latex(r"EWMA_t = \lambda \cdot Y_t + (1-\lambda) \cdot EWMA_{t-1}")
             st.markdown(r"""
-            - **`λ` (lambda):** This is the **memory parameter** (0 < λ ≤ 1).
-                - A **small `λ`** (e.g., 0.1) creates a chart with a long memory, giving significant weight to past data. This makes it very sensitive to detecting tiny, persistent shifts.
-                - A **large `λ`** (e.g., 0.4) creates a chart with a short memory, behaving more like a Shewhart chart. It's better for detecting larger shifts more quickly.
-                - A typical starting value is `λ = 0.2`.
-
-            - **CUSUM (Cumulative Sum):**
+            - **`λ` (lambda):** This is the **memory parameter** (0 < λ ≤ 1). A small `λ` (e.g., 0.1) creates a chart with a long memory, making it very sensitive to tiny, persistent shifts. A large `λ` (e.g., 0.4) creates a chart with a short memory, behaving more like a Shewhart chart.
             """)
+            st.markdown("- **CUSUM (Cumulative Sum):**")
             st.latex(r"SH_t = \max(0, SH_{t-1} + (Y_t - T) - k)")
             st.markdown(r"""
-            - This formula tracks upward shifts (`SH`). A similar formula tracks downward shifts (`SL`).
+            - This formula tracks upward shifts (`SH`).
             - **`T`**: The process target or historical mean.
-            - **`k`**: The **"slack" or "allowance" parameter**. This is the key to the CUSUM's power. It is typically set to half the size of the shift you want to detect quickly. For example, if you want to rapidly detect a 1-sigma shift, you set `k = 0.5σ`. Any deviation from the target that is smaller than `k` is considered noise and is absorbed, preventing the CUSUM from accumulating. Any deviation larger than `k` is considered a signal and is added to the cumulative sum. This makes the CUSUM chart a highly targeted detector.
+            - **`k`**: The **"slack" or "allowance" parameter**, typically set to half the size of the shift you want to detect quickly (e.g., `k = 0.5σ`). This makes the CUSUM chart a highly targeted detector.
             """)
             
 def render_time_series_analysis():
@@ -4266,14 +4247,12 @@ def render_time_series_analysis():
     - **📱 Prophet (The Modern Smartwatch):** A modern forecasting tool from Facebook. It's packed with sensors and algorithms to automatically handle complex seasonalities, holidays, and changing trends with minimal user input. It's designed for speed and scale.
     """)
     
-    # --- NEW: Added Interactive Demo explanation ---
     st.info("""
     **Interactive Demo:** Use the sliders in the sidebar to change the underlying structure of the time series data. 
     - **Increase `Trend Strength`:** See how both models adapt to a more aggressive upward trend.
     - **Increase `Random Noise`:** Observe how forecasting becomes more difficult and the error (MAE) for both models increases as the data gets noisier.
     """)
 
-    # --- NEW: Added slider gadgets to the sidebar ---
     st.sidebar.subheader("Time Series Controls")
     trend_slider = st.sidebar.slider(
         "📈 Trend Strength",
@@ -4286,7 +4265,6 @@ def render_time_series_analysis():
         help="Controls the amount of random, unpredictable fluctuation in the data."
     )
     
-    # --- MODIFIED: Call backend with slider values and unpack dynamic KPIs ---
     fig, mae_arima, mae_prophet = plot_time_series_analysis(trend_strength=trend_slider, noise_sd=noise_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -4298,7 +4276,6 @@ def render_time_series_analysis():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            # --- MODIFIED: KPIs are now dynamic ---
             st.metric(label="⌚ ARIMA Forecast Error (MAE)", value=f"{mae_arima:.2f} units", help="Mean Absolute Error for the ARIMA model.")
             st.metric(label="📱 Prophet Forecast Error (MAE)", value=f"{mae_prophet:.2f} units", help="Mean Absolute Error for the Prophet model.")
             st.metric(label="🔮 Forecast Horizon", value="14 Weeks", help="The period into the future for which we are generating predictions.")
@@ -4313,44 +4290,40 @@ def render_time_series_analysis():
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
-            This is the most common path to a useless forecast.
-            
-            - An analyst takes a column of data, feeds it directly into `model.fit()` and `model.predict()`, and presents the resulting line.
-            - **The Flaw:** They've made no attempt to understand the data's structure. Is there a trend? Is it seasonal? Is the variance stable? They have no idea if the model's assumptions have been met. This "black box" approach produces a forecast that is fragile, unreliable, and likely to fail spectacularly the moment the underlying process changes.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Decompose, Validate, and Monitor**
-            A robust forecasting process is disciplined and applies regardless of the model you use.
-            
-            1.  **Decompose and Understand (The Pre-Flight Check):** Before you model, you must visualize. Use a time series decomposition plot to separate the series into its core components: **Trend, Seasonality, and Residuals.** This tells you what you're working with. Check for stationarity—a core assumption of ARIMA.
-            
-            2.  **Train, Validate, Test:** Never judge a model by its performance on data it has already seen. Split your historical data into a training set (to build the model) and a validation set (to tune it). Keep a final "test set" of the most recent data as a truly blind evaluation of forecast accuracy.
-            
-            3.  **Monitor for Drift:** A forecast is only a snapshot in time. You must continuously monitor its performance against incoming new data. When the error starts to increase, it's a signal that the underlying process has changed and the model needs to be retrained.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
+This is the most common path to a useless forecast.
+- An analyst takes a column of data, feeds it directly into `model.fit()` and `model.predict()`, and presents the resulting line.
+- **The Flaw:** They've made no attempt to understand the data's structure. Is there a trend? Is it seasonal? Is the variance stable? They have no idea if the model's assumptions have been met. This "black box" approach produces a forecast that is fragile, unreliable, and likely to fail spectacularly the moment the underlying process changes.""")
+            st.success("""🟢 **THE GOLDEN RULE: Decompose, Validate, and Monitor**
+A robust forecasting process is disciplined and applies regardless of the model you use.
+1.  **Decompose and Understand (The Pre-Flight Check):** Before you model, you must visualize. Use a time series decomposition plot to separate the series into its core components: **Trend, Seasonality, and Residuals.** This tells you what you're working with. Check for stationarity—a core assumption of ARIMA.
+2.  **Train, Validate, Test:** Never judge a model by its performance on data it has already seen. Split your historical data into a training set (to build the model) and a validation set (to tune it). Keep a final "test set" of the most recent data as a truly blind evaluation of forecast accuracy.
+3.  **Monitor for Drift:** A forecast is only a snapshot in time. You must continuously monitor its performance against incoming new data. When the error starts to increase, it's a signal that the underlying process has changed and the model needs to be retrained.""")
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            The story of time series forecasting is a tale of two distinct eras.
-            - **The Classical Era (ARIMA):** In their seminal 1970 book *Time Series Analysis: Forecasting and Control*, statisticians **George Box** and **Gwilym Jenkins** provided a comprehensive methodology for time series modeling. The **Box-Jenkins method**—a rigorous process of model identification, parameter estimation, and diagnostic checking—became the undisputed gold standard for decades. The ARIMA model is the heart of this methodology, a testament to deep statistical theory.
+            #### Historical Context: Two Cultures of Forecasting
+            **The Problem (The Classical Era):** Before the 1970s, forecasting was often an ad-hoc affair. There was no single, rigorous methodology that combined modeling, estimation, and validation into a coherent whole. 
+
+            **The 'Aha!' Moment (ARIMA):** In their seminal 1970 book *Time Series Analysis: Forecasting and Control*, statisticians **George Box** and **Gwilym Jenkins** changed everything. They provided a comprehensive, step-by-step methodology for time series modeling. The **Box-Jenkins method**—a rigorous process of model identification (using ACF/PACF plots), parameter estimation, and diagnostic checking—became the undisputed gold standard for decades. The ARIMA model is the heart of this methodology, a testament to deep statistical theory.
+
+            **The Problem (The Modern Era):** Fast forward to the 2010s. **Facebook** faced a new kind of challenge: thousands of internal analysts, not all of them statisticians, needed to generate high-quality forecasts for business metrics at scale. The manual, expert-driven Box-Jenkins method was too slow and complex for this environment.
             
-            - **The Modern Era (Prophet):** Fast forward to the 2010s. **Facebook** faced a new kind of problem: thousands of internal analysts needed to generate high-quality forecasts for business metrics at scale, without each of them needing a PhD in statistics. In 2017, their Core Data Science team, led by Sean J. Taylor and Ben Letham, released **Prophet**. It was designed from the ground up for automation, performance, and intuitive tuning, sacrificing some of the statistical purity of ARIMA for massive gains in usability and scale.
-            
-            #### How They Work
-            - **ARIMA (AutoRegressive Integrated Moving Average):**
-              - **AR (p):** The model uses the relationship between an observation and its own **p**ast values.
-              - **I (d):** It uses **d**ifferencing to make the series stationary (i.e., remove the trend).
-              - **MA (q):** It uses the relationship between an observation and the residual errors from its **q** past forecasts.
-            - **Prophet:** It works as a decomposable additive model:
+            **The 'Aha!' Moment (Prophet):** In 2017, their Core Data Science team released **Prophet**. It was designed from the ground up for automation, performance, and intuitive tuning. Its key insight was to treat forecasting as a curve-fitting problem, making it robust to missing data and shifts in trend, and allowing analysts to easily incorporate domain knowledge like holidays. It sacrificed some of the statistical purity of ARIMA for massive gains in usability and scale.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("- **ARIMA (AutoRegressive Integrated Moving Average):** A linear model that explains a series based on its own past.")
+            st.latex(r"Y'_t = \sum_{i=1}^{p} \phi_i Y'_{t-i} + \sum_{j=1}^{q} \theta_j \epsilon_{t-j} + \epsilon_t")
+            st.markdown("""
+              - **AR (p):** The model uses the relationship between an observation `Y'` and its own `p` past values.
+              - **I (d):** `Y'` is the series after being **d**ifferenced `d` times to make it stationary.
+              - **MA (q):** The model uses the relationship between an observation and the residual errors `ε` from its `q` past forecasts.
+            """)
+            st.markdown("- **Prophet:** A decomposable additive model.")
             st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
             st.markdown(r"""
             Where `g(t)` is a saturating growth trend, `s(t)` models complex weekly and yearly seasonality using Fourier series, `h(t)` is a flexible component for user-specified holidays, and `ε` is the error.
             """)
-
 
 def render_stability_analysis():
     """Renders the module for pharmaceutical stability analysis."""
@@ -4364,14 +4337,12 @@ def render_stability_analysis():
     - Using a conservative confidence interval to set a shelf-life that accounts for future batch-to-batch variability.
     """)
     
-    # --- NEW: Added Interactive Demo explanation ---
     st.info("""
     **Interactive Demo:** Use the sliders in the sidebar to simulate different product stability profiles.
     - **Increase `Degradation Rate`:** Simulate a less stable product that degrades more quickly and see how it dramatically shortens the approved shelf-life.
     - **Increase `Assay Variability`:** Simulate a noisy, imprecise measurement method. Notice how this increases the uncertainty in the model (widens the red confidence interval), which also shortens the shelf-life even if the degradation rate is low.
     """)
     
-    # --- NEW: Added slider gadgets to the sidebar ---
     st.sidebar.subheader("Stability Analysis Controls")
     degradation_slider = st.sidebar.slider(
         "📉 Degradation Rate (%/month)",
@@ -4384,7 +4355,6 @@ def render_stability_analysis():
         help="The random error or 'noise' of the potency assay. Higher noise increases uncertainty."
     )
 
-    # --- MODIFIED: Call backend with slider values and unpack KPIs ---
     fig, shelf_life, fitted_slope = plot_stability_analysis(degradation_rate=degradation_slider, noise_sd=noise_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -4396,7 +4366,6 @@ def render_stability_analysis():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            # --- MODIFIED: KPIs are now dynamic ---
             st.metric(label="📈 Approved Shelf-Life", value=f"{shelf_life} Months", help="The time at which the lower confidence bound intersects the specification limit.")
             st.metric(label="📉 Fitted Degradation Rate", value=f"{fitted_slope:.2f} %/month", help="The estimated average loss of potency per month from the regression model.")
             st.metric(label="🥅 Specification Limit", value="95.0 %", help="The minimum acceptable potency for the product to be considered effective.")
@@ -4412,45 +4381,32 @@ def render_stability_analysis():
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Happy Path" Fallacy**
-            This is a common and dangerous mistake that overestimates shelf-life.
-            
-            - A manager sees the solid black line (the average trend) and says, *"Let's set the shelf-life where the average trend crosses the spec limit. That gives us 36 months!"*
-            - **The Flaw:** This completely ignores uncertainty and batch-to-batch variability! About half of all future batches will, by definition, degrade *faster* than the average. This approach virtually guarantees that a significant portion of future product will fail specification before its expiration date, putting patients at risk.
-            - Another flaw is blindly pooling data from all batches without testing if their degradation rates are similar. If one batch is a "fast degrader," it must be evaluated separately.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: The Confidence Interval Sets the Expiration Date, Not the Average**
-            The ICH Q1E guideline is built on a principle of statistical conservatism to protect patients. The correct procedure is disciplined:
-            
-            1.  **First, Prove Poolability:** Before you can create a single model, you must perform a statistical test (like ANCOVA) to prove that the degradation slopes and intercepts of the different batches are not significantly different. You must *earn the right* to pool the data. If they are different, the shelf-life must be based on the worst-performing batch.
-            
-            2.  **Then, Use the Confidence Bound:** Once pooling is justified, fit the regression model and calculate the two-sided 95% confidence interval. The shelf-life is determined by the intersection of the appropriate confidence bound (lower bound for potency, upper bound for an impurity) with the specification limit.
-            
-            This rigorous approach ensures the expiration date is a reliable promise.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Happy Path" Fallacy**
+This is a common and dangerous mistake that overestimates shelf-life.
+- A manager sees the solid black line (the average trend) and says, *"Let's set the shelf-life where the average trend crosses the spec limit. That gives us 36 months!"*
+- **The Flaw:** This completely ignores uncertainty and batch-to-batch variability! About half of all future batches will, by definition, degrade *faster* than the average. This approach virtually guarantees that a significant portion of future product will fail specification before its expiration date, putting patients at risk.""")
+            st.success("""🟢 **THE GOLDEN RULE: The Confidence Interval Sets the Expiration Date, Not the Average**
+The ICH Q1E guideline is built on a principle of statistical conservatism to protect patients. The correct procedure is disciplined:
+1.  **First, Prove Poolability:** Before you can create a single model, you must perform a statistical test (like ANCOVA) to prove that the degradation slopes and intercepts of the different batches are not significantly different. You must *earn the right* to pool the data.
+2.  **Then, Use the Confidence Bound:** Once pooling is justified, fit the regression model and calculate the two-sided 95% confidence interval for the mean degradation. The shelf-life is determined by the intersection of the appropriate confidence bound (lower bound for potency, upper bound for an impurity) with the specification limit.""")
 
         with tabs[2]:
             st.markdown(r"""
-            #### Historical Context & Origin: The ICH Revolution
-            Prior to the 1990s, the requirements for stability testing could differ significantly between major markets like the USA, Europe, and Japan. This forced pharmaceutical companies to run slightly different, redundant, and costly stability programs for each region to gain global approval.
+            #### Historical Context: The ICH Revolution
+            **The Problem:** Prior to the 1990s, the requirements for stability testing could differ significantly between major markets like the USA, Europe, and Japan. This forced pharmaceutical companies to run slightly different, redundant, and costly stability programs for each region to gain global approval. The lack of a harmonized statistical approach meant that data might be interpreted differently by different agencies, creating regulatory uncertainty.
             
-            The **International Council for Harmonisation (ICH)** was formed to end this inefficiency. A key working group was tasked with creating a single, scientifically sound standard for stability testing. This resulted in a series of guidelines, with **ICH Q1A** defining the required study conditions and **ICH Q1E ("Evaluation of Stability Data")** providing the definitive statistical methodology.
+            **The 'Aha!' Moment:** The **International Council for Harmonisation (ICH)** was formed to end this inefficiency. A key working group was tasked with creating a single, scientifically sound standard for stability testing. This resulted in a series of guidelines, with **ICH Q1A** defining the required study conditions (e.g., temperature, humidity, timepoints) and **ICH Q1E ("Evaluation of Stability Data")** providing the definitive statistical methodology.
             
-            ICH Q1E, adopted in 2003, codified the use of regression analysis, formal tests for pooling data across batches, and the critical principle of using confidence intervals to determine shelf-life. It created a level playing field and a global gold standard, ensuring that the expiration date on a medicine means the same thing in New York, London, and Tokyo.
-            
-            #### Mathematical Basis
-            The core of the analysis is typically a linear regression model:
+            **The Impact:** ICH Q1E, adopted in 2003, was a landmark guideline. It codified the use of regression analysis, formal statistical tests for pooling data across batches (ANCOVA), and the critical principle of using confidence intervals on the mean trend to determine shelf-life. It created a level playing field and a global gold standard, ensuring that the expiration date on a medicine means the same thing in New York, London, and Tokyo, and that it is backed by rigorous statistical evidence.
             """)
-            st.latex(r"Y_i = \beta_0 + \beta_1 X_i + \epsilon_i")
-            st.markdown(r"""
-            - **`Yᵢ`**: The CQA measurement (e.g., Potency) at time point `i`.
-            - **`Xᵢ`**: The time point `i` (e.g., in months).
-            - **`β₁`**: The slope, representing the degradation rate.
-            - **`β₀`**: The intercept, representing the value at time zero.
-
-            The confidence interval for the regression line is not a pair of parallel lines. It is a **funnel shape**, narrowest at the center of the data and widest at the beginning and end. This reflects that our prediction is most certain near the average time point of our data and becomes less certain the further we extrapolate. The formula for the confidence bound at a given time point `x` depends on the sample size, the standard error of the model, and the distance of `x` from the mean of all time points.
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The core of the analysis is typically a linear regression model fit to data from multiple (`k`) batches:")
+            st.latex(r"Y_{ij} = \beta_{0i} + \beta_{1i} X_{ij} + \epsilon_{ij}")
+            st.markdown("""
+            -   `Yᵢⱼ`: The CQA measurement for the `i`-th batch at the `j`-th time point.
+            -   `Xᵢⱼ`: The `j`-th time point.
+            -   `β₁ᵢ` and `β₀ᵢ`: The slope and intercept for the `i`-th batch.
+            Before determining a shelf-life, an **ANCOVA (Analysis of Covariance)** is used to test the null hypotheses that all batch slopes are equal (`H₀: β₁₁ = β₁₂ = ...`) and all intercepts are equal. If these hypotheses are not rejected (e.g., p > 0.25), the data can be pooled into a single regression model. The shelf-life is the time `t` where the 95% lower confidence limit of this pooled model's mean prediction intersects the specification limit.
             """)
 
 def render_survival_analysis():
@@ -4465,14 +4421,12 @@ def render_survival_analysis():
     - **🔬 Reagent & Product Stability:** A powerful way to model the "shelf-life" of a reagent lot or product by defining "failure" as dropping below a performance threshold.
     """)
 
-    # --- NEW: Added Interactive Demo explanation ---
     st.info("""
     **Interactive Demo:** Use the sliders in the sidebar to simulate different reliability scenarios.
     - **Increase `Group B Reliability`:** Watch the red curve flatten and separate from the blue curve, simulating a more reliable new component. Notice how the p-value drops and the median survival time increases.
     - **Increase `Censoring Rate`:** Simulate a shorter study where fewer components fail. Notice the vertical tick marks (censored items) appear more frequently. With high censoring, it becomes harder to prove a significant difference.
     """)
 
-    # --- NEW: Added slider gadgets to the sidebar ---
     st.sidebar.subheader("Survival Analysis Controls")
     lifetime_slider = st.sidebar.slider(
         "⚙️ Group B Reliability (Lifetime Scale)",
@@ -4485,7 +4439,6 @@ def render_survival_analysis():
         help="The percentage of items that are still 'surviving' when the study ends. Simulates shorter vs. longer studies."
     )
     
-    # --- MODIFIED: Call backend with slider values and unpack KPIs ---
     fig, median_a, median_b, p_value = plot_survival_analysis(
         group_b_lifetime=lifetime_slider, 
         censor_rate=censor_slider/100.0
@@ -4500,7 +4453,6 @@ def render_survival_analysis():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            # --- MODIFIED: KPIs are now dynamic ---
             st.metric(
                 label="📊 Log-Rank Test p-value", 
                 value=f"{p_value:.3f}", 
@@ -4527,42 +4479,34 @@ def render_survival_analysis():
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Pessimist's Fallacy"**
-            This is a catastrophic but common error that leads to dangerously biased results.
-            
-            - An analyst wants to know the average lifetime of a component. They take data from a one-year study, **throw away all the censored data** (the units that were still working at one year), and calculate the average time-to-failure for only the units that broke.
-            - **The Flaw:** This is a massive pessimistic bias. You have selected **only the weakest items** that failed early and completely ignored the strong, reliable items that were still going strong. The calculated "average lifetime" will be far lower than the true value.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Respect the Censored Data**
-            The core principle of survival analysis is that censored data is not missing data; it is valuable information.
-            
-            - A tick on the curve at 24 months is not an unknown. It is a powerful piece of information: **The lifetime of this unit is at least 24 months.**
-            - The correct approach is to **always use a method specifically designed to handle censoring**, like the Kaplan-Meier estimator. This method correctly incorporates the information from both the "failures" and the "survivors" to produce an unbiased estimate of the true survival function.
-            
-            Never discard censored data. It is just as important as the failure data for getting the right answer.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Pessimist's Fallacy"**
+This is a catastrophic but common error that leads to dangerously biased results.
+- An analyst wants to know the average lifetime of a component. They take data from a one-year study, **throw away all the censored data** (the units that were still working at one year), and calculate the average time-to-failure for only the units that broke.
+- **The Flaw:** This is a massive pessimistic bias. You have selected **only the weakest items** that failed early and completely ignored the strong, reliable items that were still going strong. The calculated "average lifetime" will be far lower than the true value.""")
+            st.success("""🟢 **THE GOLDEN RULE: Respect the Censored Data**
+The core principle of survival analysis is that censored data is not missing data; it is valuable information.
+- A tick on the curve at 24 months is not an unknown. It is a powerful piece of information: **The lifetime of this unit is at least 24 months.**
+- The correct approach is to **always use a method specifically designed to handle censoring**, like the Kaplan-Meier estimator. This method correctly incorporates the information from both the "failures" and the "survivors" to produce an unbiased estimate of the true survival function.
+Never discard censored data. It is just as important as the failure data for getting the right answer.""")
 
         with tabs[2]:
             st.markdown(r"""
-            #### Historical Context & Origin: The 1958 Revolution
-            While the concept of life tables has existed for centuries in actuarial science, analyzing time-to-event data with censored observations was often messy and inconsistent. Different researchers used different ad-hoc methods, making it hard to compare results.
+            #### Historical Context: The 1958 Revolution
+            **The Problem:** In the mid-20th century, clinical research was booming, but a major statistical hurdle remained. How could you fairly compare two cancer treatments in a trial where, at the end of the study, many patients in both groups were still alive? Or some had moved away and were "lost to follow-up"? Simply comparing the percentage of deaths at the end was inefficient and biased. Researchers needed a way to use the information from every single patient, for the entire duration they were observed.
+
+            **The 'Aha!' Moment:** This all changed in 1958 with a landmark paper in the *Journal of the American Statistical Association* by **Edward L. Kaplan** and **Paul Meier**. Their paper, "Nonparametric Estimation from Incomplete Observations," introduced the world to what we now universally call the **Kaplan-Meier estimator**.
             
-            This all changed in 1958 with a landmark paper in the *Journal of the American Statistical Association* by **Edward L. Kaplan** and **Paul Meier**. Their paper, "Nonparametric Estimation from Incomplete Observations," introduced the world to what we now universally call the **Kaplan-Meier estimator**.
-            
-            It was a revolutionary breakthrough. They provided a simple, elegant, and statistically robust non-parametric method to estimate the true survival function, even with heavily censored data. This single technique unlocked a new era of research in medicine, enabling the rigorous analysis of clinical trials that is now standard practice, and in engineering, forming the foundation of modern reliability analysis.
-            
-            #### Mathematical Basis
-            The Kaplan-Meier estimate of the survival function `S(t)` is a product of conditional probabilities:
+            **The Impact:** It was a revolutionary breakthrough. They provided a simple, elegant, and statistically robust non-parametric method to estimate the true survival function, even with heavily censored data. This single technique unlocked a new era of research in medicine, enabling the rigorous analysis of clinical trials that is now standard practice. It also became a cornerstone of industrial reliability engineering, allowing for accurate lifetime predictions of components from studies that end before all components have failed.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The Kaplan-Meier estimate of the survival function `S(t)` is a product of conditional probabilities, calculated at each distinct event time `tᵢ`:")
             st.latex(r"S(t_i) = S(t_{i-1}) \times \left( 1 - \frac{d_i}{n_i} \right)")
             st.markdown(r"""
             - **`S(tᵢ)`** is the probability of surviving past time `tᵢ`.
-            - **`nᵢ`** is the number of subjects "at risk" (i.e., still surviving) just before time `tᵢ`.
+            - **`nᵢ`** is the number of subjects "at risk" (i.e., still surviving and not yet censored) just before time `tᵢ`.
             - **`dᵢ`** is the number of events (e.g., failures) that occurred at time `tᵢ`.
             
-            Essentially, the probability of surviving to a certain time is the probability you survived up to the last event, *times* the conditional probability you survived this current event. This step-wise calculation gracefully handles censored observations, as they simply exit the "at risk" pool (`nᵢ`) at the time they are censored.
+            Essentially, the probability of surviving to a certain time is the probability you survived up to the last event, *times* the conditional probability you survived this current event. This step-wise calculation gracefully handles censored observations, as they simply exit the "at risk" pool (`nᵢ`) at the time they are censored without causing a drop in the survival curve.
             """)
 
 
@@ -4577,14 +4521,12 @@ def render_mva_pls():
     - **🏭 "Golden Batch" Modeling:** PLS can learn the "fingerprint" of a perfect batch, modeling the complex relationship between hundreds of process parameters and final product quality. Deviations from this model can signal a problem *during* a run, not after it's too late.
     """)
 
-    # --- NEW: Added Interactive Demo explanation ---
     st.info("""
     **Interactive Demo:** Use the sliders in the sidebar to simulate different chemometric scenarios.
     - **Increase `Signal Strength`:** Watch the VIP scores for the true signal peaks (highlighted in green) grow taller, making the true relationship easier for the model to find. Both R² and Q² will improve.
     - **Increase `Noise Level`:** Simulate a poor-quality instrument. Watch the VIP scores for the true peaks shrink as they become buried in noise, and see the model's predictive power (Q²) collapse.
     """)
 
-    # --- NEW: Added slider gadgets to the sidebar ---
     st.sidebar.subheader("Multivariate Analysis Controls")
     signal_slider = st.sidebar.slider(
         "📈 Signal Strength",
@@ -4597,7 +4539,6 @@ def render_mva_pls():
         help="Controls the amount of random noise in the spectral measurements. Higher noise makes the signal harder to find."
     )
     
-    # --- MODIFIED: Call backend with slider values and unpack KPIs ---
     fig, r2, q2, n_comp = plot_mva_pls(signal_strength=signal_slider, noise_sd=noise_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -4609,7 +4550,6 @@ def render_mva_pls():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            # --- MODIFIED: KPIs are now dynamic ---
             st.metric(label="📈 Model R² (Goodness of Fit)", value=f"{r2:.3f}", help="How well the model fits the training data. High is good, but can be misleading.")
             st.metric(label="🎯 Model Q² (Predictive Power)", value=f"{q2:.3f}", help="The cross-validated R². A measure of how well the model predicts *new* data. Q² is the most important performance metric.")
             st.metric(label="🧬 Optimal Latent Variables (LVs)", value=f"{n_comp}", help="The optimal number of hidden factors extracted by the model via cross-validation.")
@@ -4625,40 +4565,31 @@ def render_mva_pls():
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Overfitting" Trap**
-            This is the cardinal sin of predictive modeling.
-            
-            - An analyst keeps adding more and more Latent Variables (LVs) to their PLS model. They are thrilled to see the R-squared value climb to 0.999. The model perfectly "predicts" the data it was built on.
-            - **The Flaw:** The model hasn't learned the true signal; it has simply memorized the noise in the training data. When this model is shown new data from the process, its predictions will be terrible. It is a fragile model that is useless in the real world.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Thou Shalt Validate Thy Model on Unseen Data**
-            A model's R-squared on the data it was trained on is vanity. Its performance on new data is sanity.
-            
-            1.  **Partition Your Data:** Before you begin, split your data into a **Training Set** (to build the model) and a **Test Set** (to independently validate it).
-            
-            2.  **Use Cross-Validation:** Within the training set, use cross-validation to choose the optimal number of Latent Variables. The goal is to find the number of LVs that maximizes the **predictive power (Q²)**, not the number that maximizes the R-squared.
-            
-            3.  **Final Verdict:** The ultimate test of the model is its performance on the held-out Test Set. This simulates how the model will perform in the future when it encounters new process data.
-            
-            A model that predicts well is useful. A model that is *proven* to predict well is valuable.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Overfitting" Trap**
+This is the cardinal sin of predictive modeling.
+- An analyst keeps adding more and more Latent Variables (LVs) to their PLS model. They are thrilled to see the R-squared value climb to 0.999. The model perfectly "predicts" the data it was built on.
+- **The Flaw:** The model hasn't learned the true signal; it has simply memorized the noise in the training data. When this model is shown new data from the process, its predictions will be terrible. It is a fragile model that is useless in the real world.""")
+            st.success("""🟢 **THE GOLDEN RULE: Thou Shalt Validate Thy Model on Unseen Data**
+A model's R-squared on the data it was trained on is vanity. Its performance on new data is sanity.
+1.  **Partition Your Data:** Before you begin, split your data into a **Training Set** (to build the model) and a **Test Set** (to independently validate it).
+2.  **Use Cross-Validation:** Within the training set, use cross-validation to choose the optimal number of Latent Variables. The goal is to find the number of LVs that maximizes the **predictive power (Q²)**, not the number that maximizes the R-squared.
+3.  **Final Verdict:** The ultimate test of the model is its performance on the held-out Test Set. This simulates how the model will perform in the future when it encounters new process data.""")
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            PLS was developed in the 1960s and 70s by the brilliant Swedish statistician **Herman Wold**. He originally developed it for the complex, "data-rich but theory-poor" problems found in econometrics and social sciences.
-            
-            However, its true potential was unlocked by his son, **Svante Wold**, a chemist. In the late 1970s and 80s, Svante recognized that the problems his father was solving were mathematically identical to the challenges in **chemometrics**—the science of extracting information from chemical systems by data-driven means. Analytical instruments like spectrometers were producing huge, highly correlated datasets that traditional statistics couldn't handle.
-            
-            Svante Wold and his colleagues adapted and popularized PLS, turning it into the powerhouse of modern chemometrics. This father-son legacy created a tool that bridged disciplines and became the statistical engine for the PAT revolution in the pharmaceutical industry.
-            
-            #### How It Works: The Consensus Group Analogy
-            How does PLS handle thousands of inputs? It doesn't use them directly.
-            - **Standard Regression** is like trying to listen to 1000 people shouting at once. It's chaos.
-            - **PLS is smarter.** It first tells the 1000 people (X variables) to form a few small "consensus groups" based on who is saying similar things. These groups are the **Latent Variables (LVs)**.
-            - Then, PLS simply listens to the summary from these few group leaders to make its prediction about the Y variable. This process of creating a few informative LVs from thousands of inputs is called **dimensionality reduction**, and it's the core of how PLS works.
+            #### Historical Context: The Father-Son Legacy
+            **The Problem (The Social Sciences):** In the 1960s, social scientists and economists faced a major modeling challenge. They had complex systems with many correlated input variables (e.g., survey questions, economic indicators) and often a small number of observations. Standard multiple linear regression would fail spectacularly in these "data-rich but theory-poor" situations.
+
+            **The 'Aha!' Moment (Herman Wold):** The brilliant Swedish statistician **Herman Wold** developed a novel solution. Instead of regressing Y on the X variables directly, he devised an iterative algorithm, **Partial Least Squares (PLS)**, that first extracts a small number of underlying "latent variables" from the X's that are maximally correlated with Y. This dimensionality reduction step elegantly solved the correlation and dimensionality problem.
+
+            **The Impact (Svante Wold):** However, PLS's true potential was unlocked by Herman's son, **Svante Wold**, a chemist. In the late 1970s, Svante recognized that the problems his father was solving were mathematically identical to the challenges in **chemometrics**. Analytical instruments like spectrometers were producing huge, highly correlated datasets that traditional statistics couldn't handle. Svante Wold and his colleagues adapted and popularized PLS, turning it into the powerhouse of modern chemometrics and the statistical engine for the PAT revolution in the pharmaceutical industry.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("PLS decomposes the input matrix `X` and output vector `y` into a set of latent variables (LVs), `T`, and associated loadings, `P` and `q`.")
+            st.latex(r"X = T P^T + E")
+            st.latex(r"y = T q^T + f")
+            st.markdown("""
+            The key is how the LVs (`T`) are found. Unlike PCA, which finds LVs that explain the most variance in `X` alone, PLS finds LVs that maximize the **covariance** between `X` and `y`. This means the LVs are constructed not just to summarize the inputs, but to be maximally useful for *predicting the output*. This makes PLS a supervised dimensionality reduction technique, which is why it is often more powerful than PCA followed by regression.
             """)
 
 def render_clustering():
@@ -4790,14 +4721,12 @@ def render_classification_models():
     - **Accelerate Release:** Provide the statistical evidence needed to release batches based on in-process data, rather than waiting for slow offline tests.
     """)
     
-    # --- NEW: Added Interactive Demo explanation ---
     st.info("""
     **Interactive Demo:** Use the **Boundary Complexity** slider in the sidebar to change the true pass/fail relationship in the simulated data.
     - **High values (e.g., 20):** Creates a simple, almost linear boundary. Notice both models perform well.
     - **Low values (e.g., 8):** Creates a complex, non-linear "island" of failures. Watch the accuracy of the linear Logistic Regression model collapse, while the non-linear Random Forest continues to perform well.
     """)
 
-    # --- NEW: Added slider gadget to the sidebar ---
     st.sidebar.subheader("Predictive QC Controls")
     complexity_slider = st.sidebar.slider(
         "Boundary Complexity",
@@ -4805,7 +4734,6 @@ def render_classification_models():
         help="Controls how non-linear the true pass/fail boundary is. Lower values create a more complex 'island' that is harder for linear models to solve."
     )
     
-    # --- MODIFIED: Call backend with slider value and unpack KPIs ---
     fig, lr_accuracy, rf_accuracy = plot_classification_models(boundary_radius=complexity_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -4817,7 +4745,6 @@ def render_classification_models():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            # --- MODIFIED: KPIs are now dynamic ---
             st.metric(label="📈 Model 1: Logistic Regression Accuracy", value=f"{lr_accuracy:.2%}", help="Performance of the simpler, linear model.")
             st.metric(label="🚀 Model 2: Random Forest Accuracy", value=f"{rf_accuracy:.2%}", help="Performance of the more complex, non-linear model.")
 
@@ -4831,43 +4758,36 @@ def render_classification_models():
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Garbage In, Garbage Out" Fallacy**
-            An analyst takes all 500 available sensor tags, feeds them directly into a model, and trains it.
-            
-            - **The Flaw 1 (Curse of Dimensionality):** With more input variables than batches, the model is likely to find spurious correlations and will fail to generalize to new data.
-            - **The Flaw 2 (Lack of Causality):** The model may learn that "Sensor A" is highly predictive, without understanding that Sensor A is only correlated with the true causal driver, "Raw Material B". If the correlation changes, the model breaks.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Feature Engineering is the Secret Ingredient**
-            The success of a predictive model depends less on the algorithm and more on the quality of the inputs ("features").
-            
-            1.  **Collaborate with SMEs:** Work with scientists and engineers to identify which process parameters are *scientifically likely* to be causal drivers of quality.
-            
-            2.  **Engineer Smart Features:** Don't just use raw sensor values. Create more informative features. Examples:
-                - The *slope* of the temperature profile during a key phase.
-                - The *cumulative* feed volume.
-                - The *time* spent above a certain pH.
-            
-            3.  **Validate on Unseen Data:** The model's true performance is only revealed when it is tested on a hold-out set of batches it has never seen before.
-            
-            A model built on a few, scientifically relevant, well-engineered features will always outperform a model built on hundreds of raw, noisy inputs.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Garbage In, Garbage Out" Fallacy**
+An analyst takes all 500 available sensor tags, feeds them directly into a model, and trains it.
+- **The Flaw 1 (Curse of Dimensionality):** With more input variables than batches, the model is likely to find spurious correlations and will fail to generalize to new data.
+- **The Flaw 2 (Lack of Causality):** The model may learn that "Sensor A" is highly predictive, without understanding that Sensor A is only correlated with the true causal driver, "Raw Material B". If the correlation changes, the model breaks.""")
+            st.success("""🟢 **THE GOLDEN RULE: Feature Engineering is the Secret Ingredient**
+The success of a predictive model depends less on the algorithm and more on the quality of the inputs ("features").
+1.  **Collaborate with SMEs:** Work with scientists and engineers to identify which process parameters are *scientifically likely* to be causal drivers of quality.
+2.  **Engineer Smart Features:** Don't just use raw sensor values. Create more informative features like the *slope* of a temperature profile or the *cumulative* feed volume.
+3.  **Validate on Unseen Data:** The model's true performance is only revealed when it is tested on a hold-out set of batches it has never seen before.""")
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            This module showcases the evolution from classical statistics to modern machine learning, representing what statistician Leo Breiman called **"The Two Cultures"** of statistical modeling.
-            - **Logistic Regression (1958) - The Data Modeling Culture:** Developed by British statistician **David Cox**, it is a direct generalization of linear regression for binary (pass/fail) outcomes. It models the **log-odds** of the outcome as a linear combination of the input variables. It remains a powerful and highly interpretable baseline model. This approach comes from the classical statistics tradition, where the goal is to create an interpretable mathematical model that explains the relationship between the inputs and the output.
+            #### Historical Context: The Two Cultures
+            **The Problem:** For much of the 20th century, the world of statistical modeling was dominated by what statistician Leo Breiman called the **"Data Modeling Culture."** The goal was to use data to infer a simple, interpretable stochastic model (like linear or logistic regression) that could explain the relationship between inputs and outputs. The model's interpretability was paramount.
 
-            - **Random Forest (2001) - The Algorithmic Modeling Culture:** Invented by **Leo Breiman and Adele Cutler**, this is a quintessential machine learning algorithm. It is an **ensemble method** that builds hundreds of individual decision trees on random subsets of the data and features, and then makes its final prediction based on a "majority vote" of all the trees. This "wisdom of the crowd" approach makes it highly accurate and robust to overfitting. This approach comes from the machine learning and computer science tradition, where the primary goal is predictive accuracy, even if the internal logic is complex.
+            **The 'Aha!' Moment:** The rise of computer science and machine learning in the latter half of the century gave rise to the **"Algorithmic Modeling Culture."** In this world, the internal mechanism of the model was treated as a black box. The primary goal was predictive accuracy, pure and simple. If a complex algorithm could get 99% accuracy, who cared how it worked?
 
-            Tools like **Explainable AI (XAI)** are now bridging this gap, allowing us to use powerful algorithmic models like Random Forest while still gaining deep insights.
+            **The Impact:** This module showcases both cultures.
+            - **Logistic Regression (Cox, 1958):** A masterpiece of the Data Modeling culture. It's a direct, interpretable generalization of linear regression for binary outcomes.
+            - **Random Forest (Breiman, 2001):** A quintessential algorithm from the Algorithmic Modeling culture. It is an **ensemble method** that builds hundreds of individual decision trees and makes its final prediction based on a "majority vote." This "wisdom of the crowd" approach is highly accurate but inherently a black box.
             
-            #### How They Work
-            - **Logistic Regression:** It fits a linear equation to the data and then passes the output through a **Sigmoid function**, which squashes the result into a probability between 0 and 1.
-            - **Random Forest:** It creates a diverse "committee" of simple decision tree models. Each tree gets a vote, and the final prediction is the one that receives the most votes. This ensemble approach is why it can create complex, non-linear decision boundaries.
+            Today, the field of **Explainable AI (XAI)** is dedicated to bridging this gap, allowing us to use the power of algorithmic models while still understanding their reasoning.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("- **Logistic Regression:** This model predicts the **log-odds** of the outcome as a linear function of the inputs, then uses the logistic (sigmoid) function to map this to a probability.")
+            st.latex(r"\ln\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1X_1 + \dots + \beta_nX_n")
+            st.latex(r"p = \frac{1}{1 + e^{-(\beta_0 + \beta_1X_1 + \dots)}}")
+            st.markdown("- **Random Forest:** It is a collection of `N` individual decision tree models. For a new input `x`, the final prediction is the mode (most common vote) of all the individual tree predictions:")
+            st.latex(r"\text{Prediction}(x) = \text{mode}\{ \text{Tree}_1(x), \text{Tree}_2(x), \dots, \text{Tree}_N(x) \}")
+            st.markdown("Randomness is injected in two ways to ensure the trees are diverse: each tree is trained on a random bootstrap sample of the data, and at each split in a tree, only a random subset of features is considered.")
             
 def render_anomaly_detection():
     """Renders the module for unsupervised anomaly detection."""
@@ -4894,7 +4814,6 @@ def render_anomaly_detection():
         help="Your assumption about the percentage of anomalies in the data. This tunes the model's sensitivity."
     )
 
-    # --- THIS LINE NOW CORRECTLY CALLS THE TOP-LEVEL HELPER FUNCTION ---
     fig, num_anomalies = plot_isolation_forest(contamination_rate=contamination_slider/100.0)
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -4920,42 +4839,34 @@ def render_anomaly_detection():
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: "The Glitch Hunter"**
-            When an anomaly is detected, the immediate reaction is to dismiss it as a data error.
-            
-            - *"Oh, that's just a sensor glitch. Delete the point and move on."*
-            - *"The model must be wrong. That batch passed all its QC tests, so it can't be an anomaly."*
-            - *"Let's increase the contamination parameter until the alarms go away."*
-            
-            This approach treats valuable signals as noise. It's like the bouncer seeing a problem, shrugging, and looking the other way. You are deliberately blinding yourself to potentially critical process information.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: An Anomaly is a Question, Not an Answer**
-            The goal is to treat every flagged anomaly as the start of a forensic investigation.
-            
-            - **The anomaly is the breadcrumb:** When the bouncer flags someone, you don't instantly throw them out. You ask questions. "What happened in the process at that exact time? Was it a specific operator? A new raw material lot? A strange environmental reading?"
-            - **Investigate the weird-but-good:** If a batch that passed all specifications is flagged as an anomaly, it's a golden opportunity. What made it different? Did it run faster? With a higher yield? Understanding these "good" anomalies is a key to process optimization.
-            
-            The anomaly itself is not the conclusion; it is the starting pistol for discovery.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Glitch Hunter"**
+When an anomaly is detected, the immediate reaction is to dismiss it as a data error.
+- *"Oh, that's just a sensor glitch. Delete the point and move on."*
+- *"Let's increase the contamination parameter until the alarms go away."*
+This approach treats valuable signals as noise. It's like the bouncer seeing a problem, shrugging, and looking the other way. You are deliberately blinding yourself to potentially critical process information.""")
+            st.success("""🟢 **THE GOLDEN RULE: An Anomaly is a Question, Not an Answer**
+The goal is to treat every flagged anomaly as the start of a forensic investigation.
+- **The anomaly is the breadcrumb:** When the bouncer flags someone, you ask questions. "What happened in the process at that exact time? Was it a specific operator? A new raw material lot?"
+- **Investigate the weird-but-good:** If a batch that passed all specifications is flagged as an anomaly, it's a golden opportunity. What made it different? Understanding these "good" anomalies is a key to process optimization.
+The anomaly itself is not the conclusion; it is the starting pistol for discovery.""")
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            For decades, "outlier detection" was a purely statistical affair, often done one variable at a time (e.g., using a boxplot). This falls apart in the world of modern, high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values.
+            #### Historical Context: Flipping the Problem on its Head
+            **The Problem:** For decades, "outlier detection" was a purely statistical affair, often done one variable at a time (e.g., using a boxplot). This falls apart in the world of modern, high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values. Most methods focused on building a complex model of what "normal" data looks like and then flagging anything that didn't fit. This was often slow and brittle.
+
+            **The 'Aha!' Moment:** In a 2008 paper, Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou introduced the **Isolation Forest** with a brilliantly counter-intuitive insight. Instead of trying to define "normal," they decided to just try to **isolate** every data point. They reasoned that anomalous points are, by definition, "few and different." This makes them much easier to separate from the rest of the data. Like finding a single red marble in a jar of blue ones, it's easy to "isolate" because it doesn't blend in.
             
-            The **Isolation Forest** algorithm was a brilliant solution to this problem, introduced in a 2008 paper by Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou. Their insight was elegantly counter-intuitive. Instead of trying to build a complex model of what "normal" data looks like, they decided to just try to **isolate** every data point.
-            
-            They reasoned that anomalous points are, by definition, "few and different." This makes them much easier to separate from the rest of the data points. Like finding a single red marble in a jar of blue ones, it's easy to "isolate" because it doesn't blend in. This approach turned out to be both highly effective and computationally fast, and it has become a go-to method for unsupervised anomaly detection.
-            
-            #### How it Works: The "20 Questions" Analogy
-            Think of the algorithm playing a game of "20 Questions" to find a specific data point.
-            1.  It builds a "forest" of many random decision trees.
-            2.  Each "question" in a tree is a random split on a random feature (e.g., "Is temperature > 50?").
-            3.  It counts the number of questions (the path length) it takes to uniquely identify each point.
-            4.  **The Result:** Points in the heart of the normal cluster are hard to isolate and require many questions. Anomalous points are isolated very quickly with few questions. The algorithm calculates an "anomaly score" based on the average path length across all the trees in the forest.
+            **The Impact:** This simple but powerful idea had huge consequences. The algorithm was extremely fast because it didn't need to model the whole dataset; it could often identify an anomaly in just a few steps. It worked well in high dimensions and didn't rely on any assumptions about the data's distribution. The Isolation Forest became a go-to method for unsupervised anomaly detection, particularly for large, complex datasets.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The algorithm is built on an ensemble of `iTrees` (Isolation Trees). Each `iTree` is a random binary tree built as follows:")
+            st.markdown("1.  Select a random feature.")
+            st.markdown("2.  Select a random split point for that feature between its min and max values.")
+            st.markdown("3.  Split the data. Repeat until points are isolated.")
+            st.markdown("The **path length** `h(x)` for a point `x` is the number of splits required to isolate it. Anomalies, being different, will have a much shorter average path length across all trees. The final anomaly score `s(x, n)` for a point is calculated based on its average path length `E(h(x))`:")
+            st.latex(r"s(x, n) = 2^{-\frac{E(h(x))}{c(n)}}")
+            st.markdown("Where `c(n)` is a normalization factor. Scores close to 1 are highly anomalous, while scores much smaller than 0.5 are normal.")
             
 def render_xai_shap():
     """Renders the module for Explainable AI (XAI) using SHAP."""
@@ -5041,12 +4952,21 @@ def render_xai_shap():
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin: From Game Theory to AI
-            The theoretical foundation of SHAP comes from a surprising place: **cooperative game theory**. In 1951, the brilliant mathematician and economist **Lloyd Shapley** developed a concept to solve the "fair payout" problem.
-            
-            Imagine a team of players collaborates to win a prize. How do you divide the winnings fairly based on each player's individual contribution? **Shapley values** provided a mathematically rigorous and unique solution.
-            
-            Fast forward to 2017. Scott Lundberg and Su-In Lee at the University of Washington had a genius insight. They realized that a machine learning model's prediction could be seen as a "game" and the model's features could be seen as the "players." They adapted Shapley's game theory concepts to create **SHAP (SHapley Additive exPlanations)**, a method to fairly distribute the "payout" (the prediction) among the features. This clever fusion of game theory and machine learning provided the first unified and theoretically sound framework for explaining the output of any machine learning model, a breakthrough that is driving the adoption of AI in high-stakes fields.
+            #### Historical Context: From Game Theory to AI
+            **The Problem:** The rise of powerful but opaque "black box" machine learning models in the 2010s created a major crisis of trust, especially in high-stakes fields like medicine and finance. Regulators and users were unwilling to base critical decisions on an algorithm that could not explain its reasoning. "It's 99% accurate" was no longer a sufficient answer.
+
+            **The 'Aha!' Moment:** In 2017, Scott Lundberg and Su-In Lee at the University of Washington had a genius insight. They recognized a deep connection between explaining a model's prediction and a concept from **cooperative game theory** developed by Nobel laureate Lloyd Shapley in the 1950s. Shapley had solved the "fair payout" problem: if a team of players collaborates to win a prize, how do you divide the winnings fairly based on each player's individual contribution? **Shapley values** provided the unique, mathematically sound solution.
+
+            **The Impact:** Lundberg and Lee adapted this concept, treating a model's features as "players" and the prediction as the "payout." Their framework, **SHAP (SHapley Additive exPlanations)**, provided the first unified and theoretically grounded method to fairly distribute the credit for a prediction among its input features. This clever fusion of game theory and machine learning provided a powerful key to unlock the black box, driving the adoption of AI in high-stakes fields.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("SHAP explains a prediction `f(x)` by expressing it as a sum of the contributions of each feature. The prediction is the sum of the base value (the average prediction over the whole dataset) and the SHAP values `φᵢ` for each feature:")
+            st.latex(r"f(x) = \phi_0 + \sum_{i=1}^{M} \phi_i")
+            st.markdown("""
+            -   `f(x)`: The model's prediction for a specific instance `x`.
+            -   `φ₀`: The base value, `E[f(x)]`.
+            -   `φᵢ`: The SHAP value for feature `i`. This represents the change in the expected model prediction when conditioning on that feature.
+            The SHAP value for a feature is its Shapley value, calculated by considering all possible orderings (permutations) of features being revealed to the model. This ensures the properties of **Local Accuracy** (the sum of attributions equals the prediction) and **Consistency** (a more important feature always gets a larger attribution).
             """)
 
         with tabs[3]:
@@ -5178,7 +5098,11 @@ def render_advanced_ai_concepts():
             with tabs[1]:
                 st.success("🟢 **THE GOLDEN RULE:** Tokenize Your Process Narrative. Convert continuous data into a discrete sequence of meaningful events (e.g., `[Feed_Event, pH_Excursion, Operator_Shift]`).")
             with tabs[2]:
-                st.markdown("**Origin:** Revolutionized AI with the 2017 Google Brain paper, **\"Attention Is All You Need,\"** forming the basis for models like GPT.")
+                st.markdown("""**Historical Context:** The Transformer architecture was introduced in the 2017 Google Brain paper, **"Attention Is All You Need."** It completely revolutionized Natural Language Processing by showing that a model based purely on a mechanism called **self-attention** could outperform the dominant RNN/LSTM architectures, while also being much faster to train. This breakthrough is the foundation for virtually all modern large language models, including GPT.""")
+                st.markdown("#### Mathematical Basis")
+                st.markdown("The core of a Transformer is the **Scaled Dot-Product Attention** mechanism:")
+                st.latex(r"\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V")
+                st.markdown("Where `Q` (Queries), `K` (Keys), and `V` (Values) are matrices derived from the input sequence. This operation allows every point in the sequence to dynamically decide which other points are most important and weight their influence accordingly, creating a rich, context-aware representation.")
 
         elif concept_key == "Graph Neural Networks (GNNs)":
             with tabs[0]:
@@ -5195,7 +5119,11 @@ def render_advanced_ai_concepts():
             with tabs[1]:
                 st.success("🟢 **THE GOLDEN RULE:** Your Graph IS Your Model. The most important work is defining the nodes (e.g., equipment, lots) and edges (e.g., 'used-in' relationships).")
             with tabs[2]:
-                st.markdown("**Origin:** Exploded in popularity around 2018, generalizing deep learning from grids (images) and sequences (text) to the more flexible structure of graphs.")
+                st.markdown("""**Historical Context:** While early work on neural networks for graphs existed for years, the field exploded in popularity around 2017-2018. The rise of large-scale graph datasets (like social networks and molecular structures) and the development of unifying frameworks like **Message Passing Neural Networks (MPNNs)** catalyzed rapid progress. GNNs generalized the success of deep learning from grids (images) and sequences (text) to the much more flexible and universal structure of graphs.""")
+                st.markdown("#### Mathematical Basis")
+                st.markdown("GNNs work via **neighbor aggregation** or **message passing**. To update the state (embedding) `h_v` of a node `v`, the GNN aggregates messages `m_u` from all its neighboring nodes `u` in the set `N(v)`:")
+                st.latex(r"h_v^{(k)} = \text{UPDATE}^{(k)}\left(h_v^{(k-1)}, \text{AGGREGATE}^{(k)}\left(\{m_{uv}^{(k)} : u \in N(v)\}\right)\right)")
+                st.markdown("This process is repeated for `k` layers, allowing information to propagate across the entire graph. The `UPDATE` and `AGGREGATE` functions are learnable neural networks.")
 
         elif concept_key == "Reinforcement Learning (RL)":
             with tabs[0]:
@@ -5212,7 +5140,11 @@ def render_advanced_ai_concepts():
             with tabs[1]:
                 st.success("🟢 **THE GOLDEN RULE:** The Digital Twin is the Dojo. An RL agent must be trained in a high-fidelity simulation to learn optimal control strategies with zero real-world risk.")
             with tabs[2]:
-                st.markdown("**Origin:** Deep roots in control theory, supercharged by DeepMind in the mid-2010s with AlphaGo.")
+                st.markdown("""**Historical Context:** Reinforcement Learning has deep roots in control theory and psychology. However, it remained a niche field until the mid-2010s, when researchers at **DeepMind** combined it with deep neural networks. Their landmark achievement, **AlphaGo**, defeated the world's best Go player in 2016. This demonstrated that "Deep RL" could solve problems with enormous state spaces previously thought to be intractable, sparking a massive wave of research and application.""")
+                st.markdown("#### Mathematical Basis")
+                st.markdown("RL agents learn to maximize a cumulative reward by interacting with an environment. The core is the **Bellman equation**, which defines the optimal action-value function `Q*(s, a)`:")
+                st.latex(r"Q^*(s, a) = E\left[R_{t+1} + \gamma \max_{a'} Q^*(s', a')\right]")
+                st.markdown("This states that the value of taking action `a` in state `s` is the immediate reward `R` plus the discounted (`γ`) value of the best possible action from the next state `s'`. Deep RL uses a neural network to approximate this `Q*` function.")
         
         elif concept_key == "Generative AI":
             with tabs[0]:
@@ -5229,8 +5161,11 @@ def render_advanced_ai_concepts():
             with tabs[1]:
                 st.success("🟢 **THE GOLDEN RULE:** Validate the Forgeries. The generated data is only useful if it is proven to be statistically indistinguishable from real data.")
             with tabs[2]:
-                st.markdown("**Origin:** Catalyzed by **Generative Adversarial Networks (GANs)** in 2014, with modern **Diffusion Models** (e.g., DALL-E 2) being state-of-the-art.")
-
+                st.markdown("""**Historical Context:** The field was revolutionized in 2014 by Ian Goodfellow's invention of **Generative Adversarial Networks (GANs)**. The 'aha!' moment was pitting two neural networks against each other: a **Generator** trying to create realistic fakes, and a **Discriminator** trying to tell the fakes from real data. This adversarial game forces the generator to become incredibly good at mimicking the true data distribution. More recently, **Diffusion Models** (popularized by models like DALL-E 2 and Stable Diffusion) have become state-of-the-art for many image generation tasks.""")
+                st.markdown("#### Mathematical Basis")
+                st.markdown("In a **GAN**, the Generator `G` and Discriminator `D` play a minimax game. The Generator tries to minimize a value function `V(D, G)` while the Discriminator tries to maximize it:")
+                st.latex(r"\min_G \max_D V(D, G) = E_{x \sim p_{data}}[\log D(x)] + E_{z \sim p_z}[\log(1 - D(G(z)))]")
+                st.markdown("This game theoretically converges when the generator's distribution is identical to the real data distribution, meaning the discriminator can't do better than random guessing.")
 #==============================================================================================================================================================================================
 #======================================================================NEW METHODS UI RENDERING ==============================================================================================
 #=============================================================================================================================================================================================

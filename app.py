@@ -2504,69 +2504,116 @@ def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
     
     return fig, kmf_A.median_survival_time_, kmf_B.median_survival_time_, p_value
 
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (MVA/PLS) - SME ENHANCED
+# ==============================================================================
 def plot_mva_pls(signal_strength=2.0, noise_sd=0.2):
     """
-    Generates dynamic MVA plots based on user-defined signal strength and noise level.
+    Generates an enhanced, more realistic MVA dashboard with more realistic spectral data,
+    a cross-validation plot, and a predicted vs. actual plot.
     """
     np.random.seed(0)
     n_samples = 50
     n_features = 200
-    
-    # --- Dynamic Data Generation ---
-    X = np.random.rand(n_samples, n_features)
-    # The true relationship's strength is now controlled by the slider
-    y = signal_strength * X[:, 50] - (signal_strength * 0.75) * X[:, 120] + np.random.normal(0, noise_sd, n_samples)
-    
-    # --- Dynamic Model Fitting & KPI Calculation ---
-    # We will also determine the optimal number of components via cross-validation
-    from sklearn.model_selection import cross_val_predict
-    from sklearn.metrics import r2_score
+    wavelengths = np.linspace(800, 2200, n_features)
 
-    r2_cv = []
-    # Test models with 1 to 5 latent variables
-    for n_comp in range(1, 6):
+    # --- SME Enhancement: More realistic spectral data generation ---
+    def make_peak(x, center, width, height):
+        return height * np.exp(-((x - center)**2) / (2 * width**2))
+
+    # Generate a curved baseline
+    baseline = 0.1 + 5e-5 * (wavelengths - 800) + 1e-7 * (wavelengths - 1500)**2
+    X = np.tile(baseline, (n_samples, 1))
+    
+    # Generate response variable y (e.g., concentration)
+    y = np.linspace(5, 25, n_samples) + np.random.normal(0, 0.1, n_samples)
+    
+    # Add peaks to X that are correlated with y
+    for i in range(n_samples):
+        # Peak 1 (positively correlated with y)
+        X[i, :] += make_peak(wavelengths, 1200, 50, y[i] * 0.005 * signal_strength)
+        # Peak 2 (negatively correlated with y)
+        X[i, :] += make_peak(wavelengths, 1600, 60, (25 - y[i]) * 0.004 * signal_strength)
+        # Add some noise peaks unrelated to y
+        X[i, :] += make_peak(wavelengths, 1000, 30, np.random.rand() * 0.05)
+    
+    # Add random measurement noise
+    X += np.random.normal(0, noise_sd * 0.01, X.shape)
+
+    # --- Dynamic Model Fitting & KPI Calculation ---
+    from sklearn.model_selection import cross_val_predict
+    from sklearn.metrics import r2_score, mean_squared_error
+
+    max_comps = 8
+    r2_cal = []
+    r2_cv = [] # This is Q2
+    for n_comp in range(1, max_comps + 1):
         pls_cv = PLSRegression(n_components=n_comp)
+        pls_cv.fit(X, y)
         y_cv = cross_val_predict(pls_cv, X, y, cv=10)
+        r2_cal.append(r2_score(y, pls_cv.predict(X)))
         r2_cv.append(r2_score(y, y_cv))
 
-    # Select the optimal number of components that maximizes cross-validated R2 (Q2)
+    # Select the optimal number of components that maximizes Q2
     optimal_n_comp = np.argmax(r2_cv) + 1
     
-    # Fit the final model with the optimal number of components
+    # Fit the final model
     pls = PLSRegression(n_components=optimal_n_comp)
     pls.fit(X, y)
+    y_pred = pls.predict(X)
     
     model_r2 = pls.score(X, y)
-    model_q2 = max(r2_cv) if r2_cv else 0 # Q2 is the max cross-validated R2
+    model_q2 = r2_cv[optimal_n_comp - 1]
+    rmsecv = np.sqrt(mean_squared_error(y, cross_val_predict(pls, X, y, cv=10)))
 
-    # VIP score calculation for the final model
-    T = pls.x_scores_
-    W = pls.x_weights_
-    Q = pls.y_loadings_
-    p, h = W.shape
-    VIPs = np.zeros((p,))
+    # VIP score calculation
+    T = pls.x_scores_; W = pls.x_weights_; Q = pls.y_loadings_
+    p, h = W.shape; VIPs = np.zeros((p,))
     s = np.diag(T.T @ T @ Q.T @ Q).reshape(h, -1)
     total_s = np.sum(s)
     for i in range(p):
         weight = np.array([(W[i,j] / np.linalg.norm(W[:,j]))**2 for j in range(h)])
         VIPs[i] = np.sqrt(p * (s.T @ weight) / total_s)
 
-    # --- Plotting ---
-    fig = make_subplots(rows=1, cols=2, subplot_titles=("<b>Raw Spectral Data</b>", "<b>Variable Importance (VIP) Plot</b>"))
-    for i in range(10): # Plot first 10 samples
-        fig.add_trace(go.Scatter(y=X[i,:], mode='lines', name=f'Sample {i+1}'), row=1, col=1)
-    
-    fig.add_trace(go.Bar(y=VIPs, name='VIP Score'), row=1, col=2)
-    fig.add_hline(y=1, line=dict(color='red', dash='dash'), name='Significance Threshold', row=1, col=2)
+    # --- Plotting Dashboard ---
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=("<b>1. Raw Spectral Data</b> (Color mapped to Y)",
+                        "<b>2. Cross-Validation: Choosing Components</b>",
+                        "<b>3. Model Performance: Predicted vs. Actual</b>",
+                        "<b>4. Model Interpretation: VIP Scores</b>"),
+        vertical_spacing=0.2, horizontal_spacing=0.1
+    )
+
+    # Plot 1: Raw Spectra
+    for i in range(n_samples):
+        color = px.colors.sample_colorscale('Viridis', (y[i] - y.min()) / (y.max() - y.min()))[0]
+        fig.add_trace(go.Scatter(x=wavelengths, y=X[i,:], mode='lines', line=dict(color=color), showlegend=False), row=1, col=1)
+
+    # Plot 2: Cross-Validation
+    fig.add_trace(go.Scatter(x=np.arange(1, max_comps+1), y=r2_cal, mode='lines+markers', name='R² (Fit)', line=dict(color='blue')), row=1, col=2)
+    fig.add_trace(go.Scatter(x=np.arange(1, max_comps+1), y=r2_cv, mode='lines+markers', name='Q² (Predict)', line=dict(color='green')), row=1, col=2)
+    fig.add_vline(x=optimal_n_comp, line_dash="dash", line_color="black", annotation_text=f"Optimal LV={optimal_n_comp}", row=1, col=2)
+
+    # Plot 3: Predicted vs. Actual
+    fig.add_trace(go.Scatter(x=y, y=y_pred.flatten(), mode='markers', name='Samples'), row=2, col=1)
+    fig.add_shape(type='line', x0=y.min(), y0=y.min(), x1=y.max(), y1=y.max(),
+                  line=dict(color='black', dash='dash'), row=2, col=1)
+
+    # Plot 4: VIP Scores
+    fig.add_trace(go.Bar(x=wavelengths, y=VIPs, name='VIP Score', marker_color='orange'), row=2, col=2)
+    fig.add_hline(y=1, line=dict(color='red', dash='dash'), name='Significance Threshold', row=2, col=2)
     # Highlight the true peaks
-    fig.add_vrect(x0=48, x1=52, fillcolor="rgba(0,255,0,0.15)", line_width=0, row=1, col=2, annotation_text="True Signal", annotation_position="top left")
-    fig.add_vrect(x0=118, x1=122, fillcolor="rgba(0,255,0,0.15)", line_width=0, row=1, col=2)
+    fig.add_vrect(x0=1150, x1=1250, fillcolor="rgba(0,255,0,0.15)", line_width=0, row=2, col=2, annotation_text="True Signal", annotation_position="top left")
+    fig.add_vrect(x0=1550, x1=1650, fillcolor="rgba(0,255,0,0.15)", line_width=0, row=2, col=2)
     
-    fig.update_layout(title='<b>Multivariate Analysis (PLS Regression)</b>', showlegend=False)
-    fig.update_xaxes(title_text='Wavelength', row=1, col=1); fig.update_yaxes(title_text='Absorbance', row=1, col=1)
-    fig.update_xaxes(title_text='Wavelength', row=1, col=2); fig.update_yaxes(title_text='VIP Score', row=1, col=2)
+    fig.update_layout(height=800, title_text='<b>Multivariate Analysis (PLS Regression) Dashboard</b>', title_x=0.5, showlegend=False)
+    fig.update_xaxes(title_text='Wavelength (nm)', row=1, col=1); fig.update_yaxes(title_text='Absorbance', row=1, col=1)
+    fig.update_xaxes(title_text='Number of Latent Variables', row=1, col=2); fig.update_yaxes(title_text='Coefficient of Determination', row=1, col=2)
+    fig.update_xaxes(title_text='Actual Value', row=2, col=1); fig.update_yaxes(title_text='Predicted Value', row=2, col=1, scaleanchor="x2", scaleratio=1)
+    fig.update_xaxes(title_text='Wavelength (nm)', row=2, col=2); fig.update_yaxes(title_text='VIP Score', row=2, col=2)
     
-    return fig, model_r2, model_q2, optimal_n_comp
+    return fig, model_r2, model_q2, optimal_n_comp, rmsecv
 
 def plot_clustering(separation=15, spread=2.5):
     """
@@ -5377,36 +5424,31 @@ The core principle of survival analysis is that censored data is not missing dat
 
 def render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
-    # CORRECTED: Rewritten multiline string to be safe.
     st.markdown("""
     #### Purpose & Application: The Statistical Rosetta Stone
     **Purpose:** To act as a **statistical Rosetta Stone**, translating a massive, complex, and correlated set of input variables (X, e.g., an entire spectrum) into a simple, actionable output (Y, e.g., product concentration). **Partial Least Squares (PLS)** is the key that deciphers this code.
     
     **Strategic Application:** This is the statistical engine behind **Process Analytical Technology (PAT)** and modern chemometrics. It is specifically designed to solve the "curse of dimensionality" - problems where you have more input variables than samples and the inputs are highly correlated.
-    - **Real-Time Spectroscopy:** Builds models that predict a chemical concentration from its NIR or Raman spectrum in real-time. This eliminates the need for slow, offline lab tests, enabling real-time release.
-    - **"Golden Batch" Modeling:** PLS can learn the "fingerprint" of a perfect batch, modeling the complex relationship between hundreds of process parameters and final product quality. Deviations from this model can signal a problem during a run, not after it's too late.
+    - **Real-Time Spectroscopy:** Builds models that predict a chemical concentration from its NIR or Raman spectrum in real-time.
+    - **"Golden Batch" Modeling:** PLS can learn the "fingerprint" of a perfect batch, modeling the complex relationship between hundreds of process parameters and final product quality.
     """)
 
     st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to simulate different chemometric scenarios.
-    - **Increase `Signal Strength`:** Watch the VIP scores for the true signal peaks (highlighted in green) grow taller, making the true relationship easier for the model to find. Both R² and Q² will improve.
-    - **Increase `Noise Level`:** Simulate a poor-quality instrument. Watch the VIP scores for the true peaks shrink as they become buried in noise, and see the model's predictive power (Q²) collapse.
+    **Interactive Demo:** Use the sliders to control the data quality. The dashboard shows the full modeling workflow:
+    1.  **Raw Data:** See the spectral data, color-coded by the Y-value.
+    2.  **Cross-Validation:** This plot is crucial! It shows how we choose the optimal number of latent variables (LVs) by finding the peak of the Q² (green) curve, avoiding overfitting.
+    3.  **Performance:** Shows how well the final model's predictions match the actual values.
+    4.  **Interpretation:** The VIP plot shows which variables (wavelengths) the model found most important.
     """)
 
     with st.sidebar:
         st.sidebar.subheader("Multivariate Analysis Controls")
-        signal_slider = st.sidebar.slider(
-            "Signal Strength",
-            min_value=0.5, max_value=5.0, value=2.0, step=0.5,
-            help="Controls the strength of the true underlying relationship between the spectra (X) and the concentration (Y)."
-        )
-        noise_slider = st.sidebar.slider(
-            "Noise Level (SD)",
-            min_value=0.1, max_value=2.0, value=0.2, step=0.1,
-            help="Controls the amount of random noise in the spectral measurements. Higher noise makes the signal harder to find."
-        )
+        signal_slider = st.sidebar.slider("Signal Strength", 0.5, 5.0, 2.0, 0.5,
+            help="Controls the strength of the true underlying relationship between the spectra (X) and the concentration (Y).")
+        noise_slider = st.sidebar.slider("Noise Level (SD)", 0.1, 2.0, 0.2, 0.1,
+            help="Controls the amount of random noise in the spectral measurements. Higher noise makes the signal harder to find.")
     
-    fig, r2, q2, n_comp = plot_mva_pls(signal_strength=signal_slider, noise_sd=noise_slider)
+    fig, r2, q2, n_comp, rmsecv = plot_mva_pls(signal_strength=signal_slider, noise_sd=noise_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -5417,35 +5459,29 @@ def render_mva_pls():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="Model R² (Goodness of Fit)", value=f"{r2:.3f}", help="How well the model fits the training data. High is good, but can be misleading.")
-            st.metric(label="Model Q² (Predictive Power)", value=f"{q2:.3f}", help="The cross-validated R². A measure of how well the model predicts new data. Q² is the most important performance metric.")
-            st.metric(label="Optimal Latent Variables (LVs)", value=f"{n_comp}", help="The optimal number of hidden factors extracted by the model via cross-validation.")
+            st.metric(label="🎯 Model Q² (Predictive Power)", value=f"{q2:.3f}",
+                      help="The cross-validated R². This is the most important measure of a model's predictive ability. Higher is better.")
+            st.metric(label="📈 Model R² (Goodness of Fit)", value=f"{r2:.3f}",
+                      help="How well the model fits the training data. A high R² with a low Q² is a sign of overfitting.")
+            st.metric(label="🧬 Optimal Latent Variables (LVs)", value=f"{n_comp}",
+                      help="The optimal number of hidden factors chosen via cross-validation.")
+            st.metric(label="📉 RMSECV", value=f"{rmsecv:.2f} units",
+                      help="Root Mean Squared Error of Cross-Validation. The typical prediction error in the original units of Y.")
             
-            st.markdown("""
-            **Decoding the VIP Plot:**
-            The **Variable Importance in Projection (VIP)** plot is the key to understanding what the model has learned.
-            - **The Peaks:** These represent the input variables (wavelengths) most influential for predicting the output.
-            - **The Green Zones:** These mark the true causal peaks we built into the simulation. A good model should have high VIP scores in these zones.
-            - **The Red Line (VIP > 1):** Variables with a VIP score greater than 1 are considered important to the model.
-            
-            **The Core Strategic Insight:** PLS turns a "black box" instrument into a "glass box" of process understanding. By identifying the most important variables, scientists can gain fundamental insights into the underlying chemistry of their process.
-            """)
-
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Overfitting" Trap**
-This is the cardinal sin of predictive modeling.
-- An analyst keeps adding more and more Latent Variables (LVs) to their PLS model. They are thrilled to see the R-squared value climb to 0.999. The model perfectly "predicts" the data it was built on.
-- **The Flaw:** The model hasn't learned the true signal; it has simply memorized the noise in the training data. When this model is shown new data from the process, its predictions will be terrible. It is a fragile model that is useless in the real world.""")
-            st.success("""🟢 **THE GOLDEN RULE: Thou Shalt Validate Thy Model on Unseen Data**
-A model's R-squared on the data it was trained on is vanity. Its performance on new data is sanity.
-1.  **Partition Your Data:** Before you begin, split your data into a **Training Set** (to build the model) and a **Test Set** (to independently validate it).
-2.  **Use Cross-Validation:** Within the training set, use cross-validation to choose the optimal number of Latent Variables. The goal is to find the number of LVs that maximizes the **predictive power (Q²)**, not the number that maximizes the R-squared.
-3.  **Final Verdict:** The ultimate test of the model is its performance on the held-out Test Set. This simulates how the model will perform in the future when it encounters new process data.""")
+- An analyst keeps adding more and more Latent Variables (LVs) to their PLS model. They are thrilled to see the R-squared value (blue line in Plot 2) climb to 0.999.
+- **The Flaw:** They've ignored the Q-squared value (green line), which has started to decrease. The model hasn't learned the true signal; it has simply memorized the noise in the training data. This model will fail when shown new data.""")
+            st.success("""🟢 **THE GOLDEN RULE: The Best Model Predicts, It Doesn't Memorize**
+A robust chemometric workflow is disciplined:
+1.  **Use Cross-Validation:** Always use cross-validation to assess how the model will perform on future, unseen data.
+2.  **Choose LVs based on Q²:** Select the number of latent variables that **maximizes the Q² (green line)**, not the R² (blue line). This is your best defense against overfitting.
+3.  **Validate on an Independent Test Set:** The ultimate test of the model is its performance on a completely held-out set of samples that were not used in training or cross-validation.""")
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context: The Father-Son Legacy
-            **The Problem (The Social Sciences):** In the 1960s, social scientists and economists faced a major modeling challenge. They had complex systems with many correlated input variables (e.g., survey questions, economic indicators) and often a small number of observations. Standard multiple linear regression would fail spectacularly in these "data-rich but theory-poor" situations.
+            **The Problem (The Social Sciences):** In the 1960s, social scientists and economists faced a major modeling challenge. They had complex systems with many correlated input variables and often a small number of observations. Standard multiple linear regression would fail spectacularly in these "data-rich but theory-poor" situations.
 
             **The 'Aha!' Moment (Herman Wold):** The brilliant Swedish statistician **Herman Wold** developed a novel solution. Instead of regressing Y on the X variables directly, he devised an iterative algorithm, **Partial Least Squares (PLS)**, that first extracts a small number of underlying "latent variables" from the X's that are maximally correlated with Y. This dimensionality reduction step elegantly solved the correlation and dimensionality problem.
 

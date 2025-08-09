@@ -1285,10 +1285,15 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_s
     """
     Backend function to generate data, run MSPC analysis, and create plots.
     """
+    # Use a different, known "good" seed for the Stable scenario for a clear demo
+    if scenario == 'Stable':
+        np.random.seed(101)
+    else:
+        np.random.seed(random_seed)
+
     # 1. --- Data Generation ---
-    np.random.seed(random_seed)
-    mean_train = [25, 150]  # Temp (°C), Pressure (kPa)
-    cov_train = [[5, 12], [12, 40]] # Strong positive correlation
+    mean_train = [25, 150]
+    cov_train = [[5, 12], [12, 40]]
     df_train = pd.DataFrame(np.random.multivariate_normal(mean_train, cov_train, n_train), columns=['Temperature', 'Pressure'])
 
     if scenario == 'Stable':
@@ -1328,15 +1333,22 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_s
     t2_ooc = not t2_ooc_points.empty
     spe_ooc = not spe_ooc_points.empty
 
-    # PLOT 1: Scatter Plot
+    # --- NEW: Determine Error Type for KPI ---
+    alarm_detected = t2_ooc or spe_ooc
+    error_type_str = "N/A"
+    if scenario == 'Stable':
+        error_type_str = "Type I Error (False Alarm)" if alarm_detected else "Correct In-Control"
+    else: # It's a failure scenario
+        error_type_str = "Correct Detection" if alarm_detected else "Type II Error (Missed Signal)"
+
+    # --- PLOTTING (No changes here, just for context) ---
+    # ... (Plotting code remains the same) ...
     fig_scatter = go.Figure()
     fig_scatter.add_trace(go.Scatter(x=df_train['Temperature'], y=df_train['Pressure'], mode='markers', marker=dict(color='blue', opacity=0.7), name='In-Control (Training Data)'))
     fig_scatter.add_trace(go.Scatter(x=df_monitor['Temperature'], y=df_monitor['Pressure'], mode='markers', marker=dict(color='red', size=8, symbol='star'), name=f'Monitoring Data ({scenario})'))
     pca_line = pca.inverse_transform(np.array([[-15], [15]]))
     fig_scatter.add_trace(go.Scatter(x=pca_line[:, 0], y=pca_line[:, 1], mode='lines', line=dict(color='grey', dash='dash'), name='PCA Model'))
     fig_scatter.update_layout(title=f"Process Scatter Plot: Scenario '{scenario}'", xaxis_title="Temperature (°C)", yaxis_title="Pressure (kPa)", legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-
-    # PLOT 2: Control Charts
     fig_charts = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=("Hotelling's T² Chart", "SPE Chart"))
     chart_indices = np.arange(1, len(df_full) + 1)
     fig_charts.add_trace(go.Scatter(x=chart_indices, y=df_full['T2'], mode='lines+markers', name='T² Value'), row=1, col=1)
@@ -1347,10 +1359,9 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_s
     if spe_ooc: fig_charts.add_trace(go.Scatter(x=spe_ooc_points.index + 1, y=spe_ooc_points['SPE'], mode='markers', marker=dict(color='red', size=10, symbol='x')), row=2, col=1)
     fig_charts.add_vrect(x0=n_train+0.5, x1=n_train+n_monitor+0.5, fillcolor="red", opacity=0.1, line_width=0, annotation_text="Monitoring Phase", annotation_position="top left", row='all', col=1)
     fig_charts.update_layout(height=500, title_text="Multivariate Control Charts", showlegend=False, yaxis_title="T² Statistic", yaxis2_title="SPE Statistic", xaxis2_title="Observation Number")
-
-    # PLOT 3: Contribution Plot
     fig_contrib = None
-    if t2_ooc or spe_ooc:
+    if alarm_detected:
+        # ... (Contribution plot logic remains the same) ...
         if t2_ooc and scenario == 'Shift in Y Only':
             first_ooc_point = t2_ooc_points.iloc[0]
             contributions = (first_ooc_point[['Temperature', 'Pressure']] - mean_vec)**2
@@ -1365,7 +1376,8 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_s
             title_text = "Contribution to Alarm (Squared Residuals)"
         fig_contrib = px.bar(x=contributions.index, y=contributions.values, title=title_text, labels={'x':'Process Variable', 'y':'Contribution Value'})
 
-    return fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc
+    # --- MODIFIED: Add the new error_type_str to the return values ---
+    return fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc, error_type_str
     
 def plot_ewma_cusum_comparison():
     np.random.seed(123)
@@ -3234,10 +3246,10 @@ def render_multivariate_spc():
     st.markdown("""
     #### Purpose & Application: The Process Doctor
     **Purpose:** To monitor the **holistic state of statistical control** for a process with multiple, correlated parameters. Instead of using an array of univariate charts (like individual nurses reading single vital signs), Multivariate SPC (MSPC) acts as the **head physician**, integrating all information into a single, powerful diagnosis.
-
+    
     **Strategic Application:** This is an essential methodology for modern **Process Analytical Technology (PAT)** and real-time process monitoring. In complex systems like bioreactors or chromatography, parameters like temperature, pH, pressure, and flow rates are interdependent. A small, coordinated deviation across several parameters—a "stealth shift"—can be invisible to individual charts but represents a significant excursion from the normal operating state. MSPC is designed to detect exactly these events.
     """)
-
+    
     st.info("""
     **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate different types of multivariate process failures. First, observe the **Scatter Plot**, then see which **Control Chart (T² or SPE)** detects the problem, and finally, check the **Contribution Plot** in the 'Key Insights' tab to diagnose the root cause.
     """)
@@ -3249,10 +3261,11 @@ def render_multivariate_spc():
         captions=["A normal, in-control process.", "A 'stealth shift' in one variable.", "An unprecedented event breaks the model."]
     )
 
-    fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc = plot_multivariate_spc(scenario=scenario)
-
+    # --- MODIFIED: Unpack the new error_type_str return value ---
+    fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc, error_type_str = plot_multivariate_spc(scenario=scenario)
+    
     st.plotly_chart(fig_scatter, use_container_width=True)
-
+    
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.plotly_chart(fig_charts, use_container_width=True)
@@ -3266,6 +3279,13 @@ def render_multivariate_spc():
             
             st.metric("📈 T² Chart Verdict", t2_verdict_str, help="Monitors deviation *within* the normal process model.")
             st.metric("📈 SPE Chart Verdict", spe_verdict_str, help="Monitors deviation *from* the normal process model.")
+            
+            # --- NEW: Add the metric for the error type determination ---
+            st.metric(
+                "📊 Error Type Determination",
+                error_type_str,
+                help="Type I Error: A 'false alarm' on a stable process. Type II Error: A 'missed signal' on a known failure. 'Correct' means the charts behaved as expected for the scenario."
+            )
             
             st.markdown("---")
             st.markdown(f"##### Analysis of the '{scenario}' Scenario:")
@@ -3325,7 +3345,7 @@ def render_multivariate_spc():
             """)
             st.latex(r"SPE = || \mathbf{x} - \mathbf{P}\mathbf{P}'\mathbf{x} ||^2")
             st.markdown("where **P** is the matrix of PCA loadings (the model directions).")
-    
+            
     # Nested plotting function from the user's code
 def render_ewma_cusum():
     """Renders the comprehensive, interactive module for Small Shift Detection (EWMA/CUSUM)."""

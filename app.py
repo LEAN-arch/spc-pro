@@ -5222,8 +5222,10 @@ def render_mewma_xgboost():
     """)
 
     st.sidebar.subheader("MEWMA + XGBoost Controls")
-    shift_slider = st.sidebar.slider("Shift Magnitude (in units of σ)", 0.25, 2.0, 0.75, 0.25)
-    lambda_slider = st.sidebar.slider("MEWMA Lambda (λ)", 0.05, 0.5, 0.2, 0.05)
+    shift_slider = st.sidebar.slider("Shift Magnitude (in units of σ)", 0.25, 2.0, 0.75, 0.25,
+        help="Controls the size of the subtle, coordinated drift introduced into the Temp and Pressure variables during the monitoring phase.")
+    lambda_slider = st.sidebar.slider("MEWMA Lambda (λ)", 0.05, 0.5, 0.2, 0.05,
+        help="Controls the 'memory' of the MEWMA chart. Smaller values give longer memory, increasing sensitivity to small, persistent shifts.")
 
     fig_mewma, fig_diag, alarm_time = plot_mewma_xgboost(shift_magnitude=shift_slider, lambda_mewma=lambda_slider)
 
@@ -5255,8 +5257,12 @@ def render_mewma_xgboost():
             """)
 
         with tabs[1]:
-            st.error("🔴 **THE INCORRECT APPROACH: The 'Whack-a-Mole' Investigation**\nAn alarm sounds. Engineers frantically check every individual parameter chart, trying to find a clear signal. They might chase a noisy pH sensor, ignoring the subtle, combined drift in Temp and Pressure that is the real root cause.")
-            st.success("🟢 **THE GOLDEN RULE: Detect Multivariately, Diagnose with Explainability**\n1. Trust the multivariate alarm. It sees the process holistically.\n2. Use the explainable AI diagnostic (SHAP) as your first investigative tool. It instantly narrows the search space from all possible causes to the most probable ones.\n3. This turns a slow, manual investigation into a rapid, data-driven confirmation.")
+            st.error("""🔴 **THE INCORRECT APPROACH: The 'Whack-a-Mole' Investigation**
+An alarm sounds. Engineers frantically check every individual parameter chart, trying to find a clear signal. They might chase a noisy pH sensor, ignoring the subtle, combined drift in Temp and Pressure that is the real root cause.""")
+            st.success("""🟢 **THE GOLDEN RULE: Detect Multivariately, Diagnose with Explainability**
+1. Trust the multivariate alarm. It sees the process holistically.
+2. Use the explainable AI diagnostic (SHAP) as your first investigative tool. It instantly narrows the search space from all possible causes to the most probable ones.
+3. This turns a slow, manual investigation into a rapid, data-driven confirmation.""")
 
         with tabs[2]:
             st.markdown("""

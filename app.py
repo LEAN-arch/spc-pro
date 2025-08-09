@@ -2943,19 +2943,14 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     y = pd.Series(run_failed, name="Run Failed")
     
     X_encoded = pd.get_dummies(X_display, drop_first=True)
-    
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # Convert all columns to a consistent numerical type to avoid dtype('O') issues with SHAP's C-extensions.
-    # XGBoost can handle bools, but SHAP's TreeExplainer is stricter.
     X = X_encoded.astype(int)
-    # --- END OF CORRECTION ---
 
     # Use XGBoost for better performance
     model = xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='logloss').fit(X, y)
     explainer = shap.Explainer(model, X)
     shap_values = explainer(X)
 
-    # --- 2. Find the instance index for the local explanation ---
+    # Find the instance index for the local explanation
     failure_probabilities = model.predict_proba(X)[:, 1]
     if case_to_explain == "highest_risk":
         instance_index = np.argmax(failure_probabilities)
@@ -2964,37 +2959,43 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     else: # "most_ambiguous"
         instance_index = np.argmin(np.abs(failure_probabilities - 0.5))
 
-    # --- 3. Generate Global Summary Plot (Beeswarm) ---
+    # --- THIS IS THE CORRECTED AND CENTRALIZED BLOCK ---
+    # For a binary classifier, SHAP output has two dimensions (one for each class).
+    # We are interested in explaining the prediction for the "Fail" class, which is class 1.
+    # We create a new Explanation object containing only the SHAP values for class 1.
+    shap_values_class1 = shap.Explanation(
+        values=shap_values.values[:,:,1],
+        base_values=shap_values.base_values[0][1], # Use the base value for class 1
+        data=X.values,
+        feature_names=X.columns.tolist()
+    )
+    # --- END OF CORRECTION ---
+
+    # 3. Generate Global Summary Plot (Beeswarm) using the class 1 SHAP values
     fig_summary, ax_summary = plt.subplots()
-    shap.summary_plot(shap_values, X, show=False)
+    shap.summary_plot(shap_values_class1, X, show=False)
     buf_summary = io.BytesIO()
     fig_summary.savefig(buf_summary, format='png', bbox_inches='tight')
     plt.close(fig_summary)
     buf_summary.seek(0)
     
-    # --- 4. Generate Local Waterfall Plot ---
+    # 4. Generate Local Waterfall Plot using the class 1 SHAP values
     fig_waterfall, ax_waterfall = plt.subplots()
-    shap.waterfall_plot(shap_values[instance_index], show=False)
+    shap.waterfall_plot(shap_values_class1[instance_index], show=False)
     buf_waterfall = io.BytesIO()
     fig_waterfall.savefig(buf_waterfall, format='png', bbox_inches='tight')
     plt.close(fig_waterfall)
     buf_waterfall.seek(0)
     
-    # --- 5. Generate Interactive Dependence Plot ---
+    # 5. Generate Interactive Dependence Plot using the class 1 SHAP values
     fig_dependence, ax_dependence = plt.subplots()
     
-    # The feature name might be different after one-hot encoding, so we find it
     plot_feature = dependence_feature
     if dependence_feature == 'Instrument ID':
-        # Find which instrument columns exist after one-hot encoding
         inst_cols = [col for col in X.columns if 'Instrument ID_' in col]
-        if inst_cols:
-            plot_feature = inst_cols[0] # Default to the first one for the plot
-        else:
-             # Fallback if no instruments are other than the baseline 'Inst_A'
-            plot_feature = 'Operator Experience (Months)'
-
-    shap.dependence_plot(plot_feature, shap_values.values, X, interaction_index="auto", show=False)
+        plot_feature = inst_cols[0] if inst_cols else 'Operator Experience (Months)'
+        
+    shap.dependence_plot(plot_feature, shap_values_class1.values, X, interaction_index="auto", show=False)
     buf_dependence = io.BytesIO()
     fig_dependence.savefig(buf_dependence, format='png', bbox_inches='tight')
     plt.close(fig_dependence)

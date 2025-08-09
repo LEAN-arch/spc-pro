@@ -5367,9 +5367,9 @@ def render_mva_pls():
     #### Purpose & Application: The Statistical Rosetta Stone
     **Purpose:** To act as a **statistical Rosetta Stone**, translating a massive, complex, and correlated set of input variables (X, e.g., an entire spectrum) into a simple, actionable output (Y, e.g., product concentration). **Partial Least Squares (PLS)** is the key that deciphers this code.
     
-    **Strategic Application:** This is the statistical engine behind **Process Analytical Technology (PAT)** and modern chemometrics. It is specifically designed to solve the "curse of dimensionality"-problems where you have more input variables than samples and the inputs are highly correlated.
+    **Strategic Application:** This is the statistical engine behind **Process Analytical Technology (PAT)** and modern chemometrics. It is specifically designed to solve the "curse of dimensionality" - problems where you have more input variables than samples and the inputs are highly correlated.
     - **Real-Time Spectroscopy:** Builds models that predict a chemical concentration from its NIR or Raman spectrum in real-time. This eliminates the need for slow, offline lab tests, enabling real-time release.
-    - **"Golden Batch" Modeling:** PLS can learn the "fingerprint" of a perfect batch, modeling the complex relationship between hundreds of process parameters and final product quality. Deviations from this model can signal a problem *during* a run, not after it's too late.
+    - **"Golden Batch" Modeling:** PLS can learn the "fingerprint" of a perfect batch, modeling the complex relationship between hundreds of process parameters and final product quality. Deviations from this model can signal a problem during a run, not after it's too late.
     """)
 
     st.info("""
@@ -5381,12 +5381,12 @@ def render_mva_pls():
     with st.sidebar:
         st.sidebar.subheader("Multivariate Analysis Controls")
         signal_slider = st.sidebar.slider(
-            "📈 Signal Strength",
+            "Signal Strength",
             min_value=0.5, max_value=5.0, value=2.0, step=0.5,
             help="Controls the strength of the true underlying relationship between the spectra (X) and the concentration (Y)."
         )
         noise_slider = st.sidebar.slider(
-            "🎲 Noise Level (SD)",
+            "Noise Level (SD)",
             min_value=0.1, max_value=2.0, value=0.2, step=0.1,
             help="Controls the amount of random noise in the spectral measurements. Higher noise makes the signal harder to find."
         )
@@ -5402,9 +5402,9 @@ def render_mva_pls():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="📈 Model R² (Goodness of Fit)", value=f"{r2:.3f}", help="How well the model fits the training data. High is good, but can be misleading.")
-            st.metric(label="🎯 Model Q² (Predictive Power)", value=f"{q2:.3f}", help="The cross-validated R². A measure of how well the model predicts *new* data. Q² is the most important performance metric.")
-            st.metric(label="🧬 Optimal Latent Variables (LVs)", value=f"{n_comp}", help="The optimal number of hidden factors extracted by the model via cross-validation.")
+            st.metric(label="Model R² (Goodness of Fit)", value=f"{r2:.3f}", help="How well the model fits the training data. High is good, but can be misleading.")
+            st.metric(label="Model Q² (Predictive Power)", value=f"{q2:.3f}", help="The cross-validated R². A measure of how well the model predicts new data. Q² is the most important performance metric.")
+            st.metric(label="Optimal Latent Variables (LVs)", value=f"{n_comp}", help="The optimal number of hidden factors extracted by the model via cross-validation.")
             
             st.markdown("""
             **Decoding the VIP Plot:**

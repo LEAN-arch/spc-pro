@@ -18,6 +18,7 @@ import statsmodels.api as sm
 from statsmodels.formula.api import ols
 from statsmodels.tsa.arima.model import ARIMA
 from prophet import Prophet
+from sklearn.metrics import silhouette_score 
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_decomposition import PLSRegression
@@ -1695,27 +1696,51 @@ def plot_mva_pls(signal_strength=2.0, noise_sd=0.2):
     
     return fig, model_r2, model_q2, optimal_n_comp
 
-@st.cache_data
-def plot_clustering():
+def plot_clustering(separation=15, spread=2.5):
+    """
+    Generates dynamic clustering plots based on user-defined separation and spread.
+    """
     np.random.seed(42)
-    X1 = np.random.normal(10, 2, 50)
-    Y1 = np.random.normal(10, 2, 50)
-    X2 = np.random.normal(25, 3, 50)
-    Y2 = np.random.normal(25, 3, 50)
-    X3 = np.random.normal(15, 2.5, 50)
-    Y3 = np.random.normal(30, 2.5, 50)
+    n_points_per_cluster = 50
+    
+    # --- Dynamic Data Generation ---
+    # The centers of the clusters are now controlled by the 'separation' slider
+    X1 = np.random.normal(10, spread, n_points_per_cluster)
+    Y1 = np.random.normal(10, spread, n_points_per_cluster)
+    
+    X2 = np.random.normal(10 + separation, spread, n_points_per_cluster)
+    Y2 = np.random.normal(10 + separation, spread, n_points_per_cluster)
+    
+    X3 = np.random.normal(10, spread, n_points_per_cluster)
+    Y3 = np.random.normal(10 + separation, spread, n_points_per_cluster)
+    
     X = np.concatenate([X1, X2, X3])
     Y = np.concatenate([Y1, Y2, Y3])
     df = pd.DataFrame({'X': X, 'Y': Y})
     
+    # --- Re-run Clustering and Calculate KPIs ---
     kmeans = KMeans(n_clusters=3, random_state=42, n_init='auto').fit(df)
     df['Cluster'] = kmeans.labels_.astype(str)
+    
+    # Calculate Silhouette Score for cluster quality
+    score = silhouette_score(df[['X', 'Y']], df['Cluster'])
 
-    fig = px.scatter(df, x='X', y='Y', color='Cluster', title='<b>Clustering: Discovering Hidden Process Regimes</b>',
+    # --- Plotting ---
+    fig = px.scatter(df, x='X', y='Y', color='Cluster', 
+                     title='<b>Clustering: Discovering Hidden Process Regimes</b>',
                      labels={'X': 'Process Parameter 1 (e.g., Temperature)', 'Y': 'Process Parameter 2 (e.g., Pressure)'})
+    
+    # Add cluster centers to the plot
+    centers = kmeans.cluster_centers_
+    fig.add_trace(go.Scatter(x=centers[:, 0], y=centers[:, 1],
+                             mode='markers',
+                             marker=dict(color='black', size=15, symbol='cross'),
+                             name='Centroids'))
+    
     fig.update_traces(marker=dict(size=8, line=dict(width=1, color='black')))
-    return fig
-
+    fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+    
+    return fig, score
 @st.cache_data
 def plot_classification_models():
     np.random.seed(1)
@@ -4039,7 +4064,28 @@ def render_clustering():
     - **Customer Segmentation:** In a commercial context, it can be used to segment patients or customers into distinct groups based on their characteristics, enabling targeted strategies.
     """)
     
-    fig = plot_clustering() # Assumes a function that plots the clusters
+    # --- NEW: Added Interactive Demo explanation ---
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to change the underlying structure of the data.
+    - **Increase `Cluster Separation`:** Watch the groups move farther apart. This makes the clustering task easier, and you will see the **Silhouette Score (cluster quality) increase**.
+    - **Increase `Cluster Spread (Noise)`:** Watch the groups become wider and more diffuse. This makes the clustering task harder, and the **Silhouette Score will decrease** as the clusters begin to overlap.
+    """)
+
+    # --- NEW: Added slider gadgets to the sidebar ---
+    st.sidebar.subheader("Clustering Controls")
+    separation_slider = st.sidebar.slider(
+        "Cluster Separation",
+        min_value=5, max_value=25, value=15, step=1,
+        help="Controls how far apart the centers of the data clusters are."
+    )
+    spread_slider = st.sidebar.slider(
+        "Cluster Spread (Noise)",
+        min_value=1.0, max_value=10.0, value=2.5, step=0.5,
+        help="Controls the standard deviation (spread) within each cluster. Higher spread means more overlap."
+    )
+    
+    # --- MODIFIED: Call backend with slider values and unpack KPIs ---
+    fig, silhouette_val = plot_clustering(separation=separation_slider, spread=spread_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -4050,15 +4096,15 @@ def render_clustering():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="🏺 Discovered 'Civilizations' (k)", value="3", help="The number of distinct clusters the K-Means algorithm identified.")
-            st.metric(label="🗺️ Cluster Quality (Silhouette Score)", value="0.72", help="A measure of how distinct the clusters are from each other. Higher is better (max 1.0).")
+            # --- MODIFIED: KPIs are now dynamic ---
+            st.metric(label="🏺 Discovered 'Regimes' (k)", value="3", help="The number of clusters the K-Means algorithm was asked to find.")
+            st.metric(label="🗺️ Cluster Quality (Silhouette Score)", value=f"{silhouette_val:.3f}", help="A measure of how distinct the clusters are from each other. Higher is better (max 1.0).")
             st.metric(label="⛏️ Algorithm Used", value="K-Means", help="A classic and robust partitioning-based clustering algorithm.")
             
             st.markdown("""
             **The Dig Site Findings:**
-            - The plot reveals the results of our archeological dig. The algorithm, without any help, has found three distinct groups in the data, color-coded for clarity.
-            - Before this analysis, these data points were likely thought of as one single "in-control" population. We have now discovered this is not true.
-            - The high Silhouette Score (0.72) gives us confidence that these groupings are statistically meaningful and not just a random artifact.
+            - The algorithm, without any help, has found three distinct groups in the data, color-coded for clarity. The black crosses mark the final calculated centers (centroids) of these groups.
+            - The **Silhouette Score** is the key metric for judging the result. A score > 0.7 indicates strong, well-separated clusters. A score < 0.25 indicates weak or non-existent structure.
             
             **The Core Strategic Insight:** The discovery of hidden clusters is one of the most valuable findings in data analysis. It proves that your single process is actually a collection of multiple sub-processes. Understanding the *causes* of this separation is the gateway to improved process control, robustness, and optimization.
             """)
@@ -4069,7 +4115,7 @@ def render_clustering():
             This is the most common way to squander the value of a clustering analysis.
             
             - An analyst presents the discovery of three distinct clusters. A manager responds, *"Interesting, but all of those batches passed QC testing, so who cares? Let's move on."*
-            - **The Flaw:** This treats a treasure map as a doodle. The fact that all batches passed is what makes the discovery so important! It means there are different—and potentially more or less robust—paths to success. One of those "civilizations" might be living on the edge of a cliff (close to a specification limit), while another is safe in a valley.
+            - **The Flaw:** This treats a treasure map as a doodle. The fact that all batches passed is what makes the discovery so important! It means there are different—and potentially more or less robust—paths to success. One of those "regimes" might be living on the edge of a cliff (close to a specification limit), while another is safe in a valley.
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: A Cluster is a Clue, Not a Conclusion**

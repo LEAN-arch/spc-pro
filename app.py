@@ -2323,22 +2323,22 @@ def render_gage_rr():
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you navigate to the "Gage R&R / VCA" tool, you will see a new set of dedicated sliders in the sidebar. You can now dynamically simulate how a precise (low repeatability) or imprecise (high repeatability) instrument performs, and how well-trained (low operator variation) or poorly-trained (high operator variation) teams affect the final result.
+    **Interactive Demo:** Now, when you navigate to the "Gage R&R / VCA" tool, you will see a new set of dedicated sliders below. You can now dynamically simulate how a precise (low repeatability) or imprecise (high repeatability) instrument performs, and how well-trained (low operator variation) or poorly-trained (high operator variation) teams affect the final result.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("Gage R&R Controls")
-    part_sd_slider = st.sidebar.slider(
+    st.subheader("Gage R&R Controls")
+    part_sd_slider = st.slider(
         "🏭 Part-to-Part Variation (SD)", 
         min_value=1.0, max_value=10.0, value=5.0, step=0.5,
         help="The 'true' variation of the product. Increase this to see how a good measurement system can easily distinguish between different parts."
     )
-    repeat_sd_slider = st.sidebar.slider(
+    repeat_sd_slider = st.slider(
         "🔬 Repeatability (SD)", 
         min_value=0.1, max_value=5.0, value=1.5, step=0.1,
         help="The inherent 'noise' of the instrument/assay. Increase this to simulate a less precise measurement device."
     )
-    operator_sd_slider = st.sidebar.slider(
+    operator_sd_slider = st.slider(
         "👤 Operator-to-Operator Variation (SD)", 
         min_value=0.0, max_value=5.0, value=0.75, step=0.25,
         help="The systematic bias between operators. Increase this to simulate poor training or inconsistent technique."

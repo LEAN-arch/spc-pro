@@ -857,6 +857,57 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
 
     return fig_contour, fig_3d, fig_effects, model.params
 
+def plot_split_plot_doe(lot_variation_sd=0.5):
+    """
+    Generates dynamic plots for a Split-Plot DOE based on user-defined variation
+    for the hard-to-change factor.
+    """
+    np.random.seed(42)
+    
+    # --- Define the Experimental Design ---
+    # Hard-to-Change (HTC) Factor: Base Media Lot (Whole Plot)
+    lots = ['Lot A', 'Lot B']
+    # Easy-to-Change (ETC) Factor: Supplement Concentration (Subplot)
+    concentrations = [10, 20, 30] # mg/L
+    n_replicates = 4 # Replicates within each subplot
+
+    # --- Dynamic Data Generation ---
+    data = []
+    # Simulate a "true" effect for the lots, controlled by the slider
+    lot_effects = {'Lot A': 0, 'Lot B': np.random.normal(0, lot_variation_sd)}
+    
+    for lot in lots:
+        for conc in concentrations:
+            # The true response depends on the supplement, the lot effect, and noise
+            true_mean = 100 + (conc - 10) * 0.5 + lot_effects[lot]
+            measurements = np.random.normal(true_mean, 1.5, n_replicates)
+            for m in measurements:
+                data.append([lot, conc, m])
+
+    df = pd.DataFrame(data, columns=['Lot', 'Supplement', 'Response'])
+    df['Supplement'] = df['Supplement'].astype(str) # Treat concentration as a categorical factor for plotting
+
+    # --- Analyze the data with ANOVA to get p-values for KPIs ---
+    model = ols('Response ~ C(Lot) + C(Supplement) + C(Lot):C(Supplement)', data=df).fit()
+    anova_table = sm.stats.anova_lm(model, typ=2)
+    
+    p_value_lot = anova_table.loc['C(Lot)', 'PR(>F)']
+    p_value_supplement = anova_table.loc['C(Supplement)', 'PR(>F)']
+    
+    # --- Plotting ---
+    fig = px.box(df, x='Lot', y='Response', color='Supplement',
+                 title='<b>Split-Plot Results: Cell Viability by Media Lot and Supplement</b>',
+                 labels={
+                     "Lot": "Base Media Lot (Hard-to-Change)",
+                     "Response": "Cell Viability (%)",
+                     "Supplement": "Supplement Conc. (Easy-to-Change)"
+                 },
+                 points='all')
+    
+    fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+    
+    return fig, p_value_lot, p_value_supplement
+
 def plot_causal_inference(confounding_strength=5.0):
     """
     Generates dynamic plots for the Causal Inference module based on user inputs.
@@ -2858,6 +2909,86 @@ def render_assay_robustness_doe():
             - $\epsilon$: The random experimental error.
             """)
 
+def render_split_plot():
+    """Renders the module for Split-Plot Designs."""
+    st.markdown("""
+    #### Purpose & Application: The Efficient Experimenter
+    **Purpose:** To design an efficient and statistically valid experiment when your study involves both **Hard-to-Change (HTC)** and **Easy-to-Change (ETC)** factors. This is a specialized form of Design of Experiments (DOE).
+    
+    **Strategic Application:** This design is a lifesaver during process characterization and tech transfer. A standard DOE might require you to change all factors randomly, which can be prohibitively expensive or time-consuming.
+    - **Tech Transfer:** Validating a new `Media Lot` (HTC) is a major undertaking involving a full bioreactor run. However, once a run is started, testing different `Supplement Concentrations` (ETC) in smaller samples is easy.
+    - **Assay V&V:** Qualifying a new `Instrument` (HTC) takes days. But once it's set up, running multiple `Plates` (ETC) on it is fast.
+    A split-plot design saves immense resources by minimizing the number of times you have to change the difficult factor.
+    """)
+
+    st.info("""
+    **Interactive Demo:** Use the **Lot-to-Lot Variation** slider in the sidebar. This slider controls the magnitude of the difference between the two "Hard-to-Change" media lots.
+    - **At low values:** The lots are similar, and the "Lot Effect p-value" will be high (not significant).
+    - **At high values:** The lots are very different. Watch the box plots for Lot B shift down, and see the p-value drop below 0.05, indicating a statistically significant difference that this experimental design successfully detected.
+    """)
+
+    # --- Gadget for the module ---
+    st.sidebar.subheader("Split-Plot Controls")
+    variation_slider = st.sidebar.slider(
+        "Lot-to-Lot Variation (SD)",
+        min_value=0.0, max_value=5.0, value=0.5, step=0.25,
+        help="Controls the 'true' difference between the hard-to-change media lots. Higher values simulate more variability between suppliers or batches."
+    )
+    
+    # --- Call backend and render ---
+    fig, p_lot, p_supp = plot_split_plot_doe(lot_variation_sd=variation_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric(
+                label="Lot Effect p-value (HTC Factor)",
+                value=f"{p_lot:.4f}",
+                help="p < 0.05 indicates a significant difference between the Base Media Lots."
+            )
+            st.metric(
+                label="Supplement Effect p-value (ETC Factor)",
+                value=f"{p_supp:.4f}",
+                help="p < 0.05 indicates a significant difference between Supplement Concentrations."
+            )
+            st.markdown("""
+            **Reading the Plot:**
+            - The x-axis groups the results by the **Hard-to-Change factor** (Lot A vs. Lot B). These are the "whole plots."
+            - Within each lot, the colored boxes show the results for the **Easy-to-Change factor** (the three supplement concentrations). These are the "sub-plots."
+            
+            **The Core Strategic Insight:** This design allows for a precise comparison of the easy-to-change factors *within* each hard-to-change setting, while still providing a (slightly less precise) comparison *between* the hard-to-change factors. It's a highly practical trade-off between statistical power and logistical feasibility.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Pretend it's Standard" Fallacy**
+            An analyst runs a split-plot experiment for convenience but analyzes it as if it were a standard, fully randomized DOE.
+            - **The Flaw:** This is statistically invalid. A standard analysis assumes every run is independent, but in a split-plot, all the sub-plots within a whole plot (e.g., all supplement tests within Lot A) are correlated. This error leads to incorrect p-values and a high risk of declaring an effect significant when it's just random noise.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Design Dictates Analysis**
+            The way you conduct your experiment dictates the only valid way to analyze it.
+            1.  **Recognize the Constraint:** First, identify if you have factors that are much harder, slower, or more expensive to change than others.
+            2.  **Choose the Right Design:** If you do, a Split-Plot design is likely the most efficient and practical choice.
+            3.  **Use the Right Model:** Analyze the results using a statistical model that correctly accounts for the two different error structures (the "whole plot error" for the HTC factor and the "sub-plot error" for the ETC factor). This is typically done with a mixed-model ANOVA.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            Like much of modern statistics, the Split-Plot design was born from agriculture. Its inventors, **Sir Ronald A. Fisher** and **Frank Yates**, were working at the Rothamsted Experimental Station in the 1920s and 30s.
+            
+            They faced a practical problem: they wanted to test different irrigation methods and different crop varieties. Changing the irrigation method (the **Hard-to-Change** factor) required digging large trenches and re-routing water, so it could only be done on large sections of a field, called **"whole plots."**
+            
+            However, within each irrigated whole plot, it was very easy to plant multiple different crop varieties (the **Easy-to-Change** factor) in smaller **"sub-plots."** They couldn't fully randomize everything because they couldn't irrigate a tiny plot differently from the one next to it. Fisher and Yates developed the specific mathematical framework for the Split-Plot ANOVA to correctly analyze the data from this restricted randomization, creating one of the most practical and widely used experimental designs ever conceived.
+            """)
+
 def render_causal_inference():
     """Renders the INTERACTIVE module for Causal Inference."""
     st.markdown("""
@@ -4736,7 +4867,7 @@ with st.sidebar:
 
     # The dictionary now ONLY contains the tools, grouped by Act.
     all_tools = {
-        "ACT I: FOUNDATION & CHARACTERIZATION": ["Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Causal Inference"],
+        "ACT I: FOUNDATION & CHARACTERIZATION": ["Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Split-Plot Designs", "Causal Inference"],
         "ACT II: TRANSFER & STABILITY": ["Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", "Method Comparison", "Pass/Fail Analysis", "Bayesian Inference"],
         "ACT III: LIFECYCLE & PREDICTIVE MGMT": ["Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis", "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts"]
     }
@@ -4769,6 +4900,7 @@ else:
         "ROC Curve Analysis": render_roc_curve,
         "Equivalence Testing (TOST)": render_tost,
         "Assay Robustness (DOE)": render_assay_robustness_doe,
+        "Split-Plot Designs": render_split_plot,
         "Causal Inference": render_causal_inference,
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,

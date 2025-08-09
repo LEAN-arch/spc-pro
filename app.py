@@ -4092,10 +4092,8 @@ def render_clustering():
         help="Controls the standard deviation (spread) within each cluster. Higher spread means more overlap."
     )
     
-    # Call the backend which now returns two figures and the KPI
     fig_scatter, fig_elbow, silhouette_val = plot_clustering(separation=separation_slider, spread=spread_slider)
     
-    # --- NEW: Two-column layout for the plots ---
     col1, col2 = st.columns(2)
     with col1:
         st.plotly_chart(fig_scatter, use_container_width=True)
@@ -4103,7 +4101,6 @@ def render_clustering():
         st.plotly_chart(fig_elbow, use_container_width=True)
         
     st.subheader("Analysis & Interpretation")
-    # --- MODIFIED: Added a new "How It Works" tab ---
     tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🧠 How It Works"])
     
     with tabs[0]:
@@ -4145,34 +4142,41 @@ def render_clustering():
         st.markdown("""
         #### Historical Context & Origin
         The K-Means algorithm is a foundational pillar of machine learning, with a history that predates many modern techniques. While the core idea was explored by several researchers, it was first proposed by **Stuart Lloyd** at Bell Labs in 1957 as a technique for pulse-code modulation. The term "k-means" itself was first coined by **James MacQueen** in a 1967 paper.
-        
-        Its simplicity, coupled with the explosion of computational power, has made it one of the most widely used and taught clustering algorithms. It represents a fundamental shift in data analysis—from testing pre-defined hypotheses to exploring data to generate *new* hypotheses.
         """)
-    
-    # --- NEW CONTENT: Explanation of core clustering concepts ---
+        
+        # --- NEW, EXTENDED CONTENT STARTS HERE ---
+        st.markdown("""
+        The algorithm's development was a direct consequence of the dawn of the digital computing age. For the first time, the iterative, computationally intensive process of repeatedly assigning points and updating centroids became feasible. Lloyd's original application was for optimizing the transmission of signals, a core problem for Bell Labs as they built out the world's telecommunications infrastructure. The goal was to find a small set of "codebook vectors" (cluster centroids) that could efficiently represent a much larger set of signals, thereby compressing the data.
+
+        This concept—finding a small set of prototypes to represent a large, complex dataset—is the essence of what K-Means does. Its simplicity and intuitive geometric interpretation made it a go-to tool as computer science and data analysis grew. It became a canonical example of an **unsupervised learning** algorithm, a paradigm where the goal is not to predict a known label but to discover the inherent structure in the data itself. Along with Principal Component Analysis (PCA), K-Means helped lay the groundwork for the modern field of data mining and data science, representing a fundamental shift in data analysis—from testing pre-defined hypotheses to exploring data to generate *new* hypotheses.
+        """)
+        # --- NEW, EXTENDED CONTENT ENDS HERE ---
+
     with tabs[3]:
         st.markdown("""
         #### How do you choose the number of clusters (k)?
         
-        This is the most common question in clustering. While in this demo we set *k*=3 for the main plot, in a real analysis, you wouldn't know the right number. The **Elbow Method**, shown in the plot on the right, is a common technique to estimate *k*.
+        This is the most common question in clustering. While in this demo we set *k*=3, in a real analysis, you wouldn't know the right number. The most common method to estimate *k* is the **Elbow Method**.
         
-        1.  **Run K-Means multiple times:** The algorithm is run for a range of *k* values (from 1 to 10 in our plot).
-        2.  **Calculate the Inertia:** For each run, we calculate the **Within-Cluster Sum of Squares (WCSS)** or "inertia." This measures how compact the clusters are (lower is better).
-        3.  **Find the "Elbow":** We plot Inertia vs. *k*. The curve looks like an arm, and the point where it bends—the **"elbow"**—is considered the optimal number of clusters. It's the point of diminishing returns, where adding another cluster doesn't significantly reduce the inertia.
+        1.  **Run K-Means multiple times:** You run the algorithm for a range of *k* values (e.g., from *k*=1 to *k*=10).
+        2.  **Calculate the Inertia:** For each run, you calculate the **Within-Cluster Sum of Squares (WCSS)**, also called "inertia." This is a measure of how compact and tight the clusters are. A lower WCSS is better.
+        3.  **Plot the results:** You plot WCSS (y-axis) vs. *k* (x-axis). The resulting curve typically looks like an arm. The point where the curve bends—the **"elbow"**—is considered the optimal number of clusters. It represents the point of diminishing returns, where adding another cluster doesn't significantly improve the compactness of the clusters.
+
+        *Other advanced methods include the Silhouette Score analysis and the Gap Statistic, which provide more statistically rigorous ways to find the optimal k.*
         
         ---
         
         #### How are the borders between clusters established?
 
-        The K-Means algorithm establishes borders with a simple rule: **every point in the space belongs to the closest cluster center (centroid).**
+        The K-Means algorithm establishes the borders with a simple and ruthless rule: **every point in the space belongs to the closest cluster center (centroid).**
 
-        This creates a geometric structure called a **Voronoi Tessellation**. Imagine planting a flag at each of the final centroids (the black crosses). The border between any two clusters is the line that is exactly halfway between their flags. This carves the entire 2D space into distinct territories with perfectly defined, straight-line borders.
+        This creates a geometric structure called a **Voronoi Tessellation**. Imagine planting a flag at each of the final cluster centroids (the black crosses in the plot). The border between any two clusters is the line that is exactly halfway between their two flags. Every location on one side of that line is closer to one flag, and every location on the other side is closer to the other. When you do this for all the cluster centers, you carve up the entire space into distinct territories, and these territories are the clusters. The borders are perfectly defined, straight lines.
         
         ---
         
         #### How is the "size" of a cluster determined?
         
-        This is the most straightforward part. The size of a cluster is simply the **total count of data points** that have been assigned to it after the algorithm finishes. For example, in this simulation, all three clusters have a size of 50.
+        This is the most straightforward part. The size of a cluster is simply the **total number of data points** that have been assigned to it after the algorithm finishes. If you have 150 data points and the algorithm assigns 60 to Cluster 1, 50 to Cluster 2, and 40 to Cluster 3, then their sizes are 60, 50, and 40, respectively.
         """)
 
 

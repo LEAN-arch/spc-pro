@@ -981,95 +981,84 @@ def plot_4pl_regression(a_true=1.5, b_true=1.2, c_true=10.0, d_true=0.05, noise_
     
     return fig, params, perr
     
-def plot_roc_curve(diseased_mean=65, population_sd=10):
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (ROC Curve) - SME ENHANCED
+# ==============================================================================
+def plot_roc_curve(diseased_mean=65, population_sd=10, cutoff=55):
     """
-    Generates dynamic plots for the ROC curve module based on user inputs.
+    Generates enhanced, more realistic, and interactive plots for the ROC curve module,
+    including a dynamic cutoff point and visualized confusion matrix.
     """
     np.random.seed(0)
     
-    # Healthy population is fixed, diseased population is controlled by sliders
     healthy_mean = 45
-    scores_diseased = np.random.normal(loc=diseased_mean, scale=population_sd, size=100)
-    scores_healthy = np.random.normal(loc=healthy_mean, scale=population_sd, size=100)
+    scores_diseased = np.random.normal(loc=diseased_mean, scale=population_sd, size=200)
+    scores_healthy = np.random.normal(loc=healthy_mean, scale=population_sd, size=200)
     
-    y_true = np.concatenate([np.ones(100), np.zeros(100)]) # 1 for diseased, 0 for healthy
+    y_true = np.concatenate([np.ones(200), np.zeros(200)]) # 1 for diseased, 0 for healthy
     y_scores = np.concatenate([scores_diseased, scores_healthy])
     
     fpr, tpr, thresholds = roc_curve(y_true, y_scores)
     auc_value = auc(fpr, tpr)
 
-    # Create plots
-    fig = make_subplots(rows=1, cols=2, subplot_titles=("<b>Score Distributions</b>", f"<b>ROC Curve (AUC = {auc_value:.3f})</b>"))
+    # --- Calculations for dynamic cutoff point ---
+    TP = np.sum((scores_diseased >= cutoff))
+    FN = np.sum((scores_diseased < cutoff))
+    TN = np.sum((scores_healthy < cutoff))
+    FP = np.sum((scores_healthy >= cutoff))
+    
+    sensitivity = TP / (TP + FN) if (TP + FN) > 0 else 0
+    specificity = TN / (TN + FP) if (TN + FP) > 0 else 1
+    current_fpr = 1 - specificity
+    
+    ppv = TP / (TP + FP) if (TP + FP) > 0 else 0 # Positive Predictive Value
+    npv = TN / (TN + FN) if (TN + FN) > 0 else 0 # Negative Predictive Value
+    
+    # --- Plotting ---
+    fig = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=("<b>1. Score Distributions & Interactive Cutoff</b>",
+                        f"<b>2. Receiver Operating Characteristic (ROC) Curve | AUC = {auc_value:.3f}</b>"),
+        vertical_spacing=0.15,
+        row_heights=[0.6, 0.4]
+    )
 
-    # Distribution plot
-    fig.add_trace(go.Histogram(x=scores_healthy, name='Healthy', histnorm='probability density', marker_color='blue', opacity=0.7), row=1, col=1)
-    fig.add_trace(go.Histogram(x=scores_diseased, name='Diseased', histnorm='probability density', marker_color='red', opacity=0.7), row=1, col=1)
+    # Plot 1: Distributions
+    # Use density plots for a smoother look
+    from scipy.stats import gaussian_kde
+    x_range = np.linspace(min(scores_healthy.min(), scores_diseased.min()), max(scores_healthy.max(), scores_diseased.max()), 200)
+    healthy_kde = gaussian_kde(scores_healthy)
+    diseased_kde = gaussian_kde(scores_diseased)
+
+    fig.add_trace(go.Scatter(x=x_range, y=healthy_kde(x_range), fill='tozeroy', name='Healthy', line=dict(color='blue')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=diseased_kde(x_range), fill='tozeroy', name='Diseased', line=dict(color='red')), row=1, col=1)
     
-    # ROC curve plot
-    fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name=f'AUC = {auc_value:.3f}', line=dict(color='darkorange', width=3)), row=1, col=2)
-    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='No-Discrimination Line', line=dict(color='navy', width=2, dash='dash')), row=1, col=2)
+    # SME Enhancement: Shade the TP/FP/TN/FN areas
+    fig.add_vrect(x0=cutoff, x1=x_range.max(), fillcolor="rgba(255, 0, 0, 0.2)", layer="below", line_width=0,
+                  annotation_text="Positive Calls", annotation_position="top right", row=1, col=1)
+    fig.add_vrect(x0=x_range.min(), x1=cutoff, fillcolor="rgba(0, 0, 255, 0.2)", layer="below", line_width=0,
+                  annotation_text="Negative Calls", annotation_position="top left", row=1, col=1)
+
+    fig.add_vline(x=cutoff, line_width=3, line_color='black', name='Cutoff',
+                  annotation_text=f"Cutoff = {cutoff}", annotation_position="bottom right", row=1, col=1)
+
+    # Plot 2: ROC Curve
+    fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name='ROC Curve', line=dict(color='darkorange', width=3)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='No-Discrimination Line', line=dict(color='grey', width=2, dash='dash')), row=2, col=1)
     
-    fig.update_layout(barmode='overlay', height=500, title_text="<b>Diagnostic Assay Performance: ROC Curve Analysis</b>")
+    # SME Enhancement: Add the dynamic point for the selected cutoff
+    fig.add_trace(go.Scatter(x=[current_fpr], y=[sensitivity], mode='markers',
+                             marker=dict(color='black', size=15, symbol='x', line=dict(width=3)),
+                             name='Current Cutoff Performance'), row=2, col=1)
+
+    fig.update_layout(height=800, title_text="<b>Diagnostic Assay Performance Dashboard</b>", title_x=0.5,
+                      legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     fig.update_xaxes(title_text="Assay Score", row=1, col=1)
     fig.update_yaxes(title_text="Density", row=1, col=1)
-    fig.update_xaxes(title_text="False Positive Rate (1 - Specificity)", range=[-0.05, 1.05], row=1, col=2)
-    fig.update_yaxes(title_text="True Positive Rate (Sensitivity)", range=[-0.05, 1.05], row=1, col=2)
+    fig.update_xaxes(title_text="False Positive Rate (1 - Specificity)", range=[-0.05, 1.05], row=2, col=1)
+    fig.update_yaxes(title_text="True Positive Rate (Sensitivity)", range=[-0.05, 1.05], row=2, col=1)
     
-    return fig, auc_value
-
-# The @st.cache_data decorator is removed to allow for dynamic regeneration.
-def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
-    """
-    Generates dynamic plots for the TOST module based on user inputs.
-    """
-    np.random.seed(1)
-    # Generate two samples based on the slider inputs
-    data_A = np.random.normal(loc=100, scale=std_dev, size=n_samples)
-    data_B = np.random.normal(loc=100 + true_diff, scale=std_dev, size=n_samples)
-    
-    # Perform two one-sided t-tests using Welch's t-test
-    diff_mean = np.mean(data_B) - np.mean(data_A)
-    std_err_diff = np.sqrt(np.var(data_A, ddof=1)/n_samples + np.var(data_B, ddof=1)/n_samples)
-    
-    # Check for division by zero if n_samples is too small
-    if n_samples <= 1:
-        return go.Figure(), 1.0, False, 0, 0
-
-    df_welch = (std_err_diff**4) / ( ((np.var(data_A, ddof=1)/n_samples)**2 / (n_samples-1)) + ((np.var(data_B, ddof=1)/n_samples)**2 / (n_samples-1)) )
-    
-    t_lower = (diff_mean - (-delta)) / std_err_diff
-    t_upper = (diff_mean - delta) / std_err_diff
-    
-    p_lower = stats.t.sf(t_lower, df_welch)
-    p_upper = stats.t.cdf(t_upper, df_welch)
-    
-    p_tost = max(p_lower, p_upper)
-    is_equivalent = p_tost < 0.05
-    
-    # Create plot
-    fig = go.Figure()
-    # 90% confidence interval for TOST (standard practice)
-    ci_margin = t.ppf(0.95, df_welch) * std_err_diff
-    ci_lower = diff_mean - ci_margin
-    ci_upper = diff_mean + ci_margin
-    
-    fig.add_trace(go.Scatter(
-        x=[diff_mean], y=['Difference'], error_x=dict(type='data', array=[ci_upper-diff_mean], arrayminus=[diff_mean-ci_lower]),
-        mode='markers', name='90% CI for Difference', marker=dict(color='blue', size=15)
-    ))
-    # Equivalence bounds
-    fig.add_shape(type="line", x0=-delta, y0=-0.5, x1=-delta, y1=0.5, line=dict(color="red", width=2, dash="dash"))
-    fig.add_shape(type="line", x0=delta, y0=-0.5, x1=delta, y1=0.5, line=dict(color="red", width=2, dash="dash"))
-    fig.add_vrect(x0=-delta, x1=delta, fillcolor="rgba(0,255,0,0.1)", layer="below", line_width=0)
-    fig.add_annotation(x=0, y=0.8, text=f"Equivalence Zone (-{delta} to +{delta})", showarrow=False, font_size=14)
-    
-    result_text = "EQUIVALENT" if is_equivalent else "NOT EQUIVALENT"
-    result_color = "darkgreen" if is_equivalent else "darkred"
-    fig.add_annotation(x=diff_mean, y=-0.8, text=f"<b>Result: {result_text}</b><br>(TOST p-value = {p_tost:.3f})", showarrow=False, font=dict(size=16, color=result_color))
-    
-    fig.update_layout(title='<b>Equivalence Testing (TOST)</b>', xaxis_title='Difference in Means (Method B - Method A)', yaxis_showticklabels=False, height=500)
-    
-    return fig, p_tost, is_equivalent, ci_lower, ci_upper
+    return fig, auc_value, sensitivity, specificity, ppv, npv
     
 @st.cache_data
 def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, ph_quad_effect=-5.0, temp_quad_effect=-5.0, noise_sd=1.0):
@@ -3340,37 +3329,46 @@ def render_4pl_regression():
             - **`d`**: The lower asymptote (response at zero concentration).
             Since this equation is non-linear in its parameters, it cannot be solved directly with linear algebra. It must be fit using an iterative numerical optimization algorithm (like Levenberg-Marquardt) that finds the parameter values `(a,b,c,d)` that minimize the sum of squared errors between the data and the fitted curve.
             """)
-# The code below was incorrectly merged. It is now its own separate function.
 def render_roc_curve():
     """Renders the INTERACTIVE module for Receiver Operating Characteristic (ROC) curve analysis."""
     st.markdown("""
     #### Purpose & Application
     **Purpose:** To solve **The Diagnostician's Dilemma**: a test must correctly identify patients with a disease (high **Sensitivity**) while also correctly clearing healthy patients (high **Specificity**). The ROC curve visualizes this trade-off.
     
-    **Strategic Application:** This is the global standard for validating diagnostic tests. The Area Under the Curve (AUC) provides a single metric of a test's diagnostic power. **Use the sliders in the sidebar to see how population separation and overlap affect diagnostic performance.**
+    **Strategic Application:** This is the global standard for validating diagnostic tests. The Area Under the Curve (AUC) provides a single metric of a test's diagnostic power, while the choice of cutoff determines its real-world performance.
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you select the "ROC Curve Analysis" tool, you will see the new dedicated sliders below. You can dynamically create assays that are excellent (high separation, low overlap) or terrible (low separation, high overlap) and see in real-time how the score distributions, the ROC curve shape, and the final AUC value respond.
+    **Interactive Demo:** Use all three sliders to see how assay quality and decision-making interact.
+    - **`Separation` & `Overlap`** control the fundamental quality of the assay.
+    - **`Decision Cutoff`**: Move this slider to see the shaded TP/FP/TN/FN areas change in the top plot. Simultaneously, watch the black 'X' move along the ROC curve in the bottom plot, and see the real-time impact on all the performance metrics.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.subheader("ROC Curve Controls")
-    separation_slider = st.slider(
-        "📈 Separation (Diseased Mean)", 
-        min_value=50.0, max_value=80.0, value=65.0, step=1.0,
-        help="Controls the distance between the Healthy and Diseased populations. More separation = better test."
-    )
-    overlap_slider = st.slider(
-        "🌫️ Overlap (Population SD)", 
-        min_value=5.0, max_value=20.0, value=10.0, step=0.5,
-        help="Controls the 'noise' or spread of the populations. More overlap (a higher SD) = worse test."
-    )
+    with st.sidebar:
+        st.subheader("ROC Curve Controls")
+        separation_slider = st.slider(
+            "📈 Separation (Diseased Mean)", 
+            min_value=50.0, max_value=80.0, value=65.0, step=1.0,
+            help="Controls the distance between the Healthy and Diseased populations. More separation = better test."
+        )
+        overlap_slider = st.slider(
+            "🌫️ Overlap (Population SD)", 
+            min_value=5.0, max_value=20.0, value=10.0, step=0.5,
+            help="Controls the 'noise' or spread of the populations. More overlap (a higher SD) = worse test."
+        )
+        # --- NEW SLIDER ADDED HERE ---
+        cutoff_slider = st.slider(
+            "🔪 Decision Cutoff",
+            min_value=30, max_value=80, value=55, step=1,
+            help="The threshold for calling a sample 'Positive'. Move this to trace the ROC curve and see the trade-offs."
+        )
 
     # Generate plots using the slider values
-    fig, auc_value = plot_roc_curve(
+    fig, auc_value, sensitivity, specificity, ppv, npv = plot_roc_curve(
         diseased_mean=separation_slider, 
-        population_sd=overlap_slider
+        population_sd=overlap_slider,
+        cutoff=cutoff_slider
     )
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -3382,37 +3380,44 @@ def render_roc_curve():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="📈 KPI: Area Under Curve (AUC)", value=f"{auc_value:.3f}", help="The overall diagnostic power of the test. 0.5 is useless, 1.0 is perfect. Updates with sliders.")
-            st.info("Play with the sliders in the sidebar to see how assay quality affects the results!")
-            st.markdown("""
-            - **Increase `Separation`:** Watch the red distribution move away from the blue one. The ROC curve pushes towards the perfect top-left corner, and the **AUC value increases dramatically.**
-            - **Increase `Overlap`:** Watch both distributions get wider. The ROC curve flattens, and the **AUC value decreases.**
+            st.metric(label="📈 Overall KPI: Area Under Curve (AUC)", value=f"{auc_value:.3f}",
+                      help="The overall diagnostic power of the test. 0.5 is useless, 1.0 is perfect.")
+            st.markdown(f"--- \n ##### Performance at Cutoff = {cutoff_slider}")
+            st.metric(label="🎯 Sensitivity (True Positive Rate)", value=f"{sensitivity:.2%}",
+                      help="Of all the truly diseased patients, what percentage did we correctly identify?")
+            st.metric(label="🛡️ Specificity (True Negative Rate)", value=f"{specificity:.2%}",
+                      help="Of all the truly healthy patients, what percentage did we correctly clear?")
+            st.metric(label="✅ Positive Predictive Value (PPV)", value=f"{ppv:.2%}",
+                      help="If a patient tests positive, what is the probability they actually have the disease?")
+            st.metric(label="❌ Negative Predictive Value (NPV)", value=f"{npv:.2%}",
+                      help="If a patient tests negative, what is the probability they are actually healthy?")
             
-            **The Core Strategic Insight:** A great diagnostic test is one that maximizes the separation between populations while minimizing their overlap (noise).
+            st.markdown("""
+            **The Core Insight:** The AUC tells you how good your *assay* is. The four metrics on the right tell you how good your *decision* is at a specific cutoff. A great assay can still lead to poor outcomes if the wrong cutoff is chosen for the clinical context.
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: "Worship the AUC" & "Hug the Corner"**
-            - *"My AUC is 0.95, so we're done."* (The *chosen cutoff* might still be terrible).
-            - *"I'll just pick the cutoff closest to the top-left corner."* (This balances errors equally, which is rarely desired).
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: The Best Cutoff Depends on the Consequence of Being Wrong**
-            Ask: **"What is worse? A false positive or a false negative?"**
-            - **For deadly disease screening:** Maximize Sensitivity.
-            - **For risky surgery diagnosis:** Maximize Specificity.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: "Worship the AUC" & "Hug the Corner"**
+- *"My AUC is 0.95, so we're done."* (The *chosen cutoff* might still be terrible for the clinical need).
+- *"I'll just pick the cutoff closest to the top-left corner."* (This balances errors equally, which is rarely desired).""")
+            st.success("""🟢 **THE GOLDEN RULE: The Best Cutoff Depends on the Consequence of Being Wrong**
+Ask: **"What is worse? A false positive or a false negative?"**
+- **For deadly disease screening:** You must catch every possible case. Prioritize **maximum Sensitivity**.
+- **For confirming a diagnosis for a risky surgery:** You must be certain the patient has the disease. Prioritize **maximum Specificity** to avoid unnecessary procedures.""")
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            The ROC curve was invented during **World War II** to help radar operators distinguish enemy bombers from noise. It allowed them to quantify the trade-off between sensitivity and false alarms.
+            #### Historical Context: From Radar Blips to Medical Labs
+            **The Problem:** During World War II, engineers were developing radar to detect enemy aircraft. They faced a classic signal-detection problem: how do you set the sensitivity of the receiver? If it's too sensitive, it will pick up random noise (birds, atmospheric clutter) as enemy planes (a **false alarm**). If it's not sensitive enough, it will miss real enemy planes (a **missed hit**).
+
+            **The 'Aha!' Moment:** Engineers needed a way to visualize this trade-off. They developed the **Receiver Operating Characteristic (ROC)** curve. It plotted the probability of a "hit" (True Positive Rate) against the probability of a "false alarm" (False Positive Rate) for every possible sensitivity setting of the receiver. This allowed them to quantify the performance of different radar systems and choose the optimal operating point.
             
-            #### Mathematical Basis
-            The curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)**.
+            **The Impact:** After the war, the technique was adapted by psychologists for signal detection in perception experiments. In the 1970s, it was introduced to medicine, where it became the undisputed gold standard for evaluating the performance of diagnostic tests, providing a clear, graphical language to communicate the critical trade-off between sensitivity and specificity.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)**.")
             st.latex(r"\text{Sensitivity} = \frac{TP}{TP + FN} \quad , \quad \text{Specificity} = \frac{TN}{TN + FP}")
+            st.markdown("Each point on the curve represents the (Sensitivity, 1-Specificity) pair for a specific cutoff value. The **Area Under the Curve (AUC)** has a powerful probabilistic interpretation: it is the probability that a randomly chosen 'Diseased' subject will have a higher test score than a randomly chosen 'Healthy' subject.")
 
 def render_tost():
     """Renders the INTERACTIVE module for Two One-Sided Tests (TOST) for equivalence."""

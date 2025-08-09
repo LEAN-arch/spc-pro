@@ -1393,16 +1393,11 @@ def plot_ewma_cusum_comparison(shift_size=0.75):
     data[20:] += actual_shift_value
 
     # --- Calculations ---
-    # EWMA
     lam = 0.2
-    ewma = np.zeros(n_points)
-    ewma[0] = mean
-    for i in range(1, n_points):
-        ewma[i] = lam * data[i] + (1 - lam) * ewma[i-1]
+    ewma = np.zeros(n_points); ewma[0] = mean
+    for i in range(1, n_points): ewma[i] = lam * data[i] + (1 - lam) * ewma[i-1]
     
-    # CUSUM
-    target = mean
-    k = 0.5 * std # Slack
+    target = mean; k = 0.5 * std
     sh, sl = np.zeros(n_points), np.zeros(n_points)
     for i in range(1, n_points):
         sh[i] = max(0, sh[i-1] + (data[i] - target) - k)
@@ -1413,14 +1408,15 @@ def plot_ewma_cusum_comparison(shift_size=0.75):
     ewma_ucl = mean + 3 * (std * np.sqrt(lam / (2-lam)))
     cusum_ucl = 5 * std
 
-    i_alarm_idx = np.where(data[20:] > i_ucl)[0]
-    ewma_alarm_idx = np.where(ewma[20:] > ewma_ucl)[0]
-    cusum_alarm_idx = np.where(sh[20:] > cusum_ucl)[0]
+    # Find all alarm indices within the shifted data segment (from point #20 onwards)
+    i_alarm_indices = np.where(data[20:] > i_ucl)[0]
+    ewma_alarm_indices = np.where(ewma[20:] > ewma_ucl)[0]
+    cusum_alarm_indices = np.where(sh[20:] > cusum_ucl)[0]
 
-    # --- FIX: Changed "Samples" to "Data Points" in the KPI strings ---
-    i_detect_time = f"{i_alarm_idx[0] + 1} Data Points" if len(i_alarm_idx) > 0 else "Failed to Detect"
-    ewma_detect_time = f"{ewma_alarm_idx[0] + 1} Data Points" if len(ewma_alarm_idx) > 0 else "Failed to Detect"
-    cusum_detect_time = f"{cusum_alarm_idx[0] + 1} Data Points" if len(cusum_alarm_idx) > 0 else "Failed to Detect"
+    # --- FIX: Count the TOTAL number of alarms using len() ---
+    i_ooc_count = len(i_alarm_indices)
+    ewma_ooc_count = len(ewma_alarm_indices)
+    cusum_ooc_count = len(cusum_alarm_indices)
 
     # --- Plotting ---
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
@@ -1428,32 +1424,29 @@ def plot_ewma_cusum_comparison(shift_size=0.75):
                                         "<b>EWMA: The Sentinel</b>",
                                         "<b>CUSUM: The Bloodhound</b>"))
 
-    # I-Chart
+    # Add traces and lines (this part is unchanged)
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=data, mode='lines+markers', name='Data'), row=1, col=1)
     fig.add_hline(y=i_ucl, line_color='red', line_dash='dash', row=1, col=1)
     fig.add_hline(y=mean - 3*std, line_color='red', line_dash='dash', row=1, col=1)
 
-    # EWMA Chart
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=ewma, mode='lines+markers', name='EWMA'), row=2, col=1)
     fig.add_hline(y=ewma_ucl, line_color='red', line_dash='dash', row=2, col=1)
     fig.add_hline(y=mean - 3*(std * np.sqrt(lam / (2-lam))), line_color='red', line_dash='dash', row=2, col=1)
     
-    # CUSUM Chart
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sh, mode='lines+markers', name='CUSUM High'), row=3, col=1)
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sl, mode='lines+markers', name='CUSUM Low'), row=3, col=1)
     fig.add_hline(y=cusum_ucl, line_color='red', line_dash='dash', row=3, col=1)
 
-    # Add annotation for all subplots
     fig.add_vrect(x0=20.5, x1=n_points + 0.5, 
                   fillcolor="rgba(255,150,0,0.1)", line_width=0,
                   annotation_text="Process Shift Occurs", annotation_position="top left",
                   row='all', col=1)
 
-    # --- FIX: Changed "Sample Number" to "Data Point Number" in the axis title ---
     fig.update_layout(title=f"<b>Case Study: Detecting a {shift_size}σ Process Shift</b>", height=800, showlegend=False)
     fig.update_xaxes(title_text="Data Point Number", row=3, col=1)
     
-    return fig, i_detect_time, ewma_detect_time, cusum_detect_time
+    # --- FIX: Return the new counts instead of the old strings ---
+    return fig, i_ooc_count, ewma_ooc_count, cusum_ooc_count
     
 @st.cache_data
 def plot_time_series_analysis():
@@ -3439,8 +3432,8 @@ def render_ewma_cusum():
 
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        # Call the backend function which returns the dynamic KPI values
-        fig, i_time, ewma_time, cusum_time = plot_ewma_cusum_comparison(shift_size=shift_size_slider)
+        # --- FIX: Unpack the new integer count KPIs ---
+        fig, i_count, ewma_count, cusum_count = plot_ewma_cusum_comparison(shift_size=shift_size_slider)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -3448,26 +3441,26 @@ def render_ewma_cusum():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
         with tabs[0]:
-            # --- FIX: Updated metric labels and help text for clarity ---
+            # --- FIX: Updated metrics to use the new counts and labels ---
             st.metric(
                 label="Shift Size",
                 value=f"{shift_size_slider} σ",
                 help="The simulated shift introduced at data point #20."
             )
             st.metric(
-                label="I-Chart: # of Shifted Points to Detect",
-                value=i_time, 
-                help="This counter shows how many shifted data points occurred before the I-Chart signaled an alarm. 'Failed' means no alarm was triggered."
+                label="I-Chart: # of OOC Points Detected",
+                value=f"{i_count} / 20",
+                help="Total count of out-of-control points detected by the I-Chart in the shifted region (20 total shifted points)."
             )
             st.metric(
-                label="EWMA: # of Shifted Points to Detect",
-                value=ewma_time,
-                help="This counter shows how many shifted data points occurred before the EWMA chart signaled an alarm."
+                label="EWMA: # of OOC Points Detected",
+                value=f"{ewma_count} / 20",
+                help="Total count of out-of-control points detected by the EWMA chart in the shifted region."
             )
             st.metric(
-                label="CUSUM: # of Shifted Points to Detect",
-                value=cusum_time,
-                help="This counter shows how many shifted data points occurred before the CUSUM chart signaled an alarm."
+                label="CUSUM: # of OOC Points Detected",
+                value=f"{cusum_count} / 20",
+                help="Total count of out-of-control points detected by the CUSUM chart in the shifted region."
             )
 
             st.markdown("""

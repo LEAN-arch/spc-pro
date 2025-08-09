@@ -2228,7 +2228,6 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strengt
     
     # --- Dynamic Data Generation with Changepoint ---
     trend1 = np.linspace(50, 50 + trend_strength, changepoint_loc)
-    # The trend slope changes after the changepoint
     end_val = trend1[-1]
     trend2 = np.linspace(end_val, end_val + (trend_strength + changepoint_strength), periods - changepoint_loc)
     trend = np.concatenate([trend1, trend2])
@@ -2253,7 +2252,7 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strengt
     mae_prophet = np.mean(np.abs(fc_prophet['yhat'].iloc[-14:].values - test['y'].values))
     mae_arima = np.mean(np.abs(fc_arima['mean'].values - test['y'].values))
     
-    # --- SME Enhancement: ARIMA Diagnostics ---
+    # --- ARIMA Diagnostics ---
     from statsmodels.graphics.tsaplots import plot_acf
     residuals_arima = m_arima.resid
     
@@ -2278,8 +2277,12 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strengt
     fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat'], mode='lines', name='Prophet Forecast', line=dict(dash='dash', color='red')), row=1, col=1)
     fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean'], mode='lines', name='ARIMA Forecast', line=dict(dash='dash', color='green')), row=1, col=1)
     
-    fig.add_vline(x=train['ds'].iloc[-1], line_width=2, line_dash="dash", line_color="grey", annotation_text="Forecast Start", row=1, col=1)
-    fig.add_vline(x=df['ds'][changepoint_loc], line_width=2, line_dash="dot", line_color="purple", annotation_text="Trend Changepoint", row=1, col=1)
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # The `row=1, col=1` arguments have been removed from the `add_vline` calls.
+    # This uses a different code path in Plotly that correctly handles Timestamps.
+    fig.add_vline(x=train['ds'].iloc[-1], line_width=2, line_dash="dash", line_color="grey", annotation_text="Forecast Start")
+    fig.add_vline(x=df['ds'][changepoint_loc], line_width=2, line_dash="dot", line_color="purple", annotation_text="Trend Changepoint")
+    # --- END OF CORRECTION ---
 
     # Plot 2: ARIMA Residuals
     fig.add_trace(go.Scatter(x=train['ds'][1:], y=residuals_arima[1:], mode='lines', name='Residuals'), row=2, col=1)

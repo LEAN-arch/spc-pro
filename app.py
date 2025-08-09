@@ -2146,10 +2146,10 @@ def render_ci_concept():
     """)
     
     st.info("""
-    **Interactive Demo:** Use the **Sample Size (n)** slider in the sidebar to dynamically change the number of samples in each simulated experiment. Observe how increasing the sample size dramatically narrows both the theoretical Sampling Distribution (orange curve) and the simulated Confidence Intervals (blue/red lines), directly demonstrating the link between sample size and precision.
+    **Interactive Demo:** Use the **Sample Size (n)** slider below to dynamically change the number of samples in each simulated experiment. Observe how increasing the sample size dramatically narrows both the theoretical Sampling Distribution (orange curve) and the simulated Confidence Intervals (blue/red lines), directly demonstrating the link between sample size and precision.
     """)
 
-    n_slider = st.sidebar.slider("Select Sample Size (n) for Each Simulated Experiment:", 5, 100, 30, 5)
+    n_slider = st.slider("Select Sample Size (n) for Each Simulated Experiment:", 5, 100, 30, 5)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:

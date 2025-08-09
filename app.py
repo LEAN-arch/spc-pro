@@ -3964,33 +3964,30 @@ def render_multi_rule():
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
-            This operator sees any alarm, immediately discards the run, and starts over without thinking.
-            - They don't use the specific rule (`2-2s` vs `R-4s`) to guide their troubleshooting.
-            - They might engage in "testing into compliance" by re-running a control until it passes, a serious compliance violation.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: The Rule is the First Clue**
-            The goal is to treat the specific rule violation as the starting point of a targeted investigation.
-            - **Think like a detective:** "The chart shows a `2-2s` violation. This suggests a systematic shift. I should check my calibrators and reagents first, not my pipetting technique."
-            - **Document Everything:** The investigation, the root cause, and the corrective action for each rule violation must be documented.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
+This operator sees any alarm, immediately discards the run, and starts over without thinking.
+- They don't use the specific rule (`2-2s` vs `R-4s`) to guide their troubleshooting.
+- They might engage in "testing into compliance" by re-running a control until it passes, a serious compliance violation.""")
+            st.success("""🟢 **THE GOLDEN RULE: The Rule is the First Clue**
+The goal is to treat the specific rule violation as the starting point of a targeted investigation.
+- **Think like a detective:** "The chart shows a `2-2s` violation. This suggests a systematic shift. I should check my calibrators and reagents first, not my pipetting technique."
+- **Document Everything:** The investigation, the root cause, and the corrective action for each rule violation must be documented.""")
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context: From the Factory Floor to the Hospital Bed
-            **The Problem:** In the 1920s, the Western Electric company was a manufacturing behemoth, but quality was a nightmare. Engineers were lost in a "fog" of data, constantly "tampering" with the process based on random noise, often making things worse.
-            
-            **The "Aha!" Moment (Shewhart):** A physicist at Bell Labs, **Dr. Walter A. Shewhart**, had the revolutionary insight to distinguish between "common cause" and "special cause" variation. He invented the control chart to provide a simple, graphical tool to detect the moment a special cause entered the system. The ±3σ limits were chosen for sound economic reasons: to minimize the cost of both false alarms and missed signals.
-            
-            **The Evolution (Westgard):** Fast forward to the 1970s. **Dr. James O. Westgard** recognized that in clinical labs, where patient lives are at stake, the cost of a missed signal is far higher. He found that Shewhart's single `1-3s` rule wasn't sensitive enough to catch the subtle drifts that could lead to a misdiagnosis. In 1981, he proposed his multi-rule system, an "intelligent" combination of rules designed to maximize the probability of error detection ($P_{ed}$) while maintaining a low probability of false rejection ($P_{fr}$). This engineering trade-off made the system the global standard for medical laboratories.
+            **The Problem:** In the 1970s, clinical laboratories were becoming highly automated, but their quality control methods hadn't kept up. They were using Shewhart's simple `1-3s` rule, designed for manufacturing. However, in a clinical setting, the cost of a missed error (a misdiagnosis) is infinitely higher than the cost of a false alarm (re-running a control). The `1-3s` rule was not sensitive enough to catch the small but medically significant drifts that could occur with automated analyzers.
 
-            #### Mathematical Basis
-            The logic is built on the properties of the normal distribution. For a stable process:
-            - A point outside **±3σ** is a rare event (occurs ~1 in 370 times by chance). This is a high-confidence signal, hence the **1-3s** rejection rule.
-            - A point outside **±2σ** is more common (~1 in 22 times). Seeing *two in a row* on the same side, however, is much rarer ($1/22 \times 1/22 \times 1/2 \approx$ 1 in 968). This makes the **2-2s** rule a powerful detector of systematic shifts with a low false alarm rate.
+            **The 'Aha!' Moment:** **Dr. James O. Westgard**, a professor of clinical chemistry, recognized this dangerous gap. He realized that a single rule was a blunt instrument. Instead, he proposed using a *combination* of rules, like a series of increasingly fine filters. A "warning" rule (like `1-2s`) could trigger a check of more stringent rejection rules. 
+            
+            **The Impact:** In his 1981 paper, Westgard introduced his multi-rule system. It was a paradigm shift for clinical QC. It gave laboratorians a logical, flowchart-based system that dramatically increased the probability of detecting true errors while keeping the false alarm rate manageable. The "Westgard Rules" became the de facto global standard for run validation in medical labs, directly improving the quality of diagnostic data and patient safety worldwide.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The logic is built on the properties of the normal distribution and the probability of rare events. For a stable process:")
+            st.markdown("- A point outside **±3σ** is a rare event. The probability of a single point falling outside these limits by chance is very low (p ≈ 0.0027). This makes the **1-3s** rule a high-confidence signal of a major error.")
+            st.markdown("- A point outside **±2σ** is more common (p ≈ 0.0455). Seeing one is not a strong signal. However, the probability of seeing *two consecutive points* on the same side of the mean purely by chance is much, much lower:")
+            st.latex(r"P(\text{2-2s}) \approx \left( \frac{0.0455}{2} \right)^2 \approx 0.0005")
+            st.markdown("This makes the **2-2s** rule a powerful and specific detector of systematic shifts with a very low false alarm rate, even though the individual points themselves are not extreme.")
 
 def render_multivariate_spc():
     """Renders the comprehensive, interactive module for Multivariate SPC."""
@@ -4012,7 +4009,6 @@ def render_multivariate_spc():
         captions=["A normal, in-control process.", "A 'stealth shift' in one variable.", "An unprecedented event breaks the model."]
     )
 
-    # Call the backend function and unpack all return values
     fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc, error_type_str = plot_multivariate_spc(scenario=scenario)
     
     st.plotly_chart(fig_scatter, use_container_width=True)
@@ -4022,8 +4018,7 @@ def render_multivariate_spc():
         st.plotly_chart(fig_charts, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        # --- MODIFIED: Added a new tab for conceptual explanations ---
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🧠 Concepts: Bias, Error, & Factors"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🔬 SME Analysis"])
         
         with tabs[0]:
             t2_verdict_str = "Out-of-Control" if t2_ooc else "In-Control"
@@ -4068,26 +4063,22 @@ def render_multivariate_spc():
             st.info("**Try This:** Switch between the 'Shift in Y Only' and 'Correlation Break' scenarios to see how the two charts are sensitive to completely different types of process failures.")
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
-            Using dozens of individual charts is doomed to fail due to alarm fatigue and its blindness to "stealth shifts."
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Detect with T²/SPE, Diagnose with Contributions**
-            1.  **Stage 1: Detect.** Use **T² and SPE charts** as your primary health monitors to answer "Is something wrong?"
-            2.  **Stage 2: Diagnose.** If a chart alarms, then use **contribution plots** to identify which original variables are responsible for the signal. This is the path to the root cause.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
+Using dozens of individual charts is doomed to fail due to alarm fatigue and its blindness to "stealth shifts." """)
+            st.success("""🟢 **THE GOLDEN RULE: Detect with T²/SPE, Diagnose with Contributions**
+1.  **Stage 1: Detect.** Use **T² and SPE charts** as your primary health monitors to answer "Is something wrong?"
+2.  **Stage 2: Diagnose.** If a chart alarms, then use **contribution plots** to identify which original variables are responsible for the signal. This is the path to the root cause.""")
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context: The Crisis of Dimensionality
             **The Problem:** In the 1930s, statistics was largely a univariate world. Tools like Student's t-test and Shewhart's control charts were brilliant for analyzing one variable at a time. But scientists and economists were facing increasingly complex problems with dozens of correlated measurements. How could you test if two groups were different, not just on one variable, but across a whole panel of them? A simple t-test on each variable was not only inefficient, it was statistically misleading due to the problem of multiple comparisons.
 
-            **The "Aha!" Moment (Hotelling):** The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. His genius was in generalization. He recognized that the squared t-statistic, $t^2 = (\\bar{x} - \\mu)^2 / (s^2/n)$, was a measure of squared distance, normalized by variance. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which replaced the univariate terms with their vector and matrix equivalents. It provided a single number that represented the "distance" of a point from the center of a multivariate distribution, elegantly solving the problem of testing multiple means at once while accounting for all their correlations.
+            **The 'Aha!' Moment (Hotelling):** The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. His genius was in generalization. He recognized that the squared t-statistic, $t^2 = (\\bar{x} - \\mu)^2 / (s^2/n)$, was a measure of squared distance, normalized by variance. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which replaced the univariate terms with their vector and matrix equivalents. It provided a single number that represented the "distance" of a point from the center of a multivariate distribution, elegantly solving the problem of testing multiple means at once while accounting for all their correlations.
             """)
+            st.markdown("#### Mathematical Basis")
             st.markdown("""
-            #### Mathematical Basis
-            - **T² (Hotelling's T-Squared):** A measure of the **Mahalanobis distance**, which accounts for the correlation between variables through the **inverse of the sample covariance matrix (`S⁻¹`)**.
+            - **T² (Hotelling's T-Squared):** A measure of the **Mahalanobis distance**. It calculates the squared distance of a point `x` from the center of the data `x̄`, but it first "warps" the space by the inverse of the covariance matrix `S⁻¹` to account for correlations.
             """)
             st.latex(r"T^2 = (\mathbf{x} - \mathbf{\bar{x}})' \mathbf{S}^{-1} (\mathbf{x} - \mathbf{\bar{x}})")
             st.markdown("""
@@ -4096,44 +4087,50 @@ def render_multivariate_spc():
             st.latex(r"SPE = || \mathbf{x} - \mathbf{P}\mathbf{P}'\mathbf{x} ||^2")
             st.markdown("where **P** is the matrix of PCA loadings (the model directions).")
 
-        # --- NEW CONTENT: Explanation of core concepts ---
         with tabs[3]:
             st.markdown("""
-            #### Understanding the Sources of Variation
+            #### SME Analysis: From Raw Data to Actionable Intelligence
 
-            In any process, the total observed variation can be broken down into distinct components. Understanding these components is the key to effective process control and improvement.
-
-            **1. Bias (Systematic Error)**
-            - **Definition:** Bias is a consistent, repeatable error where the average of measurements is offset from the true value. It represents **inaccuracy**.
-            - **Analogy:** A bathroom scale that always reads 5 pounds too heavy. The readings might be very consistent (low noise), but they are all consistently wrong in the same direction.
-            - **In this Demo:** The **'Shift in Y Only'** scenario simulates a pure bias. The process mean for Pressure shifts from 150 to 175, but the underlying correlation structure and noise remain the same. The T² chart is excellent at detecting this kind of systematic bias.
-
-            **2. Noise (Random Error)**
-            - **Definition:** Noise is the unpredictable, non-repeatable fluctuation in measurements. It is inherent to any system and represents **imprecision**. It's the "static" that remains even after all biases are removed.
-            - **Analogy:** A bathroom scale where the reading fluctuates randomly by a pound or two every time you step on it, even if your weight hasn't changed.
-            - **In this Demo:** All scenarios include inherent noise, simulated by the `np.random.multivariate_normal` function. This is the "common cause" variation that control charts are designed to filter out, so we can see the "special cause" signals.
+            As a Subject Matter Expert (SME) in process validation and tech transfer, this tool isn't just a data science curiosity; it's a powerful diagnostic and risk-management engine. Here’s how we would use this in a real-world GxP environment.
 
             ---
 
-            #### Intrinsic vs. External Factors
+            ##### How is this data gathered and what are the parameters?
 
-            The sources of bias and noise can be categorized by their origin.
+            The data used by this model is a simplified version of what we collect during **late-stage development, process characterization, and tech transfer validation runs**.
 
-            **1. Intrinsic Factors (Internal Variability)**
-            - **Definition:** These are sources of variation that are a fundamental, built-in part of the process itself. They define the "normal operating state."
-            - **Examples:**
-                - The inherent correlation between Temperature and Pressure in a chemical reaction.
-                - The natural lot-to-lot variability of a raw material from a single, qualified supplier.
-                - The baseline electronic noise of a sensor.
-            - **In this Demo:** The strong positive correlation between Temperature and Pressure, defined by the covariance matrix `[[5, 12], [12, 40]]`, is an **intrinsic factor**. The T² chart models this intrinsic relationship.
+            -   **Data Gathering:** Every time an assay run is performed, we log key parameters in a Laboratory Information Management System (LIMS) or an Electronic Lab Notebook (ELN). This includes automated readings from the instrument and manual entries by the technician. The final "Pass/Fail" result of the run is the target we are trying to predict.
 
-            **2. External Factors (Special Causes)**
-            - **Definition:** These are sources of variation that are not part of the normal process design. They are "shocks" or changes to the system that disrupt the stable state.
-            - **Examples:**
-                - A sensor failing, leading to a sudden shift in readings (Bias).
-                - A new, untrained operator introducing inconsistent technique (Noise).
-                - An unprecedented event, like a valve failure, that breaks the established relationship between two parameters.
-            - **In this Demo:** The **'Correlation Break'** scenario simulates a powerful external factor. The covariance matrix changes to `[[5, 0], [0, 40]]`, breaking the intrinsic relationship. This is an event the original process model has never seen, which is why the SPE chart alarms loudly.
+            -   **Parameters Considered:**
+                *   **`Operator Experience`**: This is critical, especially during tech transfer. We track this from training records. A junior analyst at a receiving site might follow the SOP perfectly, but their inexperience can be a hidden source of variability.
+                *   **`Reagent Age`**: We track this via lot numbers and expiration dates. Even within its expiry, a reagent that is 90 days old might perform differently than one that is 5 days old. This model helps quantify that risk.
+                *   **`Calibrator Slope`**: This is a direct output from the instrument's software. It's a key health indicator for the assay. A decreasing slope over time often signals a systemic issue.
+                *   **`QC Level 1 Value`**: This is the result for a known Quality Control sample. We monitor this using standard SPC charts (like Westgard Rules), but including it here allows the model to learn complex interactions, like how a slight drop in QC value is more dangerous when reagent age is also high.
+                *   **`Instrument ID`**: In a lab with multiple instruments, we always log which machine was used. They are never perfectly identical, and this model can detect if one instrument is contributing disproportionately to run failures.
+
+            ---
+
+            ##### How do we interpret the plots and gain insights?
+
+            The true power here is moving from "what happened" to "why it happened."
+
+            -   **Global Plot (The Big Picture):** The summary plot is our first validation checkpoint for the model itself. As an SME, if I saw that `Instrument ID` was the most important factor and `Calibrator Slope` was irrelevant, I would immediately reject the model. It would mean the model learned a spurious correlation (e.g., our failing instrument is also where we train new operators) rather than the true science. The fact that `Operator Experience` and `Calibrator Slope` are top drivers gives me confidence that the AI's "thinking" aligns with scientific reality.
+
+            -   **Local Plot (The Smoking Gun):** This is our **automated root cause investigation tool**.
+                *   When I select the **"Highest Predicted Failure Risk"** case, the force plot instantly shows me the "root cause narrative." For the selected run, the story is clear: an inexperienced operator combined with a low calibrator slope created a high-risk situation. The fact that the reagent was fresh (a blue, risk-lowering factor) wasn't enough to save it.
+                *   When I select the **"Lowest Predicted Failure Risk"** case, I see the "golden run" profile: an experienced operator, a perfect calibrator slope, and fresh reagents. This confirms what an ideal run looks like.
+
+            ---
+
+            ##### How would we implement this?
+
+            Implementation is a phased process moving from monitoring to proactive control.
+
+            1.  **Phase 1 (Silent Monitoring):** The model runs in the background. It predicts the failure risk for every run, and we use SHAP to analyze the reasons for high-risk predictions. This data is reviewed during weekly process monitoring meetings. It helps us spot trends—"Are we seeing more failures driven by `Reagent Age` lately?"—and guides our investigations.
+
+            2.  **Phase 2 (Advisory Mode):** The system is integrated with the LIMS. When an operator starts a run, the model calculates a risk score based on the chosen reagents and their own logged experience. If the risk is high, it could generate an advisory: **"Warning: Reagent Lot XYZ is 85 days old. This significantly increases the risk of run failure. Consider using a newer lot."**
+
+            3.  **Phase 3 (Proactive Control / Real-Time Release):** This is the ultimate goal of PAT. Once the model is fully validated and trusted, its predictions can become part of the official batch record. A run with a very low predicted risk and a favorable SHAP explanation could be eligible for **Real-Time Release Testing (RTRT)**, skipping certain redundant final QC tests. This dramatically accelerates production timelines and reduces costs, all while increasing quality assurance.
             """)
             
     # Nested plotting function from the user's code

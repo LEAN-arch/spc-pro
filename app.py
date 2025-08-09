@@ -24,6 +24,7 @@ from sklearn.cross_decomposition import PLSRegression
 from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
 import shap
 
 # ==============================================================================

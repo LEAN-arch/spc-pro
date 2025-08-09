@@ -2401,17 +2401,17 @@ def render_lod_loq():
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you select the "LOD & LOQ" tool, a new set of dedicated sliders will appear in the sidebar. You can dynamically change the assay's slope and noise to see in real-time how these fundamental characteristics drive the final LOD and LOQ results.
+    **Interactive Demo:** Now, when you select the "LOD & LOQ" tool, a new set of dedicated sliders will appear below. You can dynamically change the assay's slope and noise to see in real-time how these fundamental characteristics drive the final LOD and LOQ results.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("LOD & LOQ Controls")
-    slope_slider = st.sidebar.slider(
+    st.subheader("LOD & LOQ Controls")
+    slope_slider = st.slider(
         "📈 Assay Sensitivity (Slope)", 
         min_value=0.005, max_value=0.1, value=0.02, step=0.005, format="%.3f",
         help="How much the signal increases per unit of concentration. A steeper slope (higher sensitivity) is better."
     )
-    noise_slider = st.sidebar.slider(
+    noise_slider = st.slider(
         "🔇 Baseline Noise (SD)", 
         min_value=0.001, max_value=0.05, value=0.01, step=0.001, format="%.3f",
         help="The inherent random noise of the assay at zero concentration. A lower noise floor is better."
@@ -2470,22 +2470,22 @@ def render_linearity():
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you navigate to the "Linearity & Range" tool, you will see a new set of dedicated sliders in the sidebar. You can now dynamically simulate how a perfect assay, one with detector saturation, or one with increasing error at higher concentrations would appear in a validation report, providing a powerful learning experience.
+    **Interactive Demo:** Now, when you navigate to the "Linearity & Range" tool, you will see a new set of dedicated sliders below. You can now dynamically simulate how a perfect assay, one with detector saturation, or one with increasing error at higher concentrations would appear in a validation report, providing a powerful learning experience.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("Linearity Controls")
-    curvature_slider = st.sidebar.slider(
+    st.subheader("Linearity Controls")
+    curvature_slider = st.slider(
         "🧬 Curvature Effect", 
         min_value=-5.0, max_value=5.0, value=-1.0, step=0.5,
         help="Simulates non-linearity. A negative value creates saturation at high concentrations. A positive value creates expansion. Zero is perfectly linear."
     )
-    random_error_slider = st.sidebar.slider(
+    random_error_slider = st.slider(
         "🎲 Random Error (Constant SD)", 
         min_value=0.1, max_value=5.0, value=1.0, step=0.1,
         help="The baseline random noise of the assay, constant across all concentrations."
     )
-    proportional_error_slider = st.sidebar.slider(
+    proportional_error_slider = st.slider(
         "📈 Proportional Error (% of Conc.)", 
         min_value=0.0, max_value=5.0, value=2.0, step=0.25,
         help="Error that increases with concentration. This creates a 'funnel' or 'megaphone' shape in the residual plot."
@@ -2553,24 +2553,24 @@ def render_4pl_regression():
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you select the "Non-Linear Regression" tool, you will have a full set of dedicated sliders in the sidebar. You can now build your own "true" 4PL curves and see how well the regression algorithm is able to recover those parameters from noisy data, providing a deep, intuitive feel for how these models work.
+    **Interactive Demo:** Now, when you select the "Non-Linear Regression" tool, you will have a full set of dedicated sliders below. You can now build your own "true" 4PL curves and see how well the regression algorithm is able to recover those parameters from noisy data, providing a deep, intuitive feel for how these models work.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("4PL Curve Controls")
+    st.subheader("4PL Curve Controls")
     d_slider = st.sidebar.slider(
         "🅾️ Lower Asymptote (d)", min_value=0.0, max_value=0.5, value=0.05, step=0.01,
         help="The 'floor' of the assay signal, often representing background noise."
     )
-    a_slider = st.sidebar.slider(
+    a_slider = st.slider(
         "🅰️ Upper Asymptote (a)", min_value=1.0, max_value=3.0, value=1.5, step=0.1,
         help="The 'ceiling' of the assay signal, representing saturation."
     )
-    c_slider = st.sidebar.slider(
+    c_slider = st.slider(
         "🎯 Potency / EC50 (c)", min_value=1.0, max_value=100.0, value=10.0, step=1.0,
         help="The concentration at the curve's midpoint. A lower EC50 means higher potency."
     )
-    b_slider = st.sidebar.slider(
+    b_slider = st.slider(
         "🅱️ Hill Slope (b)", min_value=0.5, max_value=5.0, value=1.2, step=0.1,
         help="The steepness of the curve. A steeper slope often means a more sensitive assay."
     )
@@ -2649,17 +2649,17 @@ def render_roc_curve():
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you select the "ROC Curve Analysis" tool, you will see the new dedicated sliders in the sidebar. You can dynamically create assays that are excellent (high separation, low overlap) or terrible (low separation, high overlap) and see in real-time how the score distributions, the ROC curve shape, and the final AUC value respond.
+    **Interactive Demo:** Now, when you select the "ROC Curve Analysis" tool, you will see the new dedicated sliders below. You can dynamically create assays that are excellent (high separation, low overlap) or terrible (low separation, high overlap) and see in real-time how the score distributions, the ROC curve shape, and the final AUC value respond.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("ROC Curve Controls")
-    separation_slider = st.sidebar.slider(
+    st.subheader("ROC Curve Controls")
+    separation_slider = st.slider(
         "📈 Separation (Diseased Mean)", 
         min_value=50.0, max_value=80.0, value=65.0, step=1.0,
         help="Controls the distance between the Healthy and Diseased populations. More separation = better test."
     )
-    overlap_slider = st.sidebar.slider(
+    overlap_slider = st.slider(
         "🌫️ Overlap (Population SD)", 
         min_value=5.0, max_value=20.0, value=10.0, step=0.5,
         help="Controls the 'noise' or spread of the populations. More overlap (a higher SD) = worse test."
@@ -2722,27 +2722,27 @@ def render_tost():
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you select the "Equivalence Testing (TOST)" tool, you will have a full set of dedicated sliders in the sidebar. You can now dynamically explore how to achieve (or fail to achieve) statistical equivalence, providing a powerful and memorable learning experience.
+    **Interactive Demo:** Now, when you select the "Equivalence Testing (TOST)" tool, you will have a full set of dedicated sliders below. You can now dynamically explore how to achieve (or fail to achieve) statistical equivalence, providing a powerful and memorable learning experience.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("TOST Controls")
-    delta_slider = st.sidebar.slider(
+    st.subheader("TOST Controls")
+    delta_slider = st.slider(
         "⚖️ Equivalence Margin (Δ)", 
         min_value=1.0, max_value=15.0, value=5.0, step=0.5,
         help="The 'goalposts'. Defines the zone where differences are considered practically meaningless. A tighter margin is harder to meet."
     )
-    diff_slider = st.sidebar.slider(
+    diff_slider = st.slider(
         "🎯 True Difference", 
         min_value=-10.0, max_value=10.0, value=1.0, step=0.5,
         help="The actual underlying difference between the two groups in the simulation. See if you can prove equivalence even when a small true difference exists!"
     )
-    sd_slider = st.sidebar.slider(
+    sd_slider = st.slider(
         "🌫️ Standard Deviation (Variability)", 
         min_value=1.0, max_value=15.0, value=5.0, step=0.5,
         help="The random noise or imprecision in the data. Higher variability widens the confidence interval, making equivalence harder to prove."
     )
-    n_slider = st.sidebar.slider(
+    n_slider = st.slider(
         "🔬 Sample Size (n)", 
         min_value=10, max_value=200, value=50, step=5,
         help="The number of samples per group. Higher sample size narrows the confidence interval, increasing your power to prove equivalence."

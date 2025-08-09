@@ -5,6 +5,7 @@ graphviz
 # --- Data Manipulation & Numerical Computing ---
 pandas~=2.0.3
 numpy~=1.24.4
+lifelines==0.28.0
 
 # --- Statistical Modeling & Analysis ---
 scipy~=1.11.0

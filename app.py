@@ -1448,32 +1448,57 @@ def plot_ewma_cusum_comparison(shift_size=0.75):
     # --- FIX: Return the new counts instead of the old strings ---
     return fig, i_ooc_count, ewma_ooc_count, cusum_ooc_count
     
-@st.cache_data
-def plot_time_series_analysis():
+def plot_time_series_analysis(trend_strength=10, noise_sd=2):
+    """
+    Generates dynamic time series plots and forecasts based on user-defined trend and noise.
+    """
     np.random.seed(42)
     dates = pd.date_range(start='2020-01-01', periods=104, freq='W')
-    trend = np.linspace(50, 60, 104)
+    
+    # --- Dynamic Data Generation ---
+    # Trend is now controlled by the slider
+    trend = np.linspace(50, 50 + trend_strength, 104)
+    # Seasonality remains constant for this demo
     seasonality = 5 * np.sin(np.arange(104) * (2*np.pi/52.14))
-    noise = np.random.normal(0, 2, 104)
+    # Noise is now controlled by the slider
+    noise = np.random.normal(0, noise_sd, 104)
+    
     y = trend + seasonality + noise
     df = pd.DataFrame({'ds': dates, 'y': y})
+    
+    # Split data for training and testing
     train, test = df.iloc[:90], df.iloc[90:]
 
+    # --- Re-fit models on the dynamic data ---
     # Prophet model
-    m_prophet = Prophet().fit(train)
+    m_prophet = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False).fit(train)
     future = m_prophet.make_future_dataframe(periods=14, freq='W')
     fc_prophet = m_prophet.predict(future)
 
     # ARIMA model
-    m_arima = ARIMA(train['y'], order=(1,1,1), seasonal_order=(1,0,1,52)).fit()
+    # Note: A simple ARIMA model is used for speed in this interactive demo.
+    m_arima = ARIMA(train['y'], order=(5,1,0)).fit() # A common order for seasonal data with trend
     fc_arima = m_arima.get_forecast(steps=14).summary_frame()
 
+    # --- Dynamic KPI Calculation (Mean Absolute Error) ---
+    mae_prophet = np.mean(np.abs(fc_prophet['yhat'].iloc[-14:].values - test['y'].values))
+    mae_arima = np.mean(np.abs(fc_arima['mean'].values - test['y'].values))
+
+    # --- Plotting ---
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data'))
-    fig.add_trace(go.Scatter(x=fc_prophet['ds'].iloc[-14:], y=fc_prophet['yhat'].iloc[-14:], mode='lines', name='Prophet Forecast', line=dict(dash='dash', color='red')))
+    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat'], mode='lines', name='Prophet Forecast', line=dict(dash='dash', color='red')))
     fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean'], mode='lines', name='ARIMA Forecast', line=dict(dash='dash', color='green')))
-    fig.update_layout(title='<b>Time Series Forecasting: Prophet vs. ARIMA</b>', xaxis_title='Date', yaxis_title='Control Value')
-    return fig
+    
+    # Add a vertical line to show where the forecast begins
+    fig.add_vline(x=train['ds'].iloc[-1], line_width=2, line_dash="dash", line_color="grey",
+                  annotation_text="Forecast Start", annotation_position="bottom right")
+
+    fig.update_layout(title='<b>Time Series Forecasting: Prophet vs. ARIMA</b>', 
+                      xaxis_title='Date', yaxis_title='Process Value',
+                      legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+                      
+    return fig, mae_arima, mae_prophet
 
 @st.cache_data
 def plot_stability_analysis():
@@ -3537,7 +3562,28 @@ def render_time_series_analysis():
     - **📱 Prophet (The Modern Smartwatch):** A modern forecasting tool from Facebook. It's packed with sensors and algorithms to automatically handle complex seasonalities, holidays, and changing trends with minimal user input. It's designed for speed and scale.
     """)
     
-    fig = plot_time_series_analysis() # Assumes a function that plots the forecasts
+    # --- NEW: Added Interactive Demo explanation ---
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to change the underlying structure of the time series data. 
+    - **Increase `Trend Strength`:** See how both models adapt to a more aggressive upward trend.
+    - **Increase `Random Noise`:** Observe how forecasting becomes more difficult and the error (MAE) for both models increases as the data gets noisier.
+    """)
+
+    # --- NEW: Added slider gadgets to the sidebar ---
+    st.sidebar.subheader("Time Series Controls")
+    trend_slider = st.sidebar.slider(
+        "📈 Trend Strength",
+        min_value=0, max_value=50, value=10, step=5,
+        help="Controls the overall increase in the process value over the two-year period."
+    )
+    noise_slider = st.sidebar.slider(
+        "🎲 Random Noise (SD)",
+        min_value=0.5, max_value=10.0, value=2.0, step=0.5,
+        help="Controls the amount of random, unpredictable fluctuation in the data."
+    )
+    
+    # --- MODIFIED: Call backend with slider values and unpack dynamic KPIs ---
+    fig, mae_arima, mae_prophet = plot_time_series_analysis(trend_strength=trend_slider, noise_sd=noise_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -3548,16 +3594,16 @@ def render_time_series_analysis():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value="3.15 units", help="Mean Absolute Error for the ARIMA model.")
-            st.metric(label="📱 Prophet Forecast Error (MAE)", value="2.89 units", help="Mean Absolute Error for the Prophet model.")
-            st.metric(label="🔮 Forecast Horizon", value="12 Months", help="The period into the future for which we are generating predictions.")
+            # --- MODIFIED: KPIs are now dynamic ---
+            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value=f"{mae_arima:.2f} units", help="Mean Absolute Error for the ARIMA model.")
+            st.metric(label="📱 Prophet Forecast Error (MAE)", value=f"{mae_prophet:.2f} units", help="Mean Absolute Error for the Prophet model.")
+            st.metric(label="🔮 Forecast Horizon", value="14 Weeks", help="The period into the future for which we are generating predictions.")
 
             st.markdown("""
             **Reading the Forecasts:**
             - **The Black Line:** This is the historical data the models were trained on.
-            - **The Blue Line:** This is the *true* future data, which we held out to test the models' performance.
-            - **The Green Line (ARIMA):** The Watchmaker's forecast. Notice how it captures the core seasonal pattern and trend based on its statistical properties.
-            - **The Red Line (Prophet):** The Smartwatch's forecast. It also captures the trend and seasonality, often being more robust to outliers or sudden changes.
+            - **The Grey Line:** Marks the start of the forecast period. Data to the right is the "future" used to test the models.
+            - **The Green (ARIMA) & Red (Prophet) Lines:** These are the models' predictions for the future. Compare them to the black line to see how well they performed.
 
             **The Core Strategic Insight:** The choice is not about which model is "best," but which is **right for the job.** For a stable, well-understood industrial process where interpretability is key, the craftsmanship of ARIMA is superior. For a complex, noisy business time series with multiple layers of seasonality and a need for automated forecasting at scale, Prophet is often the better tool.
             """)
@@ -3597,7 +3643,7 @@ def render_time_series_analysis():
             - **Prophet:** It works as a decomposable additive model:
             """)
             st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
-            st.markdown("""
+            st.markdown(r"""
             Where `g(t)` is a saturating growth trend, `s(t)` models complex weekly and yearly seasonality using Fourier series, `h(t)` is a flexible component for user-specified holidays, and `ε` is the error.
             """)
 

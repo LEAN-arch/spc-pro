@@ -31,6 +31,7 @@ Learn: See why the simple "Wald" interval is dangerously inaccurate and understa
 4. Assay Robustness (DOE / RSM)
 Purpose: Go beyond simple validation to full process optimization using Design of Experiments (DOE) and Response Surface Methodology (RSM).
 Learn: Discover how to model linear, interaction, and quadratic effects to map a process landscape, find optimal operating conditions, and define a robust Design Space.
+
 Target Audience
 This tool is designed for:
 Analytical Scientists & Chemists in pharmaceutical, biotech, and chemical industries.

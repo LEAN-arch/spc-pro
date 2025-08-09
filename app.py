@@ -1879,62 +1879,112 @@ def plot_bayesian(prior_type, n_qc=20, k_qc=18, spec_limit=0.90):
 ##=======================================================================================END ACT II ===============================================================================================
 ##=================================================================================================================================================================================================
 def plot_westgard_scenario(scenario='Stable'):
-    """Generates a dynamic, high-quality Westgard chart based on a selected process scenario."""
-    # Establish the historical process parameters for the control limits
+    """
+    Generates an enhanced, more realistic dynamic Westgard chart, including
+    algorithmic rule detection and a Power Functions plot.
+    """
+    # Establish historical process parameters
     mean, std = 100, 2
-    n_points = 25
+    n_points = 30
     
     # --- Generate data based on the selected scenario ---
-    np.random.seed(42) # Seed for reproducibility of unstable scenarios
+    np.random.seed(101) # Use a consistent seed for base data
+    data = np.random.normal(mean, std, n_points)
     
-    # FIX: Create a special, visually "perfect" stable dataset
-    if scenario == 'Stable':
-        np.random.seed(101) # Use a different seed for a nice visual
-        # Generate data with a smaller SD to ensure it looks stable
-        data = np.random.normal(mean, std * 0.75, n_points) 
-    else:
-        # Start with a base of stable data before injecting a problem
-        data = np.random.normal(mean, std, n_points)
-        if scenario == 'Large Random Error':
-            data[15] = 107.5
-        elif scenario == 'Systematic Shift':
-            data[18:] += 4.5
-        elif scenario == 'Increased Imprecision':
-            data[20], data[21] = 105, 95
-        elif scenario == 'Complex Failure':
-            np.random.seed(45); data = np.random.normal(mean, std, n_points)
-            data[10], data[14:16] = 107, [105, 105.5]
-        
+    # Inject more realistic failures
+    if scenario == 'Large Random Error':
+        data[20] = 107.5 # A single blunder
+    elif scenario == 'Systematic Shift':
+        data[18:] = np.random.normal(mean + 2.2*std, std, n_points - 18) # A true shift in the mean
+    elif scenario == 'Increased Imprecision':
+        data[22:] = np.random.normal(mean, std * 2.5, n_points - 22) # Increased noise
+    
+    # --- SME ENHANCEMENT: Algorithmic Westgard Rule detection ---
+    violations = {}
+    limits = {i: mean + i * std for i in [-3, -2, -1, 1, 2, 3]}
+
+    for i in range(1, n_points):
+        # 1-3s rule
+        if data[i] > limits[3] or data[i] < limits[-3]:
+            violations[i] = "1-3s Violation"
+        # 2-2s rule
+        if (data[i] > limits[2] and data[i-1] > limits[2]) or \
+           (data[i] < limits[-2] and data[i-1] < limits[-2]):
+            violations[i] = violations.get(i, "") + " 2-2s Violation"
+            violations[i-1] = violations.get(i-1, "") + " 2-2s Violation"
+        # R-4s rule
+        if abs(data[i] - data[i-1]) > 4 * std:
+            violations[i] = violations.get(i, "") + " R-4s Violation"
+            violations[i-1] = violations.get(i-1, "") + " R-4s Violation"
+    # 4-1s rule
+    for i in range(3, n_points):
+        if (all(d > limits[1] for d in data[i-3:i+1])) or \
+           (all(d < limits[-1] for d in data[i-3:i+1])):
+            for j in range(i-3, i+1):
+                violations[j] = violations.get(j, "") + " 4-1s Violation"
+    # 10-x rule (simplified check)
+    if n_points >= 10:
+        for i in range(9, n_points):
+            if (all(d > mean for d in data[i-9:i+1])) or \
+               (all(d < mean for d in data[i-9:i+1])):
+                for j in range(i-9, i+1):
+                    violations[j] = violations.get(j, "") + " 10-x Violation"
+
+    # --- Plotting ---
     fig = go.Figure()
     
     # Add shaded regions for control zones
-    fig.add_hrect(y0=mean - 3*std, y1=mean + 3*std, line_width=0, fillcolor='rgba(255, 165, 0, 0.1)', layer='below', name='±3σ Zone')
-    fig.add_hrect(y0=mean - 2*std, y1=mean + 2*std, line_width=0, fillcolor='rgba(0, 128, 0, 0.1)', layer='below', name='±2σ Zone')
-    fig.add_hrect(y0=mean - 1*std, y1=mean + 1*std, line_width=0, fillcolor='rgba(0, 128, 0, 0.1)', layer='below', name='±1σ Zone')
-
+    for i, color in zip([3, 2, 1], ['rgba(239,83,80,0.1)', 'rgba(254,203,82,0.1)', 'rgba(0,204,150,0.1)']):
+        fig.add_hrect(y0=mean - i*std, y1=mean + i*std, line_width=0, fillcolor=color, layer='below')
+    
     # Add SD lines with labels
     for i in [-3, -2, -1, 1, 2, 3]:
-        fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'), annotation_text=f"{'+' if i > 0 else ''}{i}σ", annotation_position="bottom right")
-    fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean', annotation_position="bottom right")
+        fig.add_hline(y=mean + i*std, line=dict(color='grey', dash='dot'),
+                      annotation_text=f"{i:+}σ", annotation_position="bottom right")
+    fig.add_hline(y=mean, line=dict(color='black', dash='dash'), annotation_text='Mean')
 
     # Add data trace
-    fig.add_trace(go.Scatter(x=np.arange(1, n_points + 1), y=data, mode='lines+markers', name='Control Data', line=dict(color='#636EFA', width=3), marker=dict(size=10, symbol='circle', line=dict(width=2, color='black'))))
-
-    # Add violation annotations for non-stable scenarios
-    if scenario == 'Large Random Error':
-        fig.add_trace(go.Scatter(x=[16], y=[107.5], mode='markers', marker=dict(color='red', size=16, symbol='diamond', line=dict(width=2, color='black')), name='1-3s Violation'))
-    elif scenario == 'Systematic Shift':
-        fig.add_trace(go.Scatter(x=[19, 20], y=data[18:20], mode='markers', marker=dict(color='orange', size=16, symbol='diamond', line=dict(width=2, color='black')), name='2-2s Violation'))
-    elif scenario == 'Increased Imprecision':
-        fig.add_trace(go.Scatter(x=[21, 22], y=data[20:22], mode='markers', marker=dict(color='purple', size=16, symbol='diamond', line=dict(width=2, color='black')), name='R-4s Violation'))
-    elif scenario == 'Complex Failure':
-        fig.add_trace(go.Scatter(x=[11], y=[107], mode='markers', marker=dict(color='red', size=16, symbol='diamond', line=dict(width=2, color='black')), name='1-3s Violation'))
-        fig.add_trace(go.Scatter(x=[15, 16], y=[105, 105.5], mode='markers', marker=dict(color='orange', size=16, symbol='diamond', line=dict(width=2, color='black')), name='2-2s Violation'))
+    fig.add_trace(go.Scatter(x=np.arange(1, n_points + 1), y=data, mode='lines+markers', name='Control Data',
+                             line=dict(color='#636EFA', width=3),
+                             marker=dict(size=10, symbol='circle', line=dict(width=2, color='black'))))
+    
+    # Add violation highlights and hover text
+    violation_indices = sorted(violations.keys())
+    fig.add_trace(go.Scatter(
+        x=np.array(violation_indices) + 1,
+        y=data[violation_indices],
+        mode='markers', name='Violation',
+        marker=dict(color='red', size=16, symbol='diamond', line=dict(width=2, color='black')),
+        hoverinfo='text',
+        text=[f"<b>Point {i+1}</b><br>Value: {data[i]:.2f}<br>Rules: {violations[i].strip()}" for i in violation_indices]
+    ))
         
-    fig.update_layout(title=f"<b>Westgard Rules: {scenario} Scenario</b>",
+    fig.update_layout(title=f"<b>Westgard Rules Diagnostic Chart: {scenario} Scenario</b>",
                       xaxis_title="Measurement Number", yaxis_title="Control Value",
                       showlegend=False, height=600)
-    return fig
+
+    # --- SME Enhancement: Power Functions Plot ---
+    shifts = np.linspace(0, 4, 50) # Shift size in sigma units
+    power = {
+        '1-3s': 1 - (norm.cdf(3 - shifts) - norm.cdf(-3 - shifts)),
+        '2-2s': 1 - (norm.cdf(2 - shifts)**2 - norm.cdf(-2-shifts)**2), # Approximation
+        '4-1s': 1 - (norm.cdf(1 - shifts)**4 - norm.cdf(-1-shifts)**4), # Approximation
+        '10-x': 1 - (norm.cdf(0-shifts)**10 - norm.cdf(-0-shifts)**10) # Approximation
+    }
+    
+    fig_power = go.Figure()
+    for rule, p_detect in power.items():
+        fig_power.add_trace(go.Scatter(x=shifts, y=p_detect, mode='lines', name=rule))
+    
+    fig_power.update_layout(
+        title="<b>Rule Power Functions: Probability of Error Detection</b>",
+        xaxis_title="Systematic Shift Size (in multiples of σ)",
+        yaxis_title="Probability of Detection (Power)",
+        yaxis_tickformat=".0%",
+        legend_title_text="Westgard Rule"
+    )
+    
+    return fig, fig_power, violations
     
 def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_seed=42):
     """
@@ -4549,34 +4599,34 @@ def render_bayesian():
 ##=======================================================================================================================================================================================================
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================
-def render_multi_rule():
+ddef render_multi_rule():
     """Renders the comprehensive, interactive module for Multi-Rule SPC (Westgard Rules)."""
     st.markdown("""
     #### Purpose & Application: The Statistical Detective
     **Purpose:** To serve as a high-sensitivity "security system" for your assay. Instead of one simple alarm, this system uses a combination of rules to detect specific types of problems, catching subtle shifts and drifts long before a catastrophic failure occurs. It dramatically increases the probability of detecting true errors while minimizing false alarms.
     
-    **Strategic Application:** This is the global standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors, the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes. Implementing these rules prevents the release of bad data, which is the cornerstone of ensuring patient safety and product quality.
+    **Strategic Application:** This is the global standard for run validation in regulated QC and clinical laboratories. While a basic control chart just looks for "big" errors, the multi-rule system acts as a **statistical detective**, using a toolkit of rules to diagnose different failure modes.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate common assay failures. Observe how the control chart changes and which specific Westgard rule is triggered, helping you learn to diagnose problems from your QC data.
+    **Interactive Demo:** Use the **Process Scenario** radio buttons to simulate common assay failures. The chart will automatically detect and highlight any rule violations. Hover over a red diamond for a detailed diagnosis. Compare the chart to the **Power Functions** plot to understand *why* certain rules are better at catching different types of errors.
     """)
     
     st.sidebar.subheader("Westgard Scenario Controls")
     scenario = st.sidebar.radio(
         "Select a Process Scenario to Simulate:",
-        options=('Stable', 'Complex Failure', 'Large Random Error', 'Systematic Shift', 'Increased Imprecision'),
+        options=('Stable', 'Large Random Error', 'Systematic Shift', 'Increased Imprecision'),
         captions=[
             "A normal, in-control run for reference.",
-            "A run with multiple, distinct issues.",
-            "e.g., A single major blunder.",
-            "e.g., A new reagent lot causes a bias.",
+            "e.g., A single major blunder like a transcription error.",
+            "e.g., A new reagent lot causes a persistent bias.",
             "e.g., A faulty pipette causes inconsistency."
         ]
     )
-    fig = plot_westgard_scenario(scenario=scenario)
+    fig, fig_power, violations = plot_westgard_scenario(scenario=scenario)
     
-    col1, col2 = st.columns([0.7, 0.3])
+    # --- Redesigned Layout ---
+    col1, col2 = st.columns([0.6, 0.4])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
         
@@ -4585,36 +4635,21 @@ def render_multi_rule():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            if scenario == 'Complex Failure':
-                st.metric("🕵️ Run Verdict", "Reject Run")
-                st.metric("🚨 Primary Cause", "1-3s Violation")
-                st.metric("🧐 Secondary Evidence", "2-2s Violation")
-                st.markdown("""
-                **The Detective's Findings on this Chart:**
-                - 🚨 **The Smoking Gun:** The `1-3s` violation is a clear, unambiguous signal of a major problem. This rule alone forces the rejection of the run.
-                - 🧐 **The Developing Pattern:** The `2-2s` violation is a classic sign of **systematic error**. The process has shifted high.
-                - **The Core Strategic Insight:** This chart shows two *different* problems. A true statistical detective sees both signals and knows there are two distinct issues to solve.
-                """)
+            st.markdown("##### Detected Violations")
+            if not violations:
+                st.success("No violations detected. Process appears to be in control.")
             else:
-                verdict, rule = ("In-Control", "None") if scenario == 'Stable' else ("Reject Run", "Unknown")
-                if scenario == 'Large Random Error': rule = "1-3s Violation"
-                elif scenario == 'Systematic Shift': rule = "2-2s Violation"
-                elif scenario == 'Increased Imprecision': rule = "R-4s Violation"
-                
-                st.metric("🕵️ Run Verdict", verdict)
-                st.metric("🚨 Triggered Rule", rule)
-                st.markdown(f"The simulation for **{scenario}** triggered the **{rule}** rule. Refer to the table below for a detailed diagnosis.")
-
+                for point, rule in sorted(violations.items()):
+                    st.warning(f"**Point {point+1}:** {rule.strip()}")
+            
+            st.markdown("---")
+            st.markdown("##### Rule Power Functions")
+            st.plotly_chart(fig_power, use_container_width=True)
             st.markdown("""
-            ---
-            **The Detective's Rulebook:**
-            | Rule Name | Definition | Error Detected | Typical Cause |
-            | :--- | :--- | :--- | :--- |
-            | **1-3s** | 1 point > 3σ | Random Error (blunder) | Calculation error, wrong reagent, air bubble |
-            | **2-2s** | 2 consecutive points > 2σ (same side) | Systematic Error (shift) | New calibrator/reagent lot, instrument issue |
-            | **R-4s** | Range between 2 consecutive points > 4σ | Random Error (imprecision) | Inconsistent pipetting, instrument instability |
-            | **4-1s** | 4 consecutive points > 1σ (same side) | Systematic Error (drift) | Minor reagent degradation, slow drift |
-            | **10-x** | 10 consecutive points on same side of mean | Systematic Error (bias) | Small, persistent bias in the system |
+            **Reading the Power Plot:** This chart shows which rules are best for different problems.
+            - The `1-3s` rule is powerful for **large shifts** (>3σ) but blind to small ones.
+            - Rules like `4-1s` and `10-x` are weak for large shifts but much more powerful for detecting **small, persistent shifts** (<2σ).
+            This is why a multi-rule system is essential.
             """)
 
         with tabs[1]:
@@ -4642,7 +4677,6 @@ The goal is to treat the specific rule violation as the starting point of a targ
             st.markdown("- A point outside **±2σ** is more common (p ≈ 0.0455). Seeing one is not a strong signal. However, the probability of seeing *two consecutive points* on the same side of the mean purely by chance is much, much lower:")
             st.latex(r"P(\text{2-2s}) \approx \left( \frac{0.0455}{2} \right)^2 \approx 0.0005")
             st.markdown("This makes the **2-2s** rule a powerful and specific detector of systematic shifts with a very low false alarm rate, even though the individual points themselves are not extreme.")
-
 def render_multivariate_spc():
     """Renders the comprehensive, interactive module for Multivariate SPC."""
     st.markdown("""

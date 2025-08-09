@@ -2311,54 +2311,101 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strengt
     return fig, mae_arima, mae_prophet
 
 
-def plot_stability_analysis(degradation_rate=-0.4, noise_sd=0.5):
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Stability Analysis) - SME ENHANCED
+# ==============================================================================
+def plot_stability_analysis(degradation_rate=-0.4, noise_sd=0.5, batch_to_batch_sd=0.1):
     """
-    Generates dynamic plots for stability analysis based on user-defined parameters.
+    Generates enhanced, more realistic dynamic plots for stability analysis,
+    including a formal ANCOVA test for poolability and individual batch trend lines,
+    as per ICH Q1E guideline principles.
     """
     np.random.seed(1)
-    time_points = np.array([0, 3, 6, 9, 12, 18, 24]) # Months
+    time_points = np.array([0, 3, 6, 9, 12, 18, 24])
+    n_batches = 3
     
-    # --- Dynamic Data Generation for 3 batches ---
-    batches = {}
-    for i in range(3):
-        # Each batch has a slightly different starting point and degradation rate
-        initial_potency = np.random.normal(102, 0.5)
-        batch_degradation_rate = np.random.normal(degradation_rate, 0.05)
-        # The random measurement noise is now controlled by the slider
+    # --- Dynamic Data Generation with Batch-to-Batch Variation ---
+    df_list = []
+    for i in range(n_batches):
+        # SME Enhancement: Control batch-to-batch variation for intercepts and slopes
+        initial_potency = np.random.normal(102, batch_to_batch_sd * 5)
+        batch_degradation_rate = np.random.normal(degradation_rate, batch_to_batch_sd)
+        
         noise = np.random.normal(0, noise_sd, len(time_points))
-        batches[f'Batch {i+1}'] = initial_potency + batch_degradation_rate * time_points + noise
+        potency = initial_potency + batch_degradation_rate * time_points + noise
+        
+        batch_df = pd.DataFrame({'Time': time_points, 'Potency': potency, 'Batch': f'Batch {i+1}'})
+        df_list.append(batch_df)
     
-    df = pd.DataFrame(batches)
-    df['Time'] = time_points
-    df_melt = df.melt(id_vars='Time', var_name='Batch', value_name='Potency')
+    df_melt = pd.concat(df_list, ignore_index=True)
 
-    # --- Re-fit model and calculate shelf life on dynamic data ---
-    model = ols('Potency ~ Time', data=df_melt).fit()
+    # --- SME Enhancement: Formal ANCOVA for Poolability ---
+    # Fit a full model with interactions to test if slopes are different
+    ancova_model = ols('Potency ~ Time * C(Batch)', data=df_melt).fit()
+    anova_table = sm.stats.anova_lm(ancova_model, typ=2)
+    poolability_p_value = anova_table.loc['Time:C(Batch)', 'PR(>F)']
+    is_poolable = poolability_p_value > 0.25 # ICH Q1E criterion
+
+    # --- Fit Pooled Model and Calculate Shelf Life ---
+    # This is done regardless of poolability to show the user the result they WOULD get.
+    pooled_model = ols('Potency ~ Time', data=df_melt).fit()
     LSL = 95.0
     
     x_pred = pd.DataFrame({'Time': np.linspace(0, 48, 100)})
-    predictions = model.get_prediction(x_pred).summary_frame(alpha=0.05)
+    predictions = pooled_model.get_prediction(x_pred).summary_frame(alpha=0.05)
     
     shelf_life_df = predictions[predictions['mean_ci_lower'] >= LSL]
-    # Handle cases where the shelf life is immediate or very long
     shelf_life = x_pred['Time'][shelf_life_df.index[-1]] if not shelf_life_df.empty else 0
-    if shelf_life > 47: shelf_life = ">48"
-    else: shelf_life = f"{shelf_life:.1f}"
+    shelf_life_val = shelf_life if not shelf_life_df.empty else 0
+    
+    if shelf_life > 47:
+        shelf_life_str = ">48 Months"
+    else:
+        shelf_life_str = f"{shelf_life:.1f} Months"
 
     # --- Plotting ---
-    fig = px.scatter(df_melt, x='Time', y='Potency', color='Batch', title='<b>Stability Analysis for Shelf-Life Estimation</b>')
-    fig.add_trace(go.Scatter(x=x_pred['Time'], y=predictions['mean'], mode='lines', name='Mean Trend', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=x_pred['Time'], y=predictions['mean_ci_lower'], mode='lines', name='95% Lower CI', line=dict(color='red', dash='dash')))
-    fig.add_hline(y=LSL, line=dict(color='red', dash='dot'), annotation_text="Specification Limit")
+    fig = go.Figure()
     
-    if isinstance(shelf_life, str) and ">" not in shelf_life:
-        fig.add_vline(x=float(shelf_life), line=dict(color='blue', dash='dash'), annotation_text=f'Shelf-Life = {shelf_life} Months')
+    # Add shaded acceptable region
+    fig.add_hrect(y0=LSL, y1=105, fillcolor="rgba(0,204,150,0.1)", layer="below", line_width=0)
 
-    fig.update_layout(xaxis_title="Time (Months)", yaxis_title="Potency (%)", xaxis_range=[0, 48], yaxis_range=[85, 105])
+    colors = px.colors.qualitative.Plotly
+    # SME Enhancement: Plot individual batch data and trend lines
+    for i, batch in enumerate(df_melt['Batch'].unique()):
+        batch_df = df_melt[df_melt['Batch'] == batch]
+        color = colors[i % len(colors)]
+        # Raw data points
+        fig.add_trace(go.Scatter(x=batch_df['Time'], y=batch_df['Potency'], mode='markers',
+                                 name=batch, marker=dict(color=color, size=8)))
+        # Individual batch fit line from ANCOVA model
+        pred_batch = ancova_model.predict(batch_df)
+        fig.add_trace(go.Scatter(x=batch_df['Time'], y=pred_batch, mode='lines',
+                                 line=dict(color=color, dash='dash'), showlegend=False))
+
+    # Plot results from the pooled model
+    fig.add_trace(go.Scatter(x=x_pred['Time'], y=predictions['mean'], mode='lines',
+                             name='Pooled Mean Trend', line=dict(color='black', width=3)))
+    fig.add_trace(go.Scatter(x=x_pred['Time'], y=predictions['mean_ci_lower'], mode='lines',
+                             name='95% Lower CI (Pooled)', line=dict(color='red', dash='dot', width=3)))
     
-    # Return dynamic KPIs
-    fitted_slope = model.params['Time']
-    return fig, shelf_life, fitted_slope
+    # Add Limit and Shelf-Life lines
+    fig.add_hline(y=LSL, line=dict(color='red', width=2), annotation_text="<b>Specification Limit</b>")
+    
+    if shelf_life_val > 0 and shelf_life_val < 48:
+        fig.add_vline(x=shelf_life_val, line=dict(color='blue', dash='dash'),
+                      annotation_text=f'<b>Shelf-Life = {shelf_life_str}</b>', annotation_position="bottom")
+    
+    title_color = '#00CC96' if is_poolable else '#EF553B'
+    title_text = f"<b>Stability Analysis for Shelf-Life | Batches are {'Poolable' if is_poolable else 'NOT Poolable'} (p={poolability_p_value:.3f})</b>"
+    
+    fig.update_layout(
+        title={'text': title_text, 'font': {'color': title_color}},
+        xaxis_title="Time (Months)", yaxis_title="Potency (%)",
+        xaxis_range=[-1, 48], yaxis_range=[max(85, df_melt['Potency'].min()-2), 105],
+        legend=dict(x=0.01, y=0.01, yanchor='bottom', bgcolor='rgba(255,255,255,0.7)')
+    )
+    
+    return fig, shelf_life_str, pooled_model.params['Time'], poolability_p_value
 
 # The @st.cache_data decorator has been removed to allow for dynamic updates from sliders.
 def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
@@ -5123,33 +5170,29 @@ def render_stability_analysis():
     """Renders the module for pharmaceutical stability analysis."""
     st.markdown("""
     #### Purpose & Application: The Expiration Date Contract
-    **Purpose:** To fulfill a statistical contract with patients and regulators. This analysis determines the shelf-life (or retest period) for a drug product by proving, with high confidence, that a Critical Quality Attribute (CQA) like potency will remain within its safety and efficacy specifications over time.
+    **Purpose:** To fulfill a statistical contract with patients and regulators. This analysis determines the shelf-life for a drug product by proving, with high confidence, that a Critical Quality Attribute (CQA) like potency will remain within specification over time.
     
-    **Strategic Application:** This is a mandatory, high-stakes analysis for any commercial pharmaceutical product, as required by the **ICH Q1E guideline**. It is the data-driven foundation of the expiration date printed on every vial and box. An incorrectly calculated shelf-life can lead to ineffective medicine, patient harm, and massive product recalls. The analysis involves:
-    - Collecting stability data from at least three primary batches.
-    - Fitting a regression model to understand the degradation trend.
-    - Using a conservative confidence interval to set a shelf-life that accounts for future batch-to-batch variability.
+    **Strategic Application:** This is a mandatory, high-stakes analysis for any commercial pharmaceutical product, as required by the **ICH Q1E guideline**. It is the data-driven foundation of the expiration date printed on every vial and box. An incorrectly calculated shelf-life can lead to ineffective medicine, patient harm, and massive product recalls.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to simulate different product stability profiles.
-    - **Increase `Degradation Rate`:** Simulate a less stable product that degrades more quickly and see how it dramatically shortens the approved shelf-life.
-    - **Increase `Assay Variability`:** Simulate a noisy, imprecise measurement method. Notice how this increases the uncertainty in the model (widens the red confidence interval), which also shortens the shelf-life even if the degradation rate is low.
+    **Interactive Demo:** Use the sliders to simulate different stability profiles.
+    - **`Batch-to-Batch Variation`**: The most critical parameter. At low values, batches are consistent and can be "pooled". At high values, the slopes differ, the **Poolability test fails (p < 0.25)**, and the pooled model is technically invalid.
+    - **`Degradation Rate` & `Assay Variability`**: These control the overall stability and measurement noise, directly impacting the final shelf-life.
     """)
     
-    st.sidebar.subheader("Stability Analysis Controls")
-    degradation_slider = st.sidebar.slider(
-        "📉 Degradation Rate (%/month)",
-        min_value=-1.0, max_value=-0.1, value=-0.4, step=0.05,
-        help="Controls how quickly the product loses potency. A more negative number means faster degradation."
-    )
-    noise_slider = st.sidebar.slider(
-        "🎲 Assay Variability (SD)",
-        min_value=0.2, max_value=2.0, value=0.5, step=0.1,
-        help="The random error or 'noise' of the potency assay. Higher noise increases uncertainty."
-    )
+    with st.sidebar:
+        st.sidebar.subheader("Stability Analysis Controls")
+        degradation_slider = st.sidebar.slider("📉 Mean Degradation Rate (%/month)", -1.0, -0.1, -0.4, 0.05)
+        noise_slider = st.sidebar.slider("🎲 Assay Variability (SD)", 0.2, 2.0, 0.5, 0.1)
+        batch_var_slider = st.sidebar.slider("🏭 Batch-to-Batch Variation (SD)", 0.0, 0.5, 0.1, 0.05,
+            help="Controls the variability in starting potency and degradation rate between batches. High values will cause the poolability test to fail.")
 
-    fig, shelf_life, fitted_slope = plot_stability_analysis(degradation_rate=degradation_slider, noise_sd=noise_slider)
+    fig, shelf_life, fitted_slope, poolability_p = plot_stability_analysis(
+        degradation_rate=degradation_slider,
+        noise_sd=noise_slider,
+        batch_to_batch_sd=batch_var_slider
+    )
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -5160,47 +5203,53 @@ def render_stability_analysis():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="📈 Approved Shelf-Life", value=f"{shelf_life} Months", help="The time at which the lower confidence bound intersects the specification limit.")
-            st.metric(label="📉 Fitted Degradation Rate", value=f"{fitted_slope:.2f} %/month", help="The estimated average loss of potency per month from the regression model.")
-            st.metric(label="🥅 Specification Limit", value="95.0 %", help="The minimum acceptable potency for the product to be considered effective.")
+            st.metric(label="📈 Approved Shelf-Life (from Pooled Model)", value=f"{shelf_life}")
+            st.metric(label="📊 Poolability Test (p-value for slopes)", value=f"{poolability_p:.3f}",
+                      help="ICH Q1E suggests p > 0.25 to justify pooling batches. A low p-value indicates slopes are significantly different.")
+
+            if poolability_p > 0.25:
+                st.success("✅ p > 0.25: Batches are statistically similar. Pooling data is justified.")
+            else:
+                st.error("❌ p < 0.25: Batches show different degradation rates. A pooled shelf-life is not appropriate; the worst batch should be considered.")
 
             st.markdown("""
-            **Reading the Race Against Time:**
-            - **The Data Points:** Your real-world potency measurements from three different production batches.
-            - **The Black Line (Average Trend):** The best-fit regression line showing the average degradation path.
-            - **The Red Dashed Line (Safety Net):** The **95% Lower Confidence Bound**. This is the most important line, representing a conservative estimate for the mean trend.
-            - **The Red Dotted Line (Finish Line):** The specification limit.
-
-            **The Verdict:** The shelf-life is declared at the exact moment **the Safety Net (red dashed line) hits the Finish Line.** This conservative approach ensures high confidence that the average product potency will not drop below spec before the expiration date.
+            **Reading the Plot:**
+            - **Dashed Lines:** The individual trend line for each batch. If these lines are not parallel, the batches are degrading at different rates.
+            - **Black Line:** The average trend across all batches (the pooled model).
+            - **Red Dotted Line:** The conservative 95% lower confidence bound on the pooled mean. The shelf-life is where this line crosses the red specification limit.
             """)
 
         with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "Happy Path" Fallacy**
-This is a common and dangerous mistake that overestimates shelf-life.
-- A manager sees the solid black line (the average trend) and says, *"Let's set the shelf-life where the average trend crosses the spec limit. That gives us 36 months!"*
-- **The Flaw:** This completely ignores uncertainty and batch-to-batch variability! About half of all future batches will, by definition, degrade *faster* than the average. This approach virtually guarantees that a significant portion of future product will fail specification before its expiration date, putting patients at risk.""")
-            st.success("""🟢 **THE GOLDEN RULE: The Confidence Interval Sets the Expiration Date, Not the Average**
-The ICH Q1E guideline is built on a principle of statistical conservatism to protect patients. The correct procedure is disciplined:
-1.  **First, Prove Poolability:** Before you can create a single model, you must perform a statistical test (like ANCOVA) to prove that the degradation slopes and intercepts of the different batches are not significantly different. You must *earn the right* to pool the data.
-2.  **Then, Use the Confidence Bound:** Once pooling is justified, fit the regression model and calculate the two-sided 95% confidence interval for the mean degradation. The shelf-life is determined by the intersection of the appropriate confidence bound (lower bound for potency, upper bound for an impurity) with the specification limit.""")
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Blind Pooling" Fallacy**
+An analyst takes all stability data, throws it into one regression model, and calculates a shelf-life, without checking if the batches are behaving similarly.
+- **The Flaw:** If one batch is a "fast degrader," its behavior will be masked by the better-performing batches. The pooled model will overestimate the shelf-life, creating a significant risk that some batches of product will fail specification long before their printed expiration date.""")
+            st.success("""🟢 **THE GOLDEN RULE: Earn the Right to Pool**
+The ICH Q1E guideline is built on a principle of statistical conservatism to protect patients.
+1.  **First, Prove Poolability:** Perform a statistical test (ANCOVA) to check for a significant difference between batch slopes. The standard criterion is a **p-value > 0.25** for the interaction term.
+2.  **If Poolable:** Combine the data and determine the shelf-life from the pooled model's confidence interval.
+3.  **If NOT Poolable:** Analyze batches separately. The overall shelf-life must be based on the shortest shelf-life determined among all the batches.""")
 
         with tabs[2]:
             st.markdown(r"""
             #### Historical Context: The ICH Revolution
             **The Problem:** Prior to the 1990s, the requirements for stability testing could differ significantly between major markets like the USA, Europe, and Japan. This forced pharmaceutical companies to run slightly different, redundant, and costly stability programs for each region to gain global approval. The lack of a harmonized statistical approach meant that data might be interpreted differently by different agencies, creating regulatory uncertainty.
             
-            **The 'Aha!' Moment:** The **International Council for Harmonisation (ICH)** was formed to end this inefficiency. A key working group was tasked with creating a single, scientifically sound standard for stability testing. This resulted in a series of guidelines, with **ICH Q1A** defining the required study conditions (e.g., temperature, humidity, timepoints) and **ICH Q1E ("Evaluation of Stability Data")** providing the definitive statistical methodology.
+            **The 'Aha!' Moment:** The **International Council for Harmonisation (ICH)** was formed to end this inefficiency. A key working group was tasked with creating a single, scientifically sound standard for stability testing. This resulted in a series of guidelines, with **ICH Q1A** defining the required study conditions and **ICH Q1E ("Evaluation of Stability Data")** providing the definitive statistical methodology.
             
             **The Impact:** ICH Q1E, adopted in 2003, was a landmark guideline. It codified the use of regression analysis, formal statistical tests for pooling data across batches (ANCOVA), and the critical principle of using confidence intervals on the mean trend to determine shelf-life. It created a level playing field and a global gold standard, ensuring that the expiration date on a medicine means the same thing in New York, London, and Tokyo, and that it is backed by rigorous statistical evidence.
             """)
             st.markdown("#### Mathematical Basis")
-            st.markdown("The core of the analysis is typically a linear regression model fit to data from multiple (`k`) batches:")
-            st.latex(r"Y_{ij} = \beta_{0i} + \beta_{1i} X_{ij} + \epsilon_{ij}")
+            st.markdown("The core of the analysis is the **ANCOVA (Analysis of Covariance)** model, which tests if the slopes differ between batches:")
+            st.latex(r"Y_{ij} = \beta_{0} + \alpha_{i} + \beta_{1}X_{ij} + (\alpha\beta)_{i}X_{ij} + \epsilon_{ij}")
             st.markdown("""
-            -   `Yᵢⱼ`: The CQA measurement for the `i`-th batch at the `j`-th time point.
-            -   `Xᵢⱼ`: The `j`-th time point.
-            -   `β₁ᵢ` and `β₀ᵢ`: The slope and intercept for the `i`-th batch.
-            Before determining a shelf-life, an **ANCOVA (Analysis of Covariance)** is used to test the null hypotheses that all batch slopes are equal (`H₀: β₁₁ = β₁₂ = ...`) and all intercepts are equal. If these hypotheses are not rejected (e.g., p > 0.25), the data can be pooled into a single regression model. The shelf-life is the time `t` where the 95% lower confidence limit of this pooled model's mean prediction intersects the specification limit.
+            -   `Yᵢⱼ`: The CQA for batch `i` at time `j`.
+            -   `αᵢ`: The effect of batch `i` on the intercept.
+            -   `β₁`: The common slope for all batches.
+            -   `(αβ)ᵢ`: The **interaction term**, representing the *additional* slope for batch `i`.
+            The poolability test is a hypothesis test on the interaction term:
+            -   `H₀`: All `(αβ)ᵢ` are zero (all slopes are equal).
+            -   `H₁`: At least one `(αβ)ᵢ` is not zero (at least one slope is different).
+            If the p-value for this test is > 0.25, we fail to reject H₀ and proceed with a simpler, pooled model: `Y = β₀ + β₁X + ε`.
             """)
 
 def render_survival_analysis():

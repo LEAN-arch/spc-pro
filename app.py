@@ -4847,7 +4847,6 @@ else:
         "Process Capability (Cpk)": render_capability,
         "Tolerance Intervals": render_tolerance_intervals,
         "Method Comparison": render_method_comparison,
-        "Pass/Fail Analysis": render_pass_fail,
         "Bayesian Inference": render_bayesian,
         "Run Validation (Westgard)": render_multi_rule,
         "Multivariate SPC": render_multivariate_spc,

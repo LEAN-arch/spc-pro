@@ -5302,10 +5302,21 @@ An alarm sounds. Engineers frantically check every individual parameter chart, t
 
         with tabs[2]:
             st.markdown("""
-            **Historical Context:** The MEWMA chart was proposed by Lowry et al. in 1992 as a direct multivariate generalization of the univariate EWMA chart. **XGBoost**, developed by Tianqi Chen in 2014, is a highly efficient implementation of gradient boosted trees and is one of the most successful and widely used machine learning algorithms.
-            
-            **The Fusion:** This module demonstrates a modern fusion. The classical statistical rigor of MEWMA provides a robust detection framework, while the power and speed of XGBoost combined with the theoretical soundness of SHAP (2017) provide near-instantaneous, trustworthy diagnostics. This hybrid approach is a blueprint for the future of intelligent process monitoring.
+            #### Historical Context: The Diagnostic Bottleneck
+            **The Problem:** By the 1980s, engineers had powerful multivariate detection tools like Hotelling's T² chart. However, these charts had the same limitation as their univariate counterparts: they were slow to detect small, persistent drifts. The invention of the univariate EWMA chart in 1959 was a major step forward, but the multivariate world was still waiting for its "high-sensitivity" detector.
+
+            **The First Solution (MEWMA):** In 1992, Lowry et al. published their paper on the Multivariate EWMA (MEWMA) chart. The insight was a direct and brilliant generalization: what if we apply the "memory" and "weighting" concepts of EWMA to the vector of process variables instead of a single variable? This created a chart that was exceptionally good at detecting small, coordinated shifts that T² would miss, solving the multivariate sensitivity problem.
+
+            **The New Problem (The Diagnostic Bottleneck):** But MEWMA created a new, critical challenge. An alarm from a MEWMA chart is just a single number crossing a line. It tells you *that* the system has drifted, but gives you absolutely no information about *which* of your dozens of process parameters are the cause. This left engineers with a powerful alarm but no diagnostic tools, leading to long, frustrating investigations.
+
+            **The Modern Fusion:** This is where the AI revolution provided the missing piece. **XGBoost** (2014) offered a way to build highly accurate models to predict an alarm state, and **SHAP** (2017) provided the key to unlock that model's "black box." By fusing the robust statistical detection of MEWMA with the powerful, explainable diagnostics of XGBoost and SHAP, we finally solved the diagnostic bottleneck, creating a true "detect and diagnose" system.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The MEWMA extends the univariate EWMA by replacing scalars with vectors. At each time `t`, a vector of observations `X_t` is used to update the MEWMA vector `Z_t`:")
+            st.latex(r"Z_t = \lambda X_t + (1 - \lambda) Z_{t-1}")
+            st.markdown("The charted statistic is a Hotelling's T²-like value that measures the distance of `Z_t` from the process target `μ_0`, accounting for the process covariance `Σ`:")
+            st.latex(r"T^2_t = (Z_t - \mu_0)' \Sigma^{-1} (Z_t - \mu_0)")
+            st.markdown("This single `T²` value summarizes the deviation across all variables, making it a powerful holistic health score.")
 
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 2)
@@ -5362,13 +5373,20 @@ BOCPD provides a richer, more informative signal. The full probability distribut
 
         with tabs[2]:
             st.markdown("""
-            **Historical Context:** The theoretical framework was laid out by Adams & MacKay in their 2007 paper, "Bayesian Online Changepoint Detection." It provided an elegant and computationally efficient way to solve a classic problem in statistics.
-            
-            **How It Works:** It's a two-step Bayesian update performed at every new data point:
-            1.  Calculate the probability of the new point given the existing run.
-            2.  Calculate the probability that a changepoint just occurred.
-            3.  Update the probability distribution for all possible run lengths.
-            This online, recursive nature makes it perfect for real-time streaming process data.
+            #### Historical Context: From Offline to Online
+            **The Problem:** For decades, changepoint detection was primarily an *offline*, retrospective analysis. An engineer would collect an entire dataset (e.g., a full batch record), run a complex statistical algorithm, and get a result like: "A significant change in the process mean was detected at observation #152." While useful for forensic investigations after a failure, this was useless for preventing the failure in the first place. The rise of streaming data from sensors in the 2000s created a massive demand for a method that could detect changes *as they happened*.
+
+            **The 'Aha!' Moment:** In their 2007 paper, "Bayesian Online Changepoint Detection," Ryan P. Adams and David J.C. MacKay presented a brilliantly elegant solution. Their key insight was to reframe the problem from finding a single "best" changepoint to calculating the full, evolving probability distribution of the "run length" (the time since the last changepoint). 
+
+            **The Impact:** This probabilistic approach was a game-changer. It provided a much richer output than a simple binary alarm, and its recursive, online nature was computationally efficient enough to run in real-time on streaming data. It effectively transformed changepoint detection from a historical analysis tool into a modern, real-time process monitoring system.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("At each time `t`, the algorithm calculates the posterior probability of the current run length `r_t`. This is done via a recursive update:")
+            st.latex(r"P(r_t | x_{1:t}) \propto \underbrace{P(x_t | r_{t-1}, x_{<t})}_\text{Predictive Probability} \times \underbrace{P(r_t | r_{t-1})}_\text{Changepoint Model}")
+            st.markdown("""
+            -   The **Predictive Probability** is the likelihood of the new data point `x_t` given the data seen during the current run.
+            -   The **Changepoint Model** is based on a *hazard rate*, which is our prior belief about how likely a changepoint is at any given step.
+            The algorithm calculates this for two cases: the run continues (`r_t = r_{t-1} + 1`) or a changepoint occurs (`r_t = 0`), and then normalizes to get the final probability distribution shown in the heatmap.
             """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 3)
@@ -5428,10 +5446,24 @@ A chart on the raw measurements (blue dots) would be wide and insensitive. The p
 
         with tabs[2]:
             st.markdown("""
-            **Historical Context:** The filter is named after **Rudolf E. Kálmán**, who published his seminal paper in 1960. Its most famous and spectacular application was its use by the **NASA Apollo program** to navigate the command and lunar modules to the Moon. The filter took noisy radar and sensor data and produced a highly accurate estimate of the spacecraft's true trajectory, making the mission possible.
+            #### Historical Context: From Space Race to Bioreactor
+            **The Problem:** During the height of the Cold War and the Space Race, a fundamental challenge was navigation. How could you guide a missile, or more inspiringly, a spacecraft to the Moon, using only a stream of noisy, imperfect sensor readings? You needed a way to fuse the predictions from a physical model (orbital mechanics) with the incoming data to get the best possible estimate of your true position and velocity.
+
+            **The 'Aha!' Moment:** In 1960, **Rudolf E. Kálmán** published his landmark paper describing a recursive algorithm that provided the optimal solution to this problem. The **Kalman Filter** was born. Its elegant two-step "predict-update" cycle was computationally efficient enough to run on the primitive computers of the era.
             
-            **The Neural Network Connection:** A standard Kalman Filter uses a *linear* model of the process. For highly complex, non-linear processes (like cell culture), we can replace the linear model with a **Recurrent Neural Network (RNN)**. The RNN learns the complex dynamics from data, and the Kalman Filter framework is used to optimally blend the RNN's predictions with new measurements. This hybrid approach, often called a State-Space RNN, is at the frontier of process modeling.
+            **The Impact:** The filter was almost immediately adopted by the aerospace industry and was a critical, mission-enabling component of the **NASA Apollo program**. Without the Kalman Filter to provide reliable real-time state estimation, the lunar landings would not have been possible. Its applications have since exploded into countless fields, from economics to weather forecasting.
+            
+            **The Neural Network Connection:** The classic Kalman Filter assumes you have a good *linear* model of your system. But what about a complex, non-linear bioprocess? The modern approach is to replace the linear model with a **Recurrent Neural Network (RNN)**. The RNN *learns* the complex non-linear dynamics from data, and the Kalman Filter framework provides the mathematically optimal way to blend the RNN's predictions with new sensor measurements. This creates a powerful hybrid system for monitoring the unmonitorable.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The Kalman Filter operates in a two-step cycle at each time point `k`:")
+            st.markdown("**1. Predict Step:** The filter predicts the next state and its uncertainty based on the internal model.")
+            st.latex(r"\hat{x}_{k|k-1} = F \hat{x}_{k-1|k-1} \quad (\text{State Prediction})")
+            st.latex(r"P_{k|k-1} = F P_{k-1|k-1} F^T + Q \quad (\text{Uncertainty Prediction})")
+            st.markdown("**2. Update Step:** The filter uses the new measurement `z_k` to correct the prediction.")
+            st.latex(r"K_k = P_{k|k-1} H^T (H P_{k|k-1} H^T + R)^{-1} \quad (\text{Kalman Gain})")
+            st.latex(r"\hat{x}_{k|k} = \hat{x}_{k|k-1} + K_k (z_k - H \hat{x}_{k|k-1}) \quad (\text{State Update})")
+            st.markdown("The term `(z_k - H \hat{x}_{k|k-1})` is the **residual** or **innovation**, which is the signal we monitor for faults.")
 
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 4)
@@ -5488,13 +5520,22 @@ The control chart is not just a statistical tool; it's an economic asset. The tu
 
         with tabs[2]:
             st.markdown("""
-            **Historical Context:** The idea of economic design of control charts dates back to the 1950s, but the complex optimization was difficult. **Reinforcement Learning**, a field with roots in control theory and psychology, provides the modern toolkit to solve this problem.
-            
-            **How it Works (Conceptual):** An RL agent learns like a human through trial and error in a simulated environment (a "digital twin" of the process).
-            1.  **State:** The agent observes the current state (e.g., the last 10 data points).
-            2.  **Action:** The agent takes an action (e.g., 'alarm' or 'don't alarm').
-            3.  **Reward:** The environment gives a reward or penalty based on the action and the true (hidden) state. (e.g., a large penalty for not alarming during a real shift).
-            Over millions of simulated trials, the agent learns a **policy** that maximizes its cumulative reward, which is equivalent to finding the chart parameters that minimize long-run cost.
+            #### Historical Context: The Unfulfilled Promise
+            **The Problem:** The idea of designing control charts based on economics is surprisingly old, dating back to the work of Acheson Duncan in the 1950s. He recognized that the choice of chart parameters (sample size, control limits) was an economic trade-off. However, the mathematics required to find the optimal solution were incredibly complex and relied on many assumptions about the process that were difficult to verify in practice. For decades, "Economic Design of Control Charts" remained an academically interesting but practically ignored field.
+
+            **The 'Aha!' Moment (Simulation):** The modern solution came not from better math, but from more computing power. **Reinforcement Learning (RL)**, a field that exploded in the 2010s with successes like AlphaGo, provided a new paradigm. Instead of solving complex equations, an RL agent could learn the optimal strategy through millions of trial-and-error experiments in a fast, simulated "digital twin" of the manufacturing process.
+
+            **The Impact:** The rise of RL and high-fidelity process simulation has finally made the promise of economic design a practical reality. It allows engineers to move beyond statistical "rules of thumb" and design monitoring strategies that are provably optimized for their specific business and risk environment.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The RL agent's goal is to find the chart parameter (e.g., `λ`) that minimizes an economic Loss Function `L`:")
+            st.latex(r"L(\lambda) = \frac{C_{FA}}{ARL_0(\lambda)} + C_{Delay} \cdot ARL_1(\lambda)")
+            st.markdown("""
+            -   `C_FA`: The cost of a single False Alarm.
+            -   `C_Delay`: The cost per unit of time for a detection delay.
+            -   `ARL_0(λ)`: The average time until a false alarm (in-control), which depends on `λ`. We want this to be high.
+            -   `ARL_1(λ)`: The average time to detect a real shift (out-of-control), which also depends on `λ`. We want this to be low.
+            The RL agent explores the trade-off between these two competing objectives to find the `λ` that minimizes the total long-run cost.
             """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 5)
@@ -5549,9 +5590,22 @@ This is a fundamental principle of modern process monitoring.
 
         with tabs[2]:
             st.markdown("""
-            **Historical Context:** This module combines a classic statistical tool with a cutting-edge deep learning architecture. The **CUSUM chart** was invented by E.S. Page in 1954. **Temporal Convolutional Networks (TCNs)** were systemized in a 2018 paper by Bai, Kolter, and Koltun.
-            
-            **Why TCN over LSTM?** For many sequence modeling tasks, TCNs have become a powerful alternative to LSTMs (the traditional choice). They use **causal, dilated convolutions**, which allows them to look very far into the past to see long-range patterns, but they can be trained much faster than LSTMs because the computations can be done in parallel, unlike the inherently sequential nature of LSTMs. This hybrid TCN-CUSUM approach represents a fast, robust, and modern monitoring system.
+            #### Historical Context: The Evolution of Sequence Modeling
+            **The Problem:** For years, Recurrent Neural Networks (RNNs) and their advanced variant, LSTMs, were the undisputed kings of sequence modeling. However, their inherently sequential nature—having to process time step `t` before moving to `t+1`—made them slow to train on very long sequences and difficult to parallelize on modern GPUs.
+
+            **The 'Aha!' Moment:** In 2018, a paper by Bai, Kolter, and Koltun, "An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling," showed that a different architecture could outperform LSTMs on many standard sequence tasks while being much faster. They systematized the **Temporal Convolutional Network (TCN)**. The key insight was to adapt techniques from computer vision (Convolutional Neural Networks) for time-series data. By using **causal convolutions** (to prevent seeing the future) and **dilated convolutions** (which exponentially increase the field of view), TCNs could learn very long-range patterns in parallel.
+
+            **The Impact:** TCNs provided a powerful, fast, and often simpler alternative to LSTMs, becoming a go-to architecture for many time-series applications. Fusing this modern deep learning model with a classic, high-sensitivity statistical chart like **CUSUM (Page, 1954)** creates a hybrid system that leverages the best of both worlds.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The system first models the data `Y_t` and calculates the residuals `e_t`:")
+            st.latex(r"e_t = Y_t - \text{TCN}(Y_{t-1}, Y_{t-2}, ...)")
+            st.markdown("Then, a one-sided CUSUM statistic `S_t` is applied to these residuals to detect a positive drift:")
+            st.latex(r"S_t = \max(0, S_{t-1} + (e_t - \mu_e) - k)")
+            st.markdown("""
+            -   `μ_e`: The target mean of the residuals (should be 0).
+            -   `k`: A "slack" parameter, typically `0.5 * σ_e`, that allows the chart to ignore small, random fluctuations in the residuals.
+            An alarm is signaled when `S_t` exceeds a control limit `H`.
             """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 6)
@@ -5609,10 +5663,21 @@ Different types of process failures leave different signatures in the data. A ro
 
         with tabs[2]:
             st.markdown("""
-            **Historical Context:** This architecture is a fusion of multiple powerful ideas. **LSTMs** (Hochreiter & Schmidhuber, 1997) revolutionized sequence modeling. **Autoencoders** are a classic unsupervised neural network architecture. **BOCPD** (Adams & MacKay, 2007) provided a robust online change detection algorithm.
-            
-            **The Synthesis:** Combining these into an **LSTM Autoencoder for anomaly detection** became a popular and powerful technique in the late 2010s. It solves the key problem of monitoring high-dimensional time series data by first learning a low-dimensional representation of "normalcy" and then applying simpler, proven statistical monitoring techniques to the model's error signal. It represents a mature, practical application of deep learning for real-world process control.
+            #### Historical Context: A Powerful Synthesis
+            **The Problem:** Monitoring high-dimensional time-series data (like a bioreactor with hundreds of sensors) for anomalies is extremely difficult. A fault might not be a single sensor going haywire, but a subtle change in the *temporal correlation* between many sensors. How can you detect a deviation from a complex, dynamic "normal" state without having any examples of what "abnormal" looks like?
+
+            **The 'Aha!' Moment (Synthesis):** This architecture became a popular and powerful technique in the late 2010s by intelligently combining three distinct ideas to solve the problem piece by piece:
+            1.  **The Autoencoder:** A classic neural network design for unsupervised learning. It learns to compress data down to its essential features and then decompress it back to the original. When trained on normal data, its ability to reconstruct the input serves as a measure of normalcy.
+            2.  **The LSTM:** The Long Short-Term Memory network (Hochreiter & Schmidhuber, 1997) was the perfect choice to build the encoder and decoder, as it is specifically designed to learn the "grammar" and patterns of sequential data. Fusing these created the **LSTM Autoencoder**, a model that learns the *normal dynamic fingerprint* of a process.
+            3.  **Hybrid Monitoring:** The final piece was realizing that the autoencoder's output—the reconstruction error—is a single, powerful time series representing the health of the process. This insight allowed engineers to apply the best-in-class univariate monitoring tools, like **EWMA** and **BOCPD**, to this signal, creating a specialized, layered defense system.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The autoencoder consists of an **Encoder** `f` and a **Decoder** `g`. The encoder compresses the input time series `X` into a low-dimensional latent vector `Z`. The decoder attempts to reconstruct the original series `X` from `Z`.")
+            st.latex(r"Z = f(X) \quad (\text{Encoding})")
+            st.latex(r"\hat{X} = g(Z) \quad (\text{Decoding})")
+            st.markdown("The **reconstruction error** `E` is the difference between the original and the reconstructed series, often measured by the Mean Squared Error (MSE). This scalar value is the health score we monitor.")
+            st.latex(r"E = || X - \hat{X} ||^2 = || X - g(f(X)) ||^2")
+            st.markdown("If the model is trained only on normal data, it will be very good at reconstructing normal series (low `E`), but very bad at reconstructing anomalous series (high `E`).")
 
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT

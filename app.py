@@ -1280,103 +1280,141 @@ def plot_westgard_scenario(scenario='Stable'):
                       showlegend=False, height=600)
     return fig
     
-
-
-def plot_multivariate_spc(scenario='Stable'):
+def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_seed=42):
     """
-    Generates dynamic plots for MSPC demonstration, including a scatter plot,
-    T² and SPE charts, and a contribution plot for diagnostics.
+    Backend function to generate data, run MSPC analysis, and create plots.
     """
-    # --- 1. Data Generation ---
-    np.random.seed(42)
-    n_in_control, n_out_of_control = 20, 10
-    
-    mean_vec = np.array([10, 20])
-    cov_mat = np.array([[1, 0.8], [0.8, 1]])
-    in_control = np.random.multivariate_normal(mean_vec, cov_mat, n_in_control)
-    
+    # 1. --- Data Generation ---
+    np.random.seed(random_seed)
+    mean_train = [25, 150]  # Temp (°C), Pressure (kPa)
+    cov_train = [[5, 12], [12, 40]] # Strong positive correlation
+    df_train = pd.DataFrame(np.random.multivariate_normal(mean_train, cov_train, n_train), columns=['Temperature', 'Pressure'])
+
     if scenario == 'Stable':
-        np.random.seed(101)
-        out_of_control = np.random.multivariate_normal(mean_vec, cov_mat, n_out_of_control)
+        df_monitor = pd.DataFrame(np.random.multivariate_normal(mean_train, cov_train, n_monitor), columns=['Temperature', 'Pressure'])
     elif scenario == 'Shift in Y Only':
-        mean_shifted = np.array([10, 23.5])
-        out_of_control = np.random.multivariate_normal(mean_shifted, cov_mat, n_out_of_control)
+        mean_shift = [25, 175]
+        df_monitor = pd.DataFrame(np.random.multivariate_normal(mean_shift, cov_train, n_monitor), columns=['Temperature', 'Pressure'])
     elif scenario == 'Correlation Break':
-        cov_mat_broken = np.array([[1, -0.9], [-0.9, 1]])
-        out_of_control = np.random.multivariate_normal(mean_vec, cov_mat_broken, n_out_of_control)
-        
-    data = np.vstack([in_control, out_of_control])
-    
-    # --- 2. Model Building and Statistical Calculations ---
-    scaler = StandardScaler().fit(in_control)
-    scaled_in_control = scaler.transform(in_control)
-    pca = PCA(n_components=1).fit(scaled_in_control)
-    
-    scaled_data = scaler.transform(data)
-    scores = pca.transform(scaled_data)
-    
-    t_squared = scores[:, 0]**2 / np.var(scores[:n_in_control, 0], ddof=1)
-    UCL_T2 = stats.f.ppf(0.99, 1, n_in_control - 1)
+        cov_break = [[5, 0], [0, 40]]
+        df_monitor = pd.DataFrame(np.random.multivariate_normal(mean_train, cov_break, n_monitor), columns=['Temperature', 'Pressure'])
 
-    residuals = scaled_data - pca.inverse_transform(scores)
-    spe = np.sum(residuals**2, axis=1)
-    g = np.mean(spe[:n_in_control])
-    h = np.var(spe[:n_in_control], ddof=1)
-    UCL_SPE = g * (h / (2 * g)) * stats.chi2.ppf(0.99, (2 * g**2) / h) if g > 0 and h > 0 else 0
+    df_full = pd.concat([df_train, df_monitor], ignore_index=True)
 
-    # --- 3. Dynamic Status Check and Contribution Plot Calculation ---
-    is_t2_ooc = np.any(t_squared[n_in_control:] > UCL_T2)
-    is_spe_ooc = np.any(spe[n_in_control:] > UCL_SPE)
-    
+    # 2. --- MSPC Model Building (PCA on training data) ---
+    pca = PCA(n_components=1).fit(df_train)
+    scores = pca.transform(df_full[['Temperature', 'Pressure']])
+    X_hat = pca.inverse_transform(scores)
+
+    # 3. --- Calculate T² and SPE Statistics ---
+    S_inv = np.linalg.inv(df_train.cov())
+    mean_vec = df_train.mean().values
+    diff = df_full[['Temperature', 'Pressure']].values - mean_vec
+    df_full['T2'] = [d.T @ S_inv @ d for d in diff]
+    residuals = df_full[['Temperature', 'Pressure']].values - X_hat
+    df_full['SPE'] = np.sum(residuals**2, axis=1)
+
+    # 4. --- Calculate Control Limits ---
+    alpha = 0.01
+    p = df_train.shape[1]
+    t2_ucl = (p * (n_train - 1) * (n_train + 1)) / (n_train * (n_train - p)) * f.ppf(1 - alpha, p, n_train - p)
+    spe_ucl = np.percentile(df_full['SPE'].iloc[:n_train], (1 - alpha) * 100)
+
+    # 5. --- Check for OOC points ---
+    monitor_data = df_full.iloc[n_train:]
+    t2_ooc_points = monitor_data[monitor_data['T2'] > t2_ucl]
+    spe_ooc_points = monitor_data[monitor_data['SPE'] > spe_ucl]
+    t2_ooc = not t2_ooc_points.empty
+    spe_ooc = not spe_ooc_points.empty
+
+    # PLOT 1: Scatter Plot
+    fig_scatter = go.Figure()
+    fig_scatter.add_trace(go.Scatter(x=df_train['Temperature'], y=df_train['Pressure'], mode='markers', marker=dict(color='blue', opacity=0.7), name='In-Control (Training Data)'))
+    fig_scatter.add_trace(go.Scatter(x=df_monitor['Temperature'], y=df_monitor['Pressure'], mode='markers', marker=dict(color='red', size=8, symbol='star'), name=f'Monitoring Data ({scenario})'))
+    pca_line = pca.inverse_transform(np.array([[-15], [15]]))
+    fig_scatter.add_trace(go.Scatter(x=pca_line[:, 0], y=pca_line[:, 1], mode='lines', line=dict(color='grey', dash='dash'), name='PCA Model'))
+    fig_scatter.update_layout(title=f"Process Scatter Plot: Scenario '{scenario}'", xaxis_title="Temperature (°C)", yaxis_title="Pressure (kPa)", legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+
+    # PLOT 2: Control Charts
+    fig_charts = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=("Hotelling's T² Chart", "SPE Chart"))
+    chart_indices = np.arange(1, len(df_full) + 1)
+    fig_charts.add_trace(go.Scatter(x=chart_indices, y=df_full['T2'], mode='lines+markers', name='T² Value'), row=1, col=1)
+    fig_charts.add_hline(y=t2_ucl, line_dash="dash", line_color="red", row=1, col=1)
+    if t2_ooc: fig_charts.add_trace(go.Scatter(x=t2_ooc_points.index + 1, y=t2_ooc_points['T2'], mode='markers', marker=dict(color='red', size=10, symbol='x')), row=1, col=1)
+    fig_charts.add_trace(go.Scatter(x=chart_indices, y=df_full['SPE'], mode='lines+markers', name='SPE Value'), row=2, col=1)
+    fig_charts.add_hline(y=spe_ucl, line_dash="dash", line_color="red", row=2, col=1)
+    if spe_ooc: fig_charts.add_trace(go.Scatter(x=spe_ooc_points.index + 1, y=spe_ooc_points['SPE'], mode='markers', marker=dict(color='red', size=10, symbol='x')), row=2, col=1)
+    fig_charts.add_vrect(x0=n_train+0.5, x1=n_train+n_monitor+0.5, fillcolor="red", opacity=0.1, line_width=0, annotation_text="Monitoring Phase", annotation_position="top left", row='all', col=1)
+    fig_charts.update_layout(height=500, title_text="Multivariate Control Charts", showlegend=False, yaxis_title="T² Statistic", yaxis2_title="SPE Statistic", xaxis2_title="Observation Number")
+
+    # PLOT 3: Contribution Plot
     fig_contrib = None
-    ooc_indices = np.where((t_squared[n_in_control:] > UCL_T2) | (spe[n_in_control:] > UCL_SPE))[0]
+    if t2_ooc or spe_ooc:
+        if t2_ooc and scenario == 'Shift in Y Only':
+            first_ooc_point = t2_ooc_points.iloc[0]
+            contributions = (first_ooc_point[['Temperature', 'Pressure']] - mean_vec)**2
+            title_text = "Contribution to T² Alarm (Squared Deviation from Mean)"
+        elif spe_ooc and scenario == 'Correlation Break':
+            first_ooc_idx = spe_ooc_points.index[0]
+            contributions = pd.Series(residuals[first_ooc_idx]**2, index=['Temperature', 'Pressure'])
+            title_text = "Contribution to SPE Alarm (Squared Residuals)"
+        else:
+            first_ooc_idx = (t2_ooc_points.index[0] if t2_ooc else spe_ooc_points.index[0])
+            contributions = pd.Series(residuals[first_ooc_idx]**2, index=['Temperature', 'Pressure'])
+            title_text = "Contribution to Alarm (Squared Residuals)"
+        fig_contrib = px.bar(x=contributions.index, y=contributions.values, title=title_text, labels={'x':'Process Variable', 'y':'Contribution Value'})
 
-    if ooc_indices.size > 0:
-        first_ooc_index = n_in_control + ooc_indices[0]
-        
-        if t_squared[first_ooc_index] > UCL_T2:
-            fault_vector = scaled_data[first_ooc_index, :]
-            score = fault_vector @ pca.components_.T
-            contributions = (score * pca.components_)**2
-            df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions.flatten()})
-            fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Contributions to T² Alarm</b> (Batch {first_ooc_index+1})")
-        
-        elif spe[first_ooc_index] > UCL_SPE:
-            contributions = residuals[first_ooc_index]**2
-            df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions})
-            fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Contributions to SPE Alarm</b> (Batch {first_ooc_index+1})")
-        
-        if fig_contrib:
-            fig_contrib.update_layout(showlegend=False, yaxis_title="Contribution Magnitude")
+    return fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc
+def plot_ewma_cusum_comparison():
+    np.random.seed(123)
+    n_points = 40
+    data = np.random.normal(100, 2, n_points)
+    data[20:] += 1.5 # A small 0.75-sigma shift
+    mean, std = 100, 2
 
-    # --- 4. Prepare Data for Plotting ---
-    df_plot = pd.DataFrame(data, columns=['Temperature', 'Pressure'])
-    df_plot['Status'] = ['In-Control'] * n_in_control + ['Out-of-Control'] * n_out_of_control
-    df_plot['Batch'] = np.arange(1, len(data) + 1)
+    # EWMA calculation
+    lam = 0.2 # Lambda, the weighting factor
+    ewma = np.zeros(n_points)
+    ewma[0] = mean
+    for i in range(1, n_points):
+        ewma[i] = lam * data[i] + (1 - lam) * ewma[i-1]
 
-    # --- 5. Create Plotly Figures ---
-    fig_scatter = px.scatter(
-        data_frame=df_plot, x='Temperature', y='Pressure', color='Status',
-        color_discrete_map={'In-Control': 'blue', 'Out-of-Control': 'red'},
-        title=f"<b>1. Process Data Scatter Plot ({scenario} Scenario)</b>",
-        labels={'Temperature': 'Temperature (°C)', 'Pressure': 'Pressure (PSI)'}
-    )
+    # CUSUM calculation
+    target = mean
+    k = 0.5 * std # "Allowance" or "slack"
+    sh, sl = np.zeros(n_points), np.zeros(n_points)
+    for i in range(1, n_points):
+        sh[i] = max(0, sh[i-1] + (data[i] - target) - k)
+        sl[i] = max(0, sl[i-1] + (target - data[i]) - k)
+
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        subplot_titles=("<b>I-Chart: The Beat Cop (Misses the Shift)</b>",
+                                        "<b>EWMA: The Sentinel (Catches the Shift)</b>",
+                                        "<b>CUSUM: The Bloodhound (Catches it Fastest)</b>"))
+
+    # I-Chart
+    fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=data, mode='lines+markers', name='Data'), row=1, col=1)
+    fig.add_hline(y=mean + 3*std, line_color='red', line_dash='dash', row=1, col=1)
+    fig.add_hline(y=mean - 3*std, line_color='red', line_dash='dash', row=1, col=1)
+    fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=1, col=1)
+
+    # EWMA Chart
+    fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=ewma, mode='lines+markers', name='EWMA'), row=2, col=1)
+    sigma_ewma = std * np.sqrt(lam / (2-lam)) # Asymptotic SD
+    fig.add_hline(y=mean + 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
+    fig.add_hline(y=mean - 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
+    fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=2, col=1)
+
+    # CUSUM Chart
+    fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sh, mode='lines+markers', name='CUSUM High'), row=3, col=1)
+    fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sl, mode='lines+markers', name='CUSUM Low'), row=3, col=1)
+    fig.add_hline(y=5*std, line_color='red', line_dash='dash', row=3, col=1) # Decision interval H
+    fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=3, col=1, annotation_text="Process Shift Occurs", annotation_position="top")
+
+    fig.update_layout(title="<b>Case Study: Detecting a Small Process Shift (0.75σ)</b>", height=800, showlegend=False)
+    fig.update_xaxes(title_text="Sample Number", row=3, col=1)
+    return fig
     
-    fig_charts = make_subplots(rows=1, cols=2, subplot_titles=("<b>2. Hotelling's T² Chart</b>", "<b>3. SPE / DModX Chart</b>"))
-    
-    fig_charts.add_trace(go.Scatter(x=df_plot['Batch'], y=t_squared, mode='lines+markers', name="T²", line_color='blue'), row=1, col=1)
-    fig_charts.add_hline(y=UCL_T2, line=dict(color='red', dash='dash'), name='UCL', row=1, col=1)
-    fig_charts.add_trace(go.Scatter(x=df_plot['Batch'], y=spe, mode='lines+markers', name="SPE", line_color='blue'), row=1, col=2)
-    if not np.isnan(UCL_SPE) and UCL_SPE > 0:
-        fig_charts.add_hline(y=UCL_SPE, line=dict(color='red', dash='dash'), name='UCL', row=1, col=2)
-        
-    fig_charts.add_vrect(x0=n_in_control + 0.5, x1=len(data) + 0.5, fillcolor="red", opacity=0.1, line_width=0, row=1, col='all')
-    fig_charts.update_layout(height=400, showlegend=False)
-    fig_charts.update_xaxes(title_text="Batch Number", row=1, col='all')
-    
-    return fig_scatter, fig_charts, fig_contrib, is_t2_ooc, is_spe_ooc
-
-
 @st.cache_data
 def plot_time_series_analysis():
     np.random.seed(42)
@@ -3194,10 +3232,10 @@ def render_multivariate_spc():
     st.markdown("""
     #### Purpose & Application: The Process Doctor
     **Purpose:** To monitor the **holistic state of statistical control** for a process with multiple, correlated parameters. Instead of using an array of univariate charts (like individual nurses reading single vital signs), Multivariate SPC (MSPC) acts as the **head physician**, integrating all information into a single, powerful diagnosis.
-    
+
     **Strategic Application:** This is an essential methodology for modern **Process Analytical Technology (PAT)** and real-time process monitoring. In complex systems like bioreactors or chromatography, parameters like temperature, pH, pressure, and flow rates are interdependent. A small, coordinated deviation across several parameters—a "stealth shift"—can be invisible to individual charts but represents a significant excursion from the normal operating state. MSPC is designed to detect exactly these events.
     """)
-    
+
     st.info("""
     **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate different types of multivariate process failures. First, observe the **Scatter Plot**, then see which **Control Chart (T² or SPE)** detects the problem, and finally, check the **Contribution Plot** in the 'Key Insights' tab to diagnose the root cause.
     """)
@@ -3209,11 +3247,10 @@ def render_multivariate_spc():
         captions=["A normal, in-control process.", "A 'stealth shift' in one variable.", "An unprecedented event breaks the model."]
     )
 
-    # Call the backend function and unpack all return values
     fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc = plot_multivariate_spc(scenario=scenario)
-    
+
     st.plotly_chart(fig_scatter, use_container_width=True)
-    
+
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.plotly_chart(fig_charts, use_container_width=True)

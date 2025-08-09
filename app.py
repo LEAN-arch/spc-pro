@@ -2819,7 +2819,7 @@ def render_assay_robustness_doe():
     """)
     
     st.info("""
-    **Interactive Demo:** You are the process expert. Use the sliders in the sidebar to define the "true" physics of a virtual assay. The plots will show how a DOE/RSM experiment can uncover this underlying response surface, allowing you to find the optimal operating conditions.
+    **Interactive Demo:** You are the process expert. Use the sliders at the bottom of the sidebar to define the "true" physics of a virtual assay. The plots will show how a DOE/RSM experiment can uncover this underlying response surface, allowing you to find the optimal operating conditions.
     """)
     
     # --- Sidebar controls ---
@@ -3077,7 +3077,7 @@ def render_spc_charts():
     """)
     
     st.info("""
-    **Interactive Demo:** Use the controls in the sidebar to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
+    **Interactive Demo:** Use the controls at the bottom of the sidebar to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
     """)
     
     # --- Sidebar controls for this specific module ---
@@ -3164,10 +3164,10 @@ def render_capability():
     """)
     
     st.info("""
-    **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate four common real-world process states. Observe how the control chart (stability), the histogram's position relative to the spec limits, and the final Cpk value (capability) change for each scenario. This demonstrates the critical principle that a process must be stable *before* its capability can be meaningfully assessed.
+    **Interactive Demo:** Use the **Process Scenario** radio buttons below to simulate four common real-world process states. Observe how the control chart (stability), the histogram's position relative to the spec limits, and the final Cpk value (capability) change for each scenario. This demonstrates the critical principle that a process must be stable *before* its capability can be meaningfully assessed.
     """)
 
-    scenario = st.sidebar.radio("Select Process Scenario:", ('Ideal', 'Shifted', 'Variable', 'Out of Control'))
+    scenario = st.radio("Select Process Scenario:", ('Ideal', 'Shifted', 'Variable', 'Out of Control'))
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:

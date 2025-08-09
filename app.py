@@ -3373,70 +3373,6 @@ def render_method_comparison():
             st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
             st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
 
-def render_pass_fail():
-    """
-    NOTE: The function name is per user request. The content has been modified
-    to render the Method Comparison (Quantitative) analysis.
-    """
-    st.markdown("""
-    #### Purpose & Application: Method Comparison
-    **Purpose:** To compare two quantitative measurement methods (e.g., a new "Test" method vs. an established "Reference" method) to see if they agree sufficiently.
-    
-    **Strategic Application:** This is essential for validating a new assay, instrument, or laboratory procedure. The goal is to quantify any systematic differences (**bias**) and the random variation between the methods to ensure the new method can be used interchangeably with the old one.
-    """)
-
-    st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to define the "true" relationship between a test method and a reference method. Observe how different types of bias (constant and proportional) and random error appear in the plots.
-    """)
-
-    # --- FIX: Sidebar controls updated to match the inputs of `plot_method_comparison` ---
-    st.sidebar.subheader("Method Comparison Controls")
-    constant_bias_slider = st.sidebar.slider("Constant Bias", -10.0, 10.0, 2.0, 0.5, help="A fixed offset. The Test method is always X units higher/lower than the Reference.")
-    proportional_bias_slider = st.sidebar.slider("Proportional Bias (%)", -10.0, 10.0, 3.0, 0.5, help="A bias that depends on the concentration. The Test method deviates by X% of the Reference value.")
-    random_error_slider = st.sidebar.slider("Random Error (SD)", 0.1, 10.0, 3.0, 0.1, help="The random 'noise' or imprecision of the methods.")
-    
-    # --- FIX: Call the correct plotting function and unpack its return values ---
-    fig, deming_slope, deming_intercept, mean_diff, upper_loa, lower_loa = plot_method_comparison(
-        constant_bias=constant_bias_slider,
-        proportional_bias=proportional_bias_slider,
-        random_error_sd=random_error_slider
-    )
-
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        # --- FIX: Display the single figure returned by the plotting function ---
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        # --- FIX: Tabs and text updated to be relevant to the new plots ---
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory"])
-        
-        with tabs[0]:
-            st.metric("Deming Slope", f"{deming_slope:.3f}", help="Ideal is 1.0. A value > 1 indicates positive proportional bias.")
-            st.metric("Deming Intercept", f"{deming_intercept:.2f}", help="Ideal is 0.0. A non-zero value indicates constant bias.")
-            st.metric("Mean Bias (Bland-Altman)", f"{mean_diff:.2f}", help="The average difference between the two methods.")
-            
-            st.info("Play with the sliders in the sidebar and observe the plots!")
-            st.markdown("""
-            - **Constant Bias:** Increasing this slider shifts the entire cloud of points up in the Deming plot and raises the "Mean Bias" line in the Bland-Altman plot.
-            - **Proportional Bias:** Increasing this slider *tilts* the cloud of points in the Deming plot, making the slope deviate from 1. In the Bland-Altman plot, this creates a trend where the difference changes as the average value increases.
-            - **Random Error:** Increasing this slider makes the cloud of points "fluffier" or more spread out around the regression line. In the Bland-Altman plot, this widens the Limits of Agreement (LoA).
-            """)
-        with tabs[1]:
-            st.markdown("- **The Golden Rule of Method Comparison:** Acceptance criteria should be pre-defined and based on the clinical or analytical needs of the test.")
-            st.markdown("""
-            - **Example Criteria:**
-                1.  The 95% CI for the **Deming slope** must contain 1.0.
-                2.  The 95% CI for the **Deming intercept** must contain 0.0.
-                3.  The **Bland-Altman Limits of Agreement** must be within a clinically acceptable range (e.g., ±15%).
-            """)
-        with tabs[2]:
-            st.markdown("""
-            #### Plot Explanations
-            - **Deming Regression:** A type of linear regression that accounts for measurement error in *both* the X and Y variables. This is crucial for method comparison, as both the reference and test methods have imprecision. A perfect agreement would have a slope of 1 and an intercept of 0.
-            - **Bland-Altman Plot:** A graphical method to visualize the agreement between two quantitative measurements. It plots the *difference* between the two methods against their *average*. It is excellent for identifying bias and seeing if the difference depends on the magnitude of the measurement.
-            """)
             
 def render_bayesian():
     """Renders the interactive module for Bayesian Inference."""
@@ -4873,7 +4809,7 @@ with st.sidebar:
     # The dictionary now ONLY contains the tools, grouped by Act.
     all_tools = {
         "ACT I: FOUNDATION & CHARACTERIZATION": ["Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Split-Plot Designs", "Causal Inference"],
-        "ACT II: TRANSFER & STABILITY": ["Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", "Method Comparison", "Pass/Fail Analysis", "Bayesian Inference"],
+        "ACT II: TRANSFER & STABILITY": ["Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", "Method Comparison", "Bayesian Inference"],
         "ACT III: LIFECYCLE & PREDICTIVE MGMT": ["Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis", "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts"]
     }
 

@@ -1241,7 +1241,7 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
                         color_discrete_map={True: '#00CC96', False: '#636EFA'},
                         template='plotly_white')
     # Add significance threshold line
-    t_crit_pareto = stats.t.ppf(1 - 0.05 / 2, df_resid=model.df_resid)
+    t_crit_pareto = stats.t.ppf(1 - 0.05 / 2, df=model.df_resid)
     fig_pareto.add_hline(y=t_crit_pareto, line_dash="dash", line_color="red",
                          annotation_text=f"Significance (p=0.05)", annotation_position="bottom right")
     fig_pareto.update_layout(showlegend=False)

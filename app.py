@@ -3272,15 +3272,29 @@ def render_multivariate_spc():
             st.metric("📈 SPE Chart Verdict", "Out-of-Control" if scenario == 'Correlation Break' else "In-Control", help="Monitors deviation *from* the normal process model.")
             
             st.markdown("---")
-            st.markdown("##### Diagnostic: Contribution Plot")
-            if fig_contrib:
-                st.plotly_chart(fig_contrib, use_container_width=True)
-                if scenario == 'Shift in Y Only':
-                    st.markdown("The contribution plot confirms that the T² alarm was driven almost entirely by the **Pressure** (Y-axis) variable.")
-                elif scenario == 'Correlation Break':
-                    st.markdown("The contribution plot shows that both variables contributed to the SPE alarm, as their fundamental relationship broke down.")
-            else:
-                st.success("The process is stable, so no diagnostic plot is needed.")
+            st.markdown(f"##### Analysis of the '{scenario}' Scenario:")
+
+            if scenario == 'Stable':
+                st.success("The process is stable and in-control. Both the T² and SPE charts show only common cause variation, confirming the process is operating as expected within its normal, correlated state. No diagnostic plot is needed.")
+            elif scenario == 'Shift in Y Only':
+                st.warning("**Diagnosis: A 'Stealth Shift' has occurred.**")
+                st.markdown("""
+                1.  **Scatter Plot:** The red points have clearly shifted upwards, but because the correlation is strong, they still fall within the horizontal range of the blue points. A univariate chart for Temperature (X-axis) would likely miss this.
+                2.  **T² Chart:** Alarms loudly. It knows the expected Pressure (Y) for a given Temperature (X) and detects this significant deviation from the multivariate mean.
+                3.  **SPE Chart:** Remains in-control. The *relationship* between the variables is still intact; the process has just shifted along that known correlation structure.
+                4.  **Contribution Plot:** This diagnostic tool confirms the root cause: the T² alarm is driven almost entirely by the **Pressure** variable.
+                """)
+            elif scenario == 'Correlation Break':
+                st.error("**Diagnosis: An Unprecedented Event has occurred.**")
+                st.markdown("""
+                1.  **Scatter Plot:** The red points have fallen completely *off* the established diagonal correlation line. The average Temperature and Pressure might still be normal, but their relationship is broken.
+                2.  **T² Chart:** May remain in-control. Since the points are still relatively close to the center of the data cloud, the T² (which measures distance *within* the model) does not alarm.
+                3.  **SPE Chart:** Alarms loudly. The SPE measures the distance *to* the model. Since these points are far from the expected correlation line, the SPE signals a major deviation from the model.
+                4.  **Contribution Plot:** This diagnostic tool shows that both variables are contributing to the SPE alarm, confirming the fundamental breakdown of the process model itself.
+                """)
+            
+            st.markdown("---")
+            st.info("**Try This:** Switch between the 'Shift in Y Only' and 'Correlation Break' scenarios to see how the two charts are sensitive to completely different types of process failures.")
 
         with tabs[1]:
             st.error("""
@@ -3300,7 +3314,7 @@ def render_multivariate_spc():
 
             **The "Aha!" Moment (Hotelling):** The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. His genius was in generalization. He recognized that the squared t-statistic, $t^2 = (\bar{x} - \mu)^2 / (s^2/n)$, was a measure of squared distance, normalized by variance. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which replaced the univariate terms with their vector and matrix equivalents. It provided a single number that represented the "distance" of a point from the center of a multivariate distribution, elegantly solving the problem of testing multiple means at once while accounting for all their correlations.
             
-            **The Impact:** When Shewhart's control charts became popular, it was a natural next step to apply Hotelling's powerful statistic to process monitoring. The T² chart is simply a time-series plot of this statistic, providing the first statistically rigorous way to apply SPC to complex, correlated data. This 90-year-old idea is now the engine of modern PAT and real-time quality assurance, especially when combined with the SPE chart, a more modern addition from the field of chemometrics.
+            **The Impact:** When Shewhart's control charts became popular, it was a natural next step to apply Hotelling's statistic to process monitoring. The T² chart is simply a time-series plot of this statistic, providing the first statistically rigorous way to apply SPC to complex, correlated data. This 90-year-old idea is now the engine of modern PAT and real-time quality assurance, especially when combined with the SPE chart, a more modern addition from the field of chemometrics.
             
             #### Mathematical Basis
             The T² statistic is a measure of the **Mahalanobis distance**, a "smart" distance that accounts for the correlation between variables. It does this through the **inverse of the sample covariance matrix (`S⁻¹`)**, which acts as a "de-correlation engine." It mathematically transforms the tilted, elliptical cloud of normal data into a perfect, centered circle, so that any deviation from the center becomes a simple Euclidean distance.

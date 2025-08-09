@@ -1910,37 +1910,128 @@ def plot_xai_shap(case_to_explain="highest_risk"):
     
 @st.cache_data
 def plot_advanced_ai_concepts(concept):
+    """
+    Generates SME-designed, conceptually rich Plotly figures for advanced AI topics
+    in a V&V and Tech Transfer context.
+    """
     fig = go.Figure()
+
+    # --- Case 1: Transformers - The AI Historian for Batch Records ---
     if concept == "Transformers":
-        text = "Input Seq -> [Encoder] -> [Self-Attention] -> [Decoder] -> Output Seq"
-        fig.add_annotation(text=f"<b>Conceptual Flow: Transformer</b><br>{text}", showarrow=False, font_size=16)
-    elif concept == "GNNs":
-        nodes_x = [1, 2, 3, 4, 3, 2]; nodes_y = [2, 3, 2, 1, 0, -1]
-        edges = [(0,1), (1,2), (2,3), (2,4), (4,5), (5,1)]
-        for (start, end) in edges:
-            fig.add_trace(go.Scatter(x=[nodes_x[start], nodes_x[end]], y=[nodes_y[start], nodes_y[end]], mode='lines', line_color='grey'))
-        fig.add_trace(go.Scatter(x=nodes_x, y=nodes_y, mode='markers+text', text=[f"Node {i}" for i in range(6)], marker_size=30, textposition="middle center"))
-        fig.update_layout(title="<b>Conceptual Flow: Graph Neural Network</b>")
-    elif concept == "RL":
-        fig.add_shape(type="rect", x0=0, y0=0, x1=2, y1=2, line_width=2, fillcolor='lightblue', name="Agent")
-        fig.add_annotation(x=1, y=1, text="<b>Agent</b><br>(Control Policy)", showarrow=False)
-        fig.add_shape(type="rect", x0=4, y0=0, x1=6, y1=2, line_width=2, fillcolor='lightgreen', name="Environment")
-        fig.add_annotation(x=5, y=1, text="<b>Environment</b><br>(Digital Twin)", showarrow=False)
-        fig.add_annotation(x=3, y=1.5, text="Action", showarrow=True, arrowhead=2, ax=-40, ay=0)
-        fig.add_annotation(x=3, y=0.5, text="State, Reward", showarrow=True, arrowhead=2, ax=40, ay=0)
-        fig.update_layout(title="<b>Conceptual Flow: Reinforcement Learning Loop</b>")
+        steps = ["Inoculation", "Growth Phase", "Feed 1", "Production", "Harvest"]
+        x = [1, 3, 5, 7, 9]
+        y = [2, 2, 2, 2, 2]
+        
+        # Draw the sequence of batch events
+        fig.add_trace(go.Scatter(x=x, y=y, mode="markers+text", text=steps,
+                               textposition="top center", textfont=dict(size=14),
+                               marker=dict(size=30, color='lightblue', line=dict(width=2, color='black'))))
+        
+        # Draw lines connecting the sequence
+        for i in range(len(x) - 1):
+            fig.add_shape(type="line", x0=x[i]+0.5, y0=y[i], x1=x[i+1]-0.5, y1=y[i+1],
+                          line=dict(color="grey", width=2, dash="dash"))
+        
+        # --- Visualize Self-Attention ---
+        # The model, when predicting the "Harvest" outcome, pays high attention to the "Growth Phase"
+        fig.add_annotation(x=x[1], y=y[1], ax=x[4], ay=y[4],
+                           xref='x', yref='y', axref='x', ayref='y',
+                           showarrow=True, arrowhead=2, arrowwidth=4, arrowcolor='rgba(255, 65, 54, 0.8)',
+                           text="<b>High Attention Link</b>")
+        # It pays low attention to an irrelevant intermediate step
+        fig.add_annotation(x=x[2], y=y[2], ax=x[4], ay=y[4],
+                           xref='x', yref='y', axref='x', ayref='y',
+                           showarrow=True, arrowhead=2, arrowwidth=1, arrowcolor='rgba(150, 150, 150, 0.6)',
+                           text="Low Attention")
+
+        fig.update_layout(title_text="<b>Transformer: Understanding the Entire Batch Narrative</b>")
+
+    # --- Case 2: Graph Neural Networks (GNNs) - The System-Wide Investigator ---
+    elif concept == "Graph Neural Networks (GNNs)":
+        nodes = {
+            'Raw Mat A': {'x': 1, 'y': 4, 'color': '#FFDDC1'},
+            'Raw Mat B': {'x': 1, 'y': 2, 'color': '#FFDDC1'},
+            'Bioreactor 1': {'x': 3, 'y': 5, 'color': '#C1E1C1'},
+            'Bioreactor 2': {'x': 3, 'y': 1, 'color': '#C1E1C1'},
+            'Batch 101': {'x': 5, 'y': 5, 'color': '#AEC6CF'},
+            'Batch 102': {'x': 5, 'y': 3, 'color': '#AEC6CF'},
+            'Batch 103': {'x': 5, 'y': 1, 'color': '#AEC6CF'},
+        }
+        edges = [('Raw Mat A', 'Batch 101'), ('Raw Mat A', 'Batch 102'), ('Raw Mat B', 'Batch 103'),
+                 ('Bioreactor 1', 'Batch 101'), ('Bioreactor 1', 'Batch 102'), ('Bioreactor 2', 'Batch 103')]
+
+        for start, end in edges:
+            fig.add_shape(type="line", x0=nodes[start]['x'], y0=nodes[start]['y'], x1=nodes[end]['x'], y1=nodes[end]['y'], line=dict(color="grey", width=2))
+        
+        # Highlight a failure and trace it back
+        nodes['Batch 102']['color'] = '#FF6961' # Red for failure
+        nodes['Raw Mat A']['color'] = '#FFB347'  # Orange for suspected cause
+
+        for name, props in nodes.items():
+            fig.add_trace(go.Scatter(x=[props['x']], y=[props['y']], mode='markers+text',
+                                     text=name.replace(' ', '<br>'), textposition="middle center",
+                                     marker=dict(size=80, color=props['color'], line=dict(width=2, color='black'))))
+
+        fig.add_annotation(text="<b>Failure Signal Propagates Backwards</b>", x=3, y=3, showarrow=False, font=dict(size=14, color='red'))
+        fig.update_layout(title_text="<b>GNN: Tracing a Failure Back Through the Supply Chain</b>")
+
+    # --- Case 3: Reinforcement Learning (RL) - The Digital Twin Pilot ---
+    elif concept == "Reinforcement Learning (RL)":
+        # Agent
+        fig.add_shape(type="rect", x0=0.5, y0=3, x1=2.5, y1=4.5, fillcolor='lightblue', line=dict(width=2))
+        fig.add_annotation(x=1.5, y=3.75, text="<b>AI Agent</b><br>(Control Policy)", showarrow=False)
+        # Digital Twin
+        fig.add_shape(type="rect", x0=4.5, y0=0.5, x1=9.5, y1=5, fillcolor='lightgrey', line=dict(width=2, dash='dash'))
+        fig.add_annotation(x=7, y=4.5, text="<b>Digital Twin (Safe Simulation)</b>", showarrow=False)
+        # Real Process
+        fig.add_shape(type="rect", x0=0.5, y0=0.5, x1=2.5, y1=2, fillcolor='lightgreen', line=dict(width=2))
+        fig.add_annotation(x=1.5, y=1.25, text="<b>Real Process</b>", showarrow=False)
+        
+        # Arrows for the training loop
+        fig.add_annotation(x=4.3, y=3.75, ax=2.7, ay=3.75, text="<b>Action</b> (e.g., Set Feed Rate)", showarrow=True, arrowhead=2)
+        fig.add_annotation(x=2.7, y=3, ax=4.3, ay=3, text="<b>State, Reward</b>", showarrow=True, arrowhead=2)
+        # Arrow for deployment
+        fig.add_annotation(x=1.5, y=2.2, ax=1.5, ay=2.8, text="Deploy<br>Optimal<br>Policy", showarrow=True, arrowhead=2, arrowcolor='darkgreen')
+
+        # Mini control chart inside the Digital Twin
+        x_sim = np.linspace(5, 9, 20)
+        y_sim = np.sin(x_sim*2)*0.2 + 2.5
+        fig.add_trace(go.Scatter(x=x_sim, y=y_sim, mode='lines', line=dict(color='royalblue')))
+        fig.add_hline(y=2.5, line=dict(color='black', dash='dot'), line_width=1)
+        fig.update_layout(title_text="<b>RL: Learning Optimal Control in a Digital Twin</b>")
+
+    # --- Case 4: Generative AI - Solving the Rare Event Problem ---
     elif concept == "Generative AI":
-        fig.add_shape(type="rect", x0=0, y0=0, x1=2, y1=2, line_width=2, fillcolor='lightcoral', name="Real Data")
-        fig.add_annotation(x=1, y=1, text="<b>Real Data</b>", showarrow=False)
-        fig.add_annotation(x=3, y=1, text="Trains ➔", showarrow=False, font_size=20)
-        fig.add_shape(type="rect", x0=4, y0=0, x1=6, y1=2, line_width=2, fillcolor='gold', name="Generator")
-        fig.add_annotation(x=5, y=1, text="<b>Generator</b>", showarrow=False)
-        fig.add_annotation(x=7, y=1, text="Creates ➔", showarrow=False, font_size=20)
-        fig.add_shape(type="rect", x0=8, y0=0, x1=10, y1=2, line_width=2, fillcolor='lightseagreen', name="Synthetic Data")
-        fig.add_annotation(x=9, y=1, text="<b>Synthetic Data</b>", showarrow=False)
-        fig.update_layout(title="<b>Conceptual Flow: Generative AI (GANs)</b>")
-    
-    fig.update_layout(xaxis_visible=False, yaxis_visible=False, height=300, showlegend=False)
+        np.random.seed(42)
+        # Real Data (very few points)
+        x_real = [2, 2.5, 3]
+        y_real = [8, 9, 8.5]
+        # Synthetic Data (many points, similar pattern)
+        x_synth = np.random.normal(2.5, 0.8, 100)
+        y_synth = np.random.normal(8.5, 0.8, 100)
+        
+        fig.add_trace(go.Scatter(x=x_real, y=y_real, mode='markers', name='Real Failure Data',
+                                 marker=dict(color='red', size=15, symbol='x-thin', line=dict(width=3))))
+        fig.add_trace(go.Scatter(x=x_synth, y=y_synth, mode='markers', name='Synthetic Failure Data',
+                                 marker=dict(color='rgba(255,165,0,0.6)', size=8, symbol='circle')))
+        
+        fig.add_annotation(x=6, y=4, text="<b>Generative Model</b><br>(AI Forger)", showarrow=False,
+                           font=dict(size=16), bordercolor='black', borderwidth=2, bgcolor='gold', align='center')
+        fig.add_annotation(x=3.5, y=8.5, ax=5.5, ay=4.5, text="Learns From", showarrow=True, arrowhead=2)
+        fig.add_annotation(x=5.5, y=4.5, ax=3.5, ay=8.5, text="Creates", showarrow=True, arrowhead=2)
+        
+        fig.update_layout(title_text="<b>Generative AI: Creating Synthetic Data for Rare Failures</b>",
+                          xaxis_title="Process Parameter A", yaxis_title="Process Parameter B")
+
+    # Standardize the final layout for all plots
+    fig.update_layout(xaxis=dict(visible=True, showgrid=False, zeroline=False), 
+                      yaxis=dict(visible=True, showgrid=False, zeroline=False), 
+                      height=400, 
+                      showlegend=True,
+                      margin=dict(l=10, r=10, t=50, b=10))
+    if concept in ["Transformers", "Graph Neural Networks (GNNs)", "Reinforcement Learning (RL)"]:
+        fig.update_layout(xaxis_visible=False, yaxis_visible=False, showlegend=False)
+                      
     return fig
     
 
@@ -4485,129 +4576,140 @@ def render_xai_shap():
             """)
             
 def render_advanced_ai_concepts():
-    """Renders the module for advanced AI concepts."""
+    """Renders the module for advanced AI concepts with an improved, guided layout."""
     st.markdown("""
     #### Purpose & Application: A Glimpse into the AI Frontier
     **Purpose:** To provide a high-level, conceptual overview of cutting-edge AI architectures that represent the future of process analytics. While coding them is beyond the scope of this toolkit, understanding their capabilities is crucial for shaping future strategy and envisioning what's possible.
     """)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    
-    with col2:
-        st.subheader("Select a Concept")
-        concept = st.radio(
+
+    st.markdown("---")
+    st.subheader("Interactive Demo: Solving V&V Challenges with AI")
+    st.info("""
+    Follow the two steps below to explore how advanced AI can tackle some of the toughest problems in assay validation and tech transfer. The diagrams and explanations will update based on your selections.
+    """)
+
+    # --- Create a two-column layout for the controls and their description ---
+    col1, col2 = st.columns([0.4, 0.6])
+
+    with col1:
+        # --- Gadget 1: The Problem ---
+        st.markdown("##### Step 1: Choose a Challenge")
+        challenge_key = st.selectbox(
+            "Select a V&V Tech Transfer Challenge:",
+            options=[
+                "Silent Process Drift",
+                "System-Wide Failures",
+                "Optimizing New Processes",
+                "Lack of Failure Data"
+            ],
+            index=0,
+            help="Choose a common, difficult problem faced during validation and tech transfer."
+        )
+
+        # --- Gadget 2: The Proposed Solution ---
+        st.markdown("##### Step 2: Select an AI Solution")
+        concept_key = st.radio(
             "Select an Advanced AI Concept:", 
             ["Transformers", "Graph Neural Networks (GNNs)", "Reinforcement Learning (RL)", "Generative AI"],
             label_visibility="collapsed"
         )
-        
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
-        # Dynamically populate tabs based on concept selection
-        if concept == "Transformers":
-            with tabs[0]:
-                st.metric(label="🧠 Core Concept", value="Self-Attention", help="The mechanism that allows the model to weigh the importance of all other data points in a sequence.")
-                st.metric(label="📇 Data Structure", value="Sequences", help="Primarily designed for ordered data like text or a time series of process events.")
-                st.markdown("""
-                **The AI Historian:** A Transformer is like a brilliant historian who reads the entire book of your batch record at once. It understands how an event on page 1 (cell thaw) influences the story's conclusion on page 300 (final purity).
 
-                **Key Idea:** Its **"self-attention"** mechanism allows it to understand long-range dependencies. When looking at a single step, it can "pay attention" to all other steps, learning which ones are most relevant to the current context.
+    with col2:
+        # Provide a dynamic description of the selected challenge
+        st.markdown(f"**Challenge Description: `{challenge_key}`**")
+        if challenge_key == "Silent Process Drift":
+            st.write("A process slowly and subtly deviates from its target over a long period. Individual SPC charts fail to alarm because no single data point is extreme, but the cumulative effect leads to a batch failure.")
+        elif challenge_key == "System-Wide Failures":
+            st.write("A failure in one part of the process (e.g., a bad raw material lot) causes a cascade of issues in multiple, seemingly unrelated downstream batches, making root cause analysis extremely difficult.")
+        elif challenge_key == "Optimizing New Processes":
+            st.write("When developing a new assay or manufacturing process, the optimal operating conditions are unknown. Traditional one-factor-at-a-time experiments are slow and often miss the true optimum.")
+        elif challenge_key == "Lack of Failure Data":
+            st.write("Building a robust predictive model requires examples of both success and failure. For a high-quality process, failure events are rare, leading to a severe data imbalance that cripples standard machine learning models.")
+            
+    st.markdown("---")
 
-                **Strategic Insight:** This moves beyond simple time-series forecasting to modeling the entire **process narrative**. It unlocks a deep understanding of long-range cause and effect that is invisible to most other models.
-                """)
-            with tabs[1]:
-                st.error("🔴 **The Incorrect Approach:** Simply feeding in raw sensor data as a long sequence and hoping for the best.")
-                st.success("""
-                🟢 **THE GOLDEN RULE: Tokenize Your Process Narrative**
-                The success of a Transformer depends entirely on how you structure the "story." You must first convert your continuous process data into a discrete sequence of **events** or **"tokens"**. 
-                
-                Examples: `[Thaw_Completed, Temp=37.1, Feed_Event_1, pH_Excursion_Detected, ...]`. 
-                
-                This "tokenization" is the most critical step. It transforms raw data into a language the AI Historian can read and understand.
-                """)
-            with tabs[2]:
-                st.markdown("""
-                **Origin:** Revolutionized AI with the 2017 Google Brain paper, **"Attention Is All You Need."** It destroyed previous benchmarks in Natural Language Processing (NLP), forming the basis for models like BERT and the "T" in GPT. Its application to industrial process data is a new and exciting frontier.
-                """)
+    # --- Main Display Area ---
+    # Generate the plot based on the selected AI concept
+    fig = plot_advanced_ai_concepts(concept_key)
+    
+    st.subheader(f"AI Solution for: {challenge_key}")
+    
+    plot_col, analysis_col = st.columns([0.6, 0.4])
 
-        elif concept == "GNNs":
-            with tabs[0]:
-                st.metric(label="🧠 Core Concept", value="Message Passing", help="Nodes in the graph 'talk' to their neighbors, sharing information and learning from the network structure.")
-                st.metric(label="📇 Data Structure", value="Graphs", help="Data represented as a network of nodes and edges.")
-                st.markdown("""
-                **The Network Navigator:** A GNN is like a brilliant logistics expert who sees your entire supply chain or manufacturing site as an interconnected network, not just a list of individual assets.
-
-                **Key Idea:** It operates on graph data. Nodes in the graph iteratively update their state by **"passing messages"** to and from their neighbors. This allows information—and the prediction of failures—to propagate through the network.
-
-                **Strategic Insight:** This moves beyond analyzing single pieces of equipment to modeling the **entire system's interconnectedness**. It's essential for understanding and predicting systemic risk.
-                """)
-            with tabs[1]:
-                st.error("🔴 **The Incorrect Approach:** Analyzing each piece of equipment in isolation, ignoring how it is connected to and affected by its neighbors.")
-                st.success("""
-                🟢 **THE GOLDEN RULE: Your Graph IS Your Model**
-                The most important work in a GNN project is not the algorithm, but the **definition of the graph itself.** You must answer:
-                - What are my **nodes**? (e.g., equipment, raw material lots, batches)
-                - What are my **edges**? (e.g., physical pipes, 'used-in' relationships, sequence order)
-                
-                The quality and thoughtfulness of this graph representation will determine the model's success.
-                """)
-            with tabs[2]:
-                st.markdown("""
-                **Origin:** While graph-based neural networks have existed for longer, they exploded in popularity and capability around 2018. They represent a generalization of deep learning beyond grids (like images) and sequences (like text) to the more flexible and powerful structure of graphs.
-                """)
-
-        elif concept == "RL":
-            with tabs[0]:
-                st.metric(label="🧠 Core Concept", value="Reward Maximization", help="The AI learns by taking actions that maximize a cumulative reward signal over time.")
-                st.metric(label="📇 Data Structure", value="Interactive Environment", help="An 'agent' interacts with a 'world' and learns from the consequences.")
-                st.markdown("""
-                **The AI Pilot:** Reinforcement Learning creates an AI pilot that learns by "flying" a process and getting feedback. It learns not just to predict what will happen, but how to **control** the process to achieve an optimal outcome.
-
-                **Key Idea:** An **agent** takes an **action** in an **environment**. The environment's state changes, and the agent receives a **reward** (or penalty). The agent's goal is to learn a policy that maximizes its long-term reward.
-
-                **Strategic Insight:** This is the leap from passive process modeling to **active, real-time process optimization**. The goal is no longer to just understand the process, but to command it.
-                """)
-            with tabs[1]:
-                st.error("🔴 **The Incorrect Approach:** Attempting to train the RL agent on the live, physical manufacturing process. This is a recipe for disaster, as the agent must learn through trial and **error**.")
-                st.success("""
-                🟢 **THE GOLDEN RULE: The Digital Twin is the Dojo**
-                An RL agent must be trained in a high-fidelity simulation or **"digital twin"** of the process. This is the safe "dojo" where the AI can perform millions of experiments, make mistakes, and learn optimal control strategies with zero real-world cost or risk. Only a fully trained and validated policy is ever deployed to the physical system.
-                """)
-            with tabs[2]:
-                st.markdown("""
-                **Origin:** Has deep roots in control theory and psychology. Modern **Deep RL** was supercharged by DeepMind in the mid-2010s, famously teaching AI agents to master Atari games and defeat the world champion at Go (AlphaGo). Applying this to industrial process control is a major area of current research.
-                """)
-        
-        elif concept == "Generative AI":
-            with tabs[0]:
-                st.metric(label="🧠 Core Concept", value="Distribution Learning", help="The AI learns the underlying probability distribution of the data, allowing it to create new samples.")
-                st.metric(label="📇 Data Structure", value="Unstructured or Tabular", help="Can be used for images, text, or process data.")
-                st.markdown("""
-                **The Synthetic Data Forger:** Generative AI is like a master art forger who studies a thousand real paintings and then creates a new one that is so convincing, even experts can't tell it's not real.
-
-                **Key Idea:** It **learns the underlying statistical distribution** of a dataset. It can then "sample" from this learned distribution to create new, synthetic data that is statistically indistinguishable from the real data.
-
-                **Strategic Insight:** It solves the **"rare event" problem**. High-quality manufacturing failure data is gold, but you never have enough. Generative AI can create thousands of realistic synthetic failure profiles, which can then be used to train much more robust anomaly detection and predictive maintenance models.
-                """)
-            with tabs[1]:
-                st.error("🔴 **The Incorrect Approach:** Assuming all synthetic data is good data and using it blindly to augment a dataset.")
-                st.success("""
-                🟢 **THE GOLDEN RULE: Validate the Forgeries**
-                The generated data is only useful if it is realistic. You must use a rigorous process to validate the synthetic data. This involves:
-                - **Visual Inspection:** Do experts agree it looks real?
-                - **Statistical Comparison:** Does the distribution of the synthetic data match the distribution of the real data?
-                
-                The quality of the generator dictates the quality of any model trained on its output.
-                """)
-            with tabs[2]:
-                st.markdown("""
-                **Origin:** Ian Goodfellow's 2014 invention of **Generative Adversarial Networks (GANs)** was a major catalyst. More recently, **Diffusion Models** (the technology behind DALL-E 2, Midjourney, and Stable Diffusion) have become the state-of-the-art for generating incredibly high-fidelity data.
-                """)
-
-    with col1:
-        fig = plot_advanced_ai_concepts(concept)
+    with plot_col:
         st.plotly_chart(fig, use_container_width=True)
+
+    with analysis_col:
+        tabs = st.tabs(["💡 Application Insight", "✅ The Golden Rule", "📖 Origin Story"])
+        
+        # Dynamically populate tabs based on BOTH selections
+        if concept_key == "Transformers":
+            with tabs[0]:
+                st.metric(label="🧠 Core Concept", value="Self-Attention")
+                st.markdown("**The AI Historian for Your Batch Record**")
+                if challenge_key == "Silent Process Drift":
+                    st.success("**Application:** A Transformer can read the entire sequence of a batch's process parameters. It can learn long-range dependencies that a simple EWMA chart would miss, such as how a subtle change in cell growth during Phase 1 influences the final product purity 20 days later. It excels at finding these 'needle-in-a-haystack' temporal patterns.")
+                elif challenge_key == "System-Wide Failures":
+                    st.warning("**Application:** Less ideal for this challenge. Transformers focus on sequential relationships within a single entity (like one batch), not necessarily the connections between different entities across a system.")
+                elif challenge_key == "Optimizing New Processes":
+                    st.success("**Application:** By analyzing the full 'narrative' of dozens of successful development batches, a Transformer can identify the sequence of events and parameter profiles that are most predictive of a high-quality outcome, guiding the design of the optimal process.")
+                elif challenge_key == "Lack of Failure Data":
+                    st.success("**Application:** Transformers can be trained using self-supervised methods on vast amounts of *good* batch data to learn what 'normal' looks like. It can then flag a new batch as anomalous if its process narrative deviates significantly from the learned normal patterns.")
+            with tabs[1]:
+                st.success("🟢 **THE GOLDEN RULE:** Tokenize Your Process Narrative. Convert continuous data into a discrete sequence of meaningful events (e.g., `[Feed_Event, pH_Excursion, Operator_Shift]`).")
+            with tabs[2]:
+                st.markdown("**Origin:** Revolutionized AI with the 2017 Google Brain paper, **\"Attention Is All You Need,\"** forming the basis for models like GPT.")
+
+        elif concept_key == "Graph Neural Networks (GNNs)":
+            with tabs[0]:
+                st.metric(label="🧠 Core Concept", value="Message Passing")
+                st.markdown("**The System-Wide Process Cartographer**")
+                if challenge_key == "Silent Process Drift":
+                    st.warning("**Application:** Not the primary tool. GNNs are focused on network relationships, while time-series models like Transformers are better suited for detecting drift within a single process over time.")
+                elif challenge_key == "System-Wide Failures":
+                    st.success("**Application:** This is the GNN's superpower. It can model your entire facility as a graph (raw materials -> equipment -> batches). If a contaminant is found, the GNN can trace the most likely propagation path backward through the network to identify the root cause.")
+                elif challenge_key == "Optimizing New Processes":
+                    st.warning("**Application:** Less direct. GNNs are better for understanding existing, interconnected systems rather than designing a single new process from scratch.")
+                elif challenge_key == "Lack of Failure Data":
+                    st.success("**Application:** By modeling the connections between raw material lots and batches, a GNN can perform 'guilt-by-association.' If a few batches linked to a specific lot fail, the GNN can flag *all other batches* that used the same lot as high-risk, even before they show signs of failure.")
+            with tabs[1]:
+                st.success("🟢 **THE GOLDEN RULE:** Your Graph IS Your Model. The most important work is defining the nodes (e.g., equipment, lots) and edges (e.g., 'used-in' relationships).")
+            with tabs[2]:
+                st.markdown("**Origin:** Exploded in popularity around 2018, generalizing deep learning from grids (images) and sequences (text) to the more flexible structure of graphs.")
+
+        elif concept_key == "Reinforcement Learning (RL)":
+            with tabs[0]:
+                st.metric(label="🧠 Core Concept", value="Reward Maximization")
+                st.markdown("**The AI Process Optimization Pilot**")
+                if challenge_key == "Silent Process Drift":
+                    st.success("**Application:** An RL agent could be trained to actively *control* the process. If it detects the beginning of a drift, it can learn a policy (e.g., adjusting feed rates) to counteract the drift in real-time and keep the process centered on its target.")
+                elif challenge_key == "System-Wide Failures":
+                    st.warning("**Application:** Less ideal for root cause analysis of past failures. RL is forward-looking and focused on control, not backward-looking diagnosis.")
+                elif challenge_key == "Optimizing New Processes":
+                    st.success("**Application:** This is a prime use case. Given a digital twin of a new process, an RL agent can run millions of virtual experiments to discover a novel, non-obvious control strategy that maximizes yield or robustness.")
+                elif challenge_key == "Lack of Failure Data":
+                    st.warning("**Application:** RL requires a model of the world (a digital twin) to learn from. It doesn't directly solve the problem of having no historical failure data to build that model.")
+            with tabs[1]:
+                st.success("🟢 **THE GOLDEN RULE:** The Digital Twin is the Dojo. An RL agent must be trained in a high-fidelity simulation to learn optimal control strategies with zero real-world risk.")
+            with tabs[2]:
+                st.markdown("**Origin:** Deep roots in control theory, supercharged by DeepMind in the mid-2010s with AlphaGo.")
+        
+        elif concept_key == "Generative AI":
+            with tabs[0]:
+                st.metric(label="🧠 Core Concept", value="Distribution Learning")
+                st.markdown("**The Synthetic Data Factory**")
+                if challenge_key == "Silent Process Drift":
+                    st.success("**Application:** We can generate thousands of synthetic batch records that simulate various types of process drift. This augmented dataset can then be used to train a more robust and sensitive drift detection model (like a Transformer).")
+                elif challenge_key == "System-Wide Failures":
+                    st.success("**Application:** We can generate synthetic data representing rare contamination events or equipment malfunctions. This data can then be used to train a GNN to become much better at recognizing the early warning signs of these system-wide failures.")
+                elif challenge_key == "Optimizing New Processes":
+                    st.warning("**Application:** Generative AI learns from existing data. For a truly novel process with no data, it has nothing to learn from.")
+                elif challenge_key == "Lack of Failure Data":
+                    st.success("**Application:** This is the quintessential use case. If you only have two real examples of a critical failure, you can train a Generative AI model on them. The model can then produce hundreds of new, statistically realistic synthetic failure examples, providing enough data to train a robust predictive QC model.")
+            with tabs[1]:
+                st.success("🟢 **THE GOLDEN RULE:** Validate the Forgeries. The generated data is only useful if it is proven to be statistically indistinguishable from real data.")
+            with tabs[2]:
+                st.markdown("**Origin:** Catalyzed by **Generative Adversarial Networks (GANs)** in 2014, with modern **Diffusion Models** (e.g., DALL-E 2) being state-of-the-art.")
 
 
 

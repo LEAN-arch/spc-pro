@@ -1986,11 +1986,14 @@ def plot_westgard_scenario(scenario='Stable'):
     
     return fig, fig_power, violations
     
-def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_seed=42):
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Multivariate SPC) - SME ENHANCED
+# ==============================================================================
+def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=30, random_seed=42):
     """
-    Backend function to generate data, run MSPC analysis, and create plots.
+    Generates enhanced, more realistic MSPC analysis and plots, including
+    confidence ellipses and a more subtle correlation break.
     """
-    # Use a different, known "good" seed for the Stable scenario for a clear demo
     if scenario == 'Stable':
         np.random.seed(101)
     else:
@@ -1998,160 +2001,213 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_s
 
     # 1. --- Data Generation ---
     mean_train = [25, 150]
-    cov_train = [[5, 12], [12, 40]]
+    cov_train = [[5, 12], [12, 40]] # Strong positive correlation
     df_train = pd.DataFrame(np.random.multivariate_normal(mean_train, cov_train, n_train), columns=['Temperature', 'Pressure'])
 
     if scenario == 'Stable':
         df_monitor = pd.DataFrame(np.random.multivariate_normal(mean_train, cov_train, n_monitor), columns=['Temperature', 'Pressure'])
     elif scenario == 'Shift in Y Only':
-        mean_shift = [25, 175]
+        mean_shift = [25, 165] # Shifted up in Pressure
         df_monitor = pd.DataFrame(np.random.multivariate_normal(mean_shift, cov_train, n_monitor), columns=['Temperature', 'Pressure'])
     elif scenario == 'Correlation Break':
-        cov_break = [[5, 0], [0, 40]]
+        # SME Enhancement: More subtle break - correlation weakens but doesn't disappear
+        cov_break = [[5, 4], [4, 40]] 
         df_monitor = pd.DataFrame(np.random.multivariate_normal(mean_train, cov_break, n_monitor), columns=['Temperature', 'Pressure'])
 
     df_full = pd.concat([df_train, df_monitor], ignore_index=True)
 
     # 2. --- MSPC Model Building (PCA on training data) ---
-    pca = PCA(n_components=1).fit(df_train)
+    pca = PCA(n_components=2).fit(df_train) # Fit on all components for ellipse
     scores = pca.transform(df_full[['Temperature', 'Pressure']])
-    X_hat = pca.inverse_transform(scores)
+    X_hat = pca.inverse_transform(scores) # This is only for SPE if n_components < p
 
     # 3. --- Calculate T² and SPE Statistics ---
     S_inv = np.linalg.inv(df_train.cov())
     mean_vec = df_train.mean().values
     diff = df_full[['Temperature', 'Pressure']].values - mean_vec
     df_full['T2'] = [d.T @ S_inv @ d for d in diff]
-    residuals = df_full[['Temperature', 'Pressure']].values - X_hat
+    
+    # SPE is only meaningful if we reduce dimensions (e.g., n_components=1)
+    pca_spe = PCA(n_components=1).fit(df_train)
+    scores_spe = pca_spe.transform(df_full[['Temperature', 'Pressure']])
+    X_hat_spe = pca_spe.inverse_transform(scores_spe)
+    residuals = df_full[['Temperature', 'Pressure']].values - X_hat_spe
     df_full['SPE'] = np.sum(residuals**2, axis=1)
 
     # 4. --- Calculate Control Limits ---
     alpha = 0.01
     p = df_train.shape[1]
-    t2_ucl = (p * (n_train - 1) * (n_train + 1)) / (n_train * (n_train - p)) * f.ppf(1 - alpha, p, n_train - p)
+    t2_ucl = (p * (n_train - 1) / (n_train - p)) * f.ppf(1 - alpha, p, n_train - p)
     spe_ucl = np.percentile(df_full['SPE'].iloc[:n_train], (1 - alpha) * 100)
 
-    # 5. --- Check for OOC points ---
+    # 5. --- OOC Check and Error Type Determination ---
     monitor_data = df_full.iloc[n_train:]
     t2_ooc_points = monitor_data[monitor_data['T2'] > t2_ucl]
     spe_ooc_points = monitor_data[monitor_data['SPE'] > spe_ucl]
-    t2_ooc = not t2_ooc_points.empty
-    spe_ooc = not spe_ooc_points.empty
-
-    # --- NEW: Determine Error Type for KPI ---
-    alarm_detected = t2_ooc or spe_ooc
-    error_type_str = "N/A"
+    alarm_detected = not t2_ooc_points.empty or not spe_ooc_points.empty
+    
     if scenario == 'Stable':
         error_type_str = "Type I Error (False Alarm)" if alarm_detected else "Correct In-Control"
-    else: # It's a failure scenario
+    else:
         error_type_str = "Correct Detection" if alarm_detected else "Type II Error (Missed Signal)"
 
-    # --- PLOTTING (No changes here, just for context) ---
-    # ... (Plotting code remains the same) ...
+    # --- PLOTTING ---
+    # SME Enhancement: Main plot now shows confidence ellipses
     fig_scatter = go.Figure()
-    fig_scatter.add_trace(go.Scatter(x=df_train['Temperature'], y=df_train['Pressure'], mode='markers', marker=dict(color='blue', opacity=0.7), name='In-Control (Training Data)'))
-    fig_scatter.add_trace(go.Scatter(x=df_monitor['Temperature'], y=df_monitor['Pressure'], mode='markers', marker=dict(color='red', size=8, symbol='star'), name=f'Monitoring Data ({scenario})'))
-    pca_line = pca.inverse_transform(np.array([[-15], [15]]))
-    fig_scatter.add_trace(go.Scatter(x=pca_line[:, 0], y=pca_line[:, 1], mode='lines', line=dict(color='grey', dash='dash'), name='PCA Model'))
-    fig_scatter.update_layout(title=f"Process Scatter Plot: Scenario '{scenario}'", xaxis_title="Temperature (°C)", yaxis_title="Pressure (kPa)", legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-    fig_charts = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=("Hotelling's T² Chart", "SPE Chart"))
+    # Helper for ellipse
+    def get_ellipse(mean, cov, conf_level):
+        vals, vecs = np.linalg.eigh(cov)
+        order = vals.argsort()[::-1]; vals, vecs = vals[order], vecs[:, order]
+        theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
+        # Use chi2 distribution for confidence ellipse scaling
+        scale_factor = np.sqrt(stats.chi2.ppf(conf_level, df=2))
+        width, height = 2 * scale_factor * np.sqrt(vals)
+        return width, height, theta
+
+    w99, h99, t99 = get_ellipse(mean_vec, cov_train, 0.99)
+    w95, h95, t95 = get_ellipse(mean_vec, cov_train, 0.95)
+
+    # Rotate the ellipse. Plotly shape rotation is angle-based
+    fig_scatter.add_shape(type="circle", x0=-w99/2, y0=-h99/2, x1=w99/2, y1=h99/2, line_color='rgba(239,83,80,0.5)', fillcolor='rgba(239,83,80,0.1)', name='99% Confidence Ellipse')
+    fig_scatter.add_shape(type="circle", x0=-w95/2, y0=-h95/2, x1=w95/2, y1=h95/2, line_color='rgba(0,204,150,0.5)', fillcolor='rgba(0,204,150,0.1)', name='95% Confidence Ellipse')
+    fig_scatter.update_shapes(dict(xref="x", yref="y")) # Ensure shapes are in data coordinates
+    # Apply rotation and translation to all shapes
+    for shape in fig_scatter.layout.shapes:
+        shape.x0 += mean_vec[0]
+        shape.x1 += mean_vec[0]
+        shape.y0 += mean_vec[1]
+        shape.y1 += mean_vec[1]
+    
+    fig_scatter.add_trace(go.Scatter(x=df_train['Temperature'], y=df_train['Pressure'], mode='markers', marker=dict(color='#636EFA', opacity=0.7), name='In-Control (Training)'))
+    fig_scatter.add_trace(go.Scatter(x=df_monitor['Temperature'], y=df_monitor['Pressure'], mode='markers', marker=dict(color='black', size=8, symbol='star'), name=f'Monitoring ({scenario})'))
+    fig_scatter.update_layout(title=f"<b>Process State Space: Normal Operating Region</b>", xaxis_title="Temperature (°C)", yaxis_title="Pressure (kPa)", legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+    
+    # Control Charts
+    fig_charts = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=("<b>Hotelling's T² Chart (Distance to Center)</b>", "<b>SPE Chart (Distance to Model)</b>"))
     chart_indices = np.arange(1, len(df_full) + 1)
     fig_charts.add_trace(go.Scatter(x=chart_indices, y=df_full['T2'], mode='lines+markers', name='T² Value'), row=1, col=1)
     fig_charts.add_hline(y=t2_ucl, line_dash="dash", line_color="red", row=1, col=1)
-    if t2_ooc: fig_charts.add_trace(go.Scatter(x=t2_ooc_points.index + 1, y=t2_ooc_points['T2'], mode='markers', marker=dict(color='red', size=10, symbol='x')), row=1, col=1)
+    if not t2_ooc_points.empty: fig_charts.add_trace(go.Scatter(x=t2_ooc_points.index + 1, y=t2_ooc_points['T2'], mode='markers', marker=dict(color='red', size=10, symbol='x')), row=1, col=1)
+    
     fig_charts.add_trace(go.Scatter(x=chart_indices, y=df_full['SPE'], mode='lines+markers', name='SPE Value'), row=2, col=1)
     fig_charts.add_hline(y=spe_ucl, line_dash="dash", line_color="red", row=2, col=1)
-    if spe_ooc: fig_charts.add_trace(go.Scatter(x=spe_ooc_points.index + 1, y=spe_ooc_points['SPE'], mode='markers', marker=dict(color='red', size=10, symbol='x')), row=2, col=1)
-    fig_charts.add_vrect(x0=n_train+0.5, x1=n_train+n_monitor+0.5, fillcolor="red", opacity=0.1, line_width=0, annotation_text="Monitoring Phase", annotation_position="top left", row='all', col=1)
-    fig_charts.update_layout(height=500, title_text="Multivariate Control Charts", showlegend=False, yaxis_title="T² Statistic", yaxis2_title="SPE Statistic", xaxis2_title="Observation Number")
+    if not spe_ooc_points.empty: fig_charts.add_trace(go.Scatter(x=spe_ooc_points.index + 1, y=spe_ooc_points['SPE'], mode='markers', marker=dict(color='red', size=10, symbol='x')), row=2, col=1)
+    
+    fig_charts.add_vrect(x0=n_train+0.5, x1=n_train+n_monitor+0.5, fillcolor="rgba(255,150,0,0.15)", line_width=0, annotation_text="Monitoring Phase", annotation_position="top left", row='all', col=1)
+    fig_charts.update_layout(height=500, title_text="<b>Multivariate Control Charts</b>", showlegend=False, yaxis_title="T² Statistic", yaxis2_title="SPE Statistic", xaxis2_title="Observation Number")
+
+    # Contribution Plots
     fig_contrib = None
     if alarm_detected:
-        # ... (Contribution plot logic remains the same) ...
-        if t2_ooc and scenario == 'Shift in Y Only':
-            first_ooc_point = t2_ooc_points.iloc[0]
+        if not t2_ooc_points.empty:
+            first_ooc_point = df_full.loc[t2_ooc_points.index[0]]
             contributions = (first_ooc_point[['Temperature', 'Pressure']] - mean_vec)**2
-            title_text = "Contribution to T² Alarm (Squared Deviation from Mean)"
-        elif spe_ooc and scenario == 'Correlation Break':
+            title_text = "<b>T² Alarm Diagnosis: Likely Mean Shift</b>"
+        else: # SPE alarm
             first_ooc_idx = spe_ooc_points.index[0]
             contributions = pd.Series(residuals[first_ooc_idx]**2, index=['Temperature', 'Pressure'])
-            title_text = "Contribution to SPE Alarm (Squared Residuals)"
-        else:
-            first_ooc_idx = (t2_ooc_points.index[0] if t2_ooc else spe_ooc_points.index[0])
-            contributions = pd.Series(residuals[first_ooc_idx]**2, index=['Temperature', 'Pressure'])
-            title_text = "Contribution to Alarm (Squared Residuals)"
-        fig_contrib = px.bar(x=contributions.index, y=contributions.values, title=title_text, labels={'x':'Process Variable', 'y':'Contribution Value'})
+            title_text = "<b>SPE Alarm Diagnosis: Likely Correlation Change</b>"
+        
+        fig_contrib = px.bar(x=contributions.index, y=contributions.values, title=title_text,
+                             labels={'x':'Process Variable', 'y':'Contribution Value'},
+                             color=contributions.index, color_discrete_sequence=px.colors.qualitative.Plotly)
 
-    # --- MODIFIED: Add the new error_type_str to the return values ---
-    return fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc, error_type_str
+    return fig_scatter, fig_charts, fig_contrib, not t2_ooc_points.empty, not spe_ooc_points.empty, error_type_str
     
-def plot_ewma_cusum_comparison(shift_size=0.75):
+
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Small Shift) - SME ENHANCED
+# ==============================================================================
+def plot_ewma_cusum_comparison(shift_size=0.75, scenario='Sudden Shift'):
     """
-    Generates dynamic I, EWMA, and CUSUM charts based on a user-defined shift size.
+    Generates enhanced, more realistic dynamic I, EWMA, and CUSUM charts,
+    including multiple scenarios and a "Time to Detect" KPI.
     """
     np.random.seed(123)
-    n_points = 40
+    n_points = 50
+    shift_point = 25
     mean, std = 100, 2
     
-    # --- Data Generation with dynamic shift ---
+    # --- Data Generation with dynamic shift scenarios ---
     data = np.random.normal(mean, std, n_points)
-    actual_shift_value = shift_size * std
-    data[20:] += actual_shift_value
+    
+    if scenario == 'Sudden Shift':
+        actual_shift_value = shift_size * std
+        data[shift_point:] += actual_shift_value
+        scenario_desc = f"{shift_size}σ Sudden Shift"
+    elif scenario == 'Gradual Drift':
+        drift = np.linspace(0, shift_size * std, n_points - shift_point)
+        data[shift_point:] += drift
+        scenario_desc = f"{shift_size}σ Gradual Drift"
 
     # --- Calculations ---
+    # I-Chart
+    i_ucl, i_lcl = mean + 3 * std, mean - 3 * std
+    i_ooc = np.where((data[shift_point:] > i_ucl) | (data[shift_point:] < i_lcl))[0]
+    i_detect_time = i_ooc[0] + 1 if len(i_ooc) > 0 else np.nan
+
+    # EWMA
     lam = 0.2
-    ewma = np.zeros(n_points); ewma[0] = mean
-    for i in range(1, n_points): ewma[i] = lam * data[i] + (1 - lam) * ewma[i-1]
+    ewma = pd.Series(data).ewma(alpha=lam, adjust=False).values
+    ewma_ucl = mean + 3 * (std * np.sqrt(lam / (2-lam)))
+    ewma_lcl = mean - 3 * (std * np.sqrt(lam / (2-lam)))
+    ewma_ooc = np.where((ewma[shift_point:] > ewma_ucl) | (ewma[shift_point:] < ewma_lcl))[0]
+    ewma_detect_time = ewma_ooc[0] + 1 if len(ewma_ooc) > 0 else np.nan
     
-    target = mean; k = 0.5 * std
+    # CUSUM
+    target = mean; k = 0.5 * std # Slack parameter tuned for 1-sigma shifts
+    h = 5 * std # Decision interval
     sh, sl = np.zeros(n_points), np.zeros(n_points)
     for i in range(1, n_points):
         sh[i] = max(0, sh[i-1] + (data[i] - target) - k)
         sl[i] = max(0, sl[i-1] + (target - data[i]) - k)
+    cusum_ooc = np.where((sh[shift_point:] > h) | (sl[shift_point:] > h))[0]
+    cusum_detect_time = cusum_ooc[0] + 1 if len(cusum_ooc) > 0 else np.nan
         
-    # --- Dynamic KPI Calculation ---
-    i_ucl = mean + 3 * std
-    ewma_ucl = mean + 3 * (std * np.sqrt(lam / (2-lam)))
-    cusum_ucl = 5 * std
-
-    # Find all alarm indices within the shifted data segment (from point #20 onwards)
-    i_alarm_indices = np.where(data[20:] > i_ucl)[0]
-    ewma_alarm_indices = np.where(ewma[20:] > ewma_ucl)[0]
-    cusum_alarm_indices = np.where(sh[20:] > cusum_ucl)[0]
-
-    # --- FIX: Count the TOTAL number of alarms using len() ---
-    i_ooc_count = len(i_alarm_indices)
-    ewma_ooc_count = len(ewma_alarm_indices)
-    cusum_ooc_count = len(cusum_alarm_indices)
-
     # --- Plotting ---
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=("<b>I-Chart: The Beat Cop</b>",
-                                        "<b>EWMA: The Sentinel</b>",
-                                        "<b>CUSUM: The Bloodhound</b>"))
+                        subplot_titles=("<b>I-Chart: The Beat Cop</b> (Detects large, obvious events)",
+                                        "<b>EWMA: The Sentinel</b> (Detects small, sustained shifts)",
+                                        "<b>CUSUM: The Bloodhound</b> (Fastest detection for specific shifts)"))
 
-    # Add traces and lines (this part is unchanged)
+    # Plot I-Chart
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=data, mode='lines+markers', name='Data'), row=1, col=1)
     fig.add_hline(y=i_ucl, line_color='red', line_dash='dash', row=1, col=1)
-    fig.add_hline(y=mean - 3*std, line_color='red', line_dash='dash', row=1, col=1)
+    fig.add_hline(y=i_lcl, line_color='red', line_dash='dash', row=1, col=1)
+    if not np.isnan(i_detect_time):
+        idx = shift_point + int(i_detect_time) - 1
+        fig.add_trace(go.Scatter(x=[idx+1], y=[data[idx]], mode='markers', name='First Detect',
+                                 marker=dict(color='red', size=12, symbol='x')), row=1, col=1)
 
+    # Plot EWMA
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=ewma, mode='lines+markers', name='EWMA'), row=2, col=1)
     fig.add_hline(y=ewma_ucl, line_color='red', line_dash='dash', row=2, col=1)
-    fig.add_hline(y=mean - 3*(std * np.sqrt(lam / (2-lam))), line_color='red', line_dash='dash', row=2, col=1)
+    fig.add_hline(y=ewma_lcl, line_color='red', line_dash='dash', row=2, col=1)
+    if not np.isnan(ewma_detect_time):
+        idx = shift_point + int(ewma_detect_time) - 1
+        fig.add_trace(go.Scatter(x=[idx+1], y=[ewma[idx]], mode='markers', name='First Detect',
+                                 marker=dict(color='red', size=12, symbol='x')), row=2, col=1)
     
+    # Plot CUSUM
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sh, mode='lines+markers', name='CUSUM High'), row=3, col=1)
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sl, mode='lines+markers', name='CUSUM Low'), row=3, col=1)
-    fig.add_hline(y=cusum_ucl, line_color='red', line_dash='dash', row=3, col=1)
+    fig.add_hline(y=h, line_color='red', line_dash='dash', row=3, col=1)
+    if not np.isnan(cusum_detect_time):
+        idx = shift_point + int(cusum_detect_time) - 1
+        fig.add_trace(go.Scatter(x=[idx+1], y=[sh[idx] if sh[idx]>0 else sl[idx]], mode='markers', name='First Detect',
+                                 marker=dict(color='red', size=12, symbol='x')), row=3, col=1)
 
-    fig.add_vrect(x0=20.5, x1=n_points + 0.5, 
-                  fillcolor="rgba(255,150,0,0.1)", line_width=0,
-                  annotation_text="Process Shift Occurs", annotation_position="top left",
+    # Add annotation for the process change
+    fig.add_vrect(x0=shift_point + 0.5, x1=n_points + 0.5, 
+                  fillcolor="rgba(255,150,0,0.15)", line_width=0,
+                  annotation_text="Process Change Begins", annotation_position="top left",
                   row='all', col=1)
 
-    fig.update_layout(title=f"<b>Case Study: Detecting a {shift_size}σ Process Shift</b>", height=800, showlegend=False)
+    fig.update_layout(title=f"<b>Performance Comparison: Detecting a {scenario_desc}</b>",
+                      height=800, showlegend=False)
     fig.update_xaxes(title_text="Data Point Number", row=3, col=1)
     
-    # --- FIX: Return the new counts instead of the old strings ---
-    return fig, i_ooc_count, ewma_ooc_count, cusum_ooc_count
+    return fig, i_detect_time, ewma_detect_time, cusum_detect_time
     
 def plot_time_series_analysis(trend_strength=10, noise_sd=2):
     """
@@ -4831,7 +4887,6 @@ Using dozens of individual charts is doomed to fail due to alarm fatigue and its
             3.  **Phase 3 (Proactive Control / Real-Time Release):** This is the ultimate goal of PAT. Once the model is fully validated and trusted, its predictions can become part of the official batch record. A run with a very low predicted risk and a favorable SHAP explanation could be eligible for **Real-Time Release Testing (RTRT)**, skipping certain redundant final QC tests. This dramatically accelerates production timelines and reduces costs, all while increasing quality assurance.
             """)
             
-    # Nested plotting function from the user's code
 def render_ewma_cusum():
     """Renders the comprehensive, interactive module for Small Shift Detection (EWMA/CUSUM)."""
     st.markdown("""
@@ -4839,27 +4894,33 @@ def render_ewma_cusum():
     **Purpose:** To deploy a high-sensitivity monitoring system designed to detect small, sustained shifts in a process mean that would be invisible to a standard Shewhart control chart (like an I-MR or X-bar chart). These charts have "memory," accumulating evidence from past data to find subtle signals.
 
     **Strategic Application:** This is an essential "second layer" of process monitoring for mature, stable processes where large, sudden failures are rare, but slow, gradual drifts are a significant risk.
-    - **🔬 EWMA (The Sentinel):** The Exponentially Weighted Moving Average chart is a robust, general-purpose tool that smoothly weights past observations, making it excellent for detecting the onset of a gradual drift.
-    - **🐕 CUSUM (The Bloodhound):** The Cumulative Sum chart is a specialized, high-power tool. It is the fastest possible detector for a shift of a specific magnitude, making it ideal for processes where you want to catch a known, critical shift size as quickly as possible.
+    - **🔬 EWMA (The Sentinel):** A robust, general-purpose tool that smoothly weights past observations, excellent for detecting the onset of a gradual drift.
+    - **🐕 CUSUM (The Bloodhound):** A specialized, high-power tool that is the fastest possible detector for a shift of a specific, pre-defined magnitude.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the **Shift Size** slider in the sidebar to control how large of a process shift to simulate. Observe how the detection performance of the three charts changes. At what shift size does the I-Chart finally detect the problem? Notice how much earlier the EWMA and CUSUM charts signal an alarm for small shifts.
+    **Interactive Demo:** Select a **Failure Scenario** and a **Shift Size**. Observe how quickly each chart (marked with a red 'X') detects the problem after the "Process Change Begins" line. For small shifts and gradual drifts, notice how the I-Chart often fails to detect the issue at all.
     """)
     
-    st.sidebar.subheader("Small Shift Detection Controls")
-    shift_size_slider = st.sidebar.slider(
-        "Select Process Shift Size (in multiples of σ):",
-        min_value=0.25,
-        max_value=3.5,
-        value=0.75,
-        step=0.25,
-        help="Controls the magnitude of the process shift introduced at data point #20. Small shifts are harder to detect."
-    )
+    with st.sidebar:
+        st.sidebar.subheader("Small Shift Detection Controls")
+        scenario_slider = st.sidebar.radio(
+            "Select Failure Scenario:",
+            ('Sudden Shift', 'Gradual Drift'),
+            captions=["An abrupt change in the process mean.", "A slow, creeping change over time."]
+        )
+        shift_size_slider = st.sidebar.slider(
+            "Select Process Shift Size (in multiples of σ):",
+            min_value=0.25, max_value=3.5, value=0.75, step=0.25,
+            help="Controls the magnitude of the process shift. Small shifts are much harder for standard charts to detect."
+        )
 
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        fig, i_count, ewma_count, cusum_count = plot_ewma_cusum_comparison(shift_size=shift_size_slider)
+        fig, i_time, ewma_time, cusum_time = plot_ewma_cusum_comparison(
+            shift_size=shift_size_slider,
+            scenario=scenario_slider
+        )
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -4867,34 +4928,26 @@ def render_ewma_cusum():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
         with tabs[0]:
+            st.markdown(f"##### Detection Performance for a **{shift_size_slider}σ** {scenario_slider}")
             st.metric(
-                label="Shift Size",
-                value=f"{shift_size_slider} σ",
-                help="The simulated shift introduced at data point #20."
+                label="I-Chart: Time to Detect",
+                value=f"{int(i_time)} points" if not np.isnan(i_time) else "Not Detected",
+                help="Number of points after the shift began before the I-Chart alarmed."
             )
             st.metric(
-                label="I-Chart: # of OOC Points Detected",
-                value=f"{i_count} / 20",
-                help="Total count of out-of-control points detected by the I-Chart in the shifted region (20 total shifted points)."
+                label="EWMA: Time to Detect",
+                value=f"{int(ewma_time)} points" if not np.isnan(ewma_time) else "Not Detected",
+                help="Number of points after the shift began before the EWMA chart alarmed."
             )
             st.metric(
-                label="EWMA: # of OOC Points Detected",
-                value=f"{ewma_count} / 20",
-                help="Total count of out-of-control points detected by the EWMA chart in the shifted region."
-            )
-            st.metric(
-                label="CUSUM: # of OOC Points Detected",
-                value=f"{cusum_count} / 20",
-                help="Total count of out-of-control points detected by the CUSUM chart in the shifted region."
+                label="CUSUM: Time to Detect",
+                value=f"{int(cusum_time)} points" if not np.isnan(cusum_time) else "Not Detected",
+                help="Number of points after the shift began before the CUSUM chart alarmed."
             )
 
             st.markdown("""
-            **The Visual Evidence:**
-            - **The I-Chart (Top):** This chart is blind to small problems. The shift is lost in the normal process noise. All points look "in-control," giving a false sense of security until the shift is very large.
-            - **The EWMA Chart (Middle):** This chart has memory. The weighted average (the blue line) clearly begins to drift upwards after the shift occurs, eventually crossing the control limit.
-            - **The CUSUM Chart (Bottom):** This chart is a "bloodhound." It accumulates all deviations from the target. Once the process shifts, the `CUSUM High` plot takes off, providing the fastest possible signal for small, sustained shifts.
-
-            **The Core Strategic Insight:** Relying only on Shewhart charts creates a significant blind spot. For processes where small, slow drifts are a risk (e.g., reagent degradation, column aging), EWMA or CUSUM charts are essential.
+            **The Core Insight:**
+            Try simulating a small (`< 1.5σ`) **Gradual Drift**. The I-Chart is completely blind, giving a false sense of security. The EWMA and CUSUM charts, because they have memory, accumulate the small signals over time and reliably sound the alarm. This demonstrates why relying only on Shewhart charts creates a significant blind spot for modern, high-precision processes.
             """)
 
         with tabs[1]:

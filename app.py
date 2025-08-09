@@ -819,57 +819,84 @@ def plot_lod_loq(slope=0.02, baseline_sd=0.01):
     
     return fig, LOD_conc, LOQ_conc
     
-# The @st.cache_data decorator is removed to allow for dynamic regeneration.
-def plot_linearity(curvature=-1.0, random_error=1.0, proportional_error=2.0):
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Linearity) - SME ENHANCED
+# ==============================================================================
+def plot_linearity(curvature=-1.0, random_error=1.0, proportional_error=2.0, use_wls=False):
     """
-    Generates dynamic plots for the Linearity module based on user inputs.
+    Generates enhanced, more realistic dynamic plots for the Linearity module,
+    including replicates and optional Weighted Least Squares (WLS) regression.
     """
     np.random.seed(42)
-    nominal = np.array([10, 25, 50, 100, 150, 200, 250])
+    nominal_levels = np.array([10, 25, 50, 100, 150, 200, 250])
+    n_replicates = 3 # SME Enhancement: Real studies use replicates
     
-    # Simulate data based on sliders
-    # Curvature term: a negative value creates an S-curve typical of saturation
-    curvature_effect = curvature * (nominal / 150)**3
+    data = []
+    for nom in nominal_levels:
+        for _ in range(n_replicates):
+            curvature_effect = curvature * (nom / 150)**3
+            error = np.random.normal(0, random_error + nom * (proportional_error / 100))
+            measured = nom + curvature_effect + error
+            data.append({'Nominal': nom, 'Measured': measured})
     
-    # Error term: combination of constant random error and error that grows with concentration
-    error = np.random.normal(0, random_error + nominal * (proportional_error / 100))
+    df = pd.DataFrame(data)
     
-    measured = nominal + curvature_effect + error
+    # --- SME Enhancement: Implement OLS vs. WLS Regression ---
+    X = sm.add_constant(df['Nominal'])
     
-    # Fit OLS model to the dynamic data
-    X = sm.add_constant(nominal)
-    model = sm.OLS(measured, X).fit()
-    residuals = model.resid
-    recovery = (measured / nominal) * 100
+    if use_wls and proportional_error > 0:
+        # For WLS, weights are typically the inverse of the variance at each level.
+        # We approximate variance from the nominal concentration.
+        df['weights'] = 1 / (random_error + df['Nominal'] * (proportional_error / 100))**2
+        model = sm.WLS(df['Measured'], X, weights=df['weights']).fit()
+        model_type = "Weighted Least Squares (WLS)"
+    else:
+        model = sm.OLS(df['Measured'], X).fit()
+        model_type = "Ordinary Least Squares (OLS)"
+
+    df['Predicted'] = model.predict(X)
+    df['Residual'] = model.resid
+    df['Recovery'] = (df['Measured'] / df['Nominal']) * 100
     
     # --- Plotting ---
     fig = make_subplots(
         rows=2, cols=2,
         specs=[[{}, {}], [{"colspan": 2}, None]],
-        subplot_titles=("<b>Linearity Plot</b>", "<b>Residual Plot</b>", "<b>Recovery Plot</b>"),
+        subplot_titles=(f"<b>1. Linearity Plot (R² = {model.rsquared:.4f})</b>",
+                        "<b>2. Residuals vs. Nominal</b>",
+                        "<b>3. Percent Recovery vs. Nominal</b>"),
         vertical_spacing=0.2
     )
     
-    # Linearity Plot
-    fig.add_trace(go.Scatter(x=nominal, y=measured, mode='markers', name='Measured Values', marker=dict(size=10, color='blue'), hovertemplate="Nominal: %{x}<br>Measured: %{y:.2f}<extra></extra>"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=nominal, y=model.predict(X), mode='lines', name='Best Fit Line', line=dict(color='red')), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[0, 260], y=[0, 260], mode='lines', name='Line of Identity', line=dict(dash='dash', color='black')), row=1, col=1)
+    # Plot 1: Linearity Plot
+    fig.add_trace(go.Scatter(x=df['Nominal'], y=df['Measured'], mode='markers', name='Measured Values',
+                             marker=dict(size=8, color='blue', opacity=0.7)), row=1, col=1)
     
-    # Residual Plot
-    fig.add_trace(go.Scatter(x=nominal, y=residuals, mode='markers', name='Residuals', marker=dict(size=10, color='green'), hovertemplate="Nominal: %{x}<br>Residual: %{y:.2f}<extra></extra>"), row=1, col=2)
+    # Plot the regression line using a smooth range
+    x_range = np.linspace(0, 260, 100)
+    y_range = model.predict(sm.add_constant(x_range))
+    fig.add_trace(go.Scatter(x=x_range, y=y_range, mode='lines', name=f'{model_type} Fit',
+                             line=dict(color='red')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=[0, 260], y=[0, 260], mode='lines', name='Line of Identity (y=x)',
+                             line=dict(dash='dash', color='black')), row=1, col=1)
+    
+    # Plot 2: Residual Plot (SME Enhancement: Use box plots for clarity)
+    fig.add_trace(px.box(df, x='Nominal', y='Residual').data[0].update(marker_color='green', name='Residuals'), row=1, col=2)
     fig.add_hline(y=0, line_dash="dash", line_color="black", row=1, col=2)
     
-    # Recovery Plot
-    fig.add_trace(go.Scatter(x=nominal, y=recovery, mode='lines+markers', name='Recovery', line=dict(color='purple'), marker=dict(size=10), hovertemplate="Nominal: %{x}<br>Recovery: %{y:.1f}%<extra></extra>"), row=2, col=1)
+    # Plot 3: Recovery Plot (SME Enhancement: Use box plots for clarity)
+    fig.add_trace(px.box(df, x='Nominal', y='Recovery').data[0].update(marker_color='purple', name='Recovery'), row=2, col=1)
     fig.add_hrect(y0=80, y1=120, fillcolor="green", opacity=0.1, layer="below", line_width=0, row=2, col=1)
     fig.add_hline(y=100, line_dash="dash", line_color="black", row=2, col=1)
-    fig.add_hline(y=80, line_dash="dot", line_color="red", row=2, col=1)
-    fig.add_hline(y=120, line_dash="dot", line_color="red", row=2, col=1)
+    fig.add_hline(y=80, line_dash="dot", line_color="red", row=2, col=1, annotation_text="80% Limit")
+    fig.add_hline(y=120, line_dash="dot", line_color="red", row=2, col=1, annotation_text="120% Limit")
     
-    fig.update_layout(title_text='<b>Assay Linearity and Range Verification Dashboard</b>', title_x=0.5, height=800, showlegend=False)
+    fig.update_layout(title_text=f'<b>Assay Linearity Dashboard (Model: {model_type})</b>',
+                      title_x=0.5, height=800, showlegend=True,
+                      legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'))
     fig.update_xaxes(title_text="Nominal Concentration", row=1, col=1); fig.update_yaxes(title_text="Measured Concentration", row=1, col=1)
     fig.update_xaxes(title_text="Nominal Concentration", row=1, col=2); fig.update_yaxes(title_text="Residual (Error)", row=1, col=2)
-    fig.update_xaxes(title_text="Nominal Concentration", row=2, col=1); fig.update_yaxes(title_text="% Recovery", range=[min(75, recovery.min()-5), max(125, recovery.max()+5)], row=2, col=1)
+    fig.update_xaxes(title_text="Nominal Concentration", row=2, col=1); fig.update_yaxes(title_text="% Recovery", range=[70, 130], row=2, col=1)
     
     return fig, model
 
@@ -3114,32 +3141,31 @@ def render_linearity():
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you navigate to the "Linearity & Range" tool, you will see a new set of dedicated sliders below. You can now dynamically simulate how a perfect assay, one with detector saturation, or one with increasing error at higher concentrations would appear in a validation report, providing a powerful learning experience.
+    **Interactive Demo:** Use the sliders to simulate different error types. The **Residual Plot** is your most important diagnostic tool! A "funnel" shape indicates proportional error, and a "U" shape indicates curvature. When you see a funnel, try switching to the WLS model to see how it can provide a better fit.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.subheader("Linearity Controls")
-    curvature_slider = st.slider(
-        "🧬 Curvature Effect", 
-        min_value=-5.0, max_value=5.0, value=-1.0, step=0.5,
-        help="Simulates non-linearity. A negative value creates saturation at high concentrations. A positive value creates expansion. Zero is perfectly linear."
-    )
-    random_error_slider = st.slider(
-        "🎲 Random Error (Constant SD)", 
-        min_value=0.1, max_value=5.0, value=1.0, step=0.1,
-        help="The baseline random noise of the assay, constant across all concentrations."
-    )
-    proportional_error_slider = st.slider(
-        "📈 Proportional Error (% of Conc.)", 
-        min_value=0.0, max_value=5.0, value=2.0, step=0.25,
-        help="Error that increases with concentration. This creates a 'funnel' or 'megaphone' shape in the residual plot."
-    )
+    with st.sidebar:
+        st.subheader("Linearity Controls")
+        curvature_slider = st.slider("🧬 Curvature Effect", -5.0, 5.0, -1.0, 0.5,
+            help="Simulates non-linearity. A negative value creates saturation at high concentrations. Zero is perfectly linear.")
+        random_error_slider = st.slider("🎲 Random Error (Constant SD)", 0.1, 5.0, 1.0, 0.1,
+            help="The baseline random noise of the assay, constant across all concentrations.")
+        proportional_error_slider = st.slider("📈 Proportional Error (% of Conc.)", 0.0, 5.0, 2.0, 0.25,
+            help="Error that increases with concentration. This creates a 'funnel' or 'megaphone' shape in the residual plot.")
+        
+        # --- NEW TOGGLE SWITCH ADDED HERE ---
+        st.markdown("---")
+        st.markdown("**Regression Model**")
+        wls_toggle = st.toggle("Use Weighted Least Squares (WLS)", value=False,
+            help="Activate WLS to give less weight to high-concentration points. Ideal for correcting the 'funnel' shape caused by proportional error.")
     
-    # Generate plots using the slider values
+    # Generate plots using the slider values and the new toggle value
     fig, model = plot_linearity(
         curvature=curvature_slider,
         random_error=random_error_slider,
-        proportional_error=proportional_error_slider
+        proportional_error=proportional_error_slider,
+        use_wls=wls_toggle # Pass the toggle state to the plotting function
     )
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -3151,14 +3177,13 @@ def render_linearity():
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
         with tabs[0]:
             st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}", help="Indicates the proportion of variance explained by the model. Note how a high R² can hide clear non-linearity!")
-            st.metric(label="💡 Metric: Slope", value=f"{model.params[1]:.3f}", help="Ideal = 1.0.")
-            st.metric(label="💡 Metric: Y-Intercept", value=f"{model.params[0]:.2f}", help="Ideal = 0.0.")
+            st.metric(label="💡 Metric: Slope", value=f"{model.params['Nominal']:.3f}", help="Ideal = 1.0.")
+            st.metric(label="💡 Metric: Y-Intercept", value=f"{model.params['const']:.2f}", help="Ideal = 0.0.")
             
-            st.info("Play with the sliders in the sidebar to see how different errors affect the diagnostic plots.")
             st.markdown("""
             - **The Residual Plot is Key:** This is the most sensitive diagnostic tool.
                 - Add **Curvature**: Notice the classic "U-shape" or "inverted U-shape" that appears. This is a dead giveaway that your straight-line model is wrong.
-                - Add **Proportional Error**: Watch the residuals form a "funnel" or "megaphone" shape. This is heteroscedasticity, and it means you should be using Weighted Least Squares (WLS) regression, not OLS.
+                - Add **Proportional Error**: Watch the residuals form a "funnel" shape (heteroscedasticity). This means OLS is no longer valid. **Activate the WLS toggle in the sidebar** to see how a weighted model correctly handles this error structure.
             
             **The Core Strategic Insight:** A high R-squared is **not sufficient** to prove linearity. You must visually inspect the residual plot for hidden patterns. The residual plot tells the true story of your model's fit.
             """)
@@ -3173,18 +3198,16 @@ def render_linearity():
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin
-            The mathematical engine is **Ordinary Least Squares (OLS) Regression**, developed by **Legendre (1805)** and **Gauss (1809)**. The genius of OLS is that it finds the one line that **minimizes the sum of the squared vertical distances (the "residuals")** between the data points and the line.
+            The mathematical engine is **Ordinary Least Squares (OLS) Regression**, developed independently by **Adrien-Marie Legendre (1805)** and **Carl Friedrich Gauss (1809)**. The genius of OLS is that it finds the one line that **minimizes the sum of the squared vertical distances (the "residuals")** between the data points and the line.
             
-            #### Mathematical Basis
-            The goal is to fit a simple linear model:
+            However, OLS relies on a key assumption: that the variance of the errors is constant at all levels of X (homoscedasticity). In many biological and chemical assays, this is not true; variability often increases with concentration (heteroscedasticity). **Weighted Least Squares (WLS)** is the classical solution to this problem, where each point is weighted by the inverse of its variance, giving more influence to the more precise, low-concentration points.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The goal is to fit a simple linear model:")
             st.latex("y = \\beta_0 + \\beta_1 x + \\epsilon")
             st.markdown("""
-            - $y$: The measured response.
-            - $x$: The nominal (true) concentration.
-            - $\\beta_0$ (Intercept): Constant systematic error.
-            - $\\beta_1$ (Slope): Proportional systematic error.
-            - $\\epsilon$: Random measurement error.
+            - **OLS** finds the `β` values that minimize: `Σ(yᵢ - ŷᵢ)²`
+            - **WLS** finds the `β` values that minimize: `Σwᵢ(yᵢ - ŷᵢ)²`, where `wᵢ` is the weight for the i-th observation, typically `1/σ²ᵢ`.
             """)
 # REPLACE the existing render_lod_loq function with this one.
 def render_4pl_regression():

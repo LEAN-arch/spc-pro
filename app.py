@@ -421,31 +421,30 @@ def create_toolkit_conceptual_map():
 @st.cache_data
 def plot_ci_concept(n=30):
     """
-    Generates plots for the confidence interval concept module.
+    Generates enhanced, more realistic, and pedagogically sound plots for the
+    confidence interval concept module.
     """
     np.random.seed(42)
     pop_mean, pop_std = 100, 15
     
     # --- Plot 1: Population vs. Sampling Distribution ---
-    x = np.linspace(pop_mean - 4*pop_std, pop_mean + 4*pop_std, 400)
-    pop_dist = norm.pdf(x, pop_mean, pop_std)
+    x_range = np.linspace(pop_mean - 4*pop_std, pop_mean + 4*pop_std, 400)
+    pop_dist = norm.pdf(x_range, pop_mean, pop_std)
     
     sampling_dist_std = pop_std / np.sqrt(n)
-    sampling_dist = norm.pdf(x, pop_mean, sampling_dist_std)
+    sampling_dist = norm.pdf(x_range, pop_mean, sampling_dist_std)
     
     fig1 = go.Figure()
-    fig1.add_trace(go.Scatter(x=x, y=pop_dist, fill='tozeroy', name='Population Distribution', line=dict(color='skyblue')))
-    fig1.add_trace(go.Scatter(x=x, y=sampling_dist, fill='tozeroy', name=f'Sampling Distribution (n={n})', line=dict(color='orange')))
-    fig1.add_vline(x=pop_mean, line=dict(color='black', dash='dash'), annotation_text="True Mean (μ)")
-    fig1.update_layout(title=f"<b>Population vs. Sampling Distribution of the Mean (n={n})</b>", showlegend=True, legend=dict(x=0.01, y=0.99))
+    fig1.add_trace(go.Scatter(x=x_range, y=pop_dist, fill='tozeroy', name='Population Distribution (Unseen "Truth")', line=dict(color='skyblue', width=3)))
+    fig1.add_trace(go.Scatter(x=x_range, y=sampling_dist, fill='tozeroy', name=f'Sampling Distribution of Mean (n={n})', line=dict(color='orange', width=3)))
+    fig1.add_vline(x=pop_mean, line=dict(color='black', dash='dash', width=2), annotation_text="<b>True Population Mean (μ)</b>", annotation_position="top left")
 
-    # --- Plot 2: CI Simulation ---
+    # --- Simulation for Plot 2 and Highlight for Plot 1 ---
     n_sims = 1000
     samples = np.random.normal(pop_mean, pop_std, size=(n_sims, n))
     sample_means = samples.mean(axis=1)
     sample_stds = samples.std(axis=1, ddof=1)
     
-    # Using t-distribution for CIs as is proper
     t_crit = t.ppf(0.975, df=n-1)
     margin_of_error = t_crit * sample_stds / np.sqrt(n)
     
@@ -456,15 +455,69 @@ def plot_ci_concept(n=30):
     capture_count = np.sum(capture_mask)
     avg_width = np.mean(ci_uppers - ci_lowers)
     
-    fig2 = go.Figure()
-    # Plot first 100 CIs for visualization
-    for i in range(min(n_sims, 100)):
-        color = 'blue' if capture_mask[i] else 'red'
-        fig2.add_trace(go.Scatter(x=[ci_lowers[i], ci_uppers[i]], y=[i, i], mode='lines', line=dict(color=color, width=2), showlegend=False))
-        fig2.add_trace(go.Scatter(x=[sample_means[i]], y=[i], mode='markers', marker=dict(color=color, size=4), showlegend=False))
+    # --- SME ENHANCEMENT: Visually link the two plots ---
+    # Select one random sample from our simulation to visualize its origin
+    highlight_idx = 15 # A good example that is slightly off-center
+    highlight_sample = samples[highlight_idx, :]
+    highlight_mean = sample_means[highlight_idx]
+    
+    # Add the individual data points from this sample to Plot 1
+    fig1.add_trace(go.Scatter(
+        x=highlight_sample, y=np.zeros_like(highlight_sample),
+        mode='markers', name=f'One Sample (n={n})',
+        marker=dict(color='darkred', size=8, symbol='line-ns-open', line_width=2)
+    ))
+    # Add the sample mean from this sample to Plot 1
+    fig1.add_trace(go.Scatter(
+        x=[highlight_mean], y=[0], mode='markers', name='Sample Mean (x̄)',
+        marker=dict(color='red', size=12, symbol='x', line_width=3)
+    ))
+    fig1.update_layout(title_text=f"<b>The Theory: Where a Sample Comes From (n={n})</b>", showlegend=True,
+                      legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
+                      xaxis_title="Measured Value", yaxis_title="Probability Density")
 
-    fig2.add_vline(x=pop_mean, line=dict(color='black', dash='dash'), annotation_text="True Mean (μ)")
-    fig2.update_layout(title=f"<b>{min(n_sims, 100)} Simulated 95% Confidence Intervals</b>", yaxis_visible=False)
+    # --- Plot 2: CI Simulation ---
+    fig2 = go.Figure()
+    
+    # Plot first 100 CIs for visualization
+    n_to_plot = min(n_sims, 100)
+    for i in range(n_to_plot):
+        is_captured = capture_mask[i]
+        color = '#636EFA' if is_captured else '#EF553B' # Streamlit's default blue/red
+        is_highlight = (i == highlight_idx)
+        
+        # Create a hover text for each interval
+        hover_text = (f"<b>Experiment #{i}</b><br>"
+                      f"Sample Mean: {sample_means[i]:.2f}<br>"
+                      f"CI: [{ci_lowers[i]:.2f}, {ci_uppers[i]:.2f}]<br>"
+                      f"<b>Captured True Mean? {'Yes' if is_captured else 'No'}</b>")
+                      
+        fig2.add_trace(go.Scatter(
+            x=[ci_lowers[i], ci_uppers[i]], y=[i, i], mode='lines',
+            line=dict(color=color, width=4 if is_highlight else 2),
+            name=f'CI #{i}', showlegend=False,
+            hoverinfo='text', hovertext=hover_text
+        ))
+        fig2.add_trace(go.Scatter(
+            x=[sample_means[i]], y=[i], mode='markers',
+            marker=dict(color=color, size=6, symbol='line-ns-open', line_width=2),
+            showlegend=False, hoverinfo='none'
+        ))
+
+    # Add specific traces for the legend to make them interactive
+    fig2.add_trace(go.Scatter(x=[None], y=[None], mode='lines', name='Captured Mean (Success)', line=dict(color='#636EFA', width=3)))
+    fig2.add_trace(go.Scatter(x=[None], y=[None], mode='lines', name='Missed Mean (Failure)', line=dict(color='#EF553B', width=3)))
+
+    fig2.add_vline(x=pop_mean, line=dict(color='black', dash='dash', width=2), annotation_text="<b>True Population Mean (μ)</b>", annotation_position="bottom right")
+    
+    # Highlight the specific interval corresponding to the sample in Plot 1
+    fig2.add_annotation(x=ci_uppers[highlight_idx], y=highlight_idx,
+                        text="This CI comes<br>from the sample<br>shown above",
+                        showarrow=True, arrowhead=2, ax=40, ay=-40, font_size=12,
+                        bordercolor="black", borderwidth=1, bgcolor="white")
+
+    fig2.update_layout(title_text=f"<b>The Practice: {n_to_plot} Simulated Experiments</b>", yaxis_visible=False,
+                      xaxis_title="Measured Value", showlegend=True, legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'))
     
     return fig1, fig2, capture_count, n_sims, avg_width
 

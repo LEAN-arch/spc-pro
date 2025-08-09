@@ -3141,7 +3141,7 @@ def render_linearity():
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sliders to simulate different error types. The **Residual Plot** is your most important diagnostic tool! A "funnel" shape indicates proportional error, and a "U" shape indicates curvature. When you see a funnel, try switching to the WLS model to see how it can provide a better fit.
+    **Interactive Demo:** Use the sliders at the bottom of the sidebar to simulate different error types. The **Residual Plot** is your most important diagnostic tool! A "funnel" shape indicates proportional error, and a "U" shape indicates curvature. When you see a funnel, try switching to the WLS model to see how it can provide a better fit.
     """)
     
     # --- Sidebar controls for this specific module ---

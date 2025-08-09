@@ -2591,7 +2591,7 @@ def render_introduction_content():
 def render_ci_concept():
     """Renders the interactive module for Confidence Intervals."""
     st.markdown("""
-    #### Purpose & Application
+    #### Purpose & Application: The Foundation of Inference
     **Purpose:** To build a deep, intuitive understanding of the fundamental concept of a **frequentist confidence interval** and to correctly interpret what it does—and does not—tell us.
     
     **Strategic Application:** This concept is the bedrock of all statistical inference in a frequentist framework. A misunderstanding of CIs leads to flawed conclusions and poor decision-making. This interactive simulation directly impacts resource planning and risk assessment. It allows scientists and managers to explore the crucial trade-off between **sample size (cost)** and **statistical precision (certainty)**. It provides a visual, data-driven answer to the perpetual question: "How many samples do we *really* need to run to get a reliable result and an acceptably narrow confidence interval?"
@@ -2601,7 +2601,9 @@ def render_ci_concept():
     **Interactive Demo:** Use the **Sample Size (n)** slider below to dynamically change the number of samples in each simulated experiment. Observe how increasing the sample size dramatically narrows both the theoretical Sampling Distribution (orange curve) and the simulated Confidence Intervals (blue/red lines), directly demonstrating the link between sample size and precision.
     """)
 
-    n_slider = st.slider("Select Sample Size (n) for Each Simulated Experiment:", 5, 100, 30, 5)
+    st.sidebar.subheader("Confidence Interval Controls")
+    n_slider = st.sidebar.slider("Select Sample Size (n) for Each Simulated Experiment:", 5, 100, 30, 5,
+        help="Controls the number of data points in each of the 100 simulated experiments. Notice the dramatic effect on the precision of the results.")
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -2614,44 +2616,49 @@ def render_ci_concept():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         with tabs[0]:
             st.metric(label=f"📈 KPI: Average CI Width (Precision) at n={n_slider}", value=f"{avg_width:.2f} units", help="A smaller width indicates higher precision. This is inversely proportional to the square root of n.")
-            st.metric(label="💡 Empirical Coverage Rate", value=f"{(capture_count/n_sims):.0%}", help=f"The % of our {n_sims} simulated CIs that successfully 'captured' the true population mean. Should be close to 95%.")
+            st.metric(label="🎯 Empirical Coverage Rate", value=f"{(capture_count/n_sims):.1%}", help=f"The % of our {n_sims} simulated CIs that successfully 'captured' the true population mean. Should be close to 95%.")
             st.markdown("""
             - **Theoretical Universe (Top Plot):**
                 - The wide, light blue curve is the **true population distribution**. In real life, we *never* see this.
                 - The narrow, orange curve is the **sampling distribution of the mean**. Its narrowness, guaranteed by the **Central Limit Theorem**, makes inference possible.
             - **CI Simulation (Bottom Plot):** This shows the reality we live in. We only get *one* experiment and *one* confidence interval.
             - **The n-slider is key:** As you increase `n`, the orange curve gets narrower and the CIs in the bottom plot become dramatically shorter.
-            - **Diminishing Returns:** The gain in precision from n=5 to n=20 is huge. The gain from n=80 to n=100 is much smaller. This illustrates that to double your precision (halve the CI width), you must quadruple your sample size.
-
-            **The Core Strategic Insight:** A confidence interval is a statement about the *procedure*, not a specific result. The "95% confidence" is our confidence in the *method* used to generate the interval, not in any single interval itself.
+            - **Diminishing Returns:** The gain in precision from n=5 to n=20 is huge. The gain from n=80 to n=100 is much smaller. This illustrates that to double your precision (halve the CI width), you must **quadruple** your sample size.
             """)
+
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT (Bayesian) INTERPRETATION:**
             *"Based on my sample, there is a 95% probability that the true mean is in this interval [X, Y]."*
             
-            This is wrong because in the frequentist view, the true mean is a fixed constant. It is either in our specific interval or it is not. The probability is 1 or 0.
+            This is wrong because in the frequentist view, the true mean is a fixed, unknown constant. It is either in our specific interval or it is not. The probability is 1 or 0.
             """)
             st.success("""
             🟢 **THE CORRECT (Frequentist) INTERPRETATION:**
             *"We are 95% confident that the interval [X, Y] contains the true mean."*
             
-            The full meaning is: *"This interval was constructed using a procedure that, when repeated many times, will produce intervals that capture the true mean 95% of the time."*
+            The full meaning is: *"This interval was constructed using a procedure that, when repeated many times, will produce intervals that capture the true mean 95% of the time."* Our confidence is in the **procedure**, not in any single outcome.
             """)
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            The concept of **confidence intervals** was introduced by **Jerzy Neyman** in a landmark 1937 paper. Neyman's revolutionary idea was to shift the probabilistic statement away from the fixed, unknown parameter and onto the **procedure used to create the interval**. This clever reframing provided a practical and logically consistent solution that remains the dominant paradigm for interval estimation today.
+            #### Historical Context: The Great Debate
+            **The Problem:** In the early 20th century, the field of statistics was in turmoil. The giant of the field, **Sir Ronald A. Fisher**, had developed a concept called "fiducial inference" to create intervals, but it was complex and controversial. A new school of thought, led by **Jerzy Neyman** and **Egon Pearson**, was emerging, focused on a more rigorous, decision-theoretic framework. They needed a way to define an interval estimate that was objective, mathematically sound, and had a clear, long-run performance guarantee.
+
+            **The 'Aha!' Moment:** In a landmark 1937 paper, Neyman introduced the **confidence interval**. His revolutionary idea was to shift the probabilistic statement away from the fixed, unknown parameter (which a frequentist believes has no probability distribution) and onto the **procedure used to create the interval**. He defined the "95% confidence" not as a statement about a single interval, but as a guarantee about the long-run success rate of the method used to generate it.
             
-            #### Mathematical Basis
+            **The Impact:** This clever reframing was a triumph of the Neyman-Pearson school. It provided a practical and logically consistent solution that was easy to compute and understand (even if often misinterpreted!). Fisher fiercely debated against it for the rest of his life, but Neyman's confidence interval won out, becoming the dominant and most widely taught paradigm for interval estimation in the world. It is the bedrock on which most of the statistical tests in this toolkit are built.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The general form for a two-sided confidence interval is:")
             st.latex(r"\text{Point Estimate} \pm (\text{Critical Value} \times \text{Standard Error})")
             st.markdown("""
-            - **Point Estimate:** Our best guess (e.g., the sample mean, $\bar{x}$).
-            - **Standard Error:** The standard deviation of the sampling distribution of the point estimate (e.g., $\frac{s}{\sqrt{n}}$). It measures the typical error in our point estimate.
-            - **Critical Value:** A multiplier determined by our desired confidence level (e.g., a t-score).
+            - **Point Estimate:** Our single best guess for the population parameter, calculated from the sample (e.g., the sample mean, `x̄`).
+            - **Standard Error:** The standard deviation of the sampling distribution of the point estimate (e.g., `s/√n`). It measures the typical error we expect in our point estimate due to random sampling.
+            - **Critical Value:** A multiplier determined by our desired confidence level and the underlying distribution. For a CI for the mean with an unknown population standard deviation, this is a t-score from the t-distribution with `n-1` degrees of freedom.
+            For a 95% CI for the mean, the formula is:
             """)
-
+            st.latex(r"\bar{x} \pm t_{(0.975, n-1)} \cdot \frac{s}{\sqrt{n}}")
+            
 def render_core_validation_params():
     """Renders the INTERACTIVE module for core validation parameters."""
     st.markdown("""
@@ -2768,40 +2775,32 @@ def render_core_validation_params():
 def render_gage_rr():
     """Renders the INTERACTIVE module for Gage R&R."""
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To rigorously quantify the inherent variability (error) of a measurement system. It answers the fundamental question: "Is my measurement system a precision instrument, or a random number generator?"
+    #### Purpose & Application: The Voice of the Measurement
+    **Purpose:** To rigorously quantify the inherent variability (error) of a measurement system itself. It answers the fundamental question: **"Is my measurement system a precision instrument, or a random number generator?"**
     
-    **Strategic Application:** A foundational checkpoint in any technology transfer or process validation. An unreliable measurement system creates a "fog of uncertainty," leading to two costly errors: rejecting good product (False Alarm) or accepting bad product (Missed Signal). **Use the sliders in the sidebar to simulate different sources of variation and see their impact on the final % Gage R&R.**
+    **Strategic Application:** This is a non-negotiable gateway in any technology transfer or process validation. An unreliable measurement system creates a "fog of uncertainty," leading to two costly errors:
+    -   **Type I Error (Producer's Risk):** Rejecting good product because of measurement error.
+    -   **Type II Error (Consumer's Risk):** Accepting bad product because the measurement system couldn't detect the defect.
+    A Gage R&R study provides the objective evidence that your measurement system is fit for purpose.
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you navigate to the "Gage R&R / VCA" tool, you will see a new set of dedicated sliders below. You can now dynamically simulate how a precise (low repeatability) or imprecise (high repeatability) instrument performs, and how well-trained (low operator variation) or poorly-trained (high operator variation) teams affect the final result.
+    **Interactive Demo:** You are the Validation Lead. Use the sliders in the sidebar to simulate different sources of variation. Your goal is to achieve a **% Gage R&R < 10%**.
+    - **`Part-to-Part Variation`**: The "true" variation you want to measure. A high value makes it *easier* to pass the Gage R&R.
+    - **`Repeatability`**: The instrument's own noise. This is a primary driver of Gage R&R failure.
+    - **`Operator Variation`**: Inconsistency between people. This is the other major driver of failure.
     """)
     
-    # --- Sidebar controls for this specific module ---
-    st.subheader("Gage R&R Controls")
-    part_sd_slider = st.slider(
-        "🏭 Part-to-Part Variation (SD)", 
-        min_value=1.0, max_value=10.0, value=5.0, step=0.5,
-        help="The 'true' variation of the product. Increase this to see how a good measurement system can easily distinguish between different parts."
-    )
-    repeat_sd_slider = st.slider(
-        "🔬 Repeatability (SD)", 
-        min_value=0.1, max_value=5.0, value=1.5, step=0.1,
-        help="The inherent 'noise' of the instrument/assay. Increase this to simulate a less precise measurement device."
-    )
-    operator_sd_slider = st.slider(
-        "👤 Operator-to-Operator Variation (SD)", 
-        min_value=0.0, max_value=5.0, value=0.75, step=0.25,
-        help="The systematic bias between operators. Increase this to simulate poor training or inconsistent technique."
-    )
+    with st.sidebar:
+        st.subheader("Gage R&R Controls")
+        part_sd_slider = st.slider("🏭 Part-to-Part Variation (SD)", 1.0, 10.0, 5.0, 0.5,
+            help="The 'true' variation of the product. Increase this to see how a good measurement system can easily distinguish between different parts.")
+        repeat_sd_slider = st.slider("🔬 Repeatability / Instrument Noise (SD)", 0.1, 5.0, 1.5, 0.1,
+            help="The inherent 'noise' of the instrument/assay. Increase this to simulate a less precise measurement device.")
+        operator_sd_slider = st.slider("👤 Operator-to-Operator Variation (SD)", 0.0, 5.0, 0.75, 0.25,
+            help="The systematic bias between operators. Increase this to simulate poor training or inconsistent technique.")
     
-    # Generate plots using the slider values
-    fig, pct_rr, pct_part = plot_gage_rr(
-        part_sd=part_sd_slider, 
-        repeatability_sd=repeat_sd_slider, 
-        operator_sd=operator_sd_slider
-    )
+    fig, pct_rr, ndc = plot_gage_rr(part_sd=part_sd_slider, repeatability_sd=repeat_sd_slider, operator_sd=operator_sd_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -2811,37 +2810,48 @@ def render_gage_rr():
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse", help="The percentage of total variation consumed by measurement error.")
-            st.metric(label="💡 KPI: Number of Distinct Categories (ndc)", value=f"{int(1.41 * (pct_part / pct_rr)**0.5) if pct_rr > 0 else '>10'}", help="An estimate of how many distinct groups the system can discern. A value < 5 is problematic.")
+            st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse")
+            st.metric(label="📊 KPI: Number of Distinct Categories (ndc)", value=f"{ndc}", help="How many distinct groups of parts the system can reliably distinguish. Must be ≥ 5.")
 
-            st.info("Play with the sliders in the sidebar to see how different sources of error affect the results!")
             st.markdown("""
-            - **Increase `Part-to-Part Variation`:** Notice how the operator means (colored lines) spread further apart. A good measurement system should show this! Crucially, the **% Gage R&R KPI goes DOWN**, because the measurement error is now a smaller proportion of the total variation.
-            - **Increase `Repeatability`:** The box plots for each part get much wider. This is pure measurement noise. The **% Gage R&R KPI goes UP**.
-            - **Increase `Operator-to-Operator Variation`:** The colored mean lines separate vertically and the overall operator boxes (top right) drift apart. This is bias between people. The **% Gage R&R KPI goes UP**.
+            **Reading the Plots:**
+            - **Main Plot (Left):** Shows how well each operator can distinguish between the parts. If the colored lines are flat and overlapping, the system is dominated by noise.
+            - **Operator Plot (Top-Right):** Visualizes the bias between operators. If the boxes are at different heights, it indicates a reproducibility problem.
+            - **Verdict (Bottom-Right):** The final bar chart. The colored bar (% Gage R&R) shows how much of the total observed variation is just measurement noise.
 
-            **The Core Strategic Insight:** A low % Gage R&R is achieved when the measurement error (Repeatability + Reproducibility) is small *relative to* the true process variation.
+            **Core Insight:** A low % Gage R&R is achieved when measurement error is small *relative to* the true process variation. You can improve your Gage R&R by either reducing measurement error OR by testing it on parts that have a wider, more representative range of true variation.
             """)
 
         with tabs[1]:
-            st.markdown("Acceptance criteria are risk-based and derived from the **AIAG's Measurement Systems Analysis (MSA)** manual, the de facto global standard.")
+            st.markdown("Acceptance criteria are derived from the **AIAG's Measurement Systems Analysis (MSA)** manual, the global standard.")
             st.markdown("- **< 10% Gage R&R:** The system is **acceptable**.")
-            st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable or marginal**.")
-            st.markdown("- **> 30% Gage R&R:** The system is **unacceptable and must be rejected**.")
-            st.info("""
-            **The Part Selection Strategy:** The most common failure mode of a Gage R&R study is not the math, but the study design. The parts selected **must span the full expected range of process variation**. If you only select parts from the middle of the distribution, your Part-to-Part variation will be artificially low, which will mathematically inflate your % Gage R&R and cause a good system to fail.
+            st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable**, may be approved based on importance of application and cost. ")
+            st.markdown("- **> 30% Gage R&R:** The system is **unacceptable** and must be improved.")
+            st.error("""
+            **The Part Selection Catastrophe**: The most common way to fail a Gage R&R is not bad math, but bad study design. If you select parts that are all very similar (low Part-to-Part variation), you are mathematically guaranteed to get a high % Gage R&R, even with a perfect instrument. **You must select parts that represent the full range of expected process variation.**
             """)
             
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            The modern application was born out of the quality crisis in the American automotive industry in the 1970s. The **AIAG** codified the solution in the first MSA manual. The critical evolution was the move from the simple **Average and Range (X-bar & R) method** to the **ANOVA method**. The ANOVA method, pioneered by **Sir Ronald A. Fisher**, became the gold standard because of its unique ability to cleanly partition and test the significance of each variance component, including the crucial interaction term.
+            #### Historical Context: The Crisis that Forged a Standard
+            **The Problem:** In the 1970s and 80s, the American automotive industry was in crisis, facing intense competition from Japanese manufacturers who had mastered statistical quality control. A major source of defects and waste was inconsistent measurement. A part might pass inspection at a supplier's factory but fail at the assembly plant simply because the two locations' measurement systems ("gages") didn't agree. There was no standardized way to qualify a measurement system.
+
+            **The 'Aha!' Moment:** The "Big Three" US automakers—Ford, GM, and Chrysler—realized they couldn't solve this problem alone. They formed the **Automotive Industry Action Group (AIAG)** to create common quality standards for their entire supply chain. One of their most impactful creations was the **Measurement Systems Analysis (MSA)** manual, first published in 1990.
             
-            #### Mathematical Basis
-            The ANOVA method partitions the total sum of squared deviations from the mean ($SS_T$) into components attributable to each factor.
+            **The Impact:** The MSA manual didn't invent Gage R&R, but it codified it into a simple, repeatable procedure that became the global standard. The critical evolution it championed was the move from older, less reliable methods to the **ANOVA (Analysis of Variance) method** as the preferred approach. The ANOVA method, pioneered by **Sir Ronald A. Fisher**, is statistically superior because it can correctly partition all sources of variation, including the crucial **interaction effect** between operators and parts (e.g., if one operator struggles to measure small parts specifically). This rigorous approach became the benchmark for quality-driven industries worldwide, from aerospace to pharmaceuticals.
             """)
-            st.latex(r"SS_{Total} = SS_{Part} + SS_{Operator} + SS_{Part \times Operator} + SS_{Error}")
-            st.markdown("These are converted to Mean Squares (MS) and then to variance components ($\hat{\sigma}^2$).")
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The core idea is to partition the total observed variation into its components. The fundamental equation is:")
+            st.latex(r"\sigma^2_{\text{Total}} = \sigma^2_{\text{Process}} + \sigma^2_{\text{Measurement System}}")
+            st.markdown("The measurement system variation is further broken down:")
+            st.latex(r"\sigma^2_{\text{Measurement System}} = \underbrace{\sigma^2_{\text{Repeatability}}}_\text{Equipment Variation} + \underbrace{\sigma^2_{\text{Reproducibility}}}_\text{Appraiser Variation}")
+            st.markdown("ANOVA achieves this by partitioning the **Sum of Squares (SS)**:")
+            st.latex(r"SS_{\text{Total}} = SS_{\text{Part}} + SS_{\text{Operator}} + SS_{\text{Interaction}} + SS_{\text{Error}}")
+            st.markdown("These SS values are converted to Mean Squares (MS), and from the MS values, we can estimate the variance components (`σ²`). For example:")
+            st.latex(r"\hat{\sigma}^2_{\text{Repeatability}} = MS_{\text{Error}}")
+            st.latex(r"\hat{\sigma}^2_{\text{Operator}} = \frac{MS_{\text{Operator}} - MS_{\text{Interaction}}}{n \cdot r}")
+            st.markdown("The final KPI is the **% Gage R&R**, which is the percentage of the total variation that is consumed by the measurement system:")
+            st.latex(r"\% \text{Gage R\&R} = \frac{\hat{\sigma}_{\text{Gage R\&R}}}{\hat{\sigma}_{\text{Total}}} \times 100")
 
 def render_lod_loq():
     """Renders the INTERACTIVE module for Limit of Detection & Quantitation."""
@@ -3382,15 +3392,13 @@ def render_split_plot():
     - **At high values:** The lots are very different. Watch the box plots for Lot B shift down, and see the p-value drop below 0.05, indicating a statistically significant difference that this experimental design successfully detected.
     """)
 
-    # --- Gadget for the module ---
-    st.subheader("Split-Plot Controls")
-    variation_slider = st.slider(
+    st.sidebar.subheader("Split-Plot Controls")
+    variation_slider = st.sidebar.slider(
         "Lot-to-Lot Variation (SD)",
         min_value=0.0, max_value=5.0, value=0.5, step=0.25,
         help="Controls the 'true' difference between the hard-to-change media lots. Higher values simulate more variability between suppliers or batches."
     )
     
-    # --- Call backend and render ---
     fig, p_lot, p_supp = plot_split_plot_doe(lot_variation_sd=variation_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -3421,27 +3429,35 @@ def render_split_plot():
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Pretend it's Standard" Fallacy**
-            An analyst runs a split-plot experiment for convenience but analyzes it as if it were a standard, fully randomized DOE.
-            - **The Flaw:** This is statistically invalid. A standard analysis assumes every run is independent, but in a split-plot, all the sub-plots within a whole plot (e.g., all supplement tests within Lot A) are correlated. This error leads to incorrect p-values and a high risk of declaring an effect significant when it's just random noise.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Design Dictates Analysis**
-            The way you conduct your experiment dictates the only valid way to analyze it.
-            1.  **Recognize the Constraint:** First, identify if you have factors that are much harder, slower, or more expensive to change than others.
-            2.  **Choose the Right Design:** If you do, a Split-Plot design is likely the most efficient and practical choice.
-            3.  **Use the Right Model:** Analyze the results using a statistical model that correctly accounts for the two different error structures (the "whole plot error" for the HTC factor and the "sub-plot error" for the ETC factor). This is typically done with a mixed-model ANOVA.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Pretend it's Standard" Fallacy**
+An analyst runs a split-plot experiment for convenience but analyzes it as if it were a standard, fully randomized DOE.
+- **The Flaw:** This is statistically invalid. A standard analysis assumes every run is independent, but in a split-plot, all the sub-plots within a whole plot (e.g., all supplement tests within Lot A) are correlated. This error leads to incorrect p-values and a high risk of declaring an effect significant when it's just random noise.""")
+            st.success("""🟢 **THE GOLDEN RULE: Design Dictates Analysis**
+The way you conduct your experiment dictates the only valid way to analyze it.
+1.  **Recognize the Constraint:** First, identify if you have factors that are much harder, slower, or more expensive to change than others.
+2.  **Choose the Right Design:** If you do, a Split-Plot design is likely the most efficient and practical choice.
+3.  **Use the Right Model:** Analyze the results using a statistical model that correctly accounts for the two different error structures (the "whole plot error" for the HTC factor and the "sub-plot error" for the ETC factor). This is typically done with a mixed-model ANOVA.""")
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            Like much of modern statistics, the Split-Plot design was born from agriculture. Its inventors, **Sir Ronald A. Fisher** and **Frank Yates**, were working at the Rothamsted Experimental Station in the 1920s and 30s.
+            #### Historical Context: The Fertile Fields of Rothamsted
+            **The Problem:** Like much of modern statistics, the Split-Plot design was born from the practical challenges of agriculture. Its inventors, **Sir Ronald A. Fisher** and **Frank Yates**, were working at the Rothamsted Experimental Station in the 1920s and 30s, the oldest agricultural research institution in the world. They faced a logistical nightmare: they wanted to test different large-scale treatments (like irrigation methods) and small-scale treatments (like crop varieties) in the same experiment.
             
-            They faced a practical problem: they wanted to test different irrigation methods and different crop varieties. Changing the irrigation method (the **Hard-to-Change** factor) required digging large trenches and re-routing water, so it could only be done on large sections of a field, called **"whole plots."**
+            **The 'Aha!' Moment:** They couldn't fully randomize everything. Changing the irrigation method (the **Hard-to-Change** factor) required digging large trenches and re-routing water, so it could only be done on large sections of a field, which they called **"whole plots."** However, within each irrigated whole plot, it was very easy to plant multiple different crop varieties (the **Easy-to-Change** factor) in smaller **"sub-plots."** This physical constraint of not being able to irrigate a tiny plot differently from its neighbor forced a new way of thinking.
             
-            However, within each irrigated whole plot, it was very easy to plant multiple different crop varieties (the **Easy-to-Change** factor) in smaller **"sub-plots."** They couldn't fully randomize everything because they couldn't irrigate a tiny plot differently from the one next to it. Fisher and Yates developed the specific mathematical framework for the Split-Plot ANOVA to correctly analyze the data from this restricted randomization, creating one of the most practical and widely used experimental designs ever conceived.
+            **The Impact:** Fisher and Yates developed the specific mathematical framework for the Split-Plot ANOVA to correctly analyze the data from this **restricted randomization**. They recognized that there were two different levels of experimental error: a larger error for comparing whole plots and a smaller error for comparing sub-plots within a whole plot. By correctly partitioning the variance, they created one of the most practical and widely used experimental designs ever conceived, saving researchers in countless fields immense time and resources.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The key to a split-plot analysis is recognizing it has two different error terms. The linear model for the design is often expressed as a mixed model:")
+            st.latex(r"Y_{ijk} = \mu + \alpha_i + \gamma_{ik} + \beta_j + (\alpha\beta)_{ij} + \epsilon_{ijk}")
+            st.markdown("""
+            -   `μ`: Overall mean.
+            -   `αᵢ`: Fixed effect of the `i`-th level of the **whole-plot factor A**.
+            -   `γᵢₖ`: The random **whole-plot error**, ~ N(0, σ²_γ). This is the error term for testing factor A.
+            -   `βⱼ`: Fixed effect of the `j`-th level of the **sub-plot factor B**.
+            -   `(αβ)ᵢⱼ`: The interaction effect.
+            -   `εᵢⱼₖ`: The random **sub-plot error**, ~ N(0, σ²_ε). This is the error term for testing factor B and the interaction.
+            Because `σ²_γ` is typically larger than `σ²_ε`, the test for the hard-to-change factor (A) is less powerful than the test for the easy-to-change factor (B), which is the fundamental trade-off of this design.
             """)
 
 def render_causal_inference():
@@ -3453,22 +3469,19 @@ def render_causal_inference():
     **Strategic Application:** This is the ultimate goal of root cause analysis and the foundation of intelligent intervention.
     - **💡 Effective CAPA:** Why did a batch fail? A predictive model might say high temperature is *associated* with failure. Causal Inference helps determine if high temperature *causes* failure, or if both are driven by a third hidden variable (a "confounder"). This prevents wasting millions on fixing the wrong problem.
     - **🗺️ Process Cartography:** It allows for the creation of a **Directed Acyclic Graph (DAG)**, which is a formal causal map of your process, documenting scientific understanding and guiding future analysis.
-    - **🔮 "What If" Scenarios:** It provides a framework to answer hypothetical questions like, "What *would* have been the yield if we had kept the temperature at 40°C?" using only observational data.
     """)
     
     st.info("""
     **Interactive Demo:** Use the slider below to control the **Confounding Strength** of the `Reagent Lot`. As you increase it, watch the "Naive Correlation" (the orange line) become a terrible estimate of the "True Causal Effect" (the green line). This simulation visually demonstrates how a hidden variable can create a misleading correlation.
     """)
     
-    # --- Sidebar controls for this specific module ---
-    st.subheader("Causal Inference Controls")
-    confounding_slider = st.slider(
+    st.sidebar.subheader("Causal Inference Controls")
+    confounding_slider = st.sidebar.slider(
         "🚨 Confounding Strength", 
         min_value=0.0, max_value=10.0, value=5.0, step=0.5,
         help="How strongly the 'Reagent Lot' affects BOTH Temperature and Purity. At 0, the naive correlation equals the true causal effect."
     )
     
-    # Generate plots using the slider value
     fig_dag, fig_scatter, naive_effect, adjusted_effect = plot_causal_inference(confounding_strength=confounding_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -3487,22 +3500,18 @@ def render_causal_inference():
             st.info("Play with the 'Confounding Strength' slider and watch the metrics and plots!")
             st.markdown("""
             - **The DAG (Top Plot):** This is our "causal map." It shows that `Reagent Lot` is a **common cause** of both `Temp` and `Purity`, creating a "backdoor" path that biases the `Temp -> Purity` relationship.
-            - **The Scatter Plot:** As you increase `Confounding Strength`, the orange line (naive correlation) becomes a worse and worse estimate of the green line (the true causal effect). The data points separate into two clouds (one for each reagent lot), and the naive model incorrectly draws a line through them. The adjusted model correctly finds the true, steeper negative trend *within* each group.
+            - **The Scatter Plot:** As you increase `Confounding Strength`, the orange line (naive correlation) becomes a worse and worse estimate of the green line (the true causal effect). The adjusted model correctly finds the true, steeper negative trend *within* each group.
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The Correlation Trap**
-            - An analyst observes that ice cream sales are highly correlated with shark attacks. They recommend banning ice cream to improve beach safety.
-            - **The Flaw:** They failed to account for a confounder: **Hot Weather.** Hot weather causes more people to buy ice cream AND causes more people to go swimming. Causal inference provides the tools to mathematically "control for" the weather to see that ice cream has no real effect.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Draw the Map, Find the Path, Block the Backdoors**
-            A robust causal analysis follows a disciplined, three-step process.
-            1.  **Draw the Map (Build the DAG):** This is a collaborative effort between data scientists and Subject Matter Experts. You must encode all your domain knowledge and causal beliefs into a formal DAG.
-            2.  **Find the Path:** Clearly identify the causal path you want to measure (e.g., `Temp -> Purity`).
-            3.  **Block the Backdoors:** Use the DAG to identify all non-causal "backdoor" paths (confounding). Then, use the appropriate statistical technique (like multiple regression) to "block" these paths, leaving only the true causal effect.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The Correlation Trap**
+- An analyst observes that ice cream sales are highly correlated with shark attacks. They recommend banning ice cream to improve beach safety.
+- **The Flaw:** They failed to account for a confounder: **Hot Weather.** Hot weather causes more people to buy ice cream AND causes more people to go swimming. Causal inference provides the tools to mathematically "control for" the weather to see that ice cream has no real effect.""")
+            st.success("""🟢 **THE GOLDEN RULE: Draw the Map, Block the Backdoors**
+A robust causal analysis follows a disciplined process.
+1.  **Draw the Map (Build the DAG):** Collaborate with Subject Matter Experts to encode all domain knowledge and causal beliefs into a formal DAG.
+2.  **Identify the Backdoor Paths:** Use the DAG to identify all non-causal "backdoor" paths that create confounding.
+3.  **Block the Backdoors:** Use the appropriate statistical technique (like multiple regression) to "adjust for" or "condition on" the confounding variables, blocking the backdoor paths and isolating the true causal effect.""")
 
         with tabs[2]:
             st.markdown("""
@@ -3513,6 +3522,13 @@ def render_causal_inference():
             
             **The Impact:** This was a paradigm shift. By making causal assumptions explicit in a DAG, Pearl developed a complete mathematical framework—including his famous **do-calculus**—to determine if a causal question *could* be answered from observational data, and if so, how. This "Causal Revolution" provided the first-ever rigorous, mathematical language to move from seeing (`P(Y|X)`) to doing (`P(Y|do(X))`), transforming fields from epidemiology to economics. For this work, Judea Pearl was awarded the Turing Award in 2011, the highest honor in computer science.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The core difference is between **Observation** and **Intervention**.")
+            st.markdown("- **Observation (Correlation):** `P(Purity | Temp = t)` asks, \"What is the expected purity for the subset of batches that *we happened to observe* had a temperature of `t`?\" This is vulnerable to confounding.")
+            st.markdown("- **Intervention (Causation):** `P(Purity | do(Temp = t))` asks, \"What would the purity be if we *forced every batch* to have a temperature of `t`?\" This is the true causal effect.")
+            st.markdown("Pearl's **backdoor adjustment formula** shows how to calculate the intervention from observational data. To find the effect of `X` on `Y` with a set of confounders `Z`, we calculate:")
+            st.latex(r"P(Y | do(X=x)) = \sum_z P(Y | X=x, Z=z) P(Z=z)")
+            st.markdown("In simple terms, this means: for each level of the confounder `z`, find the relationship between `X` and `Y`, and then average those relationships across the distribution of `z`. This is precisely what a multiple regression model does when you include `Z` as a covariate.")
 ##=========================================================================================================================================================================================================
 ##===============================================================================END ACT I UI Render ========================================================================================================================================
 ##=========================================================================================================================================================================================================

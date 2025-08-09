@@ -4599,7 +4599,7 @@ def render_bayesian():
 ##=======================================================================================================================================================================================================
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================
-ddef render_multi_rule():
+def render_multi_rule():
     """Renders the comprehensive, interactive module for Multi-Rule SPC (Westgard Rules)."""
     st.markdown("""
     #### Purpose & Application: The Statistical Detective
@@ -4639,9 +4639,18 @@ ddef render_multi_rule():
             if not violations:
                 st.success("No violations detected. Process appears to be in control.")
             else:
-                for point, rule in sorted(violations.items()):
-                    st.warning(f"**Point {point+1}:** {rule.strip()}")
-            
+                # Use a more compact way to display violations
+                violation_summary = {}
+                for point, ruleset in sorted(violations.items()):
+                    for rule in ruleset.strip().split():
+                        if rule not in violation_summary:
+                            violation_summary[rule] = []
+                        if point + 1 not in violation_summary[rule]:
+                            violation_summary[rule].append(point + 1)
+
+                for rule, points in violation_summary.items():
+                    st.warning(f"**{rule}:** Violated at points {', '.join(map(str, points))}")
+
             st.markdown("---")
             st.markdown("##### Rule Power Functions")
             st.plotly_chart(fig_power, use_container_width=True)
@@ -4677,6 +4686,7 @@ The goal is to treat the specific rule violation as the starting point of a targ
             st.markdown("- A point outside **±2σ** is more common (p ≈ 0.0455). Seeing one is not a strong signal. However, the probability of seeing *two consecutive points* on the same side of the mean purely by chance is much, much lower:")
             st.latex(r"P(\text{2-2s}) \approx \left( \frac{0.0455}{2} \right)^2 \approx 0.0005")
             st.markdown("This makes the **2-2s** rule a powerful and specific detector of systematic shifts with a very low false alarm rate, even though the individual points themselves are not extreme.")
+
 def render_multivariate_spc():
     """Renders the comprehensive, interactive module for Multivariate SPC."""
     st.markdown("""

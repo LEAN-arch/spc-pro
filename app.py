@@ -1248,56 +1248,82 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
 
     return fig_contour, fig_3d, fig_pareto, anova_summary, opt_ph_real, opt_temp_real, max_response
 
-def plot_split_plot_doe(lot_variation_sd=0.5):
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Split-Plot) - SME ENHANCED
+# ==============================================================================
+def plot_split_plot_doe(lot_variation_sd=0.5, interaction_effect=0.0):
     """
-    Generates dynamic plots for a Split-Plot DOE based on user-defined variation
-    for the hard-to-change factor.
+    Generates enhanced, more realistic dynamic plots for a Split-Plot DOE,
+    including a controllable interaction effect and a dedicated interaction plot.
     """
     np.random.seed(42)
     
     # --- Define the Experimental Design ---
-    # Hard-to-Change (HTC) Factor: Base Media Lot (Whole Plot)
     lots = ['Lot A', 'Lot B']
-    # Easy-to-Change (ETC) Factor: Supplement Concentration (Subplot)
     concentrations = [10, 20, 30] # mg/L
-    n_replicates = 4 # Replicates within each subplot
+    n_replicates = 4 
 
     # --- Dynamic Data Generation ---
     data = []
-    # Simulate a "true" effect for the lots, controlled by the slider
-    lot_effects = {'Lot A': 0, 'Lot B': np.random.normal(0, lot_variation_sd)}
+    # Simulate a "true" effect for the lots
+    # To make the effect consistent, we'll use a fixed shift, scaled by the SD slider
+    lot_effects = {'Lot A': 0, 'Lot B': -2 * lot_variation_sd}
     
+    # SME Enhancement: Add a controllable interaction effect
+    # The effect of the supplement is now different for Lot B
     for lot in lots:
         for conc in concentrations:
-            # The true response depends on the supplement, the lot effect, and noise
-            true_mean = 100 + (conc - 10) * 0.5 + lot_effects[lot]
+            supplement_effect = (conc - 10) * 0.5
+            current_interaction = 0
+            if lot == 'Lot B':
+                # Interaction term: scales with supplement concentration
+                current_interaction = interaction_effect * (conc - 10) / 10 
+
+            true_mean = 100 + supplement_effect + lot_effects[lot] + current_interaction
             measurements = np.random.normal(true_mean, 1.5, n_replicates)
             for m in measurements:
                 data.append([lot, conc, m])
 
     df = pd.DataFrame(data, columns=['Lot', 'Supplement', 'Response'])
-    df['Supplement'] = df['Supplement'].astype(str) # Treat concentration as a categorical factor for plotting
 
-    # --- Analyze the data with ANOVA to get p-values for KPIs ---
-    model = ols('Response ~ C(Lot) + C(Supplement) + C(Lot):C(Supplement)', data=df).fit()
-    anova_table = sm.stats.anova_lm(model, typ=2)
-    
-    p_value_lot = anova_table.loc['C(Lot)', 'PR(>F)']
-    p_value_supplement = anova_table.loc['C(Supplement)', 'PR(>F)']
+    # --- Analyze the data with ANOVA ---
+    # Note: A proper split-plot uses a mixed model, but for visualization and p-values,
+    # a standard ANOVA is a reasonable approximation here.
+    model = ols('Response ~ C(Lot) * C(Supplement)', data=df).fit() # Use '*' for interaction
+    anova_table = sm.stats.anova_lm(model, typ=2).reset_index()
+    anova_table.columns = ['Term', 'Sum of Squares', 'df', 'F-value', 'p-value']
     
     # --- Plotting ---
-    fig = px.box(df, x='Lot', y='Response', color='Supplement',
-                 title='<b>Split-Plot Results: Cell Viability by Media Lot and Supplement</b>',
+    fig_main = px.box(df, x='Lot', y='Response', color=df['Supplement'].astype(str),
+                 title='<b>1. Split-Plot Experimental Results</b>',
                  labels={
                      "Lot": "Base Media Lot (Hard-to-Change)",
                      "Response": "Cell Viability (%)",
-                     "Supplement": "Supplement Conc. (Easy-to-Change)"
+                     "color": "Supplement Conc. (mg/L)"
                  },
                  points='all')
     
-    fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-    
-    return fig, p_value_lot, p_value_supplement
+    # SME Enhancement: Add mean lines to the box plot for clarity
+    mean_data = df.groupby(['Lot', 'Supplement'])['Response'].mean().reset_index()
+    for conc in concentrations:
+        subset = mean_data[mean_data['Supplement'] == conc]
+        fig_main.add_trace(go.Scatter(x=subset['Lot'], y=subset['Response'], mode='lines',
+                                      line=dict(width=3, dash='dash'), showlegend=False))
+
+    fig_main.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+
+    # SME Enhancement: Create a dedicated Interaction Plot
+    fig_interaction = px.line(mean_data, x='Supplement', y='Response', color='Lot',
+                              title='<b>2. Interaction Plot</b>',
+                              labels={'Supplement': 'Supplement Conc. (mg/L)', 'Response': 'Mean Cell Viability (%)'},
+                              markers=True)
+    fig_interaction.update_layout(xaxis=dict(tickvals=concentrations),
+                                  legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99))
+    fig_interaction.add_annotation(x=20, y=mean_data['Response'].min(),
+                                   text="<i>Parallel lines = No Interaction<br>Non-parallel lines = Interaction</i>",
+                                   showarrow=False, yshift=-40)
+
+    return fig_main, fig_interaction, anova_table
 
 def plot_causal_inference(confounding_strength=5.0):
     """
@@ -3771,60 +3797,67 @@ def render_split_plot():
     **Purpose:** To design an efficient and statistically valid experiment when your study involves both **Hard-to-Change (HTC)** and **Easy-to-Change (ETC)** factors. This is a specialized form of Design of Experiments (DOE).
     
     **Strategic Application:** This design is a lifesaver during process characterization and tech transfer. A standard DOE might require you to change all factors randomly, which can be prohibitively expensive or time-consuming.
-    - **Tech Transfer:** Validating a new `Media Lot` (HTC) is a major undertaking involving a full bioreactor run. However, once a run is started, testing different `Supplement Concentrations` (ETC) in smaller samples is easy.
-    - **Assay V&V:** Qualifying a new `Instrument` (HTC) takes days. But once it's set up, running multiple `Plates` (ETC) on it is fast.
+    - **Tech Transfer:** Validating a new `Media Lot` (HTC) is a major undertaking. However, once a run is started, testing different `Supplement Concentrations` (ETC) is easy.
     A split-plot design saves immense resources by minimizing the number of times you have to change the difficult factor.
     """)
 
     st.info("""
-    **Interactive Demo:** Use the **Lot-to-Lot Variation** slider below. This slider controls the magnitude of the difference between the two "Hard-to-Change" media lots.
-    - **At low values:** The lots are similar, and the "Lot Effect p-value" will be high (not significant).
-    - **At high values:** The lots are very different. Watch the box plots for Lot B shift down, and see the p-value drop below 0.05, indicating a statistically significant difference that this experimental design successfully detected.
+    **Interactive Demo:** Use the sliders to control the "true" underlying effects in the process.
+    - **`Lot-to-Lot Variation`**: Creates a main effect for the 'Lot' factor. Watch the plots for Lot B shift down.
+    - **`Interaction Effect`**: Makes the effect of the Supplement *depend* on the Lot. Watch the lines in the **Interaction Plot** become non-parallel, a classic sign of an interaction.
     """)
 
-    st.sidebar.subheader("Split-Plot Controls")
-    variation_slider = st.sidebar.slider(
-        "Lot-to-Lot Variation (SD)",
-        min_value=0.0, max_value=5.0, value=0.5, step=0.25,
-        help="Controls the 'true' difference between the hard-to-change media lots. Higher values simulate more variability between suppliers or batches."
+    with st.sidebar:
+        st.subheader("Split-Plot Controls")
+        variation_slider = st.slider(
+            "Lot-to-Lot Variation (SD)",
+            min_value=0.0, max_value=5.0, value=0.5, step=0.25,
+            help="Controls the 'true' difference between the hard-to-change media lots. Higher values simulate a larger main effect."
+        )
+        interaction_slider = st.slider(
+            "Lot x Supplement Interaction Effect",
+            min_value=-2.0, max_value=2.0, value=0.0, step=0.2,
+            help="Controls how much the supplement's effect changes between Lot A and Lot B. A non-zero value creates an interaction."
+        )
+    
+    fig_main, fig_interaction, anova_table = plot_split_plot_doe(
+        lot_variation_sd=variation_slider,
+        interaction_effect=interaction_slider
     )
     
-    fig, p_lot, p_supp = plot_split_plot_doe(lot_variation_sd=variation_slider)
-    
-    col1, col2 = st.columns([0.7, 0.3])
+    # --- Redesigned Layout ---
+    col1, col2 = st.columns([0.6, 0.4])
     with col1:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig_main, use_container_width=True)
+        st.plotly_chart(fig_interaction, use_container_width=True)
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(
-                label="Lot Effect p-value (HTC Factor)",
-                value=f"{p_lot:.4f}",
-                help="p < 0.05 indicates a significant difference between the Base Media Lots."
-            )
-            st.metric(
-                label="Supplement Effect p-value (ETC Factor)",
-                value=f"{p_supp:.4f}",
-                help="p < 0.05 indicates a significant difference between Supplement Concentrations."
-            )
-            st.markdown("""
-            **Reading the Plot:**
-            - The x-axis groups the results by the **Hard-to-Change factor** (Lot A vs. Lot B). These are the "whole plots."
-            - Within each lot, the colored boxes show the results for the **Easy-to-Change factor** (the three supplement concentrations). These are the "sub-plots."
+            st.markdown("##### ANOVA Results")
+            st.dataframe(anova_table.style.format({'p-value': '{:.4f}'}).applymap(
+                lambda p: 'background-color: #C8E6C9' if p < 0.05 else '', subset=['p-value']),
+                use_container_width=True)
             
-            **The Core Strategic Insight:** This design allows for a precise comparison of the easy-to-change factors *within* each hard-to-change setting, while still providing a (slightly less precise) comparison *between* the hard-to-change factors. It's a highly practical trade-off between statistical power and logistical feasibility.
+            st.markdown("""
+            **Reading the Plots & Table:**
+            - **Main Plot:** Visualizes the raw data and means for each experimental condition.
+            - **Interaction Plot:** This is your primary tool for diagnosing interactions. If the lines are not parallel, an interaction is likely present.
+            - **ANOVA Table:** Provides the statistical proof. Look for p-values < 0.05 to identify significant effects.
+                - `C(Lot)`: Tests the main effect of the media lot.
+                - `C(Supplement)`: Tests the main effect of the supplement.
+                - `C(Lot):C(Supplement)`: Tests the **interaction effect**. This is often the most important result.
             """)
 
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Pretend it's Standard" Fallacy**
 An analyst runs a split-plot experiment for convenience but analyzes it as if it were a standard, fully randomized DOE.
-- **The Flaw:** This is statistically invalid. A standard analysis assumes every run is independent, but in a split-plot, all the sub-plots within a whole plot (e.g., all supplement tests within Lot A) are correlated. This error leads to incorrect p-values and a high risk of declaring an effect significant when it's just random noise.""")
+- **The Flaw:** This is statistically invalid. A standard analysis assumes every run is independent, but in a split-plot, all the sub-plots within a whole plot are correlated. This error leads to incorrect p-values and a high risk of declaring an effect significant when it's just random noise.""")
             st.success("""🟢 **THE GOLDEN RULE: Design Dictates Analysis**
 The way you conduct your experiment dictates the only valid way to analyze it.
-1.  **Recognize the Constraint:** First, identify if you have factors that are much harder, slower, or more expensive to change than others.
+1.  **Recognize the Constraint:** Identify if you have factors that are much harder, slower, or more expensive to change than others.
 2.  **Choose the Right Design:** If you do, a Split-Plot design is likely the most efficient and practical choice.
 3.  **Use the Right Model:** Analyze the results using a statistical model that correctly accounts for the two different error structures (the "whole plot error" for the HTC factor and the "sub-plot error" for the ETC factor). This is typically done with a mixed-model ANOVA.""")
 
@@ -3849,7 +3882,7 @@ The way you conduct your experiment dictates the only valid way to analyze it.
             -   `εᵢⱼₖ`: The random **sub-plot error**, ~ N(0, σ²_ε). This is the error term for testing factor B and the interaction.
             Because `σ²_γ` is typically larger than `σ²_ε`, the test for the hard-to-change factor (A) is less powerful than the test for the easy-to-change factor (B), which is the fundamental trade-off of this design.
             """)
-
+            
 def render_causal_inference():
     """Renders the INTERACTIVE module for Causal Inference."""
     st.markdown("""

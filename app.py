@@ -2810,22 +2810,18 @@ def plot_isolation_forest(contamination_rate=0.1):
     n_inliers = 200
     n_outliers = 15
     
-    # --- SME Enhancement: More realistic correlated data ("banana" shape) ---
+    # --- Data Generation ---
     angle = np.random.uniform(0, 2 * np.pi, n_inliers)
     radius = np.random.normal(5, 0.5, n_inliers)
     X_inliers = np.array([radius * np.cos(angle), radius * np.sin(angle)]).T
-    
-    # Outliers are generated further away
     X_outliers = np.random.uniform(low=-10, high=10, size=(n_outliers, 2))
     X = np.concatenate([X_inliers, X_outliers], axis=0)
-    
-    # Ground truth for coloring the score distribution plot
     ground_truth = np.concatenate([np.zeros(n_inliers), np.ones(n_outliers)])
     
-    # --- Dynamic Model Fitting ---
+    # --- Model Fitting ---
     clf = IsolationForest(contamination=contamination_rate, random_state=42, n_estimators=100)
     y_pred = clf.fit_predict(X)
-    anomaly_scores = clf.decision_function(X) * -1 # Invert to make higher scores more anomalous
+    anomaly_scores = clf.decision_function(X) * -1
     
     df = pd.DataFrame(X, columns=['Process Parameter 1', 'Process Parameter 2'])
     df['Status'] = ['Anomaly' if p == -1 else 'Normal' for p in y_pred]
@@ -2837,7 +2833,8 @@ def plot_isolation_forest(contamination_rate=0.1):
         rows=2, cols=2,
         subplot_titles=("<b>1. Anomaly Detection Results</b>",
                         "<b>2. Example Isolation Tree</b>",
-                        "<b>3. Distribution of Anomaly Scores</b>")
+                        "<b>3. Distribution of Anomaly Scores</b>"),
+        specs=[[{"rowspan": 2}, {}], [None, {}]]
     )
 
     # Plot 1: Main Scatter Plot
@@ -2850,27 +2847,38 @@ def plot_isolation_forest(contamination_rate=0.1):
                          symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'}
                         ).data[1], row=1, col=1)
 
-    # Plot 2: Visualize one of the trees
-    from sklearn.tree import export_graphviz
-    import graphviz
-    # Extract one tree
-    single_tree = clf.estimators_[0]
-    dot_data = export_graphviz(single_tree, out_file=None,
-                               feature_names=['Param 1', 'Param 2'],
-                               filled=True, rounded=True,
-                               special_characters=True, max_depth=3) # Limit depth for viz
-    graph = graphviz.Source(dot_data)
-    # This is a bit of a hack to get graphviz into plotly
-    fig.add_layout_image(
-        dict(
-            source=graph.pipe(format='png'),
-            xref="x2", yref="y2",
-            x=0, y=1, sizex=1, sizey=1,
-            sizing="stretch", layer="above"
+    # --- THIS IS THE CORRECTED AND ROBUST BLOCK ---
+    # Plot 2: Visualize one of the trees, with error handling
+    try:
+        from sklearn.tree import export_graphviz
+        import graphviz # This import is now safe inside the try block
+        
+        single_tree = clf.estimators_[0]
+        dot_data = export_graphviz(single_tree, out_file=None,
+                                   feature_names=['Param 1', 'Param 2'],
+                                   filled=True, rounded=True,
+                                   special_characters=True, max_depth=3)
+        graph = graphviz.Source(dot_data)
+        
+        fig.add_layout_image(
+            dict(
+                source=graph.pipe(format='png'),
+                xref="x2", yref="y2",
+                x=0, y=1, sizex=1, sizey=1,
+                sizing="stretch", layer="above"
+            )
         )
-    )
-    fig.update_xaxes(visible=False, row=1, col=2)
-    fig.update_yaxes(visible=False, row=1, col=2)
+    except (ImportError, FileNotFoundError, graphviz.backend.execute.ExecutableNotFound):
+        # Catch the error if graphviz or its executable is not found
+        fig.add_annotation(
+            xref="x2 domain", yref="y2 domain", x=0.5, y=0.5,
+            text="<b>Graphviz executable not found.</b><br>Please install it on your system<br>to see the example tree.",
+            showarrow=False, font=dict(size=14, color='red')
+        )
+    # --- END OF CORRECTION ---
+    
+    fig.update_xaxes(visible=False, showticklabels=False, row=1, col=2)
+    fig.update_yaxes(visible=False, showticklabels=False, row=1, col=2)
 
     # Plot 3: Score Distribution
     fig.add_trace(px.histogram(df, x='Score', color='GroundTruth',
@@ -2880,7 +2888,6 @@ def plot_isolation_forest(contamination_rate=0.1):
                            color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
                            barmode='overlay', marginal='rug').data[1], row=2, col=1)
     
-    # Add decision threshold to score plot
     score_threshold = np.percentile(anomaly_scores, 100 * (1-contamination_rate))
     fig.add_vline(x=score_threshold, line_dash="dash", line_color="black",
                   annotation_text="Decision Threshold", row=2, col=1)

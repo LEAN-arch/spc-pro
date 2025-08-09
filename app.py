@@ -1631,20 +1631,42 @@ def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
                       
     return fig, median_A, median_B, p_value
 
-@st.cache_data
-def plot_mva_pls():
+def plot_mva_pls(signal_strength=2.0, noise_sd=0.2):
+    """
+    Generates dynamic MVA plots based on user-defined signal strength and noise level.
+    """
     np.random.seed(0)
     n_samples = 50
     n_features = 200
-    # Simulate spectral data
-    X = np.random.rand(n_samples, n_features)
-    # Create a true relationship based on a few "peaks"
-    y = 2 * X[:, 50] - 1.5 * X[:, 120] + np.random.normal(0, 0.2, n_samples)
     
-    pls = PLSRegression(n_components=2)
-    pls.fit(X, y)
+    # --- Dynamic Data Generation ---
+    X = np.random.rand(n_samples, n_features)
+    # The true relationship's strength is now controlled by the slider
+    y = signal_strength * X[:, 50] - (signal_strength * 0.75) * X[:, 120] + np.random.normal(0, noise_sd, n_samples)
+    
+    # --- Dynamic Model Fitting & KPI Calculation ---
+    # We will also determine the optimal number of components via cross-validation
+    from sklearn.model_selection import cross_val_predict
+    from sklearn.metrics import r2_score
 
-    # VIP score calculation
+    r2_cv = []
+    # Test models with 1 to 5 latent variables
+    for n_comp in range(1, 6):
+        pls_cv = PLSRegression(n_components=n_comp)
+        y_cv = cross_val_predict(pls_cv, X, y, cv=10)
+        r2_cv.append(r2_score(y, y_cv))
+
+    # Select the optimal number of components that maximizes cross-validated R2 (Q2)
+    optimal_n_comp = np.argmax(r2_cv) + 1
+    
+    # Fit the final model with the optimal number of components
+    pls = PLSRegression(n_components=optimal_n_comp)
+    pls.fit(X, y)
+    
+    model_r2 = pls.score(X, y)
+    model_q2 = max(r2_cv) if r2_cv else 0 # Q2 is the max cross-validated R2
+
+    # VIP score calculation for the final model
     T = pls.x_scores_
     W = pls.x_weights_
     Q = pls.y_loadings_
@@ -1656,17 +1678,22 @@ def plot_mva_pls():
         weight = np.array([(W[i,j] / np.linalg.norm(W[:,j]))**2 for j in range(h)])
         VIPs[i] = np.sqrt(p * (s.T @ weight) / total_s)
 
+    # --- Plotting ---
     fig = make_subplots(rows=1, cols=2, subplot_titles=("<b>Raw Spectral Data</b>", "<b>Variable Importance (VIP) Plot</b>"))
     for i in range(10): # Plot first 10 samples
         fig.add_trace(go.Scatter(y=X[i,:], mode='lines', name=f'Sample {i+1}'), row=1, col=1)
     
     fig.add_trace(go.Bar(y=VIPs, name='VIP Score'), row=1, col=2)
     fig.add_hline(y=1, line=dict(color='red', dash='dash'), name='Significance Threshold', row=1, col=2)
+    # Highlight the true peaks
+    fig.add_vrect(x0=48, x1=52, fillcolor="rgba(0,255,0,0.15)", line_width=0, row=1, col=2, annotation_text="True Signal", annotation_position="top left")
+    fig.add_vrect(x0=118, x1=122, fillcolor="rgba(0,255,0,0.15)", line_width=0, row=1, col=2)
     
     fig.update_layout(title='<b>Multivariate Analysis (PLS Regression)</b>', showlegend=False)
     fig.update_xaxes(title_text='Wavelength', row=1, col=1); fig.update_yaxes(title_text='Absorbance', row=1, col=1)
     fig.update_xaxes(title_text='Wavelength', row=1, col=2); fig.update_yaxes(title_text='VIP Score', row=1, col=2)
-    return fig
+    
+    return fig, model_r2, model_q2, optimal_n_comp
 
 @st.cache_data
 def plot_clustering():
@@ -3905,7 +3932,6 @@ def render_survival_analysis():
             """)
 
 
-
 def render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
     st.markdown("""
@@ -3916,8 +3942,29 @@ def render_mva_pls():
     - **🔬 Real-Time Spectroscopy:** Builds models that predict a chemical concentration from its NIR or Raman spectrum in real-time. This eliminates the need for slow, offline lab tests, enabling real-time release.
     - **🏭 "Golden Batch" Modeling:** PLS can learn the "fingerprint" of a perfect batch, modeling the complex relationship between hundreds of process parameters and final product quality. Deviations from this model can signal a problem *during* a run, not after it's too late.
     """)
+
+    # --- NEW: Added Interactive Demo explanation ---
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to simulate different chemometric scenarios.
+    - **Increase `Signal Strength`:** Watch the VIP scores for the true signal peaks (highlighted in green) grow taller, making the true relationship easier for the model to find. Both R² and Q² will improve.
+    - **Increase `Noise Level`:** Simulate a poor-quality instrument. Watch the VIP scores for the true peaks shrink as they become buried in noise, and see the model's predictive power (Q²) collapse.
+    """)
+
+    # --- NEW: Added slider gadgets to the sidebar ---
+    st.sidebar.subheader("Multivariate Analysis Controls")
+    signal_slider = st.sidebar.slider(
+        "📈 Signal Strength",
+        min_value=0.5, max_value=5.0, value=2.0, step=0.5,
+        help="Controls the strength of the true underlying relationship between the spectra (X) and the concentration (Y)."
+    )
+    noise_slider = st.sidebar.slider(
+        "🎲 Noise Level (SD)",
+        min_value=0.1, max_value=2.0, value=0.2, step=0.1,
+        help="Controls the amount of random noise in the spectral measurements. Higher noise makes the signal harder to find."
+    )
     
-    fig = plot_mva_pls() # Assumes a function that plots the VIP chart
+    # --- MODIFIED: Call backend with slider values and unpack KPIs ---
+    fig, r2, q2, n_comp = plot_mva_pls(signal_strength=signal_slider, noise_sd=noise_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -3928,17 +3975,19 @@ def render_mva_pls():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="📈 Model R² (Goodness of Fit)", value="0.98", help="How well the model fits the training data. High is good, but can be misleading.")
-            st.metric(label="🎯 Model Q² (Predictive Power)", value="0.95", help="The cross-validated R². A measure of how well the model predicts *new* data. Q² is the most important performance metric.")
-            st.metric(label="🧬 Latent Variables (LVs)", value="3", help="The number of 'hidden' factors the model extracted. The complexity of the model.")
+            # --- MODIFIED: KPIs are now dynamic ---
+            st.metric(label="📈 Model R² (Goodness of Fit)", value=f"{r2:.3f}", help="How well the model fits the training data. High is good, but can be misleading.")
+            st.metric(label="🎯 Model Q² (Predictive Power)", value=f"{q2:.3f}", help="The cross-validated R². A measure of how well the model predicts *new* data. Q² is the most important performance metric.")
+            st.metric(label="🧬 Optimal Latent Variables (LVs)", value=f"{n_comp}", help="The optimal number of hidden factors extracted by the model via cross-validation.")
             
             st.markdown("""
             **Decoding the VIP Plot:**
-            The plot on the left is the **Variable Importance in Projection (VIP)** plot. It's the key to understanding what the model has learned.
-            - **The Peaks:** These are the "magic words" in the Rosetta Stone. They represent the specific input variables (e.g., wavelengths) that are most influential for predicting the output.
-            - **The Red Line (VIP > 1):** This is the rule of thumb. Variables with a VIP score greater than 1 are considered important to the model.
+            The **Variable Importance in Projection (VIP)** plot is the key to understanding what the model has learned.
+            - **The Peaks:** These represent the input variables (wavelengths) most influential for predicting the output.
+            - **The Green Zones:** These mark the true causal peaks we built into the simulation. A good model should have high VIP scores in these zones.
+            - **The Red Line (VIP > 1):** Variables with a VIP score greater than 1 are considered important to the model.
             
-            **The Core Strategic Insight:** PLS turns a "black box" instrument (like a spectrometer) into a "glass box" of process understanding. By identifying the most important variables via the VIP plot, scientists can gain fundamental insights into the underlying chemistry or physics of their process, leading to more robust control strategies.
+            **The Core Strategic Insight:** PLS turns a "black box" instrument into a "glass box" of process understanding. By identifying the most important variables, scientists can gain fundamental insights into the underlying chemistry of their process.
             """)
 
         with tabs[1]:
@@ -3955,7 +4004,7 @@ def render_mva_pls():
             
             1.  **Partition Your Data:** Before you begin, split your data into a **Training Set** (to build the model) and a **Test Set** (to independently validate it).
             
-            2.  **Use Cross-Validation:** Within the training set, use cross-validation to choose the optimal number of Latent Variables. The goal is to find the number of LVs that minimizes the **prediction error (RMSEP)**, not the number that maximizes the R-squared.
+            2.  **Use Cross-Validation:** Within the training set, use cross-validation to choose the optimal number of Latent Variables. The goal is to find the number of LVs that maximizes the **predictive power (Q²)**, not the number that maximizes the R-squared.
             
             3.  **Final Verdict:** The ultimate test of the model is its performance on the held-out Test Set. This simulates how the model will perform in the future when it encounters new process data.
             

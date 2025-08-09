@@ -4258,7 +4258,7 @@ else:
         "Bayesian Inference": render_bayesian,
         "Run Validation (Westgard)": render_multi_rule,
         "Multivariate SPC": render_multivariate_spc,
-        "Small Shift Detection": render_ewma_cusum,
+        "Small Shift Detection": render_ewma_cusum, # FIX: Added the new function here
         "Time Series Analysis": render_time_series_analysis,
         "Stability Analysis (Shelf-Life)": render_stability_analysis,
         "Reliability / Survival Analysis": render_survival_analysis,

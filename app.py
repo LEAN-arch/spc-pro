@@ -2213,12 +2213,12 @@ def render_core_validation_params():
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you navigate to the "Core Validation Parameters" tool, you will see a new set of dedicated sliders in the sidebar. Changing these sliders will instantly update the three plots, allowing you to build a powerful, hands-on intuition for these critical concepts.
+    **Interactive Demo:** Now, when you navigate to the "Core Validation Parameters" tool, you will see a new set of dedicated sliders below. Changing these sliders will instantly update the three plots, allowing you to build a powerful, hands-on intuition for these critical concepts.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("Core Validation Controls")
-    bias_slider = st.sidebar.slider(
+    st.subheader("Core Validation Controls")
+    bias_slider = st.slider(
         "🎯 Systematic Bias (%)", 
         min_value=-10.0, max_value=10.0, value=1.5, step=0.5,
         help="Simulates a constant positive or negative bias in the accuracy study. Watch the box plots shift."

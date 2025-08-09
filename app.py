@@ -2213,17 +2213,28 @@ def plot_ewma_cusum_comparison(shift_size=0.75, scenario='Sudden Shift'):
     
     return fig, i_detect_time, ewma_detect_time, cusum_detect_time
     
-def plot_time_series_analysis(trend_strength=10, noise_sd=2):
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Time Series) - SME ENHANCED
+# ==============================================================================
+def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strength=0.0):
     """
-    Generates dynamic time series plots and forecasts based on user-defined trend and noise.
+    Generates an enhanced, more realistic time series dashboard, including a changepoint
+    scenario, forecast intervals, and essential ARIMA diagnostics (residuals, ACF).
     """
     np.random.seed(42)
-    dates = pd.date_range(start='2020-01-01', periods=104, freq='W')
+    periods = 104
+    changepoint_loc = 60 # Location of the trend changepoint
+    dates = pd.date_range(start='2020-01-01', periods=periods, freq='W')
     
-    # --- Dynamic Data Generation ---
-    trend = np.linspace(50, 50 + trend_strength, 104)
-    seasonality = 5 * np.sin(np.arange(104) * (2*np.pi/52.14))
-    noise = np.random.normal(0, noise_sd, 104)
+    # --- Dynamic Data Generation with Changepoint ---
+    trend1 = np.linspace(50, 50 + trend_strength, changepoint_loc)
+    # The trend slope changes after the changepoint
+    end_val = trend1[-1]
+    trend2 = np.linspace(end_val, end_val + (trend_strength + changepoint_strength), periods - changepoint_loc)
+    trend = np.concatenate([trend1, trend2])
+    
+    seasonality = 5 * np.sin(np.arange(periods) * (2*np.pi/52.14))
+    noise = np.random.normal(0, noise_sd, periods)
     
     y = trend + seasonality + noise
     df = pd.DataFrame({'ds': dates, 'y': y})
@@ -2236,37 +2247,59 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2):
     fc_prophet = m_prophet.predict(future)
 
     m_arima = ARIMA(train['y'], order=(5,1,0)).fit()
-    fc_arima = m_arima.get_forecast(steps=14).summary_frame()
+    fc_arima = m_arima.get_forecast(steps=14).summary_frame(alpha=0.2) # 80% CI
 
     # --- Dynamic KPI Calculation (Mean Absolute Error) ---
     mae_prophet = np.mean(np.abs(fc_prophet['yhat'].iloc[-14:].values - test['y'].values))
     mae_arima = np.mean(np.abs(fc_arima['mean'].values - test['y'].values))
-
-    # --- Plotting ---
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat'], mode='lines', name='Prophet Forecast', line=dict(dash='dash', color='red')))
-    fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean'], mode='lines', name='ARIMA Forecast', line=dict(dash='dash', color='green')))
     
-    forecast_start_date = train['ds'].iloc[-1]
-
-    # --- FIX: Separate the line drawing from the annotation ---
-    # 1. Add the vertical line without any annotation text.
-    fig.add_vline(x=forecast_start_date, line_width=2, line_dash="dash", line_color="grey")
-
-    # 2. Add the annotation as a separate object with an explicit position.
-    fig.add_annotation(
-        x=forecast_start_date,
-        y=0.05, # Position annotation at 5% of the y-axis height
-        yref="paper", # Use paper coordinates for y to keep it at the bottom
-        text="Forecast Start",
-        showarrow=False,
-        xshift=10 # Shift text slightly to the right of the line
+    # --- SME Enhancement: ARIMA Diagnostics ---
+    from statsmodels.graphics.tsaplots import plot_acf
+    residuals_arima = m_arima.resid
+    
+    # --- Plotting Dashboard ---
+    fig = make_subplots(
+        rows=2, cols=2,
+        specs=[[{"colspan": 2}, None], [{}, {}]],
+        subplot_titles=("<b>1. Forecast vs. Actual Data</b>",
+                        "<b>2. ARIMA Residuals Over Time</b>", "<b>3. ARIMA Residuals ACF Plot</b>"),
+        vertical_spacing=0.2
     )
+    
+    # Plot 1: Main Forecast
+    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')), row=1, col=1)
+    # Prophet with confidence interval
+    fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat_upper'], mode='lines', line=dict(width=0), showlegend=False), row=1, col=1)
+    fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat_lower'], mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(255,0,0,0.1)', name='Prophet 80% CI'), row=1, col=1)
+    # ARIMA with confidence interval
+    fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean_ci_upper'], mode='lines', line=dict(width=0), showlegend=False), row=1, col=1)
+    fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean_ci_lower'], mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(0,128,0,0.1)', name='ARIMA 80% CI'), row=1, col=1)
+    
+    fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat'], mode='lines', name='Prophet Forecast', line=dict(dash='dash', color='red')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean'], mode='lines', name='ARIMA Forecast', line=dict(dash='dash', color='green')), row=1, col=1)
+    
+    fig.add_vline(x=train['ds'].iloc[-1], line_width=2, line_dash="dash", line_color="grey", annotation_text="Forecast Start", row=1, col=1)
+    fig.add_vline(x=df['ds'][changepoint_loc], line_width=2, line_dash="dot", line_color="purple", annotation_text="Trend Changepoint", row=1, col=1)
 
-    fig.update_layout(title='<b>Time Series Forecasting: Prophet vs. ARIMA</b>', 
-                      xaxis_title='Date', yaxis_title='Process Value',
-                      legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+    # Plot 2: ARIMA Residuals
+    fig.add_trace(go.Scatter(x=train['ds'][1:], y=residuals_arima[1:], mode='lines', name='Residuals'), row=2, col=1)
+    fig.add_hline(y=0, line_dash='dash', line_color='black', row=2, col=1)
+
+    # Plot 3: ARIMA ACF
+    acf_vals = sm.tsa.acf(residuals_arima, nlags=20)
+    fig.add_trace(go.Bar(x=np.arange(1, 21), y=acf_vals[1:], name='ACF'), row=2, col=2)
+    # Add confidence interval for ACF
+    fig.add_shape(type='line', x0=0.5, x1=20.5, y0=1.96/np.sqrt(len(residuals_arima)), y1=1.96/np.sqrt(len(residuals_arima)), line=dict(color='red', dash='dash'), row=2, col=2)
+    fig.add_shape(type='line', x0=0.5, x1=20.5, y0=-1.96/np.sqrt(len(residuals_arima)), y1=-1.96/np.sqrt(len(residuals_arima)), line=dict(color='red', dash='dash'), row=2, col=2)
+
+    fig.update_layout(height=800, title_text='<b>Time Series Forecasting & Diagnostics Dashboard</b>',
+                      legend=dict(yanchor="top", y=0.98, xanchor="left", x=0.01))
+    fig.update_xaxes(title_text="Date", row=1, col=1)
+    fig.update_yaxes(title_text="Process Value", row=1, col=1)
+    fig.update_xaxes(title_text="Date", row=2, col=1)
+    fig.update_yaxes(title_text="Residual Value", row=2, col=1)
+    fig.update_xaxes(title_text="Lag", row=2, col=2)
+    fig.update_yaxes(title_text="Autocorrelation", row=2, col=2)
                       
     return fig, mae_arima, mae_prophet
 
@@ -4998,29 +5031,30 @@ def render_time_series_analysis():
     **Purpose:** To model and forecast time-dependent data by understanding its internal structure, such as trend, seasonality, and autocorrelation. This module compares two powerful philosophies for this task.
     
     **Strategic Application:** This is fundamental for demand forecasting, resource planning, and proactive process monitoring.
-    - **⌚ ARIMA (The Classical Watchmaker):** A powerful and flexible "white-box" model. Like a master watchmaker, you must understand every gear (p,d,q parameters), but you get a highly interpretable model that is defensible in regulatory environments and excels at short-term forecasting of stable processes.
-    - **📱 Prophet (The Modern Smartwatch):** A modern forecasting tool from Facebook. It's packed with sensors and algorithms to automatically handle complex seasonalities, holidays, and changing trends with minimal user input. It's designed for speed and scale.
+    - **⌚ ARIMA (The Classical Watchmaker):** A powerful "white-box" model. Like a master watchmaker, you must understand every gear, but you get a highly interpretable model that excels at short-term forecasting of stable processes.
+    - **📱 Prophet (The Modern Smartwatch):** A modern, automated tool from Meta. It is designed to handle complex seasonalities, holidays, and changing trends with minimal user input, making it ideal for forecasting at scale.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to change the underlying structure of the time series data. 
-    - **Increase `Trend Strength`:** See how both models adapt to a more aggressive upward trend.
-    - **Increase `Random Noise`:** Observe how forecasting becomes more difficult and the error (MAE) for both models increases as the data gets noisier.
+    **Interactive Demo:** Use the sliders to change the underlying structure of the time series data. 
+    - **`Trend Changepoint`**: Introduce an abrupt change in the trend's slope. Notice how Prophet (red) adapts more easily than the rigid ARIMA model (green).
+    - **`Random Noise`**: Observe how forecasting becomes more difficult and forecast intervals widen as the data gets noisier.
+    - **Check the `ACF Plot`**: A good ARIMA model should have no significant bars outside the red lines, indicating the residuals are random noise.
     """)
 
-    st.sidebar.subheader("Time Series Controls")
-    trend_slider = st.sidebar.slider(
-        "📈 Trend Strength",
-        min_value=0, max_value=50, value=10, step=5,
-        help="Controls the overall increase in the process value over the two-year period."
-    )
-    noise_slider = st.sidebar.slider(
-        "🎲 Random Noise (SD)",
-        min_value=0.5, max_value=10.0, value=2.0, step=0.5,
-        help="Controls the amount of random, unpredictable fluctuation in the data."
-    )
+    with st.sidebar:
+        st.sidebar.subheader("Time Series Controls")
+        trend_slider = st.sidebar.slider("📈 Trend Strength", 0, 50, 10, 5)
+        noise_slider = st.sidebar.slider("🎲 Random Noise (SD)", 0.5, 10.0, 2.0, 0.5)
+        # --- NEW SLIDER ADDED HERE ---
+        changepoint_slider = st.sidebar.slider("🔄 Trend Changepoint Strength", -50.0, 50.0, 0.0, 5.0,
+            help="Controls the magnitude of an abrupt change in the trend's slope halfway through the data. Prophet is designed to handle this well.")
     
-    fig, mae_arima, mae_prophet = plot_time_series_analysis(trend_strength=trend_slider, noise_sd=noise_slider)
+    fig, mae_arima, mae_prophet = plot_time_series_analysis(
+        trend_strength=trend_slider,
+        noise_sd=noise_slider,
+        changepoint_strength=changepoint_slider
+    )
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -5031,29 +5065,27 @@ def render_time_series_analysis():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value=f"{mae_arima:.2f} units", help="Mean Absolute Error for the ARIMA model.")
-            st.metric(label="📱 Prophet Forecast Error (MAE)", value=f"{mae_prophet:.2f} units", help="Mean Absolute Error for the Prophet model.")
-            st.metric(label="🔮 Forecast Horizon", value="14 Weeks", help="The period into the future for which we are generating predictions.")
+            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value=f"{mae_arima:.2f} units")
+            st.metric(label="📱 Prophet Forecast Error (MAE)", value=f"{mae_prophet:.2f} units")
 
             st.markdown("""
-            **Reading the Forecasts:**
-            - **The Black Line:** This is the historical data the models were trained on.
-            - **The Grey Line:** Marks the start of the forecast period. Data to the right is the "future" used to test the models.
-            - **The Green (ARIMA) & Red (Prophet) Lines:** These are the models' predictions for the future. Compare them to the black line to see how well they performed.
+            **Reading the Dashboard:**
+            - **1. Main Forecast:** This plot shows the historical data and the two competing forecasts, including their 80% confidence intervals.
+            - **2. ARIMA Residuals:** These are the one-step-ahead forecast errors from the ARIMA model. For a good model, this plot should look like random white noise with no discernible pattern.
+            - **3. ARIMA Residuals ACF:** The Autocorrelation Function plot is the key diagnostic. It shows the correlation of the residuals with their own past values. **If any bars go outside the red significance lines, it means there is still predictable structure in the errors that the model has failed to capture.**
 
-            **The Core Strategic Insight:** The choice is not about which model is "best," but which is **right for the job.** For a stable, well-understood industrial process where interpretability is key, the craftsmanship of ARIMA is superior. For a complex, noisy business time series with multiple layers of seasonality and a need for automated forecasting at scale, Prophet is often the better tool.
+            **The Core Strategic Insight:** Prophet's main advantage is its automatic flexibility. Introduce a large **Trend Changepoint**, and watch Prophet's forecast adjust while the linear-trending ARIMA model fails to adapt, resulting in a much higher forecast error.
             """)
 
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
-This is the most common path to a useless forecast.
-- An analyst takes a column of data, feeds it directly into `model.fit()` and `model.predict()`, and presents the resulting line.
-- **The Flaw:** They've made no attempt to understand the data's structure. Is there a trend? Is it seasonal? Is the variance stable? They have no idea if the model's assumptions have been met. This "black box" approach produces a forecast that is fragile, unreliable, and likely to fail spectacularly the moment the underlying process changes.""")
+An analyst takes a column of data, feeds it into `model.fit()` and `model.predict()`, and presents the resulting line without checking the diagnostics.
+- **The Flaw:** They've made no attempt to validate the model's assumptions. The residuals might show a clear pattern or the ACF plot might have significant lags, proving the model is wrong. This "black box" approach produces a forecast that is fragile and untrustworthy.""")
             st.success("""🟢 **THE GOLDEN RULE: Decompose, Validate, and Monitor**
 A robust forecasting process is disciplined and applies regardless of the model you use.
-1.  **Decompose and Understand (The Pre-Flight Check):** Before you model, you must visualize. Use a time series decomposition plot to separate the series into its core components: **Trend, Seasonality, and Residuals.** This tells you what you're working with. Check for stationarity—a core assumption of ARIMA.
-2.  **Train, Validate, Test:** Never judge a model by its performance on data it has already seen. Split your historical data into a training set (to build the model) and a validation set (to tune it). Keep a final "test set" of the most recent data as a truly blind evaluation of forecast accuracy.
-3.  **Monitor for Drift:** A forecast is only a snapshot in time. You must continuously monitor its performance against incoming new data. When the error starts to increase, it's a signal that the underlying process has changed and the model needs to be retrained.""")
+1.  **Decompose and Understand:** Before modeling, visualize the data to understand its trend, seasonality, and any changepoints.
+2.  **Fit and Diagnose:** After fitting a model, **always** analyze its residuals. The residuals must look like random noise. The ACF plot of the residuals is the statistical proof of this.
+3.  **Validate on a Test Set:** The model's true performance is only revealed when it is tested on data it has never seen before.""")
 
         with tabs[2]:
             st.markdown("""
@@ -5077,7 +5109,7 @@ A robust forecasting process is disciplined and applies regardless of the model 
             st.markdown("- **Prophet:** A decomposable additive model.")
             st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
             st.markdown(r"""
-            Where `g(t)` is a saturating growth trend, `s(t)` models complex weekly and yearly seasonality using Fourier series, `h(t)` is a flexible component for user-specified holidays, and `ε` is the error.
+            Where `g(t)` is a saturating growth trend with automatic changepoint detection, `s(t)` models complex seasonality using Fourier series, `h(t)` is for holidays, and `ε` is the error.
             """)
 
 def render_stability_analysis():

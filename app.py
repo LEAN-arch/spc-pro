@@ -2700,55 +2700,98 @@ def plot_clustering(separation=15, spread=2.5, n_true_clusters=3):
                              
     return fig, final_silhouette, optimal_k
     
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Predictive QC) - SME ENHANCED
+# ==============================================================================
 def plot_classification_models(boundary_radius=12):
     """
-    Generates dynamic classification plots based on a user-defined boundary complexity.
+    Generates an enhanced, more realistic classification dashboard, including
+    probabilistic decision boundaries and a comparative ROC curve plot.
     """
     np.random.seed(1)
     n_points = 200
-    X1 = np.random.uniform(0, 10, n_points)
-    X2 = np.random.uniform(0, 10, n_points)
+    # SME Enhancement: Frame data with a more realistic scenario
+    purity = np.random.uniform(95, 105, n_points)
+    bioactivity = np.random.uniform(80, 120, n_points)
     
-    # --- Dynamic Data Generation ---
-    # The decision boundary is a circle centered at (5,5). The slider controls its radius.
-    # A smaller radius creates a more complex, non-linear "island" of failure.
-    distance_from_center_sq = (X1 - 5)**2 + (X2 - 5)**2
-    # Use a sigmoid to create a soft, probabilistic boundary
+    # The decision boundary is a circle centered at (100, 100).
+    distance_from_center_sq = (purity - 100)**2 + (bioactivity - 100)**2
     prob_of_failure = 1 / (1 + np.exp(distance_from_center_sq - boundary_radius))
     y = np.random.binomial(1, prob_of_failure) # 1 = Fail (red), 0 = Pass (blue)
     
-    X = np.column_stack((X1, X2))
+    X = np.column_stack((purity, bioactivity))
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
     # --- Re-fit models and calculate dynamic KPIs ---
     lr = LogisticRegression().fit(X_train, y_train)
-    lr_score = lr.score(X_test, y_test)
-
+    lr_probs = lr.predict_proba(X_test)[:, 1]
+    
     rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-    rf_score = rf.score(X_test, y_test)
+    rf_probs = rf.predict_proba(X_test)[:, 1]
+
+    # Calculate ROC curves
+    fpr_lr, tpr_lr, _ = roc_curve(y_test, lr_probs)
+    auc_lr = auc(fpr_lr, tpr_lr)
+    fpr_rf, tpr_rf, _ = roc_curve(y_test, rf_probs)
+    auc_rf = auc(fpr_rf, tpr_rf)
+
+    # --- Plotting Dashboard ---
+    fig = make_subplots(
+        rows=1, cols=3,
+        subplot_titles=(f"<b>Logistic Regression</b>", f"<b>Random Forest</b>", "<b>Performance: ROC Curves</b>"),
+        column_widths=[0.4, 0.4, 0.2]
+    )
 
     # Create meshgrid for decision boundary
-    xx, yy = np.meshgrid(np.linspace(0, 10, 100), np.linspace(0, 10, 100))
+    xx, yy = np.meshgrid(np.linspace(95, 105, 100), np.linspace(80, 120, 100))
     
-    fig = make_subplots(rows=1, cols=2, subplot_titles=(f'<b>Logistic Regression (Accuracy: {lr_score:.2%})</b>', 
-                                                       f'<b>Random Forest (Accuracy: {rf_score:.2%})</b>'))
+    # Plot Logistic Regression with probability contour
+    Z_lr = lr.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1].reshape(xx.shape)
+    contour_lr = go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, colorscale='RdBu', showscale=False,
+                            opacity=0.5, name='LR Prob.',
+                            contours=dict(start=0, end=1, size=0.1))
+    # Highlight the 50% decision boundary
+    contour_lr_boundary = go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, showscale=False,
+                                     contours_coloring='lines', line_width=3,
+                                     contours=dict(start=0.5, end=0.5, size=0))
+    fig.add_trace(contour_lr, row=1, col=1)
+    fig.add_trace(contour_lr_boundary, row=1, col=1)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers',
+                             marker=dict(color=y, colorscale=[[0, 'blue'], [1, 'red']],
+                                         line=dict(width=1, color='black'))), row=1, col=1)
 
-    # Plot Logistic Regression
-    Z_lr = lr.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
-    fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=1)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu_r', line=dict(width=1, color='black'))), row=1, col=1)
+    # Plot Random Forest with probability contour
+    Z_rf = rf.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1].reshape(xx.shape)
+    contour_rf = go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, colorscale='RdBu', showscale=False,
+                            opacity=0.5, name='RF Prob.',
+                            contours=dict(start=0, end=1, size=0.1))
+    contour_rf_boundary = go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, showscale=False,
+                                     contours_coloring='lines', line_width=3,
+                                     contours=dict(start=0.5, end=0.5, size=0))
+    fig.add_trace(contour_rf, row=1, col=2)
+    fig.add_trace(contour_rf_boundary, row=1, col=2)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers',
+                             marker=dict(color=y, colorscale=[[0, 'blue'], [1, 'red']],
+                                         line=dict(width=1, color='black'))), row=1, col=2)
 
-    # Plot Random Forest
-    Z_rf = rf.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
-    fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=2)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu_r', line=dict(width=1, color='black'))), row=1, col=2)
+    # Plot ROC Curves
+    fig.add_trace(go.Scatter(x=fpr_lr, y=tpr_lr, mode='lines', name=f'Logistic Reg. (AUC={auc_lr:.3f})',
+                             line=dict(color='royalblue', width=3)), row=1, col=3)
+    fig.add_trace(go.Scatter(x=fpr_rf, y=tpr_rf, mode='lines', name=f'Random Forest (AUC={auc_rf:.3f})',
+                             line=dict(color='darkorange', width=3)), row=1, col=3)
+    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='No-Discrimination',
+                             line=dict(color='grey', width=2, dash='dash')), row=1, col=3)
 
     fig.update_layout(title="<b>Predictive QC: Linear vs. Non-Linear Models</b>", showlegend=False, height=500)
-    fig.update_xaxes(title_text="Parameter 1", row=1, col=1); fig.update_yaxes(title_text="Parameter 2", row=1, col=1)
-    fig.update_xaxes(title_text="Parameter 1", row=1, col=2); fig.update_yaxes(title_text="Parameter 2", row=1, col=2)
+    fig.update_xaxes(title_text="Peak Purity (HPLC)", row=1, col=1)
+    fig.update_yaxes(title_text="Bioactivity (%)", row=1, col=1)
+    fig.update_xaxes(title_text="Peak Purity (HPLC)", row=1, col=2)
+    fig.update_yaxes(title_text="Bioactivity (%)", row=1, col=2)
+    fig.update_xaxes(title_text="1 - Specificity", range=[-0.05, 1.05], row=1, col=3)
+    fig.update_yaxes(title_text="Sensitivity", range=[-0.05, 1.05], row=1, col=3)
     
-    return fig, lr_score, rf_score
+    return fig, auc_lr, auc_rf
 
 def wilson_score_interval(p_hat, n, z=1.96):
     # This helper function remains the same, but it's good to keep it near the plotting function.
@@ -5619,25 +5662,26 @@ def render_classification_models():
     **Purpose:** To build an **AI Gatekeeper** that can inspect in-process data and predict, with high accuracy, whether a batch will ultimately pass or fail its final QC specifications. This moves quality control from a reactive, end-of-line activity to a proactive, predictive science.
     
     **Strategic Application:** This is the foundation of real-time release and "lights-out" manufacturing. By predicting outcomes early, we can:
-    - **Prevent Failures:** Intervene in a batch that is trending towards failure, saving it before it's too late.
-    - **Optimize Resource Allocation:** Divert QC lab resources away from batches predicted to be good and focus on those with higher risk.
-    - **Accelerate Release:** Provide the statistical evidence needed to release batches based on in-process data, rather than waiting for slow offline tests.
+    - **Prevent Failures:** Intervene in a batch that is trending towards failure.
+    - **Optimize Resources:** Divert QC lab resources to focus on high-risk batches.
+    - **Accelerate Release:** Provide statistical evidence for release based on in-process data.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the **Boundary Complexity** slider in the sidebar to change the true pass/fail relationship in the simulated data.
-    - **High values (e.g., 20):** Creates a simple, almost linear boundary. Notice both models perform well.
-    - **Low values (e.g., 8):** Creates a complex, non-linear "island" of failures. Watch the accuracy of the linear Logistic Regression model collapse, while the non-linear Random Forest continues to perform well.
+    **Interactive Demo:** Use the **Boundary Complexity** slider to change the true pass/fail relationship.
+    - **High values (e.g., 20):** Creates a simple, almost linear boundary. Both models perform well, with similar AUCs.
+    - **Low values (e.g., 8):** Creates a complex, non-linear "island" of failures. Watch the performance of the linear Logistic Regression model collapse, while the Random Forest's AUC remains high.
     """)
 
-    st.sidebar.subheader("Predictive QC Controls")
-    complexity_slider = st.sidebar.slider(
-        "Boundary Complexity",
-        min_value=4, max_value=25, value=12, step=1,
-        help="Controls how non-linear the true pass/fail boundary is. Lower values create a more complex 'island' that is harder for linear models to solve."
-    )
+    with st.sidebar:
+        st.sidebar.subheader("Predictive QC Controls")
+        complexity_slider = st.sidebar.slider(
+            "Boundary Complexity",
+            min_value=4, max_value=25, value=12, step=1,
+            help="Controls how non-linear the true pass/fail boundary is. Lower values create a more complex 'island' that is harder for linear models to solve."
+        )
     
-    fig, lr_accuracy, rf_accuracy = plot_classification_models(boundary_radius=complexity_slider)
+    fig, auc_lr, auc_rf = plot_classification_models(boundary_radius=complexity_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -5648,27 +5692,29 @@ def render_classification_models():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="📈 Model 1: Logistic Regression Accuracy", value=f"{lr_accuracy:.2%}", help="Performance of the simpler, linear model.")
-            st.metric(label="🚀 Model 2: Random Forest Accuracy", value=f"{rf_accuracy:.2%}", help="Performance of the more complex, non-linear model.")
+            st.metric(label="📈 Logistic Regression AUC", value=f"{auc_lr:.3f}",
+                      help="Overall performance of the simpler, linear model.")
+            st.metric(label="🚀 Random Forest AUC", value=f"{auc_rf:.3f}",
+                      help="Overall performance of the more complex, non-linear model.")
 
             st.markdown("""
-            **Reading the Decision Boundaries:**
-            - The plots show how each model carves up the process space into "predicted pass" (blue regions) and "predicted fail" (red regions). The dots are the true outcomes.
-            - **Logistic Regression (Left):** This classical statistical model can only draw a **straight line** to separate the groups. It struggles when the true boundary is curved.
-            - **Random Forest (Right):** This powerful machine learning model can create a complex, **non-linear boundary**. It can learn the true "island" of failure, leading to much higher accuracy on complex problems.
+            **Reading the Dashboard:**
+            - **Plots 1 & 2 (Decision Boundaries):** These plots show each model's *predicted probability of failure*. The dark line is the 50% threshold (the decision boundary).
+            - **Logistic Regression** is forced to draw a straight line boundary.
+            - **Random Forest** can draw a complex, circular boundary, correctly identifying the "island" of failures.
+            - **Plot 3 (ROC Curves):** This is the ultimate scorecard. A curve closer to the top-left corner is better. The **Area Under the Curve (AUC)** provides a single number to quantify performance.
 
-            **The Core Strategic Insight:** For complex biological or chemical processes, the relationship between process parameters and final quality is rarely linear. Modern machine learning models like Random Forest or Gradient Boosting are often required to capture this complexity and build a truly effective AI Gatekeeper.
+            **The Core Strategic Insight:** For complex biological processes, the relationship between parameters and quality is rarely linear. Modern ML models like Random Forest are often required to capture this complexity and build an effective AI Gatekeeper.
             """)
 
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Garbage In, Garbage Out" Fallacy**
 An analyst takes all 500 available sensor tags, feeds them directly into a model, and trains it.
-- **The Flaw 1 (Curse of Dimensionality):** With more input variables than batches, the model is likely to find spurious correlations and will fail to generalize to new data.
-- **The Flaw 2 (Lack of Causality):** The model may learn that "Sensor A" is highly predictive, without understanding that Sensor A is only correlated with the true causal driver, "Raw Material B". If the correlation changes, the model breaks.""")
+- **The Flaw:** With more input variables than batches, the model is likely to find spurious correlations and will fail to generalize to new data. The model hasn't been given any scientific context.""")
             st.success("""🟢 **THE GOLDEN RULE: Feature Engineering is the Secret Ingredient**
 The success of a predictive model depends less on the algorithm and more on the quality of the inputs ("features").
-1.  **Collaborate with SMEs:** Work with scientists and engineers to identify which process parameters are *scientifically likely* to be causal drivers of quality.
-2.  **Engineer Smart Features:** Don't just use raw sensor values. Create more informative features like the *slope* of a temperature profile or the *cumulative* feed volume.
+1.  **Collaborate with SMEs:** Work with scientists to identify which process parameters are *scientifically likely* to be causal drivers of quality.
+2.  **Engineer Smart Features:** Don't just use raw sensor values. Create more informative features, like the *slope* of a temperature profile or the *cumulative* feed volume.
 3.  **Validate on Unseen Data:** The model's true performance is only revealed when it is tested on a hold-out set of batches it has never seen before.""")
 
         with tabs[2]:
@@ -5691,7 +5737,7 @@ The success of a predictive model depends less on the algorithm and more on the 
             st.markdown("- **Random Forest:** It is a collection of `N` individual decision tree models. For a new input `x`, the final prediction is the mode (most common vote) of all the individual tree predictions:")
             st.latex(r"\text{Prediction}(x) = \text{mode}\{ \text{Tree}_1(x), \text{Tree}_2(x), \dots, \text{Tree}_N(x) \}")
             st.markdown("Randomness is injected in two ways to ensure the trees are diverse: each tree is trained on a random bootstrap sample of the data, and at each split in a tree, only a random subset of features is considered.")
-            
+
 def render_anomaly_detection():
     """Renders the module for unsupervised anomaly detection."""
     st.markdown("""

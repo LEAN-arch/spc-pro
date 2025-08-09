@@ -2838,7 +2838,7 @@ def plot_isolation_forest(contamination_rate=0.1):
         specs=[[{"rowspan": 2}, {}], [None, {}]]
     )
 
-    # Plot 1: Main Scatter Plot
+    # Plot 1: Main Scatter Plot (Grid Position 1,1)
     fig.add_trace(px.scatter(df, x='Process Parameter 1', y='Process Parameter 2',
                              color='Status', color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
                              symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'}
@@ -2848,7 +2848,7 @@ def plot_isolation_forest(contamination_rate=0.1):
                          symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'}
                         ).data[1], row=1, col=1)
 
-    # Plot 2: Visualize one of the trees, with error handling
+    # Plot 2: Visualize one of the trees (Grid Position 1,2)
     try:
         from sklearn.tree import export_graphviz
         import graphviz
@@ -2860,47 +2860,48 @@ def plot_isolation_forest(contamination_rate=0.1):
                                    special_characters=True, max_depth=3)
         graph = graphviz.Source(dot_data)
         
-        # --- THIS IS THE CORRECTED BLOCK ---
-        # 1. Pipe the graph to PNG bytes
         png_bytes = graph.pipe(format='png')
-        # 2. Open the bytes with PIL/Pillow
         img = Image.open(io.BytesIO(png_bytes))
-        # 3. Pass the Pillow Image object to Plotly's source
+        
         fig.add_layout_image(
             dict(
-                source=img, # Pass the Pillow Image object, not raw bytes
+                source=img,
                 xref="x2", yref="y2",
                 x=0.5, y=0.5, sizex=1, sizey=1,
                 xanchor="center", yanchor="middle",
                 sizing="contain", layer="above"
             )
         )
-        # --- END OF CORRECTION ---
-
     except (ImportError, FileNotFoundError, graphviz.backend.execute.ExecutableNotFound):
         fig.add_annotation(
             xref="x2 domain", yref="y2 domain", x=0.5, y=0.5,
-            text="<b>Graphviz executable not found.</b><br>Please install it on your system<br>to see the example tree.",
+            text="<b>Graphviz executable not found.</b><br>Install it to see the example tree.",
             showarrow=False, font=dict(size=14, color='red')
         )
     
     fig.update_xaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
     fig.update_yaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
 
-    # Plot 3: Score Distribution
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # Plot 3: Score Distribution (Grid Position 2,2)
+    # The `row` and `col` arguments have been changed from (2,1) to (2,2).
     fig.add_trace(px.histogram(df, x='Score', color='GroundTruth',
                                color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
-                               barmode='overlay', marginal='rug').data[0], row=2, col=1)
+                               barmode='overlay', marginal='rug').data[0], row=2, col=2)
     fig.add_trace(px.histogram(df, x='Score', color='GroundTruth',
                            color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
-                           barmode='overlay', marginal='rug').data[1], row=2, col=1)
+                           barmode='overlay', marginal='rug').data[1], row=2, col=2)
     
     score_threshold = np.percentile(anomaly_scores, 100 * (1-contamination_rate))
     fig.add_vline(x=score_threshold, line_dash="dash", line_color="black",
-                  annotation_text="Decision Threshold", row=2, col=1)
+                  annotation_text="Decision Threshold", row=2, col=2)
+    # --- END OF CORRECTION ---
 
     fig.update_layout(height=800, title_text='<b>Anomaly Detection Dashboard: Isolation Forest</b>', title_x=0.5,
                       showlegend=True, legend=dict(yanchor="top", y=1, xanchor="left", x=0.5))
+    # Add axis titles for the new plot positions
+    fig.update_xaxes(title_text="Anomaly Score", row=2, col=2)
+    fig.update_yaxes(title_text="Count", row=2, col=2)
 
     return fig, (y_pred == -1).sum()
     

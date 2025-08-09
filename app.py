@@ -2819,29 +2819,31 @@ def render_assay_robustness_doe():
     """)
     
     st.info("""
-    **Interactive Demo:** You are the process expert. Use the sliders below to define the "true" physics of a virtual assay. The plots will show how a DOE/RSM experiment can uncover this underlying response surface, allowing you to find the optimal operating conditions.
+    **Interactive Demo:** You are the process expert. Use the sliders in the sidebar to define the "true" physics of a virtual assay. The plots will show how a DOE/RSM experiment can uncover this underlying response surface, allowing you to find the optimal operating conditions.
     """)
     
     # --- Sidebar controls ---
-    st.subheader("DOE / RSM Controls")
-    st.markdown("**Linear & Interaction Effects**")
-    ph_slider = st.slider("🧬 pH Main Effect", -10.0, 10.0, 2.0, 1.0, help="The 'true' linear impact of pH. A high value 'tilts' the surface along the pH axis.")
-    temp_slider = st.slider("🌡️ Temperature Main Effect", -10.0, 10.0, 5.0, 1.0, help="The 'true' linear impact of Temperature. A high value 'tilts' the surface along the Temp axis.")
-    interaction_slider = st.slider("🔄 pH x Temp Interaction Effect", -10.0, 10.0, 0.0, 1.0, help="The 'true' interaction. A non-zero value 'twists' the surface, creating a rising ridge.")
-    
-    st.markdown("**Curvature (Quadratic) Effects**")
-    ph_quad_slider = st.slider("🧬 pH Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley). This is the key to optimization.")
-    temp_quad_slider = st.slider("🌡️ Temperature Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley).")
+    with st.sidebar:
+        st.subheader("DOE / RSM Controls")
+        st.markdown("**Linear & Interaction Effects**")
+        ph_slider = st.slider("🧬 pH Main Effect", -10.0, 10.0, 2.0, 1.0, help="The 'true' linear impact of pH. A high value 'tilts' the surface along the pH axis.")
+        temp_slider = st.slider("🌡️ Temperature Main Effect", -10.0, 10.0, 5.0, 1.0, help="The 'true' linear impact of Temperature. A high value 'tilts' the surface along the Temp axis.")
+        interaction_slider = st.slider("🔄 pH x Temp Interaction Effect", -10.0, 10.0, 0.0, 1.0, help="The 'true' interaction. A non-zero value 'twists' the surface, creating a rising ridge.")
+        
+        st.markdown("**Curvature (Quadratic) Effects**")
+        ph_quad_slider = st.slider("🧬 pH Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley). This is the key to optimization.")
+        temp_quad_slider = st.slider("🌡️ Temperature Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley).")
 
-    st.markdown("**Experimental Noise**")
-    noise_slider = st.slider("🎲 Random Noise (SD)", 0.1, 5.0, 1.0, 0.1, help="The inherent variability of the assay. High noise can hide the true effects.")
+        st.markdown("**Experimental Noise**")
+        noise_slider = st.slider("🎲 Random Noise (SD)", 0.1, 5.0, 1.0, 0.1, help="The inherent variability of the assay. High noise can hide the true effects.")
     
-    # Generate plots
+    # Generate plots using the values from the sidebar sliders
     fig_contour, fig_3d, fig_effects, params = plot_doe_robustness(
         ph_effect=ph_slider, temp_effect=temp_slider, interaction_effect=interaction_slider,
         ph_quad_effect=ph_quad_slider, temp_quad_effect=temp_quad_slider, noise_sd=noise_slider
     )
     
+    # The rest of the app layout remains in the main area
     st.header("Response Surface Plots")
     col1, col2 = st.columns(2)
     with col1:

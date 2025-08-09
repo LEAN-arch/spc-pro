@@ -3205,19 +3205,20 @@ def render_multi_rule():
             """)
 
 def render_multivariate_spc():
-    """Renders the INTERACTIVE module for Multivariate SPC."""
+    """Renders the comprehensive, interactive module for Multivariate SPC."""
     st.markdown("""
     #### Purpose & Application: The Process Doctor
-    **Purpose:** To act as the **head physician for your process**. Instead of having 20 separate nurses (univariate charts) each reading one vital sign, Multivariate SPC looks at all the patient's vitals *together* to make a single, powerful diagnosis.
+    **Purpose:** To monitor the **holistic state of statistical control** for a process with multiple, correlated parameters. Instead of using an array of univariate charts (like individual nurses reading single vital signs), Multivariate SPC acts as the **head physician**, integrating all information into a single, powerful diagnosis.
     
-    **Strategic Application:** This is essential for complex processes where parameters are correlated (e.g., a bioreactor's temperature and pH). A small, coordinated change in all variables—a "stealth shift"—can be invisible to individual charts but signals a significant change in the process state.
+    **Strategic Application:** This is an essential methodology for modern **Process Analytical Technology (PAT)** and real-time process monitoring. In complex systems like bioreactors or chromatography, parameters like temperature, pH, pressure, and flow rates are interdependent. A small, coordinated deviation across several parameters—a "stealth shift"—can be invisible to individual charts but represents a significant excursion from the normal operating state. MSPC is designed to detect exactly these events.
+    - **Hotelling's T² Chart:** The "Check Engine Light" for your process. It condenses dozens of variables into a single statistic that monitors the process's multivariate "fingerprint." An alarm is an unambiguous signal that the system's health has changed.
+    - **SPE / DModX Chart:** The "Traction Control Light." This chart monitors whether the correlation structure itself has broken down, indicating a novel, unprecedented event.
     """)
     
     st.info("""
     **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate different types of multivariate process failures. Notice how the T² chart can detect shifts that might be missed by looking at the raw process data alone. This demonstrates its power in monitoring the overall process "health" or "fingerprint."
     """)
 
-    # --- NEW: Sidebar controls for this specific module ---
     st.sidebar.subheader("Multivariate SPC Controls")
     scenario = st.sidebar.radio(
         "Select a Process Scenario to Simulate:",
@@ -3241,44 +3242,47 @@ def render_multivariate_spc():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
+            st.metric(label="📈 KPI: Hotelling's T²", value="Out-of-Control" if scenario != 'Stable' else "In-Control", help="Monitors deviation from the multivariate mean along the correlation structure.")
+            st.metric(label="📈 KPI: SPE / DModX", value="Out-of-Control" if scenario == 'Correlation Break' else "In-Control", help="Squared Prediction Error. Monitors deviation *from* the correlation structure.")
+            
             st.info("Select a scenario from the sidebar and observe the plots!")
             st.markdown("""
-            - **Shift in Y Only:** Notice in the left plot, the red (out-of-control) points are still within the horizontal range of the blue points. A simple control chart on Temperature (X-axis) would likely miss this shift! The T² chart, however, sees the deviation in the Y-direction and signals an alarm.
-            - **Correlation Break:** This is the most subtle and powerful case. The center of the red cloud is the same as the blue cloud, but the relationship between the variables has changed (from positive to negative correlation). This "broken fingerprint" is invisible to individual charts but is immediately detected by the T² chart.
+            - **Shift in Y Only (The Stealth Shift):** In the left plot, the red (out-of-control) points are still within the horizontal range of the blue points. A univariate chart for Temperature (X-axis) would be completely blind to this failure. The T² chart, however, understands the expected Y-value for a given X-value and immediately signals an alarm.
+            - **Correlation Break (The Unprecedented Event):** This is the most subtle and powerful case. The center of the red cloud is the same as the blue one, meaning average Temp and Pressure are normal. However, the *relationship* between them has broken (e.g., high temp no longer leads to high pressure). This "broken fingerprint" is invisible to individual charts but would be caught by an SPE/DModX chart, and is also detected by the T² chart in this simulation.
 
-            **The Core Strategic Insight:** A process doesn't live on a single axis; it lives in a multi-dimensional space. The T² chart monitors the process's position within its normal, correlated "operating cloud" and alarms when it moves outside, even if no single variable has crossed a limit.
+            **The Core Strategic Insight:** MSPC models the *relationship* between variables, not just their individual values. The T² chart asks, "Is the process still centered within its normal operating cloud?" The SPE chart asks, "Does the cloud still have its normal shape?" Together, they provide a comprehensive health check.
             """)
 
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
-            A manager insists on using 20 separate I-MR charts for their 20 bioreactor parameters.
+            A manager insists on using 20 separate I-MR charts for their 20 bioreactor parameters. This approach is doomed to fail.
             
-            - **Problem 1: Alarm Fatigue.** With 20 charts, false alarms are constant. Operators begin to ignore the signals.
-            - **Problem 2: The Stealth Shift.** A small, coordinated shift occurs across 10 parameters. This is a massive change in the process state, but **not a single one of the 20 charts will alarm.**
+            - **Problem 1: Alpha Inflation & Alarm Fatigue.** With 20 charts, the probability of at least one false alarm in a run is extremely high (nearly 10%). Operators become desensitized and begin to ignore the signals.
+            - **Problem 2: The Stealth Shift.** A small, coordinated 1-sigma shift occurs across 10 of the 20 parameters. This is a massive change in the process state, but **not a single one of the 20 charts will alarm.** The process is sick, but every "nurse" reports normal vitals.
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: Detect with T², Diagnose with Contributions**
             The correct, two-stage approach to multivariate monitoring is disciplined and powerful.
-            1.  **Stage 1: Detect.** Use a **single Hotelling's T² chart** as your primary process health monitor. Its job is to answer one question: "Is something wrong?"
-            2.  **Stage 2: Diagnose.** If the T² chart alarms, and only then, use **contribution plots** to identify which of the original variables are most responsible for the alarm.
+            1.  **Stage 1: Detect.** Use a **single Hotelling's T² chart and an SPE chart** as your primary process health monitors. Their job is to answer one question: "Is something wrong?"
+            2.  **Stage 2: Diagnose.** If either chart alarms, and only then, use **contribution plots**. These diagnostic plots are like the mechanic's computer, reading the error codes to identify which of the original variables are most responsible for the alarm signal.
             """)
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin: Hotelling's T-Squared
-            The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, a direct multivariate generalization of Student's t-statistic that allowed one to test hypotheses about multiple means at once.
+            #### Historical Context: The Crisis of Dimensionality
+            **The Problem:** In the 1930s, statistics was largely a univariate world. Tools like Student's t-test and Shewhart's control charts were brilliant for analyzing one variable at a time. But scientists and economists were facing increasingly complex problems with dozens of correlated measurements. How could you test if two groups were different, not just on one variable, but across a whole panel of them?
             
-            When Shewhart's control charts became popular, it was a natural next step to apply Hotelling's powerful statistic to process monitoring, creating the T² chart to apply SPC philosophy to complex, correlated, multivariate data.
+            **The "Aha!" Moment (Hotelling):** The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. His genius was in generalization. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, a direct multivariate generalization of Student's t-statistic. It provided a single number that represented the "distance" between groups in a multi-dimensional space, elegantly solving the problem of testing multiple means at once.
+            
+            **The Impact:** When Shewhart's control charts became popular, it was a natural next step to apply Hotelling's statistic to process monitoring. The T² chart is simply a time-series plot of this statistic, providing the first statistically rigorous way to apply SPC to complex, correlated data. This 90-year-old idea is now the engine of modern PAT and real-time quality assurance.
             
             #### Mathematical Basis
-            The T² statistic is essentially a measure of the **Mahalanobis distance**, a "smart" distance that accounts for the correlation between variables.
+            The T² statistic is a measure of the **Mahalanobis distance**, a "smart" distance that accounts for the correlation between variables. It does this through the **inverse of the sample covariance matrix (`S⁻¹`)**, which acts as a "de-correlation engine." It mathematically transforms the tilted, elliptical cloud of normal data into a perfect, centered circle, so that any deviation from the center becomes a simple Euclidean distance.
             """)
             st.latex(r"T^2 = (\mathbf{x} - \mathbf{\bar{x}})' \mathbf{S}^{-1} (\mathbf{x} - \mathbf{\bar{x}})")
             st.markdown("""
-            - **`x`**: The vector of a new observation's measurements.
-            - **`x̄`**: The vector of historical means for the variables.
-            - **`S⁻¹`**: The **inverse of the sample covariance matrix**. This is the secret sauce. It's the mathematical engine that de-correlates and correctly scales the variables.
+            - **SPE (or DModX):** While the T² measures the distance from the center *within* the model plane, the SPE measures the distance *to* the model plane itself. It is the sum of squared residuals after projecting a data point onto the model. It answers the question, "How well does this observation conform to the correlation structure?"
             """)
             
 def render_ewma_cusum():

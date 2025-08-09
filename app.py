@@ -2558,7 +2558,7 @@ def render_4pl_regression():
     
     # --- Sidebar controls for this specific module ---
     st.subheader("4PL Curve Controls")
-    d_slider = st.sidebar.slider(
+    d_slider = st.slider(
         "🅾️ Lower Asymptote (d)", min_value=0.0, max_value=0.5, value=0.05, step=0.01,
         help="The 'floor' of the assay signal, often representing background noise."
     )

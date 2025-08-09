@@ -1285,9 +1285,12 @@ def plot_westgard_scenario(scenario='Stable'):
 @st.cache_data
 def plot_multivariate_spc(scenario='Stable'):
     """
-    Generates a dynamic and CORRECT 3-plot figure (Scatter, T², SPE) and a contribution plot.
-    This version now returns the actual status of the charts.
+    Generates dynamic plots for MSPC demonstration, including a scatter plot,
+    T² and SPE charts, and a contribution plot for diagnostics.
+
+    This function is fully corrected and contains all calculation logic.
     """
+    # --- 1. Data Generation ---
     np.random.seed(42)
     n_in_control, n_out_of_control = 20, 10
     
@@ -1296,20 +1299,18 @@ def plot_multivariate_spc(scenario='Stable'):
     in_control = np.random.multivariate_normal(mean_vec, cov_mat, n_in_control)
     
     if scenario == 'Stable':
-        np.random.seed(101)
+        np.random.seed(101) # Use different seed to ensure it's not the same data
         out_of_control = np.random.multivariate_normal(mean_vec, cov_mat, n_out_of_control)
     elif scenario == 'Shift in Y Only':
-        mean_shifted = np.array([10, 23.5])
+        mean_shifted = np.array([10, 23.5]) # Increased shift for clarity
         out_of_control = np.random.multivariate_normal(mean_shifted, cov_mat, n_out_of_control)
     elif scenario == 'Correlation Break':
-        cov_mat_broken = np.array([[1, -0.9], [-0.9, 1]])
+        cov_mat_broken = np.array([[1, -0.9], [-0.9, 1]]) # Stronger break
         out_of_control = np.random.multivariate_normal(mean_vec, cov_mat_broken, n_out_of_control)
         
     data = np.vstack([in_control, out_of_control])
     
-    # --- Model Building and Calculations ---
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.decomposition import PCA
+    # --- 2. Model Building and Statistical Calculations ---
     scaler = StandardScaler().fit(in_control)
     scaled_in_control = scaler.transform(in_control)
     pca = PCA(n_components=1).fit(scaled_in_control)
@@ -1317,36 +1318,38 @@ def plot_multivariate_spc(scenario='Stable'):
     scaled_data = scaler.transform(data)
     scores = pca.transform(scaled_data)
     
+    # T-squared calculation
     t_squared = scores[:, 0]**2 / np.var(scores[:n_in_control, 0], ddof=1)
     UCL_T2 = stats.f.ppf(0.99, 1, n_in_control - 1)
 
+    # SPE (Q-statistic) calculation
     residuals = scaled_data - pca.inverse_transform(scores)
     spe = np.sum(residuals**2, axis=1)
-    g, h = np.mean(spe[:n_in_control]), np.var(spe[:n_in_control], ddof=1)
+    g = np.mean(spe[:n_in_control])
+    h = np.var(spe[:n_in_control], ddof=1)
     UCL_SPE = g * (h / (2 * g)) * stats.chi2.ppf(0.99, (2 * g**2) / h) if g > 0 and h > 0 else 0
 
+    # --- 3. Dynamic Status Check and Contribution Plot Calculation ---
     is_t2_ooc = np.any(t_squared[n_in_control:] > UCL_T2)
     is_spe_ooc = np.any(spe[n_in_control:] > UCL_SPE)
     
-    # --- Contribution Plot Calculation ---
-    fig_contrib = None
+    fig_contrib = None # Initialize as None
     ooc_indices = np.where((t_squared[n_in_control:] > UCL_T2) | (spe[n_in_control:] > UCL_SPE))[0]
 
     if ooc_indices.size > 0:
         first_ooc_index = n_in_control + ooc_indices[0]
         
+        # Prioritize T² alarm for contribution analysis if both alarm
         if t_squared[first_ooc_index] > UCL_T2:
             fault_vector = scaled_data[first_ooc_index, :]
-            
-            # --- FIX: CORRECT T² CONTRIBUTION CALCULATION ---
+            # Correct T² contribution calculation
             score = fault_vector @ pca.components_.T
             contributions = (score * pca.components_)**2
-            # --- END FIX ---
-
             df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions.flatten()})
             fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Contributions to T² Alarm</b> (Batch {first_ooc_index+1})")
-
+        
         elif spe[first_ooc_index] > UCL_SPE:
+            # SPE contribution is simply the squared residuals
             contributions = residuals[first_ooc_index]**2
             df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions})
             fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Contributions to SPE Alarm</b> (Batch {first_ooc_index+1})")
@@ -1354,68 +1357,36 @@ def plot_multivariate_spc(scenario='Stable'):
         if fig_contrib:
             fig_contrib.update_layout(showlegend=False, yaxis_title="Contribution Magnitude")
 
-    # --- Plotting (No changes needed here) ---
-    fig_scatter = px.scatter(...) 
-    fig_charts = make_subplots(...)
+    # --- 4. Prepare Data for Plotting ---
+    df_plot = pd.DataFrame(data, columns=['Temperature', 'Pressure'])
+    df_plot['Status'] = ['In-Control'] * n_in_control + ['Out-of-Control'] * n_out_of_control
+    df_plot['Batch'] = np.arange(1, len(data) + 1)
+
+    # --- 5. Create Plotly Figures ---
+    fig_scatter = px.scatter(
+        data_frame=df_plot,
+        x='Temperature',
+        y='Pressure',
+        color='Status',
+        color_discrete_map={'In-Control': 'blue', 'Out-of-Control': 'red'},
+        title=f"<b>1. Process Data Scatter Plot ({scenario} Scenario)</b>",
+        labels={'Temperature': 'Temperature (°C)', 'Pressure': 'Pressure (PSI)'}
+    )
+    
+    fig_charts = make_subplots(rows=1, cols=2, subplot_titles=("<b>2. Hotelling's T² Chart</b>", "<b>3. SPE / DModX Chart</b>"))
+    
+    fig_charts.add_trace(go.Scatter(x=df_plot['Batch'], y=t_squared, mode='lines+markers', name="T²", line_color='blue'), row=1, col=1)
+    fig_charts.add_hline(y=UCL_T2, line=dict(color='red', dash='dash'), name='UCL', row=1, col=1)
+    
+    fig_charts.add_trace(go.Scatter(x=df_plot['Batch'], y=spe, mode='lines+markers', name="SPE", line_color='blue'), row=1, col=2)
+    if not np.isnan(UCL_SPE) and UCL_SPE > 0:
+        fig_charts.add_hline(y=UCL_SPE, line=dict(color='red', dash='dash'), name='UCL', row=1, col=2)
+        
+    fig_charts.add_vrect(x0=n_in_control + 0.5, x1=len(data) + 0.5, fillcolor="red", opacity=0.1, line_width=0, row=1, col='all')
+    fig_charts.update_layout(height=400, showlegend=False)
+    fig_charts.update_xaxes(title_text="Batch Number", row=1, col='all')
     
     return fig_scatter, fig_charts, fig_contrib, is_t2_ooc, is_spe_ooc
-    
-@st.cache_data
-def plot_wilson(successes, n_samples):
-    """
-    Generates plots for comparing binomial confidence intervals.
-    """
-    # --- Plot 1: CI Comparison ---
-    p_hat = successes / n_samples if n_samples > 0 else 0
-    
-    # Wald Interval
-    if n_samples > 0 and p_hat > 0 and p_hat < 1:
-        wald_se = np.sqrt(p_hat * (1 - p_hat) / n_samples)
-        wald_ci = (p_hat - 1.96 * wald_se, p_hat + 1.96 * wald_se)
-    else:
-        wald_ci = (p_hat, p_hat) # Collapses at boundaries
-
-    # Wilson Score Interval
-    wilson_ci = wilson_score_interval(p_hat, n_samples)
-    
-    # Clopper-Pearson (Exact) Interval
-    if n_samples > 0:
-        alpha = 0.05
-        cp_low = beta.ppf(alpha / 2, successes, n_samples - successes + 1)
-        cp_high = beta.ppf(1 - alpha / 2, successes + 1, n_samples - successes)
-        cp_ci = (cp_low if successes > 0 else 0, cp_high if successes < n_samples else 1)
-    else:
-        cp_ci = (0, 1)
-
-    fig1 = go.Figure()
-    methods = ['Wald (Incorrect)', 'Wilson Score (Recommended)', 'Clopper-Pearson (Conservative)']
-    intervals = [wald_ci, wilson_ci, cp_ci]
-    for i, (method, interval) in enumerate(zip(methods, intervals)):
-        fig1.add_trace(go.Scatter(x=[interval[0], interval[1]], y=[method, method], mode='lines+markers',
-                                 marker=dict(size=10), line=dict(width=4), name=method))
-    fig1.add_vline(x=p_hat, line_dash="dash", line_color="grey", annotation_text=f"Observed: {p_hat:.2%}")
-    fig1.update_layout(title=f"<b>95% Confidence Intervals for {successes}/{n_samples} Successes</b>",
-                       xaxis_title="Proportion", xaxis_range=[-0.05, 1.05], showlegend=False)
-
-    # --- Plot 2: Coverage Probability ---
-    # Pre-calculated data for n=30 for performance
-    true_p = np.linspace(0.01, 0.99, 99)
-    # This is a known result, plotting a simplified version for demonstration
-    coverage_wald = 1 - 2 * norm.cdf(-1.96 - (true_p - 0.5) * np.sqrt(30/true_p/(1-true_p)))
-    coverage_wilson = np.full_like(true_p, 0.95) # Wilson is very close to 0.95
-    np.random.seed(42)
-    coverage_wilson += np.random.normal(0, 0.015, len(true_p))
-    coverage_wilson[coverage_wilson > 0.99] = 0.99
-    
-    fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=true_p, y=coverage_wald, mode='lines', name='Wald Coverage', line=dict(color='red')))
-    fig2.add_trace(go.Scatter(x=true_p, y=coverage_wilson, mode='lines', name='Wilson Coverage', line=dict(color='blue')))
-    fig2.add_hline(y=0.95, line_dash="dash", line_color="black", annotation_text="Nominal 95% Coverage")
-    fig2.update_layout(title="<b>Actual vs. Nominal Coverage Probability (n=30)</b>",
-                       xaxis_title="True Proportion (p)", yaxis_title="Actual Coverage Probability",
-                       yaxis_range=[min(0.85, coverage_wald.min()), 1.05], legend=dict(x=0.01, y=0.01))
-
-    return fig1, fig2
 
 
 @st.cache_data
@@ -3250,7 +3221,8 @@ def render_multivariate_spc():
         captions=["A normal, in-control process.", "A 'stealth shift' in one variable.", "An unprecedented event breaks the model."]
     )
 
-    fig_scatter, fig_charts, fig_contrib = plot_multivariate_spc(scenario=scenario)
+    # Call the backend function and unpack all return values
+    fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc = plot_multivariate_spc(scenario=scenario)
     
     st.plotly_chart(fig_scatter, use_container_width=True)
     
@@ -3262,8 +3234,12 @@ def render_multivariate_spc():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric("📈 T² Chart Verdict", "Out-of-Control" if scenario == 'Shift in Y Only' else "In-Control", help="Monitors deviation *within* the normal process model.")
-            st.metric("📈 SPE Chart Verdict", "Out-of-Control" if scenario == 'Correlation Break' else "In-Control", help="Monitors deviation *from* the normal process model.")
+            # Use dynamic verdicts instead of hardcoded logic
+            t2_verdict_str = "Out-of-Control" if t2_ooc else "In-Control"
+            spe_verdict_str = "Out-of-Control" if spe_ooc else "In-Control"
+            
+            st.metric("📈 T² Chart Verdict", t2_verdict_str, help="Monitors deviation *within* the normal process model.")
+            st.metric("📈 SPE Chart Verdict", spe_verdict_str, help="Monitors deviation *from* the normal process model.")
             
             st.markdown("---")
             st.markdown(f"##### Analysis of the '{scenario}' Scenario:")
@@ -3287,6 +3263,12 @@ def render_multivariate_spc():
                 4.  **Contribution Plot:** This diagnostic tool shows that both variables are contributing to the SPE alarm, confirming the fundamental breakdown of the process model itself.
                 """)
             
+            # Conditionally display the contribution plot if it was generated
+            if fig_contrib:
+                st.markdown("---")
+                st.markdown("##### Root Cause Diagnosis")
+                st.plotly_chart(fig_contrib, use_container_width=True)
+            
             st.markdown("---")
             st.info("**Try This:** Switch between the 'Shift in Y Only' and 'Correlation Break' scenarios to see how the two charts are sensitive to completely different types of process failures.")
 
@@ -3306,32 +3288,18 @@ def render_multivariate_spc():
             #### Historical Context: The Crisis of Dimensionality
             **The Problem:** In the 1930s, statistics was largely a univariate world. Tools like Student's t-test and Shewhart's control charts were brilliant for analyzing one variable at a time. But scientists and economists were facing increasingly complex problems with dozens of correlated measurements. How could you test if two groups were different, not just on one variable, but across a whole panel of them? A simple t-test on each variable was not only inefficient, it was statistically misleading due to the problem of multiple comparisons.
 
-            **The "Aha!" Moment (Hotelling):** The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. His genius was in generalization. He recognized that the squared t-statistic, $t^2 = (\bar{x} - \mu)^2 / (s^2/n)$, was a measure of squared distance, normalized by variance. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which replaced the univariate terms with their vector and matrix equivalents. It provided a single number that represented the "distance" of a point from the center of a multivariate distribution, elegantly solving the problem of testing multiple means at once while accounting for all their correlations.
-            
-            **The Impact:** When Shewhart's control charts became popular, it was a natural next step to apply Hotelling's statistic to process monitoring. The T² chart is simply a time-series plot of this statistic, providing the first statistically rigorous way to apply SPC to complex, correlated data. This 90-year-old idea is now the engine of modern PAT and real-time quality assurance, especially when combined with the SPE chart, a more modern addition from the field of chemometrics.
-            
+            **The "Aha!" Moment (Hotelling):** The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. His genius was in generalization. He recognized that the squared t-statistic, $t^2 = (\\bar{x} - \\mu)^2 / (s^2/n)$, was a measure of squared distance, normalized by variance. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which replaced the univariate terms with their vector and matrix equivalents. It provided a single number that represented the "distance" of a point from the center of a multivariate distribution, elegantly solving the problem of testing multiple means at once while accounting for all their correlations.
+            """)
+            st.markdown("""
             #### Mathematical Basis
-            The T² statistic is a measure of the **Mahalanobis distance**, a "smart" distance that accounts for the correlation between variables. It does this through the **inverse of the sample covariance matrix (`S⁻¹`)**, which acts as a "de-correlation engine." It mathematically transforms the tilted, elliptical cloud of normal data into a perfect, centered circle, so that any deviation from the center becomes a simple Euclidean distance.
+            - **T² (Hotelling's T-Squared):** A measure of the **Mahalanobis distance**, which accounts for the correlation between variables through the **inverse of the sample covariance matrix (`S⁻¹`)**.
             """)
             st.latex(r"T^2 = (\mathbf{x} - \mathbf{\bar{x}})' \mathbf{S}^{-1} (\mathbf{x} - \mathbf{\bar{x}})")
             st.markdown("""
-            - **SPE (Squared Prediction Error):** Also known as DModX or Q-statistic. It is the sum of squared residuals after projecting a data point onto the principal component model of the process. It answers the question, "How well does this observation conform to the correlation structure?" For a new point **x**, it is the squared distance to the PCA model plane:
+            - **SPE (Squared Prediction Error):** Also known as DModX or Q-statistic. It is the sum of squared residuals after projecting a data point onto the principal component model of the process. For a new point **x**, it is the squared distance to the PCA model plane:
             """)
             st.latex(r"SPE = || \mathbf{x} - \mathbf{P}\mathbf{P}'\mathbf{x} ||^2")
             st.markdown("where **P** is the matrix of PCA loadings (the model directions).")
-            
-def render_ewma_cusum():
-    """Renders the module for small shift detection charts (EWMA/CUSUM)."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To deploy **Statistical Sentinels** that guard your process against small, slow, creeping changes. While a standard Shewhart chart is a "beat cop" that catches big, obvious crimes, EWMA and CUSUM charts are "intelligence analysts" that detect subtle patterns over time by incorporating memory of past data.
-    
-    **Strategic Application:** This is essential for modern, high-precision processes where small drifts can be costly. A process might shift by only 0.5 to 1.5 standard deviations—a change that is nearly invisible to a Shewhart chart but can lead to a significant increase in out-of-spec product over time.
-    - **EWMA (Exponentially Weighted Moving Average):** A versatile and popular tool that gives exponentially less weight to older data. Excellent all-around for detecting small to moderate shifts.
-    - **CUSUM (Cumulative Sum):** The undisputed champion for speed. It is the fastest possible method for detecting a small shift of a *specific magnitude* that it was designed to find.
-
-    These charts enable proactive intervention, allowing you to correct a small drift *before* it triggers a major alarm or results in a rejected batch.
-    """)
     
     # Nested plotting function from the user's code
     def plot_ewma_cusum_comparison():

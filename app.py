@@ -1623,14 +1623,20 @@ def plot_capability(scenario='Ideal'):
 
     fig.update_layout(height=700, showlegend=False, xaxis2_title="Measured Value")
     return fig, cpk_val
+    
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Tolerance Intervals) - SME ENHANCED
+# ==============================================================================
 def plot_tolerance_intervals(n=30, coverage_pct=99.0):
     """
-    Generates dynamic plots for the Tolerance Interval module based on user inputs.
+    Generates enhanced, more realistic, and illustrative dynamic plots for the
+    Tolerance Interval module, including a visualization of the true population.
     """
     np.random.seed(42)
+    pop_mean, pop_std = 100, 5
     
-    # Simulate data based on the sample size slider
-    data = np.random.normal(100, 5, n)
+    # Simulate a single sample from the true population
+    data = np.random.normal(pop_mean, pop_std, n)
     mean, std = np.mean(data), np.std(data, ddof=1)
     
     # 95% CI for the mean (n-dependent)
@@ -1638,33 +1644,72 @@ def plot_tolerance_intervals(n=30, coverage_pct=99.0):
     ci_margin = t.ppf(0.975, df=n-1) * sem if n > 1 else 0
     ci = (mean - ci_margin, mean + ci_margin)
     
-    # 95%/99% Tolerance Interval (n and coverage dependent)
-    # A simplified lookup table for k-factors (for 95% confidence)
-    k_factor_lookup = {
-        90.0: {10: 2.208, 30: 1.979, 100: 1.861, 200: 1.821},
-        95.0: {10: 2.842, 30: 2.457, 100: 2.278, 200: 2.228},
-        99.0: {10: 4.046, 30: 3.003, 100: 2.807, 200: 2.748},
-        99.9: {10: 5.733, 30: 3.823, 100: 3.457, 200: 3.376}
-    }
-    # Simple interpolation/selection logic
-    available_n = sorted(k_factor_lookup[coverage_pct].keys())
-    selected_n = min(available_n, key=lambda x:abs(x-n))
-    k_factor = k_factor_lookup[coverage_pct][selected_n]
+    # Tolerance Interval (n and coverage dependent)
+    # Using a more precise calculation instead of a lookup table
+    from scipy.stats import chi2
+    g = (1 - (1 - 0.95) / 2) # 95% confidence
+    p = coverage_pct / 100.0 # e.g., 99% coverage
+    
+    # Chi-square factor for standard deviation uncertainty
+    chi2_val = chi2.ppf(1-g, n-1)
+    
+    # Z-score for coverage proportion
+    z_val = norm.ppf((1+p)/2)
+    
+    # Combine for the k-factor (Howe's method approximation)
+    k_factor = z_val * np.sqrt((n-1)*(1 + 1/n) / chi2_val)
     
     ti_margin = k_factor * std
     ti = (mean - ti_margin, mean + ti_margin)
 
+    # --- Plotting ---
     fig = go.Figure()
-    fig.add_trace(go.Histogram(x=data, name='Sample Data', histnorm='probability density'))
-    # Plot CI
-    fig.add_vrect(x0=ci[0], x1=ci[1], fillcolor="rgba(255,165,0,0.3)", layer="below", line_width=0,
-                  annotation_text=f"<b>95% CI for Mean</b>", annotation_position="top left")
-    # Plot TI
-    fig.add_vrect(x0=ti[0], x1=ti[1], fillcolor="rgba(0,128,0,0.3)", layer="below", line_width=0,
-                  annotation_text=f"<b>95%/{coverage_pct:.1f}% TI</b>", annotation_position="bottom left")
+
+    # SME Enhancement: Plot the true population distribution in the background
+    x_range = np.linspace(pop_mean - 5 * pop_std, pop_mean + 5 * pop_std, 400)
+    pop_pdf = norm.pdf(x_range, pop_mean, pop_std)
+    fig.add_trace(go.Scatter(x=x_range, y=pop_pdf, mode='lines',
+                             line=dict(color='grey', dash='dash'), name='True Population Distribution'))
+
+    # SME Enhancement: Shade the area of the true population covered by the TI
+    x_fill = np.linspace(ti[0], ti[1], 100)
+    y_fill = norm.pdf(x_fill, pop_mean, pop_std)
+    fig.add_trace(go.Scatter(x=x_fill, y=y_fill, fill='tozeroy',
+                             mode='none', fillcolor='rgba(0,128,0,0.3)',
+                             name=f'Area Covered by TI'))
     
-    fig.update_layout(title=f"<b>Confidence Interval vs. Tolerance Interval (n={n})</b>",
-                      xaxis_title="Measured Value", yaxis_title="Density", showlegend=False)
+    # Plot the sample data histogram
+    fig.add_trace(go.Histogram(x=data, name='Sample Data', histnorm='probability density',
+                               marker_color='#636EFA'))
+
+    # Add annotations for the two intervals
+    # Confidence Interval
+    fig.add_shape(type="rect", xref="x", yref="paper", x0=ci[0], y0=0.6, x1=ci[1], y1=0.7,
+                  fillcolor="rgba(255,165,0,0.7)", line_width=1, line_color="black")
+    fig.add_annotation(x=(ci[0]+ci[1])/2, y=0.65, yref="paper",
+                       text=f"<b>CI for Mean</b><br>[{ci[0]:.2f}, {ci[1]:.2f}]",
+                       showarrow=False, font=dict(color="black"))
+
+    # Tolerance Interval
+    fig.add_shape(type="rect", xref="x", yref="paper", x0=ti[0], y0=0.4, x1=ti[1], y1=0.5,
+                  fillcolor="rgba(0,128,0,0.7)", line_width=1, line_color="black")
+    fig.add_annotation(x=(ti[0]+ti[1])/2, y=0.45, yref="paper",
+                       text=f"<b>Tolerance Interval</b><br>[{ti[0]:.2f}, {ti[1]:.2f}]",
+                       showarrow=False, font=dict(color="white"))
+    
+    # Calculate the actual coverage for display
+    actual_coverage = norm.cdf(ti[1], pop_mean, pop_std) - norm.cdf(ti[0], pop_mean, pop_std)
+    
+    fig.update_layout(
+        title=f"<b>Confidence vs. Tolerance Interval | Actual Coverage: {actual_coverage:.2%}</b>",
+        xaxis_title="Measured Value", yaxis_title="Density", showlegend=False,
+        annotations=[
+            dict(x=0.02, y=0.98, xref='paper', yref='paper',
+                 text="<b>CI asks:</b> Where is the <u>mean</u>?<br><b>TI asks:</b> Where are the <u>individuals</u>?",
+                 showarrow=False, align='left', font=dict(size=14),
+                 bgcolor='rgba(255,255,255,0.7)')
+        ]
+    )
     
     return fig, ci, ti
 

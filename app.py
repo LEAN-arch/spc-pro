@@ -2819,22 +2819,22 @@ def render_assay_robustness_doe():
     """)
     
     st.info("""
-    **Interactive Demo:** You are the process expert. Use the sliders in the sidebar to define the "true" physics of a virtual assay. The plots will show how a DOE/RSM experiment can uncover this underlying response surface, allowing you to find the optimal operating conditions.
+    **Interactive Demo:** You are the process expert. Use the sliders below to define the "true" physics of a virtual assay. The plots will show how a DOE/RSM experiment can uncover this underlying response surface, allowing you to find the optimal operating conditions.
     """)
     
     # --- Sidebar controls ---
-    st.sidebar.subheader("DOE / RSM Controls")
-    st.sidebar.markdown("**Linear & Interaction Effects**")
-    ph_slider = st.sidebar.slider("🧬 pH Main Effect", -10.0, 10.0, 2.0, 1.0, help="The 'true' linear impact of pH. A high value 'tilts' the surface along the pH axis.")
-    temp_slider = st.sidebar.slider("🌡️ Temperature Main Effect", -10.0, 10.0, 5.0, 1.0, help="The 'true' linear impact of Temperature. A high value 'tilts' the surface along the Temp axis.")
-    interaction_slider = st.sidebar.slider("🔄 pH x Temp Interaction Effect", -10.0, 10.0, 0.0, 1.0, help="The 'true' interaction. A non-zero value 'twists' the surface, creating a rising ridge.")
+    st.subheader("DOE / RSM Controls")
+    st.markdown("**Linear & Interaction Effects**")
+    ph_slider = st.slider("🧬 pH Main Effect", -10.0, 10.0, 2.0, 1.0, help="The 'true' linear impact of pH. A high value 'tilts' the surface along the pH axis.")
+    temp_slider = st.slider("🌡️ Temperature Main Effect", -10.0, 10.0, 5.0, 1.0, help="The 'true' linear impact of Temperature. A high value 'tilts' the surface along the Temp axis.")
+    interaction_slider = st.slider("🔄 pH x Temp Interaction Effect", -10.0, 10.0, 0.0, 1.0, help="The 'true' interaction. A non-zero value 'twists' the surface, creating a rising ridge.")
     
-    st.sidebar.markdown("**Curvature (Quadratic) Effects**")
-    ph_quad_slider = st.sidebar.slider("🧬 pH Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley). This is the key to optimization.")
-    temp_quad_slider = st.sidebar.slider("🌡️ Temperature Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley).")
+    st.markdown("**Curvature (Quadratic) Effects**")
+    ph_quad_slider = st.slider("🧬 pH Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley). This is the key to optimization.")
+    temp_quad_slider = st.slider("🌡️ Temperature Curvature", -10.0, 10.0, -5.0, 1.0, help="A negative value creates a 'hill' (a peak). A positive value creates a 'bowl' (a valley).")
 
-    st.sidebar.markdown("**Experimental Noise**")
-    noise_slider = st.sidebar.slider("🎲 Random Noise (SD)", 0.1, 5.0, 1.0, 0.1, help="The inherent variability of the assay. High noise can hide the true effects.")
+    st.markdown("**Experimental Noise**")
+    noise_slider = st.slider("🎲 Random Noise (SD)", 0.1, 5.0, 1.0, 0.1, help="The inherent variability of the assay. High noise can hide the true effects.")
     
     # Generate plots
     fig_contour, fig_3d, fig_effects, params = plot_doe_robustness(
@@ -2923,14 +2923,14 @@ def render_split_plot():
     """)
 
     st.info("""
-    **Interactive Demo:** Use the **Lot-to-Lot Variation** slider in the sidebar. This slider controls the magnitude of the difference between the two "Hard-to-Change" media lots.
+    **Interactive Demo:** Use the **Lot-to-Lot Variation** slider below. This slider controls the magnitude of the difference between the two "Hard-to-Change" media lots.
     - **At low values:** The lots are similar, and the "Lot Effect p-value" will be high (not significant).
     - **At high values:** The lots are very different. Watch the box plots for Lot B shift down, and see the p-value drop below 0.05, indicating a statistically significant difference that this experimental design successfully detected.
     """)
 
     # --- Gadget for the module ---
-    st.sidebar.subheader("Split-Plot Controls")
-    variation_slider = st.sidebar.slider(
+    st.subheader("Split-Plot Controls")
+    variation_slider = st.slider(
         "Lot-to-Lot Variation (SD)",
         min_value=0.0, max_value=5.0, value=0.5, step=0.25,
         help="Controls the 'true' difference between the hard-to-change media lots. Higher values simulate more variability between suppliers or batches."
@@ -3003,12 +3003,12 @@ def render_causal_inference():
     """)
     
     st.info("""
-    **Interactive Demo:** Use the slider in the sidebar to control the **Confounding Strength** of the `Reagent Lot`. As you increase it, watch the "Naive Correlation" (the orange line) become a terrible estimate of the "True Causal Effect" (the green line). This simulation visually demonstrates how a hidden variable can create a misleading correlation.
+    **Interactive Demo:** Use the slider below to control the **Confounding Strength** of the `Reagent Lot`. As you increase it, watch the "Naive Correlation" (the orange line) become a terrible estimate of the "True Causal Effect" (the green line). This simulation visually demonstrates how a hidden variable can create a misleading correlation.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("Causal Inference Controls")
-    confounding_slider = st.sidebar.slider(
+    st.subheader("Causal Inference Controls")
+    confounding_slider = st.slider(
         "🚨 Confounding Strength", 
         min_value=0.0, max_value=10.0, value=5.0, step=0.5,
         help="How strongly the 'Reagent Lot' affects BOTH Temperature and Purity. At 0, the naive correlation equals the true causal effect."

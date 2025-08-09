@@ -1751,24 +1751,31 @@ def plot_clustering(separation=15, spread=2.5):
     return fig_scatter, fig_elbow, silhouette_val
 
 
-@st.cache_data
-def plot_classification_models():
+def plot_classification_models(boundary_radius=12):
+    """
+    Generates dynamic classification plots based on a user-defined boundary complexity.
+    """
     np.random.seed(1)
     n_points = 200
     X1 = np.random.uniform(0, 10, n_points)
     X2 = np.random.uniform(0, 10, n_points)
-    # Create a non-linear relationship
-    prob = 1 / (1 + np.exp(-( (X1-5)**2 + (X2-5)**2 - 8)))
-    y = np.random.binomial(1, prob)
+    
+    # --- Dynamic Data Generation ---
+    # The decision boundary is a circle centered at (5,5). The slider controls its radius.
+    # A smaller radius creates a more complex, non-linear "island" of failure.
+    distance_from_center_sq = (X1 - 5)**2 + (X2 - 5)**2
+    # Use a sigmoid to create a soft, probabilistic boundary
+    prob_of_failure = 1 / (1 + np.exp(distance_from_center_sq - boundary_radius))
+    y = np.random.binomial(1, prob_of_failure) # 1 = Fail (red), 0 = Pass (blue)
+    
     X = np.column_stack((X1, X2))
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-    # Logistic Regression
+    # --- Re-fit models and calculate dynamic KPIs ---
     lr = LogisticRegression().fit(X_train, y_train)
     lr_score = lr.score(X_test, y_test)
 
-    # Random Forest
     rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
     rf_score = rf.score(X_test, y_test)
 
@@ -1781,17 +1788,18 @@ def plot_classification_models():
     # Plot Logistic Regression
     Z_lr = lr.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
     fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=1)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', line=dict(width=1, color='black'))), row=1, col=1)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu_r', line=dict(width=1, color='black'))), row=1, col=1)
 
     # Plot Random Forest
     Z_rf = rf.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
     fig.add_trace(go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, colorscale='RdBu', showscale=False, opacity=0.3), row=1, col=2)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu', line=dict(width=1, color='black'))), row=1, col=2)
+    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers', marker=dict(color=y, colorscale='RdBu_r', line=dict(width=1, color='black'))), row=1, col=2)
 
     fig.update_layout(title="<b>Predictive QC: Linear vs. Non-Linear Models</b>", showlegend=False, height=500)
     fig.update_xaxes(title_text="Parameter 1", row=1, col=1); fig.update_yaxes(title_text="Parameter 2", row=1, col=1)
     fig.update_xaxes(title_text="Parameter 1", row=1, col=2); fig.update_yaxes(title_text="Parameter 2", row=1, col=2)
-    return fig
+    
+    return fig, lr_score, rf_score
 
 def wilson_score_interval(p_hat, n, z=1.96):
     # This helper function remains the same, but it's good to keep it near the plotting function.
@@ -4179,7 +4187,97 @@ def render_clustering():
         This is the most straightforward part. The size of a cluster is simply the **total number of data points** that have been assigned to it after the algorithm finishes. If you have 150 data points and the algorithm assigns 60 to Cluster 1, 50 to Cluster 2, and 40 to Cluster 3, then their sizes are 60, 50, and 40, respectively.
         """)
 
+def render_classification_models():
+    """Renders the module for Predictive QC (Classification)."""
+    st.markdown("""
+    #### Purpose & Application: The AI Gatekeeper
+    **Purpose:** To build an **AI Gatekeeper** that can inspect in-process data and predict, with high accuracy, whether a batch will ultimately pass or fail its final QC specifications. This moves quality control from a reactive, end-of-line activity to a proactive, predictive science.
+    
+    **Strategic Application:** This is the foundation of real-time release and "lights-out" manufacturing. By predicting outcomes early, we can:
+    - **Prevent Failures:** Intervene in a batch that is trending towards failure, saving it before it's too late.
+    - **Optimize Resource Allocation:** Divert QC lab resources away from batches predicted to be good and focus on those with higher risk.
+    - **Accelerate Release:** Provide the statistical evidence needed to release batches based on in-process data, rather than waiting for slow offline tests.
+    """)
+    
+    # --- NEW: Added Interactive Demo explanation ---
+    st.info("""
+    **Interactive Demo:** Use the **Boundary Complexity** slider in the sidebar to change the true pass/fail relationship in the simulated data.
+    - **High values (e.g., 20):** Creates a simple, almost linear boundary. Notice both models perform well.
+    - **Low values (e.g., 8):** Creates a complex, non-linear "island" of failures. Watch the accuracy of the linear Logistic Regression model collapse, while the non-linear Random Forest continues to perform well.
+    """)
 
+    # --- NEW: Added slider gadget to the sidebar ---
+    st.sidebar.subheader("Predictive QC Controls")
+    complexity_slider = st.sidebar.slider(
+        "Boundary Complexity",
+        min_value=4, max_value=25, value=12, step=1,
+        help="Controls how non-linear the true pass/fail boundary is. Lower values create a more complex 'island' that is harder for linear models to solve."
+    )
+    
+    # --- MODIFIED: Call backend with slider value and unpack KPIs ---
+    fig, lr_accuracy, rf_accuracy = plot_classification_models(boundary_radius=complexity_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            # --- MODIFIED: KPIs are now dynamic ---
+            st.metric(label="📈 Model 1: Logistic Regression Accuracy", value=f"{lr_accuracy:.2%}", help="Performance of the simpler, linear model.")
+            st.metric(label="🚀 Model 2: Random Forest Accuracy", value=f"{rf_accuracy:.2%}", help="Performance of the more complex, non-linear model.")
+
+            st.markdown("""
+            **Reading the Decision Boundaries:**
+            - The plots show how each model carves up the process space into "predicted pass" (blue regions) and "predicted fail" (red regions). The dots are the true outcomes.
+            - **Logistic Regression (Left):** This classical statistical model can only draw a **straight line** to separate the groups. It struggles when the true boundary is curved.
+            - **Random Forest (Right):** This powerful machine learning model can create a complex, **non-linear boundary**. It can learn the true "island" of failure, leading to much higher accuracy on complex problems.
+
+            **The Core Strategic Insight:** For complex biological or chemical processes, the relationship between process parameters and final quality is rarely linear. Modern machine learning models like Random Forest or Gradient Boosting are often required to capture this complexity and build a truly effective AI Gatekeeper.
+            """)
+
+        with tabs[1]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The "Garbage In, Garbage Out" Fallacy**
+            An analyst takes all 500 available sensor tags, feeds them directly into a model, and trains it.
+            
+            - **The Flaw 1 (Curse of Dimensionality):** With more input variables than batches, the model is likely to find spurious correlations and will fail to generalize to new data.
+            - **The Flaw 2 (Lack of Causality):** The model may learn that "Sensor A" is highly predictive, without understanding that Sensor A is only correlated with the true causal driver, "Raw Material B". If the correlation changes, the model breaks.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Feature Engineering is the Secret Ingredient**
+            The success of a predictive model depends less on the algorithm and more on the quality of the inputs ("features").
+            
+            1.  **Collaborate with SMEs:** Work with scientists and engineers to identify which process parameters are *scientifically likely* to be causal drivers of quality.
+            
+            2.  **Engineer Smart Features:** Don't just use raw sensor values. Create more informative features. Examples:
+                - The *slope* of the temperature profile during a key phase.
+                - The *cumulative* feed volume.
+                - The *time* spent above a certain pH.
+            
+            3.  **Validate on Unseen Data:** The model's true performance is only revealed when it is tested on a hold-out set of batches it has never seen before.
+            
+            A model built on a few, scientifically relevant, well-engineered features will always outperform a model built on hundreds of raw, noisy inputs.
+            """)
+
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context & Origin
+            This module showcases the evolution from classical statistics to modern machine learning, representing what statistician Leo Breiman called **"The Two Cultures"** of statistical modeling.
+            - **Logistic Regression (1958) - The Data Modeling Culture:** Developed by British statistician **David Cox**, it is a direct generalization of linear regression for binary (pass/fail) outcomes. It models the **log-odds** of the outcome as a linear combination of the input variables. It remains a powerful and highly interpretable baseline model. This approach comes from the classical statistics tradition, where the goal is to create an interpretable mathematical model that explains the relationship between the inputs and the output.
+
+            - **Random Forest (2001) - The Algorithmic Modeling Culture:** Invented by **Leo Breiman and Adele Cutler**, this is a quintessential machine learning algorithm. It is an **ensemble method** that builds hundreds of individual decision trees on random subsets of the data and features, and then makes its final prediction based on a "majority vote" of all the trees. This "wisdom of the crowd" approach makes it highly accurate and robust to overfitting. This approach comes from the machine learning and computer science tradition, where the primary goal is predictive accuracy, even if the internal logic is complex.
+
+            Tools like **Explainable AI (XAI)** are now bridging this gap, allowing us to use powerful algorithmic models like Random Forest while still gaining deep insights.
+            
+            #### How They Work
+            - **Logistic Regression:** It fits a linear equation to the data and then passes the output through a **Sigmoid function**, which squashes the result into a probability between 0 and 1.
+            - **Random Forest:** It creates a diverse "committee" of simple decision tree models. Each tree gets a vote, and the final prediction is the one that receives the most votes. This ensemble approach is why it can create complex, non-linear decision boundaries.
+            """)
+            
 def render_anomaly_detection():
     """Renders the module for unsupervised anomaly detection."""
     st.markdown("""
@@ -4483,77 +4581,7 @@ def render_advanced_ai_concepts():
         fig = plot_advanced_ai_concepts(concept)
         st.plotly_chart(fig, use_container_width=True)
 
-def render_classification_models():
-    """Renders the module for Predictive QC (Classification)."""
-    st.markdown("""
-    #### Purpose & Application: The AI Gatekeeper
-    **Purpose:** To build an **AI Gatekeeper** that can inspect in-process data and predict, with high accuracy, whether a batch will ultimately pass or fail its final QC specifications. This moves quality control from a reactive, end-of-line activity to a proactive, predictive science.
-    
-    **Strategic Application:** This is the foundation of real-time release and "lights-out" manufacturing. By predicting outcomes early, we can:
-    - **Prevent Failures:** Intervene in a batch that is trending towards failure, saving it before it's too late.
-    - **Optimize Resource Allocation:** Divert QC lab resources away from batches predicted to be good and focus on those with higher risk.
-    - **Accelerate Release:** Provide the statistical evidence needed to release batches based on in-process data, rather than waiting for slow offline tests.
-    """)
-    
-    fig = plot_classification_models() # Assumes a function that plots the decision boundaries
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
-        with tabs[0]:
-            st.metric(label="📈 Model 1: Logistic Regression Accuracy", value="85.0%", help="Performance of the simpler, linear model.")
-            st.metric(label="🚀 Model 2: Random Forest Accuracy", value="96.7%", help="Performance of the more complex, non-linear model.")
 
-            st.markdown("""
-            **Reading the Decision Boundaries:**
-            - The plots show how each model carves up the process space into "predicted pass" (blue) and "predicted fail" (red) regions.
-            - **Logistic Regression (Left):** This classical statistical model can only draw a **straight line** to separate the groups. It struggles with the curved, complex relationship in the data.
-            - **Random Forest (Right):** This powerful machine learning model can create a complex, **non-linear boundary**. It has learned the true "island" of failure in the center of the process space, leading to much higher accuracy.
-
-            **The Core Strategic Insight:** For complex biological or chemical processes, the relationship between process parameters and final quality is rarely linear. Modern machine learning models like Random Forest or Gradient Boosting are often required to capture this complexity and build a truly effective AI Gatekeeper.
-            """)
-
-        with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Garbage In, Garbage Out" Fallacy**
-            An analyst takes all 500 available sensor tags, feeds them directly into a model, and trains it.
-            
-            - **The Flaw 1 (Curse of Dimensionality):** With more input variables than batches, the model is likely to find spurious correlations and will fail to generalize to new data.
-            - **The Flaw 2 (Lack of Causality):** The model may learn that "Sensor A" is highly predictive, without understanding that Sensor A is only correlated with the true causal driver, "Raw Material B". If the correlation changes, the model breaks.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Feature Engineering is the Secret Ingredient**
-            The success of a predictive model depends less on the algorithm and more on the quality of the inputs ("features").
-            
-            1.  **Collaborate with SMEs:** Work with scientists and engineers to identify which process parameters are *scientifically likely* to be causal drivers of quality.
-            
-            2.  **Engineer Smart Features:** Don't just use raw sensor values. Create more informative features. Examples:
-                - The *slope* of the temperature profile during a key phase.
-                - The *cumulative* feed volume.
-                - The *time* spent above a certain pH.
-            
-            3.  **Validate on Unseen Data:** The model's true performance is only revealed when it is tested on a hold-out set of batches it has never seen before.
-            
-            A model built on a few, scientifically relevant, well-engineered features will always outperform a model built on hundreds of raw, noisy inputs.
-            """)
-
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            This module showcases the evolution from classical statistics to modern machine learning.
-            - **Logistic Regression (1958):** Developed by British statistician **David Cox**, it is a direct generalization of linear regression for binary (pass/fail) outcomes. It models the **log-odds** of the outcome as a linear combination of the input variables. It remains a powerful and highly interpretable baseline model.
-            
-            - **Random Forest (2001):** Invented by **Leo Breiman and Adele Cutler**, this is a quintessential machine learning algorithm. It is an **ensemble method** that builds hundreds of individual decision trees on random subsets of the data and features, and then makes its final prediction based on a "majority vote" of all the trees. This "wisdom of the crowd" approach makes it highly accurate and robust to overfitting.
-            
-            #### How They Work
-            - **Logistic Regression:** It fits a linear equation to the data and then passes the output through a **Sigmoid function**, which squashes the result into a probability between 0 and 1.
-            - **Random Forest:** It creates a diverse "committee" of simple decision tree models. Each tree gets a vote, and the final prediction is the one that receives the most votes. This ensemble approach is why it can create complex, non-linear decision boundaries.
-            """)
 
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT

@@ -3422,13 +3422,11 @@ def render_ewma_cusum():
     - **🔬 EWMA (The Sentinel):** The Exponentially Weighted Moving Average chart is a robust, general-purpose tool that smoothly weights past observations, making it excellent for detecting the onset of a gradual drift.
     - **🐕 CUSUM (The Bloodhound):** The Cumulative Sum chart is a specialized, high-power tool. It is the fastest possible detector for a shift of a specific magnitude, making it ideal for processes where you want to catch a known, critical shift size as quickly as possible.
     """)
-
-    # --- MODIFIED: Added Interactive Demo explanation ---
+    
     st.info("""
     **Interactive Demo:** Use the **Shift Size** slider in the sidebar to control how large of a process shift to simulate. Observe how the detection performance of the three charts changes. At what shift size does the I-Chart finally detect the problem? Notice how much earlier the EWMA and CUSUM charts signal an alarm for small shifts.
     """)
-
-    # --- NEW: Added slider gadget to the sidebar ---
+    
     st.sidebar.subheader("Small Shift Detection Controls")
     shift_size_slider = st.sidebar.slider(
         "Select Process Shift Size (in multiples of σ):",
@@ -3436,12 +3434,12 @@ def render_ewma_cusum():
         max_value=3.5,
         value=0.75,
         step=0.25,
-        help="Controls the magnitude of the process shift introduced at sample #20. Small shifts are harder to detect."
+        help="Controls the magnitude of the process shift introduced at data point #20. Small shifts are harder to detect."
     )
 
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        # --- MODIFIED: Call the backend with the slider's value and unpack new KPIs ---
+        # Call the backend function which now returns the dynamic KPI values
         fig, i_time, ewma_time, cusum_time = plot_ewma_cusum_comparison(shift_size=shift_size_slider)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -3450,12 +3448,28 @@ def render_ewma_cusum():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
         with tabs[0]:
-            # --- MODIFIED: KPIs are now dynamic based on the slider ---
-            st.metric(label="Shift Size", value=f"{shift_size_slider} σ", help="The simulated shift introduced at sample #20.")
-            st.metric(label="I-Chart Detection Time (post-shift)", value=i_time, help="The I-Chart is only sensitive to large shifts (>3σ).")
-            st.metric(label="EWMA Detection Time (post-shift)", value=ewma_time, help="The EWMA is sensitive to small and moderate shifts.")
-            st.metric(label="CUSUM Detection Time (post-shift)", value=cusum_time, help="The CUSUM is the fastest at detecting small, sustained shifts.")
-            
+            # --- FIX: Replaced all static 'value' arguments with the dynamic variables ---
+            st.metric(
+                label="Shift Size",
+                value=f"{shift_size_slider} σ",
+                help="The simulated shift introduced at data point #20."
+            )
+            st.metric(
+                label="I-Chart Detection Time (post-shift)",
+                value=i_time, # Uses the dynamic variable from the backend
+                help="The I-Chart is only sensitive to large shifts (>3σ)."
+            )
+            st.metric(
+                label="EWMA Detection Time (post-shift)",
+                value=ewma_time, # Uses the dynamic variable from the backend
+                help="The EWMA is sensitive to small and moderate shifts."
+            )
+            st.metric(
+                label="CUSUM Detection Time (post-shift)",
+                value=cusum_time, # Uses the dynamic variable from the backend
+                help="The CUSUM is the fastest at detecting small, sustained shifts."
+            )
+
             st.markdown("""
             **The Visual Evidence:**
             - **The I-Chart (Top):** This chart is blind to small problems. The shift is lost in the normal process noise. All points look "in-control," giving a false sense of security until the shift is very large.

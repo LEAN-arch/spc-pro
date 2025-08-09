@@ -5361,13 +5361,13 @@ The core principle of survival analysis is that censored data is not missing dat
             """)
 
 
-def render_mva_pls():
+ef render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
     st.markdown("""
     #### Purpose & Application: The Statistical Rosetta Stone
     **Purpose:** To act as a **statistical Rosetta Stone**, translating a massive, complex, and correlated set of input variables (X, e.g., an entire spectrum) into a simple, actionable output (Y, e.g., product concentration). **Partial Least Squares (PLS)** is the key that deciphers this code.
     
-    **Strategic Application:** This is the statistical engine behind **Process Analytical Technology (PAT)** and modern chemometrics. It is specifically designed to solve the "curse of dimensionality"—problems where you have more input variables than samples and the inputs are highly correlated.
+    **Strategic Application:** This is the statistical engine behind **Process Analytical Technology (PAT)** and modern chemometrics. It is specifically designed to solve the "curse of dimensionality"-problems where you have more input variables than samples and the inputs are highly correlated.
     - **🔬 Real-Time Spectroscopy:** Builds models that predict a chemical concentration from its NIR or Raman spectrum in real-time. This eliminates the need for slow, offline lab tests, enabling real-time release.
     - **🏭 "Golden Batch" Modeling:** PLS can learn the "fingerprint" of a perfect batch, modeling the complex relationship between hundreds of process parameters and final product quality. Deviations from this model can signal a problem *during* a run, not after it's too late.
     """)
@@ -5378,17 +5378,18 @@ def render_mva_pls():
     - **Increase `Noise Level`:** Simulate a poor-quality instrument. Watch the VIP scores for the true peaks shrink as they become buried in noise, and see the model's predictive power (Q²) collapse.
     """)
 
-    st.sidebar.subheader("Multivariate Analysis Controls")
-    signal_slider = st.sidebar.slider(
-        "📈 Signal Strength",
-        min_value=0.5, max_value=5.0, value=2.0, step=0.5,
-        help="Controls the strength of the true underlying relationship between the spectra (X) and the concentration (Y)."
-    )
-    noise_slider = st.sidebar.slider(
-        "🎲 Noise Level (SD)",
-        min_value=0.1, max_value=2.0, value=0.2, step=0.1,
-        help="Controls the amount of random noise in the spectral measurements. Higher noise makes the signal harder to find."
-    )
+    with st.sidebar:
+        st.sidebar.subheader("Multivariate Analysis Controls")
+        signal_slider = st.sidebar.slider(
+            "📈 Signal Strength",
+            min_value=0.5, max_value=5.0, value=2.0, step=0.5,
+            help="Controls the strength of the true underlying relationship between the spectra (X) and the concentration (Y)."
+        )
+        noise_slider = st.sidebar.slider(
+            "🎲 Noise Level (SD)",
+            min_value=0.1, max_value=2.0, value=0.2, step=0.1,
+            help="Controls the amount of random noise in the spectral measurements. Higher noise makes the signal harder to find."
+        )
     
     fig, r2, q2, n_comp = plot_mva_pls(signal_strength=signal_slider, noise_sd=noise_slider)
     

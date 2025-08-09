@@ -5290,8 +5290,10 @@ def render_bocpd_ml_features():
     """)
 
     st.sidebar.subheader("BOCPD Controls")
-    mean_shift_slider = st.sidebar.slider("Mean Shift", 0.0, 5.0, 3.0, 0.5)
-    noise_inc_slider = st.sidebar.slider("Noise Increase Factor", 1.0, 5.0, 2.0, 0.5)
+    mean_shift_slider = st.sidebar.slider("Mean Shift", 0.0, 5.0, 3.0, 0.5,
+        help="The magnitude of the change in the mean of the raw process data at the change point (Obs #100).")
+    noise_inc_slider = st.sidebar.slider("Noise Increase Factor", 1.0, 5.0, 2.0, 0.5,
+        help="The factor by which the process standard deviation increases after the change point. A value of 2 means the noise doubles.")
 
     fig, change_prob = plot_bocpd_ml_features(mean_shift=mean_shift_slider, noise_increase=noise_inc_slider)
     
@@ -5317,8 +5319,10 @@ def render_bocpd_ml_features():
             """)
 
         with tabs[1]:
-            st.error("🔴 **THE INCORRECT APPROACH: The 'Delayed Reaction'**\nWaiting for a traditional SPC chart to alarm on a complex signal (like a combined mean and variance shift) can take a long time. By the time it alarms, the process has been unstable for a while, and valuable context is lost.")
-            st.success("🟢 **THE GOLDEN RULE: Monitor the Probability, Not Just the Value**\nBOCPD provides a richer, more informative signal. The full probability distribution allows for more nuanced decision-making. Instead of a binary alarm, you can create risk-based alerts: a low-probability 'watch' state and a high-probability 'act' state, enabling earlier, more proactive interventions.")
+            st.error("""🔴 **THE INCORRECT APPROACH: The 'Delayed Reaction'**
+Waiting for a traditional SPC chart to alarm on a complex signal (like a combined mean and variance shift) can take a long time. By the time it alarms, the process has been unstable for a while, and valuable context is lost.""")
+            st.success("""🟢 **THE GOLDEN RULE: Monitor the Probability, Not Just the Value**
+BOCPD provides a richer, more informative signal. The full probability distribution allows for more nuanced decision-making. Instead of a binary alarm, you can create risk-based alerts: a low-probability 'watch' state and a high-probability 'act' state, enabling earlier, more proactive interventions.""")
 
         with tabs[2]:
             st.markdown("""
@@ -5351,9 +5355,12 @@ def render_kalman_nn_residual():
     - **`Measurement Noise`**: Simulates a noisier sensor. Notice how the Kalman estimate (red line) becomes smoother relative to the noisy measurements.
     """)
     st.sidebar.subheader("Kalman Filter Controls")
-    drift_slider = st.sidebar.slider("Process Drift Rate", 0.0, 0.5, 0.1, 0.05)
-    noise_slider = st.sidebar.slider("Measurement Noise (SD)", 0.5, 5.0, 1.0, 0.5)
-    shock_slider = st.sidebar.slider("Process Shock Magnitude", 1.0, 20.0, 10.0, 1.0)
+    drift_slider = st.sidebar.slider("Process Drift Rate", 0.0, 0.5, 0.1, 0.05,
+        help="The true, underlying rate of change of the process state at each time step. Simulates a slow, consistent drift.")
+    noise_slider = st.sidebar.slider("Measurement Noise (SD)", 0.5, 5.0, 1.0, 0.5,
+        help="The standard deviation of the sensor noise. Higher values make the blue 'Measurement' points more scattered.")
+    shock_slider = st.sidebar.slider("Process Shock Magnitude", 1.0, 20.0, 10.0, 1.0,
+        help="The magnitude of the sudden, unexpected event that occurs at time #70. This tests the residual chart's ability to detect faults.")
 
     fig, alarm_time = plot_kalman_nn_residual(process_drift=drift_slider, measurement_noise=noise_slider, shock_magnitude=shock_slider)
     
@@ -5378,12 +5385,10 @@ def render_kalman_nn_residual():
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: Monitoring Raw, Noisy Data**
 A chart on the raw measurements (blue dots) would be wide and insensitive. The process shock might not even trigger an alarm if it's small relative to the measurement noise. You are blind to subtle deviations from the expected *behavior*.""")
-            # --- THIS IS THE CORRECTED BLOCK ---
             st.success("""🟢 **THE GOLDEN RULE: Model the Expected, Monitor the Unexpected**
 1.  Use a dynamic model (like a Kalman Filter) to capture the known, predictable behavior of your process (e.g., its drift, its noise characteristics).
 2.  This model separates the signal into two streams: the predictable part (the state estimate) and the unpredictable part (the residuals).
 3.  Place your high-sensitivity control chart on the **residuals**. This is monitoring the "unexplained" portion of the data, which is where novel faults will always appear first.""")
-            # --- END OF CORRECTION ---
 
         with tabs[2]:
             st.markdown("""
@@ -5412,8 +5417,10 @@ def render_rl_tuning():
     - **`Cost of Detection Delay`**: The cost incurred for *every minute* a true process failure goes undetected (e.g., cost of producing scrap).
     """)
     st.sidebar.subheader("RL Economic Controls")
-    cost_fa_slider = st.sidebar.slider("Cost of a False Alarm ($)", 1, 10, 1, 1)
-    cost_delay_slider = st.sidebar.slider("Cost of Detection Delay ($/unit time)", 1, 10, 5, 1)
+    cost_fa_slider = st.sidebar.slider("Cost of a False Alarm ($)", 1, 10, 1, 1,
+        help="The economic cost ($) of a single false alarm (stopping the process to investigate a non-existent problem).")
+    cost_delay_slider = st.sidebar.slider("Cost of Detection Delay ($/unit time)", 1, 10, 5, 1,
+        help="The economic cost ($) incurred for *each time unit* that a real process shift goes undetected.")
 
     fig, opt_lambda, min_cost = plot_rl_tuning(cost_false_alarm=cost_fa_slider, cost_delay_unit=cost_delay_slider)
     
@@ -5438,8 +5445,10 @@ def render_rl_tuning():
             """)
 
         with tabs[1]:
-            st.error("🔴 **THE INCORRECT APPROACH: The 'Cookbook' Method**\nA scientist reads a textbook that says 'use λ=0.2 for EWMA charts.' They apply this default value to every process, regardless of the process stability or the economic consequences of an error.")
-            st.success("🟢 **THE GOLDEN RULE: Design the Chart to Match the Risk**\nThe control chart is not just a statistical tool; it's an economic asset. The tuning parameters should be deliberately chosen to minimize the total expected cost of quality. An RL framework provides a powerful, data-driven way to formalize this optimization problem and find the provably best solution.")
+            st.error("""🔴 **THE INCORRECT APPROACH: The 'Cookbook' Method**
+A scientist reads a textbook that says 'use λ=0.2 for EWMA charts.' They apply this default value to every process, regardless of the process stability or the economic consequences of an error.""")
+            st.success("""🟢 **THE GOLDEN RULE: Design the Chart to Match the Risk**
+The control chart is not just a statistical tool; it's an economic asset. The tuning parameters should be deliberately chosen to minimize the total expected cost of quality. An RL framework provides a powerful, data-driven way to formalize this optimization problem and find the provably best solution.""")
 
         with tabs[2]:
             st.markdown("""
@@ -5470,8 +5479,10 @@ def render_tcn_cusum():
     - **`Seasonality Strength`**: Controls the amplitude of the predictable, cyclical patterns. Notice that even with very strong seasonality, the CUSUM chart on the residuals effectively detects the hidden drift.
     """)
     st.sidebar.subheader("TCN-CUSUM Controls")
-    drift_slider = st.sidebar.slider("Drift Magnitude (per step)", 0.0, 0.2, 0.05, 0.01)
-    seasonality_slider = st.sidebar.slider("Seasonality Strength", 0.0, 10.0, 5.0, 1.0)
+    drift_slider = st.sidebar.slider("Drift Magnitude (per step)", 0.0, 0.2, 0.05, 0.01,
+        help="The slope of the hidden linear trend added to the data. This is the subtle signal the CUSUM chart must find.")
+    seasonality_slider = st.sidebar.slider("Seasonality Strength", 0.0, 10.0, 5.0, 1.0,
+        help="Controls the amplitude of the complex, cyclical patterns in the data. The TCN's job is to learn and remove this 'noise'.")
 
     fig, alarm_time = plot_tcn_cusum(drift_magnitude=drift_slider, seasonality_strength=seasonality_slider)
     
@@ -5493,8 +5504,12 @@ def render_tcn_cusum():
             """)
 
         with tabs[1]:
-            st.error("🔴 **THE INCORRECT APPROACH: Charting the Raw Data**\nApplying a CUSUM chart directly to the raw data would be a disaster. The massive swings from the seasonality would cause constant false alarms, making the chart useless. The true, tiny drift signal would be completely buried.")
-            st.success("🟢 **THE GOLDEN RULE: Separate the Predictable from the Unpredictable**\nThis is a fundamental principle of modern process monitoring. \n1. Use a sophisticated forecasting model (like a TCN or LSTM) to learn and remove the complex, known patterns from your data. \n2. Apply a sensitive change detection algorithm (like CUSUM or EWMA) to the model's residuals. This focuses your monitoring on the part of the signal that is truly changing, maximizing sensitivity while minimizing false alarms.")
+            st.error("""🔴 **THE INCORRECT APPROACH: Charting the Raw Data**
+Applying a CUSUM chart directly to the raw data would be a disaster. The massive swings from the seasonality would cause constant false alarms, making the chart useless. The true, tiny drift signal would be completely buried.""")
+            st.success("""🟢 **THE GOLDEN RULE: Separate the Predictable from the Unpredictable**
+This is a fundamental principle of modern process monitoring.
+1. Use a sophisticated forecasting model (like a TCN or LSTM) to learn and remove the complex, known patterns from your data.
+2. Apply a sensitive change detection algorithm (like CUSUM or EWMA) to the model's residuals. This focuses your monitoring on the part of the signal that is truly changing, maximizing sensitivity while minimizing false alarms.""")
 
         with tabs[2]:
             st.markdown("""
@@ -5502,7 +5517,6 @@ def render_tcn_cusum():
             
             **Why TCN over LSTM?** For many sequence modeling tasks, TCNs have become a powerful alternative to LSTMs (the traditional choice). They use **causal, dilated convolutions**, which allows them to look very far into the past to see long-range patterns, but they can be trained much faster than LSTMs because the computations can be done in parallel, unlike the inherently sequential nature of LSTMs. This hybrid TCN-CUSUM approach represents a fast, robust, and modern monitoring system.
             """)
-
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 6)
 # ==============================================================================
@@ -5525,8 +5539,10 @@ def render_lstm_autoencoder_monitoring():
     - **`Spike Magnitude`**: Controls the size of the sudden shock at time #200. Watch the **BOCPD heatmap (bottom)** instantly react to this.
     """)
     st.sidebar.subheader("LSTM Anomaly Controls")
-    drift_slider = st.sidebar.slider("Drift Rate of Error", 0.0, 0.05, 0.02, 0.005)
-    spike_slider = st.sidebar.slider("Spike Magnitude in Error", 1.0, 10.0, 5.0, 1.0)
+    drift_slider = st.sidebar.slider("Drift Rate of Error", 0.0, 0.05, 0.02, 0.005,
+        help="Controls how quickly the reconstruction error grows after the drift begins at time #100. Simulates gradual equipment degradation.")
+    spike_slider = st.sidebar.slider("Spike Magnitude in Error", 1.0, 10.0, 5.0, 1.0,
+        help="Controls the size of the sudden shock in the reconstruction error at time #200. Simulates a sudden process fault or sensor failure.")
 
     fig, ewma_time, bocpd_prob = plot_lstm_autoencoder_monitoring(drift_rate=drift_slider, spike_magnitude=spike_slider)
     
@@ -5550,8 +5566,10 @@ def render_lstm_autoencoder_monitoring():
             """)
 
         with tabs[1]:
-            st.error("🔴 **THE INCORRECT APPROACH: The 'One-Tool' Mindset**\nAn engineer tries to use a single Shewhart chart on the reconstruction error. It misses the slow drift entirely, and while it might catch the big spike, it gives no probabilistic context.")
-            st.success("🟢 **THE GOLDEN RULE: Use a Layered Defense for Anomaly Detection**\nDifferent types of process failures leave different signatures in the data. A robust monitoring system must use a combination of tools, each specialized for a different type of signature. By running EWMA (for drifts) and BOCPD (for shocks) in parallel on the same anomaly score, you create a comprehensive immune system that can effectively detect both chronic and acute process diseases.")
+            st.error("""🔴 **THE INCORRECT APPROACH: The 'One-Tool' Mindset**
+An engineer tries to use a single Shewhart chart on the reconstruction error. It misses the slow drift entirely, and while it might catch the big spike, it gives no probabilistic context.""")
+            st.success("""🟢 **THE GOLDEN RULE: Use a Layered Defense for Anomaly Detection**
+Different types of process failures leave different signatures in the data. A robust monitoring system must use a combination of tools, each specialized for a different type of signature. By running EWMA (for drifts) and BOCPD (for shocks) in parallel on the same anomaly score, you create a comprehensive immune system that can effectively detect both chronic and acute process diseases.""")
 
         with tabs[2]:
             st.markdown("""

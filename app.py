@@ -1059,7 +1059,85 @@ def plot_roc_curve(diseased_mean=65, population_sd=10, cutoff=55):
     fig.update_yaxes(title_text="True Positive Rate (Sensitivity)", range=[-0.05, 1.05], row=2, col=1)
     
     return fig, auc_value, sensitivity, specificity, ppv, npv
+
+def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
+    """
+    Generates enhanced, more realistic, and interactive plots for the TOST module,
+    including a visualization of the underlying sample distributions.
+    """
+    np.random.seed(1)
+    # Generate two samples based on the slider inputs
+    data_A = np.random.normal(loc=100, scale=std_dev, size=n_samples)
+    data_B = np.random.normal(loc=100 + true_diff, scale=std_dev, size=n_samples)
     
+    # Perform two one-sided t-tests using Welch's t-test for robustness
+    mean_A, var_A = np.mean(data_A), np.var(data_A, ddof=1)
+    mean_B, var_B = np.mean(data_B), np.var(data_B, ddof=1)
+    diff_mean = mean_B - mean_A
+    
+    # Handle cases where n_samples is too small to calculate variance
+    if n_samples <= 1:
+        return go.Figure(), 1.0, False, 0, 0, 0, 0
+
+    std_err_diff = np.sqrt(var_A/n_samples + var_B/n_samples)
+    df_welch = (std_err_diff**4) / ( ((var_A/n_samples)**2 / (n_samples-1)) + ((var_B/n_samples)**2 / (n_samples-1)) )
+    
+    t_lower = (diff_mean - (-delta)) / std_err_diff
+    t_upper = (diff_mean - delta) / std_err_diff
+    
+    p_lower = stats.t.sf(t_lower, df_welch)
+    p_upper = stats.t.cdf(t_upper, df_welch)
+    
+    p_tost = max(p_lower, p_upper)
+    is_equivalent = p_tost < 0.05
+    
+    # --- Plotting ---
+    fig = make_subplots(
+        rows=2, cols=1,
+        row_heights=[0.6, 0.4],
+        vertical_spacing=0.05,
+        subplot_titles=("<b>1. Sample Data Distributions</b>", "<b>2. Equivalence Test Conclusion</b>")
+    )
+
+    # Plot 1: Ridgeline / Density plots
+    from scipy.stats import gaussian_kde
+    x_range = np.linspace(min(data_A.min(), data_B.min()), max(data_A.max(), data_B.max()), 200)
+    kde_A = gaussian_kde(data_A)
+    kde_B = gaussian_kde(data_B)
+    fig.add_trace(go.Scatter(x=x_range, y=kde_A(x_range), fill='tozeroy', name='Method A', line=dict(color='blue')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=kde_B(x_range), fill='tozeroy', name='Method B', line=dict(color='green')), row=1, col=1)
+    fig.update_yaxes(showticklabels=False, row=1, col=1) # Hide density y-axis for clarity
+
+    # Plot 2: Confidence Interval for the Difference
+    # 90% confidence interval for TOST (standard practice)
+    ci_margin = t.ppf(0.95, df_welch) * std_err_diff
+    ci_lower = diff_mean - ci_margin
+    ci_upper = diff_mean + ci_margin
+    
+    # SME Enhancement: Dynamic color for the CI bar
+    ci_color = '#00CC96' if is_equivalent else '#EF553B' # Green for pass, Red for fail
+    
+    fig.add_trace(go.Scatter(
+        x=[diff_mean], y=[0],
+        error_x=dict(type='data', array=[ci_upper-diff_mean], arrayminus=[diff_mean-ci_lower], thickness=10),
+        mode='markers', name='90% CI for Difference',
+        marker=dict(color=ci_color, size=15, line=dict(width=2, color='black'))
+    ), row=2, col=1)
+
+    # Add Equivalence bounds to Plot 2
+    fig.add_vrect(x0=-delta, x1=delta, fillcolor="rgba(0,128,0,0.1)", layer="below", line_width=0, row=2, col=1)
+    fig.add_shape(type="line", x0=-delta, y0=-0.5, x1=-delta, y1=0.5, line=dict(color="red", width=2, dash="dash"), row=2, col=1)
+    fig.add_shape(type="line", x0=delta, y0=-0.5, x1=delta, y1=0.5, line=dict(color="red", width=2, dash="dash"), row=2, col=1)
+    fig.add_annotation(x=0, y=0.4, text=f"Equivalence Zone (-{delta:.1f} to +{delta:.1f})", showarrow=False, font_size=14, row=2, col=1)
+    
+    fig.update_layout(height=600, title_text="<b>Equivalence Testing (TOST) Dashboard</b>", title_x=0.5,
+                      barmode='overlay', showlegend=False)
+    fig.update_xaxes(title_text="Measured Value", row=1, col=1)
+    fig.update_xaxes(title_text="Difference in Means (Method B - Method A)", row=2, col=1)
+    fig.update_yaxes(showticklabels=False, row=2, col=1, range=[-1, 1])
+    
+    return fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B
+
 @st.cache_data
 def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, ph_quad_effect=-5.0, temp_quad_effect=-5.0, noise_sd=1.0):
     """
@@ -3423,40 +3501,42 @@ def render_tost():
     """Renders the INTERACTIVE module for Two One-Sided Tests (TOST) for equivalence."""
     st.markdown("""
     #### Purpose & Application
-    **Purpose:** To statistically prove that two methods or groups are **equivalent** within a predefined, practically insignificant margin. This flips the logic of standard hypothesis testing.
+    **Purpose:** To statistically prove that two methods or groups are **equivalent** within a predefined, practically insignificant margin. This flips the logic of standard hypothesis testing from trying to prove a difference to trying to prove a lack of meaningful difference.
     
-    **Strategic Application:** This is the statistically rigorous way to handle comparisons where the goal is to prove similarity, not difference, such as in biosimilarity studies or method transfers. **Use the sliders in the sidebar to build an intuition for what drives an equivalence conclusion.**
+    **Strategic Application:** This is the statistically rigorous way to handle comparisons where the goal is to prove similarity, not difference, such as in biosimilarity studies, analytical method transfers, or validating a new manufacturing site.
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you select the "Equivalence Testing (TOST)" tool, you will have a full set of dedicated sliders below. You can now dynamically explore how to achieve (or fail to achieve) statistical equivalence, providing a powerful and memorable learning experience.
+    **Interactive Demo:** Use the sliders to build an intuition for what drives an equivalence conclusion.
+    - The top plot shows the raw data distributions.
+    - The bottom plot shows the statistical conclusion.
+    - **Your Goal:** Get the entire confidence interval bar (green or red) to fall *inside* the light green "Equivalence Zone".
     """)
     
-    # --- Sidebar controls for this specific module ---
-    st.subheader("TOST Controls")
-    delta_slider = st.slider(
-        "⚖️ Equivalence Margin (Δ)", 
-        min_value=1.0, max_value=15.0, value=5.0, step=0.5,
-        help="The 'goalposts'. Defines the zone where differences are considered practically meaningless. A tighter margin is harder to meet."
-    )
-    diff_slider = st.slider(
-        "🎯 True Difference", 
-        min_value=-10.0, max_value=10.0, value=1.0, step=0.5,
-        help="The actual underlying difference between the two groups in the simulation. See if you can prove equivalence even when a small true difference exists!"
-    )
-    sd_slider = st.slider(
-        "🌫️ Standard Deviation (Variability)", 
-        min_value=1.0, max_value=15.0, value=5.0, step=0.5,
-        help="The random noise or imprecision in the data. Higher variability widens the confidence interval, making equivalence harder to prove."
-    )
-    n_slider = st.slider(
-        "🔬 Sample Size (n)", 
-        min_value=10, max_value=200, value=50, step=5,
-        help="The number of samples per group. Higher sample size narrows the confidence interval, increasing your power to prove equivalence."
-    )
+    with st.sidebar:
+        st.subheader("TOST Controls")
+        delta_slider = st.slider(
+            "⚖️ Equivalence Margin (Δ)", 
+            min_value=1.0, max_value=15.0, value=5.0, step=0.5,
+            help="The 'goalposts'. Defines the zone where differences are considered practically meaningless. A tighter margin is harder to meet."
+        )
+        diff_slider = st.slider(
+            "🎯 True Difference", 
+            min_value=-10.0, max_value=10.0, value=1.0, step=0.5,
+            help="The actual underlying difference between the two groups in the simulation. See if you can prove equivalence even when a small true difference exists!"
+        )
+        sd_slider = st.slider(
+            "🌫️ Standard Deviation (Variability)", 
+            min_value=1.0, max_value=15.0, value=5.0, step=0.5,
+            help="The random noise or imprecision in the data. Higher variability widens the confidence interval, making equivalence harder to prove."
+        )
+        n_slider = st.slider(
+            "🔬 Sample Size (n)", 
+            min_value=10, max_value=200, value=50, step=5,
+            help="The number of samples per group. Higher sample size narrows the confidence interval, increasing your power to prove equivalence."
+        )
     
-    # Generate plots using the slider values
-    fig, p_tost, is_equivalent, ci_lower, ci_upper = plot_tost(
+    fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B = plot_tost(
         delta=delta_slider,
         true_diff=diff_slider,
         std_dev=sd_slider,
@@ -3472,46 +3552,51 @@ def render_tost():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="⚖️ Equivalence Margin (Δ)", value=f"± {delta_slider:.1f} units", help="The pre-defined 'zone of indifference'.")
-            st.metric(label="📊 Observed 90% CI for Difference", value=f"[{ci_lower:.2f}, {ci_upper:.2f}]", help="The 90% confidence interval for the true difference between the groups.")
-            st.metric(label="p-value (TOST)", value=f"{p_tost:.4f}", help="If p < 0.05, we conclude equivalence.")
-            
-            status = "✅ Equivalent" if is_equivalent else "❌ Not Equivalent"
-            if is_equivalent: st.success(f"### Status: {status}")
-            else: st.error(f"### Status: {status}")
+            status = "✅ EQUIVALENT" if is_equivalent else "❌ NOT EQUIVALENT"
+            if is_equivalent:
+                st.success(f"### Result: {status}")
+            else:
+                st.error(f"### Result: {status}")
 
-            st.info("Play with the sliders in the sidebar to see how they affect the conclusion!")
+            st.metric(label="p-value (TOST)", value=f"{p_tost:.4f}", help="If p < 0.05, we conclude equivalence.")
+            st.metric(label="📊 Observed 90% CI for Difference", value=f"[{ci_lower:.2f}, {ci_upper:.2f}]")
+            st.metric(label="⚖️ Pre-defined Equivalence Margin", value=f"± {delta_slider:.1f} units")
+            
             st.markdown("""
-            - **The Goal:** To get the **entire blue bar (90% CI)** to fall inside the **green equivalence zone**.
-            - **`True Difference`:** Move this slider to see how the position of the blue bar changes.
-            - **`Standard Deviation`:** Increasing this widens the blue bar, making it fail.
-            - **`Sample Size`:** Increasing this narrows the blue bar, making it pass. This shows the power of collecting more data.
-            - **`Equivalence Margin`:** This moves the red goalposts. A tight margin is a high bar to clear.
+            **How to achieve equivalence:**
+            - **Decrease `Standard Deviation`**: Less noise makes your evidence stronger.
+            - **Increase `Sample Size`**: More data narrows the CI, increasing your statistical power.
+            - **Observe a small difference**: If the true difference is small, the CI will be centered near zero.
+            - **Widen the `Equivalence Margin`**: If scientifically justified, wider goalposts are easier to meet.
             """)
 
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The Fallacy of the Non-Significant P-Value**
-            - A scientist runs a standard t-test and gets a p-value of 0.25. They exclaim, *"Great, p > 0.05, so the methods are the same!"*
-            - **This is wrong.** All they have shown is a *failure to find evidence of a difference*. **Absence of evidence is not evidence of absence.**
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Define 'Same Enough', Then Prove It**
-            The TOST procedure forces a more rigorous scientific approach.
-            1.  **First, Define the Margin:** Before collecting data, stakeholders must define the equivalence margin (the green zone).
-            2.  **Then, Prove You're Inside:** Conduct the experiment. The burden of proof is on you to show that your evidence (the 90% CI) is strong enough to fall entirely within that margin.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: The Fallacy of the Non-Significant P-Value**
+- A scientist runs a standard t-test and gets a p-value of 0.25. They exclaim, *"Great, p > 0.05, so the methods are the same!"*
+- **This is wrong.** All they have shown is a *failure to find evidence of a difference*. **Absence of evidence is not evidence of absence.** Their study may have been underpowered (too much noise or too few samples).""")
+            st.success("""🟢 **THE GOLDEN RULE: Define 'Same Enough', Then Prove It**
+The TOST procedure forces a more rigorous scientific approach.
+1.  **First, Define the Margin:** Before collecting data, stakeholders must use scientific and clinical judgment to define the equivalence margin (`Δ`). This is the zone where a difference is considered practically meaningless.
+2.  **Then, Prove You're Inside:** Conduct the experiment. The burden of proof is on you to show that your evidence (the 90% CI for the difference) is precise enough to fall entirely within that pre-defined margin.""")
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            The TOST procedure rose to prominence in the 1980s, driven by the **1984 Hatch-Waxman Act** which created the modern pathway for generic drug approval. Regulators needed a way to statistically *prove* a generic drug was bioequivalent to the original. **Donald J. Schuirmann's** Two One-Sided Tests (TOST) procedure became the statistical engine for these critical studies.
+            #### Historical Context: The Rise of Generic Drugs
+            **The Problem:** In the early 1980s, the pharmaceutical landscape was changing. The **1984 Hatch-Waxman Act** in the US created the modern pathway for generic drug approval. This created a new statistical challenge for regulators: how could a generic manufacturer *prove* that their drug was "the same as" the innovator's drug in terms of how it was absorbed by the body (bioequivalence)?
+
+            **The 'Aha!' Moment:** A standard t-test was useless; failing to find a difference wasn't proof of no difference. The solution was championed by statisticians like **Donald J. Schuirmann** at the FDA. The **Two One-Sided Tests (TOST)** procedure, which had existed in the statistical literature, was identified as the perfect tool.
             
-            #### Mathematical Basis
-            TOST brilliantly flips the null hypothesis. Instead of one null of "no difference," you have two nulls of "too different":
+            **The Impact:** The TOST procedure became the statistical engine for bioequivalence studies worldwide. Instead of one null hypothesis of "no difference," it brilliantly frames the problem with two null hypotheses of "too different." To prove equivalence, you must reject both. This places the burden of proof squarely on the manufacturer to demonstrate similarity, a much higher and more appropriate standard for ensuring patient safety.
             """)
-            st.latex(r"H_{01}: \mu_{Test} - \mu_{Ref} \leq -\Delta \quad , \quad H_{02}: \mu_{Test} - \mu_{Ref} \geq +\Delta")
-            st.markdown("You must reject **both** of these null hypotheses to conclude that the true difference lies within the equivalence margin `[-Δ, +Δ]`.")
+            st.markdown("#### Mathematical Basis")
+            st.markdown("TOST brilliantly flips the null hypothesis. Instead of one null of \"no difference\" (`H₀: μ₁ - μ₂ = 0`), you have two null hypotheses of \"too different\":")
+            st.latex(r"H_{01}: \mu_B - \mu_A \leq -\Delta \quad (\text{The difference is too low})")
+            st.latex(r"H_{02}: \mu_B - \mu_A \geq +\Delta \quad (\text{The difference is too high})")
+            st.markdown("""
+            You must run two separate one-sided t-tests to reject **both** of these null hypotheses. The overall p-value for the TOST procedure is the larger of the two individual p-values. If this final p-value is less than your alpha (e.g., 0.05), you have statistically demonstrated equivalence within the margin `[-Δ, +Δ]`.
+            
+            A mathematically equivalent shortcut is to calculate the **90% confidence interval** for the difference. If this entire interval falls within `[-Δ, +Δ]`, you can conclude equivalence at the 5% significance level.
+            """)
 
 def render_assay_robustness_doe():
     """Renders the comprehensive, interactive module for Assay Robustness (DOE/RSM)."""

@@ -1750,7 +1750,6 @@ def plot_clustering(separation=15, spread=2.5):
                              
     return fig_scatter, fig_elbow, silhouette_val
 
-
 def plot_classification_models(boundary_radius=12):
     """
     Generates dynamic classification plots based on a user-defined boundary complexity.
@@ -4281,7 +4280,7 @@ def render_classification_models():
 def render_anomaly_detection():
     """Renders the module for unsupervised anomaly detection."""
     st.markdown("""
-    #### Purpose & Application
+    #### Purpose & Application: The AI Bouncer
     **Purpose:** To deploy an **AI Bouncer** for your data—a smart system that identifies rare, unexpected observations (anomalies) without any prior knowledge of what "bad" looks like. It doesn't need a list of troublemakers; it learns the "normal vibe" of the crowd and flags anything that stands out.
     
     **Strategic Application:** This is a game-changer for monitoring complex processes where simple rule-based alarms are blind to new problems.
@@ -4290,36 +4289,26 @@ def render_anomaly_detection():
     - **"Golden Batch" Investigation:** Can find which batches, even if they passed all specifications, were statistically unusual. These "weird-but-good" batches often hold the secrets to improving process robustness.
     """)
 
-    # Nested plotting function based on user's code
-    def plot_isolation_forest():
-        from sklearn.ensemble import IsolationForest
-        import pandas as pd
-        import numpy as np
-        import plotly.express as px
+    # --- NEW: Added Interactive Demo explanation ---
+    st.info("""
+    **Interactive Demo:** Use the **Expected Contamination** slider in the sidebar. This slider controls the model's sensitivity.
+    - **Low values (e.g., 1%):** Makes the "AI Bouncer" very strict. It will only flag the most extreme and obvious outliers as anomalies.
+    - **High values (e.g., 20%):** Makes the bouncer very lenient. It will start to flag points that are closer to the main "normal" crowd, increasing the number of detected anomalies.
+    """)
 
-        np.random.seed(42)
-        X_inliers = np.random.normal(0, 1, (100, 2))
-        X_outliers = np.random.uniform(low=-4, high=4, size=(10, 2))
-        X = np.concatenate([X_inliers, X_outliers], axis=0)
+    # --- NEW: Added slider gadget to the sidebar ---
+    st.sidebar.subheader("Anomaly Detection Controls")
+    contamination_slider = st.sidebar.slider(
+        "Expected Contamination (%)",
+        min_value=1, max_value=25, value=10, step=1,
+        help="Your assumption about the percentage of anomalies in the data. This tunes the model's sensitivity."
+    )
 
-        clf = IsolationForest(contamination=0.1, random_state=42)
-        y_pred = clf.fit_predict(X)
-        
-        df = pd.DataFrame(X, columns=['Process Parameter 1', 'Process Parameter 2'])
-        df['Status'] = ['Anomaly' if p == -1 else 'Normal' for p in y_pred]
-
-        fig = px.scatter(df, x='Process Parameter 1', y='Process Parameter 2', color='Status',
-                         color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
-                         title="<b>The AI Bouncer at Work</b>",
-                         symbol='Status',
-                         symbol_map={'Normal': 'circle', 'Anomaly': 'x'})
-        fig.update_traces(marker=dict(size=10), selector=dict(name='Anomaly'))
-        fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-        return fig
-
+    # --- MODIFIED: Call the backend function with slider value ---
+    fig, num_anomalies = plot_isolation_forest(contamination_rate=contamination_slider/100.0)
+    
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        fig = plot_isolation_forest()
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
@@ -4327,17 +4316,18 @@ def render_anomaly_detection():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="Data Points Scanned", value="110")
-            st.metric(label="Anomalies Flagged", value="10", help="Based on a contamination setting of ~10%.")
+            # --- MODIFIED: KPIs are now dynamic ---
+            st.metric(label="Total Data Points Scanned", value="115")
+            st.metric(label="Anomalies Flagged by Model", value=f"{num_anomalies}", help="The number of points classified as anomalies based on the selected contamination rate.")
             st.metric(label="Algorithm Used", value="Isolation Forest", help="An unsupervised machine learning method.")
 
             st.markdown("""
             **Reading the Chart:**
-            - **The Blue Circles:** This is the "normal crowd" in your process data. They are dense and clustered together. The AI Bouncer considers them normal.
-            - **The Red 'X's:** These are the anomalies. The algorithm has flagged them as "not belonging" to the main crowd. They are the individuals the bouncer has pulled aside for a closer look.
-            - **The Unsupervised Magic:** The key is that we never told the algorithm where the blue circle "club" was. It figured out the normal operating envelope on its own and identified everything that fell outside of it.
+            - **The Blue Circles:** This is the "normal crowd" in your process data. They are dense and clustered together.
+            - **The Red 'X's:** These are the anomalies. The algorithm has flagged them as "not belonging" to the main crowd.
+            - **The Unsupervised Magic:** The key is that we never told the algorithm where the "normal" data was. It learned the data's structure on its own and identified the points that were easiest to isolate.
 
-            **The Core Strategic Insight:** Anomaly detection is your early warning system for the **unknown unknowns**. While a control chart tells you if you've broken a known rule, an anomaly detector tells you that something you've never seen before just happened. This is often the first and only clue to a new, emerging failure mode.
+            **The Core Strategic Insight:** Anomaly detection is your early warning system for the **unknown unknowns**. While a control chart tells you if you've broken a known rule, an anomaly detector tells you that something you've never seen before just happened.
             """)
 
         with tabs[1]:
@@ -4377,7 +4367,6 @@ def render_anomaly_detection():
             3.  It counts the number of questions (the path length) it takes to uniquely identify each point.
             4.  **The Result:** Points in the heart of the normal cluster are hard to isolate and require many questions. Anomalous points are isolated very quickly with few questions. The algorithm calculates an "anomaly score" based on the average path length across all the trees in the forest.
             """)
-
 def render_xai_shap():
     """Renders the module for Explainable AI (XAI) using SHAP."""
     st.markdown("""

@@ -1334,7 +1334,6 @@ def plot_causal_inference(confounding_strength=5.0):
     using a classic Simpson's Paradox scenario.
     """
     # --- 1. The Causal Map (DAG) ---
-    # SME Enhancement: A more realistic bioprocess scenario (calibration drift)
     fig_dag = go.Figure()
     nodes = {'Calibration Age': (0, 1), 'Sensor Reading': (2, 2), 'Product Purity': (4, 1)}
     node_x = [v[0] for v in nodes.values()]
@@ -1353,11 +1352,17 @@ def plot_causal_inference(confounding_strength=5.0):
     # Causal relationships (arrows)
     edges = [('Calibration Age', 'Sensor Reading'), ('Sensor Reading', 'Product Purity'), ('Calibration Age', 'Product Purity')]
     for start, end in edges:
+        # --- THIS IS THE CORRECTED BLOCK ---
+        # The arguments `axshift` and `ayshift` have been corrected to `xshift` and `yshift`.
+        # I also adjusted the shift values slightly for better aesthetics.
         fig_dag.add_annotation(
             x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
             xref='x', yref='y', axref='x', ayref='y', showarrow=True,
-            arrowhead=2, arrowwidth=3, arrowcolor='black', axshift=-80 if start=='Calibration Age' else -110, ayshift=0
+            arrowhead=2, arrowwidth=3, arrowcolor='black',
+            xshift=-10, yshift=-10 # Corrected keyword arguments
         )
+        # --- END OF CORRECTION ---
+
     fig_dag.update_layout(
         title="<b>1. The Causal Map (DAG): Calibration Drift Scenario</b>",
         showlegend=False, xaxis=dict(visible=False, range=[-1, 5]),
@@ -1367,18 +1372,12 @@ def plot_causal_inference(confounding_strength=5.0):
     # --- 2. Simulate data demonstrating Simpson's Paradox ---
     np.random.seed(42)
     n_samples = 200
-    # The confounder: Calibration Age (0 = Recently Calibrated, 1 = Old Calibration)
     cal_age = np.random.randint(0, 2, n_samples)
     
-    # Define true causal effects
-    # A higher sensor reading CAUSES higher purity (positive effect)
     true_causal_effect_sensor_on_purity = 0.8
-    # An older calibration CAUSES lower purity (negative effect)
     true_effect_age_on_purity = -confounding_strength
-    # An older calibration also CAUSES higher sensor readings (drift)
     true_effect_age_on_sensor = confounding_strength
     
-    # Generate data based on the causal graph
     sensor = 50 + true_effect_age_on_sensor * cal_age + np.random.normal(0, 5, n_samples)
     purity = 90 + true_causal_effect_sensor_on_purity * (sensor - 50) + true_effect_age_on_purity * cal_age + np.random.normal(0, 5, n_samples)
     
@@ -1386,11 +1385,9 @@ def plot_causal_inference(confounding_strength=5.0):
     df['Calibration Status'] = df['CalibrationAge'].apply(lambda x: 'Old' if x == 1 else 'New')
 
     # --- 3. Calculate effects ---
-    # Naive (biased) model: Purity ~ SensorReading
     naive_model = ols('Purity ~ SensorReading', data=df).fit()
     naive_effect = naive_model.params['SensorReading']
     
-    # Adjusted (unbiased) model: Purity ~ SensorReading + CalibrationAge
     adjusted_model = ols('Purity ~ SensorReading + C(CalibrationStatus)', data=df).fit()
     adjusted_effect = adjusted_model.params['SensorReading']
 
@@ -1400,13 +1397,11 @@ def plot_causal_inference(confounding_strength=5.0):
                              color_discrete_map={'New': 'blue', 'Old': 'red'},
                              labels={'SensorReading': 'In-Process Sensor Reading'})
     
-    # Add regression lines
     x_range = np.array([df['SensorReading'].min(), df['SensorReading'].max()])
     
-    # Naive line
     fig_scatter.add_trace(go.Scatter(x=x_range, y=naive_model.predict({'SensorReading': x_range}), mode='lines', 
                                      name='Naive Correlation (Misleading)', line=dict(color='orange', width=4, dash='dash')))
-    # Adjusted lines (within each group)
+    
     intercept_new = adjusted_model.params['Intercept']
     intercept_old = intercept_new + adjusted_model.params['C(CalibrationStatus)[T.Old]']
     fig_scatter.add_trace(go.Scatter(x=x_range, y=intercept_new + adjusted_effect * x_range, mode='lines', 

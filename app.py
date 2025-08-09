@@ -27,6 +27,8 @@ from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA
 import shap
+import xgboost as xgb
+from scipy.special import logsumexp
 
 # ==============================================================================
 # APP CONFIGURATION
@@ -2085,7 +2087,417 @@ def plot_advanced_ai_concepts(concept):
         fig.update_layout(xaxis_visible=False, yaxis_visible=False, showlegend=False)
                       
     return fig
+
+#================================================================================================================================================================================================
+#=========================================================================NEW HYBRID METHODS ==================================================================================================
+#===========================================================================================================================================================================================
+@st.cache_data
+def plot_mewma_xgboost(shift_magnitude=0.75, lambda_mewma=0.2):
+    """
+    Generates data for a Multivariate EWMA (MEWMA) chart and uses an XGBoost model
+    with SHAP for root cause diagnostics of an alarm.
+    """
+    np.random.seed(42)
+    n_train, n_monitor = 100, 50
+    n_total = n_train + n_monitor
+
+    # 1. --- Simulate Correlated Process Data ---
+    mean_vec = np.array([10, 50, 100])
+    cov_matrix = np.array([[2.0, 1.5, 0.5], [1.5, 3.0, 1.0], [0.5, 1.0, 4.0]])
+    data = np.random.multivariate_normal(mean_vec, cov_matrix, n_total)
     
+    # Inject a subtle shift in Temp and Pressure during monitoring phase
+    shift_vec = np.array([0, shift_magnitude, shift_magnitude * 1.5])
+    data[n_train:] += shift_vec
+    df = pd.DataFrame(data, columns=['pH', 'Temp', 'Pressure'])
+
+    # 2. --- MEWMA Calculation ---
+    S_inv = np.linalg.inv(cov_matrix)
+    Z = np.zeros_like(data)
+    t_squared_mewma = np.zeros(n_total)
+    for i in range(n_total):
+        if i == 0:
+            Z[i, :] = (1 - lambda_mewma) * mean_vec + lambda_mewma * data[i, :]
+        else:
+            Z[i, :] = (1 - lambda_mewma) * Z[i-1, :] + lambda_mewma * data[i, :]
+        
+        diff = Z[i, :] - mean_vec
+        # Simplified T-squared calculation for MEWMA
+        t_squared_mewma[i] = diff.T @ S_inv @ diff
+
+    # 3. --- Control Limit (Asymptotic) ---
+    p = data.shape[1] # number of variables
+    # This is a common heuristic for MEWMA chart limits
+    ucl = (p * (lambda_mewma / (2 - lambda_mewma))) * f.ppf(0.99, p, 1000) # Using large df for chi2 approx
+    
+    ooc_points = np.where(t_squared_mewma[n_train:] > ucl)[0]
+    first_ooc_index = ooc_points[0] + n_train if len(ooc_points) > 0 else None
+    
+    # 4. --- XGBoost Diagnostic Model ---
+    fig_diag = None
+    if first_ooc_index:
+        # Create labels: 0 for in-control, 1 for out-of-control
+        y = np.zeros(n_total)
+        y[n_train:] = 1 
+        
+        model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+        model.fit(df, y)
+        
+        explainer = shap.Explainer(model)
+        shap_values = explainer(df)
+        
+        # Create a force plot for the first detected out-of-control point
+        force_plot = shap.force_plot(
+            explainer.expected_value, 
+            shap_values.values[first_ooc_index,:], 
+            df.iloc[first_ooc_index,:],
+            show=False
+        )
+        fig_diag = f"<html><head>{shap.initjs()}</head><body>{force_plot.html()}</body></html>"
+
+    # 5. --- Main Plotting ---
+    fig_mewma = go.Figure()
+    fig_mewma.add_trace(go.Scatter(y=t_squared_mewma, mode='lines+markers', name='MEWMA Statistic'))
+    fig_mewma.add_hline(y=ucl, line=dict(color='red', dash='dash'), name='UCL')
+    fig_mewma.add_vrect(x0=n_train - 0.5, x1=n_total - 0.5, fillcolor="rgba(255,150,0,0.1)", line_width=0, annotation_text="Monitoring Phase")
+    
+    if first_ooc_index:
+        fig_mewma.add_trace(go.Scatter(x=[first_ooc_index], y=[t_squared_mewma[first_ooc_index]],
+                                     mode='markers', marker=dict(color='red', size=12, symbol='x'), name='First Alarm'))
+    
+    fig_mewma.update_layout(title="<b>Multivariate EWMA (MEWMA) Control Chart</b>",
+                          xaxis_title="Observation Number", yaxis_title="MEWMA T² Statistic")
+
+    return fig_mewma, fig_diag, first_ooc_index
+
+
+@st.cache_data
+def plot_bocpd_ml_features(mean_shift=3.0, noise_increase=2.0):
+    """
+    Simulates Bayesian Online Change Point Detection on an ML-derived feature.
+    """
+    np.random.seed(42)
+    n_points = 200
+    change_point = 100
+    
+    # 1. --- Simulate Raw Data with a Change Point ---
+    data = np.random.normal(0, 1, n_points)
+    # After change point, both mean and variance shift
+    data[change_point:] = np.random.normal(mean_shift, 1 * noise_increase, n_points - change_point)
+    
+    # 2. --- Create an "ML Feature" ---
+    # A simple but effective feature: rolling standard deviation
+    ml_feature = pd.Series(data).rolling(window=10).std().bfill().values
+    
+    # 3. --- BOCPD Algorithm (Simplified) ---
+    # We use a known hazard rate (probability of a change at any step)
+    hazard = 1 / (n_points * 2) 
+    # Use a simple Gaussian model for the likelihood
+    mean0, var0 = np.mean(ml_feature[:change_point]), np.var(ml_feature[:change_point])
+    
+    R = np.zeros((n_points + 1, n_points + 1))
+    R[0, 0] = 1 # Initial state: run length is 0 with probability 1
+    
+    max_run_lengths = np.zeros(n_points)
+    
+    for t in range(1, n_points + 1):
+        x = ml_feature[t-1]
+        
+        # Calculate predictive probability for each possible run length
+        pred_probs = stats.norm.pdf(x, loc=mean0, scale=np.sqrt(var0))
+        
+        # Growth probabilities (continue the run)
+        R[1:t+1, t] = R[0:t, t-1] * pred_probs * (1 - hazard)
+        
+        # Change point probability (a new run starts)
+        R[0, t] = np.sum(R[:, t-1] * pred_probs * hazard)
+        
+        # Normalize
+        R[:, t] = R[:, t] / np.sum(R[:, t])
+        max_run_lengths[t-1] = np.argmax(R[:, t])
+
+    # 4. --- Plotting ---
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        subplot_titles=("Raw Process Data", "ML Feature (Rolling SD)", "BOCPD: Probability of Run Length"))
+    fig.add_trace(go.Scatter(y=data, mode='lines', name='Raw Data'), row=1, col=1)
+    fig.add_vline(x=change_point, line_dash='dash', line_color='red', row='all', col=1)
+    fig.add_trace(go.Scatter(y=ml_feature, mode='lines', name='Rolling SD'), row=2, col=1)
+    
+    fig.add_trace(go.Heatmap(z=R[1:150, :], showscale=False, colorscale='Blues'), row=3, col=1)
+    fig.update_yaxes(title_text="Current Run Length", row=3, col=1)
+    fig.update_xaxes(title_text="Observation Number", row=3, col=1)
+    
+    fig.update_layout(height=700, title_text="<b>Bayesian Online Change Point Detection on an ML Feature</b>")
+    
+    return fig, R[:, change_point].max()
+
+@st.cache_data
+def plot_kalman_nn_residual(process_drift=0.1, measurement_noise=1.0, shock_magnitude=10.0):
+    """
+    Simulates a Kalman Filter tracking a process, with a control chart on the residuals.
+    """
+    np.random.seed(123)
+    n_points = 100
+    
+    # 1. --- Simulate a Dynamic Process with a Shock ---
+    true_state = np.zeros(n_points)
+    for i in range(1, n_points):
+        true_state[i] = true_state[i-1] + process_drift
+    
+    # Add a sudden, unexpected shock
+    shock_point = 70
+    true_state[shock_point:] += shock_magnitude
+    
+    # Create noisy measurements
+    measurements = true_state + np.random.normal(0, measurement_noise, n_points)
+    
+    # 2. --- Kalman Filter Implementation ---
+    # Model assumes a simple, constant velocity (drift)
+    q_val = 0.01 # Process noise (model uncertainty)
+    r_val = measurement_noise**2 # Measurement noise (known from sensor)
+    
+    x_est = np.zeros(n_points) # Estimated state
+    p_est = np.zeros(n_points) # Estimated error covariance
+    residuals = np.zeros(n_points)
+    
+    x_est[0] = measurements[0]
+    p_est[0] = 1.0
+    
+    for k in range(1, n_points):
+        # Predict
+        x_pred = x_est[k-1] + process_drift
+        p_pred = p_est[k-1] + q_val
+        
+        # Update
+        kalman_gain = p_pred / (p_pred + r_val)
+        residuals[k] = measurements[k] - x_pred
+        x_est[k] = x_pred + kalman_gain * residuals[k]
+        p_est[k] = (1 - kalman_gain) * p_pred
+
+    # 3. --- Control Chart on Residuals ---
+    # Use first 60 stable points to establish limits
+    res_mean = np.mean(residuals[:60])
+    res_std = np.std(residuals[:60])
+    ucl, lcl = res_mean + 3 * res_std, res_mean - 3 * res_std
+    
+    ooc_points = np.where((residuals > ucl) | (residuals < lcl))[0]
+    first_ooc = ooc_points[0] if len(ooc_points) > 0 else None
+    
+    # 4. --- Plotting ---
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        subplot_titles=("Kalman Filter State Estimation", "Kalman Filter Residuals (Innovations)",
+                                        "Control Chart on Residuals"))
+
+    fig.add_trace(go.Scatter(y=measurements, mode='markers', name='Measurements', marker=dict(opacity=0.6)), row=1, col=1)
+    fig.add_trace(go.Scatter(y=true_state, mode='lines', name='True State', line=dict(dash='dash', color='black')), row=1, col=1)
+    fig.add_trace(go.Scatter(y=x_est, mode='lines', name='Kalman Estimate', line=dict(color='red')), row=1, col=1)
+
+    fig.add_trace(go.Scatter(y=residuals, mode='lines+markers', name='Residuals'), row=2, col=1)
+    
+    fig.add_trace(go.Scatter(y=residuals, mode='lines+markers', name='Residuals', showlegend=False), row=3, col=1)
+    fig.add_hline(y=ucl, line_color='red', row=3, col=1)
+    fig.add_hline(y=lcl, line_color='red', row=3, col=1)
+    if first_ooc:
+        fig.add_trace(go.Scatter(x=[first_ooc], y=[residuals[first_ooc]], mode='markers',
+                                 marker=dict(color='red', size=12, symbol='x'), name='Alarm'), row=3, col=1)
+    fig.add_vline(x=shock_point, line_dash='dash', line_color='red', annotation_text='Process Shock', row='all', col=1)
+    fig.update_layout(height=800, title_text="<b>Kalman Filter with Residual Control Chart</b>")
+    fig.update_xaxes(title_text="Time", row=3, col=1)
+    
+    return fig, first_ooc
+
+@st.cache_data
+def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0):
+    """
+    Simulates the outcome of an RL agent tuning an EWMA chart's lambda parameter
+    to minimize a combined economic cost function.
+    """
+    # 1. --- Pre-calculate Performance (ARL) ---
+    # Average Run Length (ARL) is the key metric for chart performance.
+    # ARL0 = average time to a false alarm. ARL1 = average time to detect a true shift.
+    lambdas = np.linspace(0.05, 0.5, 20)
+    # These are well-known approximations for EWMA ARL
+    L = 3.0 # Control limit width
+    arl0 = np.exp(0.832 * L**2 / lambdas) / 2 # Simplified ARL0 approximation
+    
+    shift_size = 1.0 # We are tuning for a 1-sigma shift
+    arl1 = (1/ (2 * stats.norm.cdf(-L*np.sqrt(lambdas/(2-lambdas)) + shift_size*np.sqrt(lambdas/(2-lambdas))) ) )
+    
+    # 2. --- Calculate Economic Cost ---
+    # Cost = Cost of False Alarms + Cost of Detection Delay
+    cost_fa = cost_false_alarm / arl0
+    cost_delay = cost_delay_unit * arl1
+    total_cost = cost_fa + cost_delay
+    
+    # Find the optimal lambda that the RL agent would have chosen
+    optimal_idx = np.argmin(total_cost)
+    optimal_lambda = lambdas[optimal_idx]
+    min_cost = total_cost[optimal_idx]
+    
+    # 3. --- Simulate an EWMA chart with the OPTIMAL lambda ---
+    np.random.seed(42)
+    n_points = 50
+    data = np.random.normal(0, 1, n_points)
+    data[25:] += shift_size # Introduce the 1-sigma shift
+    
+    ewma_opt = np.zeros(n_points); ewma_opt[0] = 0
+    for i in range(1, n_points):
+        ewma_opt[i] = (1 - optimal_lambda) * ewma_opt[i-1] + optimal_lambda * data[i]
+        
+    ucl = L * np.sqrt(optimal_lambda / (2 - optimal_lambda))
+    
+    # 4. --- Plotting ---
+    fig = make_subplots(rows=2, cols=1, vertical_spacing=0.15,
+                        subplot_titles=("RL Cost Optimization Surface for EWMA Tuning",
+                                        f"Resulting EWMA Chart with Optimal λ = {optimal_lambda:.2f}"))
+
+    fig.add_trace(go.Scatter(x=lambdas, y=total_cost, mode='lines', name='Total Cost'), row=1, col=1)
+    fig.add_annotation(x=optimal_lambda, y=min_cost, text=f"Optimal λ", showarrow=True, arrowhead=2, row=1, col=1)
+    
+    fig.add_trace(go.Scatter(y=data, mode='lines+markers', name='Data'), row=2, col=1)
+    fig.add_trace(go.Scatter(y=ewma_opt, mode='lines+markers', name='Optimal EWMA'), row=2, col=1)
+    fig.add_hline(y=ucl, line_color='red', row=2, col=1)
+    fig.add_hline(y=-ucl, line_color='red', row=2, col=1)
+    fig.add_vline(x=25, line_dash='dash', line_color='red', row=2, col=1)
+
+    fig.update_layout(height=700, title_text="<b>Reinforcement Learning for Economic Control Chart Design</b>")
+    fig.update_xaxes(title_text="EWMA Lambda (λ)", row=1, col=1)
+    fig.update_yaxes(title_text="Total Economic Cost", row=1, col=1)
+    fig.update_xaxes(title_text="Observation Number", row=2, col=1)
+    
+    return fig, optimal_lambda, min_cost
+
+@st.cache_data
+def plot_tcn_cusum(drift_magnitude=0.05, seasonality_strength=5.0):
+    """
+    Simulates a TCN forecasting a complex time series, with a CUSUM chart on the forecast residuals.
+    """
+    np.random.seed(42)
+    n_points = 200
+    
+    # 1. --- Simulate a Complex Time Series with Drift ---
+    time = np.arange(n_points)
+    seasonality = seasonality_strength * (np.sin(time * 2 * np.pi / 50) + np.sin(time * 2 * np.pi / 20))
+    drift = np.linspace(0, drift_magnitude * n_points, n_points)
+    noise = np.random.normal(0, 1.5, n_points)
+    data = 100 + seasonality + drift + noise
+    
+    # 2. --- Simulate a TCN Forecast ---
+    # A real TCN is complex. We simulate its key property: it perfectly learns the
+    # predictable components (seasonality, but not the slow drift).
+    tcn_forecast = 100 + seasonality 
+    
+    # 3. --- Calculate Residuals and Apply CUSUM ---
+    residuals = data - tcn_forecast
+    
+    # CUSUM parameters (tuned to detect small shifts)
+    target = np.mean(residuals[:50]) # Target is the mean of the initial stable residuals
+    k = 0.5 * np.std(residuals[:50]) # Slack parameter (half a standard deviation)
+    h = 5 * np.std(residuals[:50]) # Control limit
+    
+    sh, sl = np.zeros(n_points), np.zeros(n_points)
+    for i in range(1, n_points):
+        sh[i] = max(0, sh[i-1] + (residuals[i] - target) - k)
+        sl[i] = max(0, sl[i-1] + (target - residuals[i]) - k)
+    
+    ooc_points = np.where(sh > h)[0]
+    first_ooc = ooc_points[0] if len(ooc_points) > 0 else None
+    
+    # 4. --- Plotting ---
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        subplot_titles=("TCN Forecast vs. Actual Data", "TCN Forecast Residuals", "CUSUM Chart on Residuals"))
+    
+    fig.add_trace(go.Scatter(y=data, mode='lines', name='Actual Data'), row=1, col=1)
+    fig.add_trace(go.Scatter(y=tcn_forecast, mode='lines', name='TCN Forecast', line=dict(dash='dash')), row=1, col=1)
+    
+    fig.add_trace(go.Scatter(y=residuals, mode='lines', name='Residuals'), row=2, col=1)
+    fig.add_hline(y=0, line_dash='dot', row=2, col=1)
+
+    fig.add_trace(go.Scatter(y=sh, mode='lines', name='CUSUM High'), row=3, col=1)
+    fig.add_trace(go.Scatter(y=sl, mode='lines', name='CUSUM Low'), row=3, col=1)
+    fig.add_hline(y=h, line_color='red', row=3, col=1)
+    if first_ooc:
+        fig.add_trace(go.Scatter(x=[first_ooc], y=[sh[first_ooc]], mode='markers',
+                                 marker=dict(color='red', size=12, symbol='x'), name='Alarm'), row=3, col=1)
+
+    fig.update_layout(height=800, title_text="<b>TCN-CUSUM: Hybrid Model for Complex Drift Detection</b>")
+    fig.update_xaxes(title_text="Time", row=3, col=1)
+    return fig, first_ooc
+
+@st.cache_data
+def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=5.0):
+    """
+    Simulates the reconstruction error from an LSTM Autoencoder and applies a hybrid
+    EWMA + BOCPD monitoring system to it.
+    """
+    np.random.seed(42)
+    n_points = 250
+    
+    # 1. --- Simulate Reconstruction Error ---
+    # A well-behaved LSTM Autoencoder on normal data produces low, random error.
+    # We simulate this error directly.
+    recon_error = np.random.chisquare(df=2, size=n_points) * 0.2
+    
+    # Inject a gradual drift anomaly (e.g., equipment degradation)
+    drift_start = 100
+    drift = np.linspace(0, drift_rate * (n_points - drift_start), n_points - drift_start)
+    recon_error[drift_start:] += drift
+    
+    # Inject a sudden spike anomaly (e.g., process shock)
+    spike_point = 200
+    recon_error[spike_point] += spike_magnitude
+    
+    # 2. --- Apply EWMA to detect the drift ---
+    lambda_ewma = 0.1
+    ewma = pd.Series(recon_error).ewma(alpha=lambda_ewma, adjust=False).values
+    ewma_mean = np.mean(recon_error[:drift_start])
+    ewma_std = np.std(recon_error[:drift_start])
+    ewma_ucl = ewma_mean + 3 * ewma_std * np.sqrt(lambda_ewma / (2 - lambda_ewma))
+    ewma_ooc = np.where(ewma > ewma_ucl)[0]
+    first_ewma_ooc = ewma_ooc[0] if len(ewma_ooc) > 0 else None
+    
+    # 3. --- Apply BOCPD to detect the spike ---
+    hazard = 1/500.0
+    mean0, var0 = np.mean(recon_error[:drift_start]), np.var(recon_error[:drift_start])
+    R = np.zeros((n_points + 1, n_points + 1)); R[0, 0] = 1
+    
+    for t in range(1, n_points + 1):
+        # We need to account for the ongoing drift for the BOCPD likelihood
+        current_mean_est = mean0 + drift_rate * max(0, t - drift_start)
+        pred_probs = stats.norm.pdf(recon_error[t-1], loc=current_mean_est, scale=np.sqrt(var0))
+        R[1:t+1, t] = R[0:t, t-1] * pred_probs * (1 - hazard)
+        R[0, t] = np.sum(R[:, t-1] * pred_probs * hazard)
+        R[:, t] = R[:, t] / np.sum(R[:, t]) if np.sum(R[:, t]) > 0 else R[:, t]
+        
+    bocpd_max_prob_at_spike = R[0, spike_point]
+
+    # 4. --- Plotting ---
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        subplot_titles=("LSTM Autoencoder Reconstruction Error",
+                                        "EWMA Chart on Error (for Drift Detection)",
+                                        "BOCPD on Error (for Sudden Change Detection)"))
+
+    fig.add_trace(go.Scatter(y=recon_error, mode='lines', name='Reconstruction Error'), row=1, col=1)
+    fig.add_vline(x=drift_start, line_dash='dot', line_color='orange', annotation_text='Drift Starts', row=1, col=1)
+    fig.add_vline(x=spike_point, line_dash='dot', line_color='red', annotation_text='Spike Event', row=1, col=1)
+
+    fig.add_trace(go.Scatter(y=ewma, mode='lines', name='EWMA'), row=2, col=1)
+    fig.add_hline(y=ewma_ucl, line_color='red', row=2, col=1)
+    if first_ewma_ooc:
+        fig.add_trace(go.Scatter(x=[first_ewma_ooc], y=[ewma[first_ewma_ooc]], mode='markers',
+                                 marker=dict(color='orange', size=12, symbol='x'), name='Drift Alarm'), row=2, col=1)
+
+    fig.add_trace(go.Heatmap(z=R[0:50, :], showscale=False, colorscale='Reds'), row=3, col=1)
+    fig.update_yaxes(title_text="Run Length", row=3, col=1)
+
+    fig.update_layout(height=800, title_text="<b>LSTM Autoencoder with Hybrid Monitoring System</b>")
+    fig.update_xaxes(title_text="Time", row=3, col=1)
+    
+    return fig, first_ewma_ooc, bocpd_max_prob_at_spike
+
+
+
+
 
 
 # ==============================================================================
@@ -4783,7 +5195,355 @@ def render_advanced_ai_concepts():
             with tabs[2]:
                 st.markdown("**Origin:** Catalyzed by **Generative Adversarial Networks (GANs)** in 2014, with modern **Diffusion Models** (e.g., DALL-E 2) being state-of-the-art.")
 
+#==============================================================================================================================================================================================
+#======================================================================NEW METHODS UI RENDERING ==============================================================================================
+#=============================================================================================================================================================================================
+# ==============================================================================
+# UI RENDERING FUNCTION (Method 1)
+# ==============================================================================
+def render_mewma_xgboost():
+    """Renders the MEWMA + XGBoost Diagnostics module."""
+    st.markdown("""
+    #### Purpose & Application: The AI First Responder
+    **Purpose:** To create a two-stage "Detect and Diagnose" system. A **Multivariate EWMA (MEWMA)** chart acts as a highly sensitive alarm for small, coordinated drifts in a process. When it alarms, a pre-trained **XGBoost + SHAP model** instantly performs an automated root cause analysis, identifying the variables that contributed most to the alarm.
+    
+    **Strategic Application:** This represents the state-of-the-art in intelligent process monitoring. It's for mature, complex processes where simple alarms are insufficient.
+    - **Detect:** The MEWMA chart excels at finding subtle "stealth shifts" that individual EWMA charts would miss, because it understands the process's normal correlation structure.
+    - **Diagnose:** Instead of technicians guessing at the cause of an alarm, the SHAP plot provides an immediate, data-driven "Top Suspects" list, dramatically accelerating troubleshooting and corrective actions (CAPA).
+    """)
 
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to control the simulated process.
+    - **`Shift Magnitude`**: Controls how large the drift is in the Temp and Pressure parameters during the monitoring phase. A smaller shift is harder to detect.
+    - **`MEWMA Lambda (λ)`**: Controls the "memory" of the chart. A smaller lambda gives it a longer memory, making it more sensitive to tiny, persistent shifts.
+    """)
+
+    st.sidebar.subheader("MEWMA + XGBoost Controls")
+    shift_slider = st.sidebar.slider("Shift Magnitude (in units of σ)", 0.25, 2.0, 0.75, 0.25)
+    lambda_slider = st.sidebar.slider("MEWMA Lambda (λ)", 0.05, 0.5, 0.2, 0.05)
+
+    fig_mewma, fig_diag, alarm_time = plot_mewma_xgboost(shift_magnitude=shift_slider, lambda_mewma=lambda_slider)
+
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig_mewma, use_container_width=True)
+        if fig_diag:
+            st.subheader("Automated Root Cause Diagnosis for First Alarm")
+            st.components.v1.html(fig_diag, height=150)
+        else:
+            st.success("No alarm detected in the monitoring phase.")
+
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric("Detection Time", f"Observation #{alarm_time}" if alarm_time else "N/A", help="The first data point in the monitoring phase to trigger an alarm.")
+            st.metric("Shift Magnitude", f"{shift_slider} σ")
+            st.metric("MEWMA Memory (λ)", f"{lambda_slider}")
+
+            st.markdown("""
+            **The Detective Story:**
+            1.  **The MEWMA Chart:** This plot shows the overall health of the multivariate process. After the monitoring phase begins (orange region), the statistic starts to drift upwards as it accumulates evidence of the small, coordinated shift in Temp and Pressure. Eventually, it crosses the red UCL, triggering an alarm.
+            2.  **The SHAP Plot:** This plot automatically appears upon alarm and explains the AI's reasoning.
+                - **Red Forces:** The variables pushing the prediction towards "Out-of-Control." Notice that `Temp` and `Pressure` are the primary red drivers.
+                - **Blue Forces:** Variables pushing towards "In-Control." `pH` is blue because it remained stable.
+            This gives the operator an immediate, actionable insight.
+            """)
+
+        with tabs[1]:
+            st.error("🔴 **THE INCORRECT APPROACH: The 'Whack-a-Mole' Investigation**\nAn alarm sounds. Engineers frantically check every individual parameter chart, trying to find a clear signal. They might chase a noisy pH sensor, ignoring the subtle, combined drift in Temp and Pressure that is the real root cause.")
+            st.success("🟢 **THE GOLDEN RULE: Detect Multivariately, Diagnose with Explainability**\n1. Trust the multivariate alarm. It sees the process holistically.\n2. Use the explainable AI diagnostic (SHAP) as your first investigative tool. It instantly narrows the search space from all possible causes to the most probable ones.\n3. This turns a slow, manual investigation into a rapid, data-driven confirmation.")
+
+        with tabs[2]:
+            st.markdown("""
+            **Historical Context:** The MEWMA chart was proposed by Lowry et al. in 1992 as a direct multivariate generalization of the univariate EWMA chart. **XGBoost**, developed by Tianqi Chen in 2014, is a highly efficient implementation of gradient boosted trees and is one of the most successful and widely used machine learning algorithms.
+            
+            **The Fusion:** This module demonstrates a modern fusion. The classical statistical rigor of MEWMA provides a robust detection framework, while the power and speed of XGBoost combined with the theoretical soundness of SHAP (2017) provide near-instantaneous, trustworthy diagnostics. This hybrid approach is a blueprint for the future of intelligent process monitoring.
+            """)
+
+# ==============================================================================
+# UI RENDERING FUNCTION (Method 2)
+# ==============================================================================
+def render_bocpd_ml_features():
+    """Renders the Bayesian Online Change Point Detection module."""
+    st.markdown("""
+    #### Purpose & Application: The AI Seismologist
+    **Purpose:** To provide a real-time, probabilistic assessment of process stability. Unlike traditional charts that give a binary "in/out" signal, **Bayesian Online Change Point Detection (BOCPD)** calculates the full probability distribution of the "current run length" (time since the last change). It answers not "Did it change?" but **"What is the probability it just changed?"**
+    
+    **Strategic Application:** This is a sophisticated method for monitoring high-value processes where understanding uncertainty is critical.
+    - **Monitoring ML Models:** Instead of monitoring raw process data, we can monitor a feature derived from an ML model (e.g., a rolling standard deviation, a predictive risk score). BOCPD can detect when the *behavior* of the model's output changes, signaling a change in the process itself.
+    - **Adaptive Alarming:** Instead of a fixed control limit, you can set alarms based on probability (e.g., "alarm if P(changepoint occurred in last 5 steps) > 90%").
+    """)
+
+    st.info("""
+    **Interactive Demo:** Use the sliders to control the nature of the process change at observation #100. Observe how the BOCPD heatmap (bottom plot) responds. A clear, sharp drop to zero in the run length probability is a high-confidence signal of a change.
+    """)
+
+    st.sidebar.subheader("BOCPD Controls")
+    mean_shift_slider = st.sidebar.slider("Mean Shift", 0.0, 5.0, 3.0, 0.5)
+    noise_inc_slider = st.sidebar.slider("Noise Increase Factor", 1.0, 5.0, 2.0, 0.5)
+
+    fig, change_prob = plot_bocpd_ml_features(mean_shift=mean_shift_slider, noise_increase=noise_inc_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric("Change Point Location", "Obs #100")
+            st.metric("Max Probability at Change Point", f"{change_prob:.2%}", help="The posterior probability of a new run length of 1 at the true change point.")
+            
+            st.markdown("""
+            **Reading the Plots:**
+            1.  **Raw Data:** Shows the simulated process. At the red line, the mean and variance both change.
+            2.  **ML Feature:** We monitor the `10-point rolling standard deviation`. Notice it is low and stable before the change, and high and volatile after. This feature is more sensitive to the change than the raw data.
+            3.  **BOCPD Heatmap:** This is the core output. The y-axis is the "run length" (time since last change), and the x-axis is time.
+                - **Before the change:** The bright blue line steadily increases, showing the algorithm is confident the run length is growing (no change).
+                - **At the change (red line):** The probability mass instantly collapses to the bottom of the chart (run length = 0), signaling a high-confidence detection of a change.
+            """)
+
+        with tabs[1]:
+            st.error("🔴 **THE INCORRECT APPROACH: The 'Delayed Reaction'**\nWaiting for a traditional SPC chart to alarm on a complex signal (like a combined mean and variance shift) can take a long time. By the time it alarms, the process has been unstable for a while, and valuable context is lost.")
+            st.success("🟢 **THE GOLDEN RULE: Monitor the Probability, Not Just the Value**\nBOCPD provides a richer, more informative signal. The full probability distribution allows for more nuanced decision-making. Instead of a binary alarm, you can create risk-based alerts: a low-probability 'watch' state and a high-probability 'act' state, enabling earlier, more proactive interventions.")
+
+        with tabs[2]:
+            st.markdown("""
+            **Historical Context:** The theoretical framework was laid out by Adams & MacKay in their 2007 paper, "Bayesian Online Changepoint Detection." It provided an elegant and computationally efficient way to solve a classic problem in statistics.
+            
+            **How It Works:** It's a two-step Bayesian update performed at every new data point:
+            1.  Calculate the probability of the new point given the existing run.
+            2.  Calculate the probability that a changepoint just occurred.
+            3.  Update the probability distribution for all possible run lengths.
+            This online, recursive nature makes it perfect for real-time streaming process data.
+            """)
+# ==============================================================================
+# UI RENDERING FUNCTION (Method 3)
+# ==============================================================================
+def render_kalman_nn_residual():
+    """Renders the Kalman Filter + Residual Chart module."""
+    st.markdown("""
+    #### Purpose & Application: The AI Navigator
+    **Purpose:** To track and predict the state of a dynamic process in real-time, even with noisy sensor data. The **Kalman Filter** acts as an optimal "navigator," constantly predicting the process's next move and then correcting its course based on the latest measurement. The key output is the **residual**—the degree of "surprise" at each measurement.
+    
+    **Strategic Application:** This is fundamental for state estimation in any time-varying system (e.g., cell growth, degradation kinetics).
+    - **Intelligent Filtering:** Provides a smooth, real-time estimate of a process's true state, filtering out sensor noise.
+    - **Early Fault Detection:** By placing a control chart on the residuals, we create a highly sensitive alarm system. If the process behaves in a way the Kalman Filter didn't predict, the residuals will jump out of their normal range, signaling a fault long before the raw data looks abnormal.
+    - **Foundation for Control:** The state estimate from a Kalman Filter is the essential input for advanced process control systems.
+    """)
+    st.info("""
+    **Interactive Demo:** Use the sliders to change the process dynamics. At time #70, a sudden shock is introduced.
+    - **`Process Drift`**: A higher drift makes the underlying trend steeper.
+    - **`Shock Magnitude`**: Controls how large the unexpected event is. Watch how the residual chart (middle) spikes at the moment of the shock.
+    - **`Measurement Noise`**: Simulates a noisier sensor. Notice how the Kalman estimate (red line) becomes smoother relative to the noisy measurements.
+    """)
+    st.sidebar.subheader("Kalman Filter Controls")
+    drift_slider = st.sidebar.slider("Process Drift Rate", 0.0, 0.5, 0.1, 0.05)
+    noise_slider = st.sidebar.slider("Measurement Noise (SD)", 0.5, 5.0, 1.0, 0.5)
+    shock_slider = st.sidebar.slider("Process Shock Magnitude", 1.0, 20.0, 10.0, 1.0)
+
+    fig, alarm_time = plot_kalman_nn_residual(process_drift=drift_slider, measurement_noise=noise_slider, shock_magnitude=shock_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric("Process Shock Event", "Time #70")
+            st.metric("Alarm on Residuals", f"Time #{alarm_time}" if alarm_time else "N/A", help="The time the residual chart first detected the shock.")
+            st.markdown("""
+            **Reading the Plots:**
+            1.  **State Estimation (Top):** The black line is the true, hidden state of the process. The blue dots are what your noisy sensor sees. The red line is the Kalman Filter's "best guess" of the true state, a brilliant fusion of its internal model and the noisy data.
+            2.  **Residuals (Middle):** This is the "surprise" at each step. Notice the huge spike at time #70 when the process shock occurs—the measurement was far from what the filter predicted.
+            3.  **Control Chart (Bottom):** This formalizes the alarm. The residuals are stable and near zero, then spike far outside the control limits at the moment of the shock, providing an unambiguous alarm.
+            """)
+
+        with tabs[1]:
+            st.error("🔴 **THE INCORRECT APPROACH: Monitoring Raw, Noisy Data**\nCharting the raw measurements (blue dots) directly would lead to a wide, insensitive control chart. The process shock might not even trigger an alarm if it's small relative to the measurement noise. You are blind to subtle deviations from the expected *behavior*.")
+            st.success("🟢 **THE GOLDEN RULE: Model the Expected, Monitor the Unexpected**\n1. Use a dynamic model (like a Kalman Filter) to capture the known, predictable behavior of your process (e.g., its drift, its noise characteristics).\n2. This model separates the signal into two streams: the predictable part (the state estimate) and the unpredictable part (the residuals).\n3. Place your high-sensitivity control chart on the **residuals**. This is monitoring the "unexplained" portion of the data, which is where novel faults will always appear first.")
+
+        with tabs[2]:
+            st.markdown("""
+            **Historical Context:** The filter is named after **Rudolf E. Kálmán**, who published his seminal paper in 1960. Its most famous and spectacular application was its use by the **NASA Apollo program** to navigate the command and lunar modules to the Moon. The filter took noisy radar and sensor data and produced a highly accurate estimate of the spacecraft's true trajectory, making the mission possible.
+            
+            **The Neural Network Connection:** A standard Kalman Filter uses a *linear* model of the process. For highly complex, non-linear processes (like cell culture), we can replace the linear model with a **Recurrent Neural Network (RNN)**. The RNN learns the complex dynamics from data, and the Kalman Filter framework is used to optimally blend the RNN's predictions with new measurements. This hybrid approach, often called a State-Space RNN, is at the frontier of process modeling.
+            """)
+
+# ==============================================================================
+# UI RENDERING FUNCTION (Method 4)
+# ==============================================================================
+def render_rl_tuning():
+    """Renders the Reinforcement Learning for Chart Tuning module."""
+    st.markdown("""
+    #### Purpose & Application: The AI Economist
+    **Purpose:** To use **Reinforcement Learning (RL)** to automatically tune the parameters of a control chart (like EWMA's λ) to achieve the best possible **economic performance**. It finds the optimal balance in the fundamental trade-off between reacting too quickly (costly false alarms) and reacting too slowly (costly missed signals).
+    
+    **Strategic Application:** This moves SPC from a purely statistical exercise to a business optimization problem.
+    - **Customized Monitoring:** Instead of using one-size-fits-all parameters, the RL agent designs a chart specifically tuned to your process's unique failure modes and your business's specific cost structure.
+    - **Risk-Based Control:** For a high-value final drug product, the cost of a missed signal is enormous, so the agent will design a highly sensitive chart. For a low-cost intermediate, it may design a less sensitive chart to avoid nuisance alarms.
+    - **Automated Re-tuning:** As a process evolves, an RL agent can continuously re-tune the charts to maintain optimal performance.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the business manager. Use the sliders to define the economic reality of your process. The plots show the cost landscape the RL agent explores and the final, economically optimal EWMA chart it designed.
+    - **`Cost of a False Alarm`**: The cost of stopping the process, investigating, and finding nothing wrong.
+    - **`Cost of Detection Delay`**: The cost incurred for *every minute* a true process failure goes undetected (e.g., cost of producing scrap).
+    """)
+    st.sidebar.subheader("RL Economic Controls")
+    cost_fa_slider = st.sidebar.slider("Cost of a False Alarm ($)", 1, 10, 1, 1)
+    cost_delay_slider = st.sidebar.slider("Cost of Detection Delay ($/unit time)", 1, 10, 5, 1)
+
+    fig, opt_lambda, min_cost = plot_rl_tuning(cost_false_alarm=cost_fa_slider, cost_delay_unit=cost_delay_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric("Optimal λ Found by RL", f"{opt_lambda:.3f}", help="The EWMA memory parameter that minimizes total cost for your economic scenario.")
+            st.metric("Minimum Achievable Cost", f"${min_cost:.2f}", help="The best possible economic performance for this chart.")
+            
+            st.markdown("""
+            **The RL Agent's Solution:**
+            1.  **Cost Surface (Top):** This plot shows the total cost for every possible value of λ. The RL agent's job is to find the lowest point on this curve.
+                - When `Cost of Delay` is high, the agent chooses a **small λ** (long memory) to create a very sensitive chart.
+                - When `Cost of a False Alarm` is high, the agent chooses a **large λ** (short memory) to create a less sensitive chart that avoids nuisance alarms.
+            2.  **Optimal Chart (Bottom):** This is the EWMA chart built using the optimal λ. It is, by definition, the most profitable control chart for your specific business case.
+            """)
+
+        with tabs[1]:
+            st.error("🔴 **THE INCORRECT APPROACH: The 'Cookbook' Method**\nA scientist reads a textbook that says 'use λ=0.2 for EWMA charts.' They apply this default value to every process, regardless of the process stability or the economic consequences of an error.")
+            st.success("🟢 **THE GOLDEN RULE: Design the Chart to Match the Risk**\nThe control chart is not just a statistical tool; it's an economic asset. The tuning parameters should be deliberately chosen to minimize the total expected cost of quality. An RL framework provides a powerful, data-driven way to formalize this optimization problem and find the provably best solution.")
+
+        with tabs[2]:
+            st.markdown("""
+            **Historical Context:** The idea of economic design of control charts dates back to the 1950s, but the complex optimization was difficult. **Reinforcement Learning**, a field with roots in control theory and psychology, provides the modern toolkit to solve this problem.
+            
+            **How it Works (Conceptual):** An RL agent learns like a human through trial and error in a simulated environment (a "digital twin" of the process).
+            1.  **State:** The agent observes the current state (e.g., the last 10 data points).
+            2.  **Action:** The agent takes an action (e.g., 'alarm' or 'don't alarm').
+            3.  **Reward:** The environment gives a reward or penalty based on the action and the true (hidden) state. (e.g., a large penalty for not alarming during a real shift).
+            Over millions of simulated trials, the agent learns a **policy** that maximizes its cumulative reward, which is equivalent to finding the chart parameters that minimize long-run cost.
+            """)
+# ==============================================================================
+# UI RENDERING FUNCTION (Method 5)
+# ==============================================================================
+def render_tcn_cusum():
+    """Renders the TCN + CUSUM module."""
+    st.markdown("""
+    #### Purpose & Application: The AI Signal Processor
+    **Purpose:** To create a powerful, hybrid system for detecting tiny, gradual drifts hidden within complex, seasonal time series data. A **Temporal Convolutional Network (TCN)** first learns and "subtracts" the complex but predictable patterns. Then, a **CUSUM chart** is applied to the remaining signal (the residuals) to detect any subtle, underlying drift.
+    
+    **Strategic Application:** This is for monitoring processes with strong, complex seasonality that would overwhelm traditional SPC charts.
+    - **Bioreactor Monitoring:** A bioreactor has daily (diurnal) and weekly (feeding) cycles. The TCN can learn these complex rhythms. The CUSUM on the residuals can then detect if the underlying cell growth rate is slowly starting to decline.
+    - **Utility Systems:** Monitoring water or power consumption, which has strong daily and weekly patterns. This system can detect a slow, developing leak or equipment inefficiency.
+    """)
+    st.info("""
+    **Interactive Demo:** Use the sliders to control the simulated process.
+    - **`Drift Magnitude`**: Controls how quickly the hidden, linear drift pulls the process away from its normal baseline.
+    - **`Seasonality Strength`**: Controls the amplitude of the predictable, cyclical patterns. Notice that even with very strong seasonality, the CUSUM chart on the residuals effectively detects the hidden drift.
+    """)
+    st.sidebar.subheader("TCN-CUSUM Controls")
+    drift_slider = st.sidebar.slider("Drift Magnitude (per step)", 0.0, 0.2, 0.05, 0.01)
+    seasonality_slider = st.sidebar.slider("Seasonality Strength", 0.0, 10.0, 5.0, 1.0)
+
+    fig, alarm_time = plot_tcn_cusum(drift_magnitude=drift_slider, seasonality_strength=seasonality_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric("Detection Time", f"Time #{alarm_time}" if alarm_time else "N/A", help="The time the CUSUM chart first signaled a significant deviation.")
+            st.markdown("""
+            **Reading the Plots:**
+            1.  **Forecast vs. Actual (Top):** The TCN (dashed line) has perfectly learned the complex seasonal pattern, but it is unaware of the slow underlying drift. The actual data (solid line) slowly pulls away from the forecast.
+            2.  **Residuals (Middle):** This plot shows the difference (Actual - Forecast). The TCN has effectively "de-seasonalized" the data, revealing the hidden linear drift that was invisible in the top plot.
+            3.  **CUSUM Chart (Bottom):** The CUSUM chart is a "bloodhound" applied to the residuals. It sees the persistent positive trend in the residuals and accumulates this evidence until it crosses the red control limit, firing a clear alarm.
+            """)
+
+        with tabs[1]:
+            st.error("🔴 **THE INCORRECT APPROACH: Charting the Raw Data**\nApplying a CUSUM chart directly to the raw data would be a disaster. The massive swings from the seasonality would cause constant false alarms, making the chart useless. The true, tiny drift signal would be completely buried.")
+            st.success("🟢 **THE GOLDEN RULE: Separate the Predictable from the Unpredictable**\nThis is a fundamental principle of modern process monitoring. \n1. Use a sophisticated forecasting model (like a TCN or LSTM) to learn and remove the complex, known patterns from your data. \n2. Apply a sensitive change detection algorithm (like CUSUM or EWMA) to the model's residuals. This focuses your monitoring on the part of the signal that is truly changing, maximizing sensitivity while minimizing false alarms.")
+
+        with tabs[2]:
+            st.markdown("""
+            **Historical Context:** This module combines a classic statistical tool with a cutting-edge deep learning architecture. The **CUSUM chart** was invented by E.S. Page in 1954. **Temporal Convolutional Networks (TCNs)** were systemized in a 2018 paper by Bai, Kolter, and Koltun.
+            
+            **Why TCN over LSTM?** For many sequence modeling tasks, TCNs have become a powerful alternative to LSTMs (the traditional choice). They use **causal, dilated convolutions**, which allows them to look very far into the past to see long-range patterns, but they can be trained much faster than LSTMs because the computations can be done in parallel, unlike the inherently sequential nature of LSTMs. This hybrid TCN-CUSUM approach represents a fast, robust, and modern monitoring system.
+            """)
+
+# ==============================================================================
+# UI RENDERING FUNCTION (Method 6)
+# ==============================================================================
+def render_lstm_autoencoder_monitoring():
+    """Renders the LSTM Autoencoder + Hybrid Monitoring module."""
+    st.markdown("""
+    #### Purpose & Application: The AI Immune System
+    **Purpose:** To create a sophisticated, self-learning "immune system" for your process. An **LSTM Autoencoder** learns the normal, dynamic "fingerprint" of a healthy process over time. It then generates a single health score: the **reconstruction error**. We then deploy a **hybrid monitoring system** on this health score to detect different types of diseases (anomalies).
+    
+    **Strategic Application:** This is a state-of-the-art approach for unsupervised anomaly detection in multivariate time-series data, like that from a complex bioprocess.
+    - **Learns Normal Behavior:** The LSTM Autoencoder learns the complex, time-dependent correlations between many process parameters.
+    - **One Score to Rule Them All:** It distills hundreds of parameters into a single, chartable health score.
+    - **Hybrid Detection:**
+        - An **EWMA chart** on the health score detects slow-onset diseases (like gradual equipment degradation).
+        - A **BOCPD algorithm** on the health score detects acute events (like a sudden process shock).
+    """)
+    st.info("""
+    **Interactive Demo:** Use the sliders to control two different types of anomalies that occur in the process. Observe how the two different monitoring charts are specialized to detect each one.
+    - **`Drift Rate`**: Controls how quickly the reconstruction error grows after time #100. Watch the **EWMA chart (middle)** slowly rise to catch this.
+    - **`Spike Magnitude`**: Controls the size of the sudden shock at time #200. Watch the **BOCPD heatmap (bottom)** instantly react to this.
+    """)
+    st.sidebar.subheader("LSTM Anomaly Controls")
+    drift_slider = st.sidebar.slider("Drift Rate of Error", 0.0, 0.05, 0.02, 0.005)
+    spike_slider = st.sidebar.slider("Spike Magnitude in Error", 1.0, 10.0, 5.0, 1.0)
+
+    fig, ewma_time, bocpd_prob = plot_lstm_autoencoder_monitoring(drift_rate=drift_slider, spike_magnitude=spike_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        
+        with tabs[0]:
+            st.metric("EWMA Drift Detection Time", f"#{ewma_time}" if ewma_time else "N/A", help="Time the EWMA chart alarmed on the slow drift.")
+            st.metric("BOCPD Spike Detection Certainty", f"{bocpd_prob:.1%}", help="The posterior probability of a change point at the moment of the spike event.")
+            
+            st.markdown("""
+            **A Tale of Two Alarms:**
+            1.  **Reconstruction Error (Top):** This is the process's single "health score." Notice the slow, gradual increase starting at time #100 and the huge, sudden spike at time #200.
+            2.  **EWMA Chart (Middle):** This chart has memory. It is blind to the sudden spike but effectively detects the **slow drift**, accumulating the signal until it crosses the red control limit (orange 'x').
+            3.  **BOCPD Heatmap (Bottom):** This chart is designed for sudden changes. It mostly ignores the slow drift but reacts powerfully to the **spike event** at time #200, with the probability of a change (dark red) becoming very high.
+            """)
+
+        with tabs[1]:
+            st.error("🔴 **THE INCORRECT APPROACH: The 'One-Tool' Mindset**\nAn engineer tries to use a single Shewhart chart on the reconstruction error. It misses the slow drift entirely, and while it might catch the big spike, it gives no probabilistic context.")
+            st.success("🟢 **THE GOLDEN RULE: Use a Layered Defense for Anomaly Detection**\nDifferent types of process failures leave different signatures in the data. A robust monitoring system must use a combination of tools, each specialized for a different type of signature. By running EWMA (for drifts) and BOCPD (for shocks) in parallel on the same anomaly score, you create a comprehensive immune system that can effectively detect both chronic and acute process diseases.")
+
+        with tabs[2]:
+            st.markdown("""
+            **Historical Context:** This architecture is a fusion of multiple powerful ideas. **LSTMs** (Hochreiter & Schmidhuber, 1997) revolutionized sequence modeling. **Autoencoders** are a classic unsupervised neural network architecture. **BOCPD** (Adams & MacKay, 2007) provided a robust online change detection algorithm.
+            
+            **The Synthesis:** Combining these into an **LSTM Autoencoder for anomaly detection** became a popular and powerful technique in the late 2010s. It solves the key problem of monitoring high-dimensional time series data by first learning a low-dimensional representation of "normalcy" and then applying simpler, proven statistical monitoring techniques to the model's error signal. It represents a mature, practical application of deep learning for real-world process control.
+            """)
 
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
@@ -4810,7 +5570,7 @@ with st.sidebar:
     all_tools = {
         "ACT I: FOUNDATION & CHARACTERIZATION": ["Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Split-Plot Designs", "Causal Inference"],
         "ACT II: TRANSFER & STABILITY": ["Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", "Method Comparison", "Bayesian Inference"],
-        "ACT III: LIFECYCLE & PREDICTIVE MGMT": ["Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis", "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts"]
+        "ACT III: LIFECYCLE & PREDICTIVE MGMT": ["Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis", "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts", "MEWMA + XGBoost Diagnostics", "BOCPD + ML Features", "Kalman Filter + Residual Chart", "RL for Chart Tuning", "TCN + CUSUM", "LSTM Autoencoder + Hybrid Monitoring"]
     }
 
     # The loop for creating tool buttons remains the same.
@@ -4860,6 +5620,12 @@ else:
         "Anomaly Detection": render_anomaly_detection,
         "Explainable AI (XAI)": render_xai_shap,
         "Advanced AI Concepts": render_advanced_ai_concepts,
+        "MEWMA + XGBoost Diagnostics": render_mewma_xgboost,
+        "BOCPD + ML Features": render_bocpd_ml_features,
+        "Kalman Filter + Residual Chart": render_kalman_nn_residual,
+        "RL for Chart Tuning": render_rl_tuning,
+        "TCN + CUSUM": render_tcn_cusum,
+        "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
     }
 
     if view in PAGE_DISPATCHER:

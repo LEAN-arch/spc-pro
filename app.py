@@ -4325,14 +4325,12 @@ def render_anomaly_detection():
     - **"Golden Batch" Investigation:** Can find which batches, even if they passed all specifications, were statistically unusual. These "weird-but-good" batches often hold the secrets to improving process robustness.
     """)
 
-    # --- NEW: Added Interactive Demo explanation ---
     st.info("""
     **Interactive Demo:** Use the **Expected Contamination** slider in the sidebar. This slider controls the model's sensitivity.
     - **Low values (e.g., 1%):** Makes the "AI Bouncer" very strict. It will only flag the most extreme and obvious outliers as anomalies.
     - **High values (e.g., 20%):** Makes the bouncer very lenient. It will start to flag points that are closer to the main "normal" crowd, increasing the number of detected anomalies.
     """)
 
-    # --- NEW: Added slider gadget to the sidebar ---
     st.sidebar.subheader("Anomaly Detection Controls")
     contamination_slider = st.sidebar.slider(
         "Expected Contamination (%)",
@@ -4340,7 +4338,7 @@ def render_anomaly_detection():
         help="Your assumption about the percentage of anomalies in the data. This tunes the model's sensitivity."
     )
 
-    # --- MODIFIED: Call the backend function with slider value ---
+    # --- THIS LINE NOW CORRECTLY CALLS THE TOP-LEVEL HELPER FUNCTION ---
     fig, num_anomalies = plot_isolation_forest(contamination_rate=contamination_slider/100.0)
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -4352,7 +4350,6 @@ def render_anomaly_detection():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            # --- MODIFIED: KPIs are now dynamic ---
             st.metric(label="Total Data Points Scanned", value="115")
             st.metric(label="Anomalies Flagged by Model", value=f"{num_anomalies}", help="The number of points classified as anomalies based on the selected contamination rate.")
             st.metric(label="Algorithm Used", value="Isolation Forest", help="An unsupervised machine learning method.")
@@ -4403,6 +4400,7 @@ def render_anomaly_detection():
             3.  It counts the number of questions (the path length) it takes to uniquely identify each point.
             4.  **The Result:** Points in the heart of the normal cluster are hard to isolate and require many questions. Anomalous points are isolated very quickly with few questions. The algorithm calculates an "anomaly score" based on the average path length across all the trees in the forest.
             """)
+            
 def render_xai_shap():
     """Renders the module for Explainable AI (XAI) using SHAP."""
     st.markdown("""

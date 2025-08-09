@@ -2424,6 +2424,9 @@ def plot_tcn_cusum(drift_magnitude=0.05, seasonality_strength=5.0):
     fig.update_xaxes(title_text="Time", row=3, col=1)
     return fig, first_ooc
 
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Method 6) - CORRECTED
+# ==============================================================================
 @st.cache_data
 def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=5.0):
     """
@@ -2449,7 +2452,11 @@ def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=5.0):
     
     # 2. --- Apply EWMA to detect the drift ---
     lambda_ewma = 0.1
-    ewma = pd.Series(recon_error).ewma(alpha=lambda_ewma, adjust=False).values
+    
+    # --- THIS IS THE CORRECTED LINE ---
+    ewma = pd.Series(recon_error).ewm(alpha=lambda_ewma, adjust=False).mean().values
+    # --- END OF CORRECTION ---
+    
     ewma_mean = np.mean(recon_error[:drift_start])
     ewma_std = np.std(recon_error[:drift_start])
     ewma_ucl = ewma_mean + 3 * ewma_std * np.sqrt(lambda_ewma / (2 - lambda_ewma))
@@ -2496,13 +2503,9 @@ def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=5.0):
     return fig, first_ewma_ooc, bocpd_max_prob_at_spike
 
 
-
-
-
-
-# ==============================================================================
+# =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
-# ==============================================================================
+# ==================================================================================================================================================================================================
 
 # --- RESTORED INTRO RENDERING FUNCTION ---
 def render_introduction_content():

@@ -2410,6 +2410,9 @@ def plot_stability_analysis(degradation_rate=-0.4, noise_sd=0.5, batch_to_batch_
     return fig, shelf_life_str, pooled_model.params['Time'], poolability_p_value
 
 # The @st.cache_data decorator has been removed to allow for dynamic updates from sliders.
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Survival Analysis) - SME ENHANCED & CORRECTED
+# ==============================================================================
 def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
     """
     Generates an enhanced, more realistic survival analysis dashboard, including
@@ -2438,32 +2441,34 @@ def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
     p_value = results.p_value
 
     # --- Plotting ---
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # Specify the `types` for each subplot in the `specs` argument.
+    # Row 1 is a standard 'xy' plot. Row 2 is a 'table'.
     fig = make_subplots(
         rows=2, cols=1,
         shared_xaxes=True,
         vertical_spacing=0.05,
         row_heights=[0.8, 0.2],
-        subplot_titles=("<b>Kaplan-Meier Survival Estimates</b>", "")
+        specs=[[{"type": "xy"}],
+               [{"type": "table"}]],
+        subplot_titles=("<b>Kaplan-Meier Survival Estimates</b>",) # Title only for the first plot
     )
+    # --- END OF CORRECTION ---
     
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # Use hexadecimal color codes from Plotly's default sequence, which hex_to_rgb can parse.
+    # Plot curves with confidence intervals
     colors = px.colors.qualitative.Plotly
-    for kmf, color_hex in zip([kmf_A, kmf_B], [colors[0], colors[1]]): # e.g., '#636EFA', '#EF553B'
+    for kmf, color_hex in zip([kmf_A, kmf_B], [colors[0], colors[1]]):
         kmf_df = kmf.survival_function_.join(kmf.confidence_interval_)
         fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[kmf.label], mode='lines',
                                  name=kmf.label, line=dict(color=color_hex, shape='hv', width=3)), row=1, col=1)
-        # Confidence interval shading
-        fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[f'{kmf.label}_upper_0.95'], mode='lines',
-                                 line=dict(width=0), showlegend=False), row=1, col=1)
         
-        # This line now receives a valid hex string, e.g., '#636EFA'
         fill_color_rgba = f'rgba({",".join(str(c) for c in px.colors.hex_to_rgb(color_hex))}, 0.2)'
         
+        fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[f'{kmf.label}_upper_0.95'], mode='lines',
+                                 line=dict(width=0), showlegend=False), row=1, col=1)
         fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[f'{kmf.label}_lower_0.95'], mode='lines',
                                  line=dict(width=0), fill='tonexty', fillcolor=fill_color_rgba,
                                  name=f'{kmf.label} 95% CI'), row=1, col=1)
-    # --- END OF CORRECTION ---
 
     # Add markers for censored data
     censored_A = time_A[event_observed_A == 0]
@@ -2475,17 +2480,17 @@ def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
                              marker=dict(color=colors[1], symbol='line-ns-open', size=10),
                              name='Censored (Group B)'), row=1, col=1)
 
-    # Add "At Risk" table
+    # Add "At Risk" table to the second row
     time_bins = np.linspace(0, max(time_A.max(), time_B.max()), 6).astype(int)
     at_risk_A = [np.sum(time_A >= t) for t in time_bins]
     at_risk_B = [np.sum(time_B >= t) for t in time_bins]
     
     fig.add_trace(go.Table(
-        header=dict(values=['<b>Time Point</b>'] + [f'<b>{t}</b>' for t in time_bins]),
+        header=dict(values=['<b>Time Point</b>'] + [f'<b>{t}</b>' for t in time_bins], align="left"),
         cells=dict(values=[
             ['<b>Group A At Risk</b>', '<b>Group B At Risk</b>'],
             *[[at_risk_A[i], at_risk_B[i]] for i in range(len(time_bins))]
-        ], font=dict(size=12)),
+        ], align="left", font=dict(size=12)),
     ), row=2, col=1)
     
     fig.update_layout(

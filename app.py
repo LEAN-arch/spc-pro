@@ -28,6 +28,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA
 from lifelines.statistics import logrank_test
 from lifelines import KaplanMeierFitter
+from PIL import Image
 import shap
 import xgboost as xgb
 from scipy.special import logsumexp
@@ -2847,11 +2848,10 @@ def plot_isolation_forest(contamination_rate=0.1):
                          symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'}
                         ).data[1], row=1, col=1)
 
-    # --- THIS IS THE CORRECTED AND ROBUST BLOCK ---
     # Plot 2: Visualize one of the trees, with error handling
     try:
         from sklearn.tree import export_graphviz
-        import graphviz # This import is now safe inside the try block
+        import graphviz
         
         single_tree = clf.estimators_[0]
         dot_data = export_graphviz(single_tree, out_file=None,
@@ -2860,25 +2860,32 @@ def plot_isolation_forest(contamination_rate=0.1):
                                    special_characters=True, max_depth=3)
         graph = graphviz.Source(dot_data)
         
+        # --- THIS IS THE CORRECTED BLOCK ---
+        # 1. Pipe the graph to PNG bytes
+        png_bytes = graph.pipe(format='png')
+        # 2. Open the bytes with PIL/Pillow
+        img = Image.open(io.BytesIO(png_bytes))
+        # 3. Pass the Pillow Image object to Plotly's source
         fig.add_layout_image(
             dict(
-                source=graph.pipe(format='png'),
+                source=img, # Pass the Pillow Image object, not raw bytes
                 xref="x2", yref="y2",
-                x=0, y=1, sizex=1, sizey=1,
-                sizing="stretch", layer="above"
+                x=0.5, y=0.5, sizex=1, sizey=1,
+                xanchor="center", yanchor="middle",
+                sizing="contain", layer="above"
             )
         )
+        # --- END OF CORRECTION ---
+
     except (ImportError, FileNotFoundError, graphviz.backend.execute.ExecutableNotFound):
-        # Catch the error if graphviz or its executable is not found
         fig.add_annotation(
             xref="x2 domain", yref="y2 domain", x=0.5, y=0.5,
             text="<b>Graphviz executable not found.</b><br>Please install it on your system<br>to see the example tree.",
             showarrow=False, font=dict(size=14, color='red')
         )
-    # --- END OF CORRECTION ---
     
-    fig.update_xaxes(visible=False, showticklabels=False, row=1, col=2)
-    fig.update_yaxes(visible=False, showticklabels=False, row=1, col=2)
+    fig.update_xaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
+    fig.update_yaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
 
     # Plot 3: Score Distribution
     fig.add_trace(px.histogram(df, x='Score', color='GroundTruth',

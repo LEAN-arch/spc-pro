@@ -526,33 +526,50 @@ def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, in
 
     return fig1, fig2, fig3
     
-# The @st.cache_data decorator is removed to allow for dynamic regeneration.
-def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75):
+def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75, interaction_sd=0.5):
     """
-    Generates dynamic plots for the Gage R&R module based on user inputs.
+    Generates dynamic and more realistic plots for the Gage R&R module,
+    including sorted parts and operator-part interaction.
     """
     np.random.seed(10)
     n_operators, n_samples, n_replicates = 3, 10, 3
     operators = ['Alice', 'Bob', 'Charlie']
     
-    # Generate true part values based on the part_sd slider
-    true_part_values = np.random.normal(100, part_sd, n_samples)
-    
-    # Generate operator biases based on the operator_sd slider
+    # --- SME ENHANCEMENT 1: Create structured, sorted parts that span a realistic process range ---
+    # Instead of random sampling, create parts that are intentionally spread out, as in a real study.
+    center = 100
+    # Use part_sd to define the spread of parts, e.g., covering a +/- 2.5 sigma range
+    part_spread = 2.5 * part_sd 
+    true_part_values_sorted = np.linspace(center - part_spread, center + part_spread, n_samples)
+    part_names_sorted = [f'Part-{i+1:02d}' for i in range(n_samples)]
+    part_map = dict(zip(part_names_sorted, true_part_values_sorted))
+
+    # Generate consistent operator biases
     operator_biases = np.random.normal(0, operator_sd, n_operators)
     operator_bias_map = {op: bias for op, bias in zip(operators, operator_biases)}
     
+    # --- SME ENHANCEMENT 2: Simulate Operator-Part Interaction ---
+    # Create a consistent random effect for each specific operator-part combination.
+    interaction_effects = {}
+    for op in operators:
+        for part_name in part_names_sorted:
+            interaction_effects[(op, part_name)] = np.random.normal(0, interaction_sd)
+
     data = []
-    for op_idx, operator in enumerate(operators):
-        for sample_idx, true_value in enumerate(true_part_values):
-            # Generate measurements using the operator bias and repeatability_sd slider
-            measurements = np.random.normal(true_value + operator_bias_map[operator], repeatability_sd, n_replicates)
-            for m_idx, m in enumerate(measurements):
-                data.append([operator, f'Part_{sample_idx+1}', m, m_idx + 1])
+    for operator in operators:
+        for part_name, true_value in part_map.items():
+            # The final "true" value for this measurement includes the main effects and the new interaction effect
+            effective_true_value = true_value + operator_bias_map[operator] + interaction_effects[(operator, part_name)]
+            
+            # Generate measurements with repeatability (instrument noise) around this effective value
+            measurements = np.random.normal(effective_true_value, repeatability_sd, n_replicates)
+            
+            for m in measurements:
+                data.append([operator, part_name, m])
     
-    df = pd.DataFrame(data, columns=['Operator', 'Part', 'Measurement', 'Replicate'])
+    df = pd.DataFrame(data, columns=['Operator', 'Part', 'Measurement'])
     
-    # Perform ANOVA and calculate variance components
+    # Perform ANOVA (the model correctly captures the new interaction term)
     model = ols('Measurement ~ C(Part) + C(Operator) + C(Part):C(Operator)', data=df).fit()
     anova_table = sm.stats.anova_lm(model, typ=2)
     
@@ -561,6 +578,7 @@ def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75):
     ms_interaction = anova_table.loc['C(Part):C(Operator)', 'sum_sq'] / anova_table.loc['C(Part):C(Operator)', 'df']
     ms_error = anova_table.loc['Residual', 'sum_sq'] / anova_table.loc['Residual', 'df']
     
+    # Calculate variance components from Mean Squares
     var_repeatability = ms_error
     var_operator = max(0, (ms_operator - ms_interaction) / (n_samples * n_replicates))
     var_interaction = max(0, (ms_interaction - ms_error) / n_replicates)
@@ -569,24 +587,49 @@ def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75):
     var_rr = var_repeatability + var_reproducibility
     var_total = var_rr + var_part
     
+    # Calculate final KPIs
     pct_rr = (var_rr / var_total) * 100 if var_total > 0 else 0
-    pct_part = (var_part / var_total) * 100 if var_total > 0 else 0
+    ndc = int(1.41 * np.sqrt(var_part / var_rr)) if var_rr > 0 else 10
     
-    # Plotting (largely the same, just consumes the dynamic data)
-    fig = make_subplots(rows=2, cols=2, column_widths=[0.7, 0.3], row_heights=[0.5, 0.5], specs=[[{"rowspan": 2}, {}], [None, {}]], subplot_titles=("<b>Variation by Part & Operator</b>", "<b>Overall Variation by Operator</b>", "<b>Variance Contribution</b>"))
+    # Plotting (updated titles and layout for clarity)
+    fig = make_subplots(rows=2, cols=2, column_widths=[0.7, 0.3], row_heights=[0.5, 0.5],
+                        specs=[[{"rowspan": 2}, {}], [None, {}]],
+                        subplot_titles=("<b>Measurement by Part (Grouped by Operator)</b>",
+                                        "<b>Overall Variation by Operator</b>",
+                                        "<b>Final Verdict: Variation Contribution</b>"))
+
+    # Main plot: Box plot for each part, colored by operator
     fig_box = px.box(df, x='Part', y='Measurement', color='Operator', color_discrete_sequence=px.colors.qualitative.Plotly)
     for trace in fig_box.data: fig.add_trace(trace, row=1, col=1)
+    
+    # Add operator mean lines to show trends and interactions
     for i, operator in enumerate(operators):
-        operator_df = df[df['Operator'] == operator]; part_means = operator_df.groupby('Part')['Measurement'].mean()
-        fig.add_trace(go.Scatter(x=part_means.index, y=part_means.values, mode='lines', line=dict(width=2), name=f'{operator} Mean', showlegend=False, marker_color=fig_box.data[i].marker.color), row=1, col=1)
+        operator_df = df[df['Operator'] == operator]
+        part_means = operator_df.groupby('Part')['Measurement'].mean().reindex(part_names_sorted) # Ensure correct order
+        fig.add_trace(go.Scatter(x=part_means.index, y=part_means.values, mode='lines',
+                                 line=dict(width=2), name=f'{operator} Mean',
+                                 showlegend=False, marker_color=fig_box.data[i].marker.color), row=1, col=1)
+
+    # Top-right plot: Box plot of overall measurements for each operator
     fig_op_box = px.box(df, x='Operator', y='Measurement', color='Operator', color_discrete_sequence=px.colors.qualitative.Plotly)
     for trace in fig_op_box.data: fig.add_trace(trace, row=1, col=2)
-    fig.add_trace(go.Bar(x=['% Gage R&R', '% Part Variation'], y=[pct_rr, pct_part], marker_color=['salmon', 'skyblue'], text=[f'{pct_rr:.1f}%', f'{pct_part:.1f}%'], textposition='auto'), row=2, col=2)
+    
+    # Bottom-right plot: Final verdict bar chart
+    pct_part = (var_part / var_total) * 100 if var_total > 0 else 0
+    fig.add_trace(go.Bar(x=['% Gage R&R', '% Part Var.'], y=[pct_rr, pct_part],
+                         marker_color=['#EF553B' if pct_rr > 30 else ('#FECB52' if pct_rr > 10 else '#00CC96'), '#636EFA'],
+                         text=[f'{pct_rr:.1f}%', f'{pct_part:.1f}%'], textposition='auto'), row=2, col=2)
+    
+    # Add acceptance criteria lines to the verdict plot
     fig.add_hline(y=10, line_dash="dash", line_color="darkgreen", annotation_text="Acceptable < 10%", annotation_position="bottom right", row=2, col=2)
     fig.add_hline(y=30, line_dash="dash", line_color="darkorange", annotation_text="Unacceptable > 30%", annotation_position="top right", row=2, col=2)
-    fig.update_layout(title_text='<b>Gage R&R Study: ANOVA Method</b>', title_x=0.5, height=800, boxmode='group', showlegend=True); fig.update_xaxes(tickangle=45, row=1, col=1)
+
+    fig.update_layout(title_text='<b>Gage R&R Study: Is the Measurement System Fit for Purpose?</b>', title_x=0.5, height=800,
+                      boxmode='group', showlegend=True, legend_title_text='Operator')
+    fig.update_xaxes(tickangle=0, row=1, col=1) # No longer need tickangle with sorted part names
+    fig.update_yaxes(title_text="Measurement", row=1, col=1)
     
-    return fig, pct_rr, pct_part
+    return fig, pct_rr, ndc
 
 # The @st.cache_data decorator is removed to allow for dynamic regeneration.
 def plot_lod_loq(slope=0.02, baseline_sd=0.01):
@@ -2789,18 +2832,28 @@ def render_gage_rr():
     - **`Part-to-Part Variation`**: The "true" variation you want to measure. A high value makes it *easier* to pass the Gage R&R.
     - **`Repeatability`**: The instrument's own noise. This is a primary driver of Gage R&R failure.
     - **`Operator Variation`**: Inconsistency between people. This is the other major driver of failure.
+    - **`Operator-Part Interaction`**: A subtle effect where an operator's bias changes depending on the part being measured.
     """)
     
     with st.sidebar:
         st.subheader("Gage R&R Controls")
         part_sd_slider = st.slider("🏭 Part-to-Part Variation (SD)", 1.0, 10.0, 5.0, 0.5,
-            help="The 'true' variation of the product. Increase this to see how a good measurement system can easily distinguish between different parts.")
+            help="The 'true' variation of the product. A well-designed study uses parts that span a wide range, making this value high.")
         repeat_sd_slider = st.slider("🔬 Repeatability / Instrument Noise (SD)", 0.1, 5.0, 1.5, 0.1,
-            help="The inherent 'noise' of the instrument/assay. Increase this to simulate a less precise measurement device.")
+            help="The inherent 'noise' of the instrument/assay. High values represent an imprecise measurement device.")
         operator_sd_slider = st.slider("👤 Operator-to-Operator Variation (SD)", 0.0, 5.0, 0.75, 0.25,
-            help="The systematic bias between operators. Increase this to simulate poor training or inconsistent technique.")
-    
-    fig, pct_rr, ndc = plot_gage_rr(part_sd=part_sd_slider, repeatability_sd=repeat_sd_slider, operator_sd=operator_sd_slider)
+            help="The systematic bias between operators. High values represent poor training or inconsistent technique.")
+        # --- NEW SLIDER ADDED HERE ---
+        interaction_sd_slider = st.slider("🔄 Operator-Part Interaction (SD)", 0.0, 2.0, 0.5, 0.1,
+            help="Simulates inconsistency where operators measure certain parts differently (e.g., struggling with smaller parts). This causes the operator mean lines to be non-parallel.")
+
+    # Call the updated plot function with all four parameters
+    fig, pct_rr, ndc = plot_gage_rr(
+        part_sd=part_sd_slider, 
+        repeatability_sd=repeat_sd_slider, 
+        operator_sd=operator_sd_slider,
+        interaction_sd=interaction_sd_slider
+    )
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -2815,8 +2868,8 @@ def render_gage_rr():
 
             st.markdown("""
             **Reading the Plots:**
-            - **Main Plot (Left):** Shows how well each operator can distinguish between the parts. If the colored lines are flat and overlapping, the system is dominated by noise.
-            - **Operator Plot (Top-Right):** Visualizes the bias between operators. If the boxes are at different heights, it indicates a reproducibility problem.
+            - **Main Plot (Left):** Now shows parts sorted by size. The colored lines represent each operator's average measurement for each part. If these lines are not parallel, it's a sign of **interaction**.
+            - **Operator Plot (Top-Right):** Visualizes the overall bias between operators.
             - **Verdict (Bottom-Right):** The final bar chart. The colored bar (% Gage R&R) shows how much of the total observed variation is just measurement noise.
 
             **Core Insight:** A low % Gage R&R is achieved when measurement error is small *relative to* the true process variation. You can improve your Gage R&R by either reducing measurement error OR by testing it on parts that have a wider, more representative range of true variation.

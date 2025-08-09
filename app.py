@@ -1456,28 +1456,21 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2):
     dates = pd.date_range(start='2020-01-01', periods=104, freq='W')
     
     # --- Dynamic Data Generation ---
-    # Trend is now controlled by the slider
     trend = np.linspace(50, 50 + trend_strength, 104)
-    # Seasonality remains constant for this demo
     seasonality = 5 * np.sin(np.arange(104) * (2*np.pi/52.14))
-    # Noise is now controlled by the slider
     noise = np.random.normal(0, noise_sd, 104)
     
     y = trend + seasonality + noise
     df = pd.DataFrame({'ds': dates, 'y': y})
     
-    # Split data for training and testing
     train, test = df.iloc[:90], df.iloc[90:]
 
     # --- Re-fit models on the dynamic data ---
-    # Prophet model
     m_prophet = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False).fit(train)
     future = m_prophet.make_future_dataframe(periods=14, freq='W')
     fc_prophet = m_prophet.predict(future)
 
-    # ARIMA model
-    # Note: A simple ARIMA model is used for speed in this interactive demo.
-    m_arima = ARIMA(train['y'], order=(5,1,0)).fit() # A common order for seasonal data with trend
+    m_arima = ARIMA(train['y'], order=(5,1,0)).fit()
     fc_arima = m_arima.get_forecast(steps=14).summary_frame()
 
     # --- Dynamic KPI Calculation (Mean Absolute Error) ---
@@ -1490,8 +1483,11 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2):
     fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat'], mode='lines', name='Prophet Forecast', line=dict(dash='dash', color='red')))
     fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean'], mode='lines', name='ARIMA Forecast', line=dict(dash='dash', color='green')))
     
+    # --- FIX: Convert the Pandas Timestamp to a standard datetime object ---
+    forecast_start_date = train['ds'].iloc[-1].to_pydatetime()
+
     # Add a vertical line to show where the forecast begins
-    fig.add_vline(x=train['ds'].iloc[-1], line_width=2, line_dash="dash", line_color="grey",
+    fig.add_vline(x=forecast_start_date, line_width=2, line_dash="dash", line_color="grey",
                   annotation_text="Forecast Start", annotation_position="bottom right")
 
     fig.update_layout(title='<b>Time Series Forecasting: Prophet vs. ARIMA</b>', 

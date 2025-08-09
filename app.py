@@ -2426,7 +2426,7 @@ def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
     event_observed_A = 1 - np.random.binomial(1, censor_rate, n_samples)
     event_observed_B = 1 - np.random.binomial(1, censor_rate, n_samples)
 
-    # --- SME Enhancement: Use the lifelines library for robust calculations ---
+    # Use the lifelines library for robust calculations
     kmf_A = KaplanMeierFitter()
     kmf_A.fit(time_A, event_observed=event_observed_A, label='Group A (Old Component)')
     
@@ -2446,29 +2446,36 @@ def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
         subplot_titles=("<b>Kaplan-Meier Survival Estimates</b>", "")
     )
     
-    # Plot curves with confidence intervals
-    for kmf, color in zip([kmf_A, kmf_B], ['blue', 'red']):
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # Use hexadecimal color codes from Plotly's default sequence, which hex_to_rgb can parse.
+    colors = px.colors.qualitative.Plotly
+    for kmf, color_hex in zip([kmf_A, kmf_B], [colors[0], colors[1]]): # e.g., '#636EFA', '#EF553B'
         kmf_df = kmf.survival_function_.join(kmf.confidence_interval_)
         fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[kmf.label], mode='lines',
-                                 name=kmf.label, line=dict(color=color, shape='hv', width=3)), row=1, col=1)
+                                 name=kmf.label, line=dict(color=color_hex, shape='hv', width=3)), row=1, col=1)
         # Confidence interval shading
         fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[f'{kmf.label}_upper_0.95'], mode='lines',
                                  line=dict(width=0), showlegend=False), row=1, col=1)
+        
+        # This line now receives a valid hex string, e.g., '#636EFA'
+        fill_color_rgba = f'rgba({",".join(str(c) for c in px.colors.hex_to_rgb(color_hex))}, 0.2)'
+        
         fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[f'{kmf.label}_lower_0.95'], mode='lines',
-                                 line=dict(width=0), fill='tonexty', fillcolor=f'rgba({",".join(str(c) for c in px.colors.hex_to_rgb(color))}, 0.2)',
+                                 line=dict(width=0), fill='tonexty', fillcolor=fill_color_rgba,
                                  name=f'{kmf.label} 95% CI'), row=1, col=1)
+    # --- END OF CORRECTION ---
 
     # Add markers for censored data
     censored_A = time_A[event_observed_A == 0]
     censored_B = time_B[event_observed_B == 0]
     fig.add_trace(go.Scatter(x=censored_A, y=kmf_A.predict(censored_A), mode='markers',
-                             marker=dict(color='blue', symbol='line-ns-open', size=10),
+                             marker=dict(color=colors[0], symbol='line-ns-open', size=10),
                              name='Censored (Group A)'), row=1, col=1)
     fig.add_trace(go.Scatter(x=censored_B, y=kmf_B.predict(censored_B), mode='markers',
-                             marker=dict(color='red', symbol='line-ns-open', size=10),
+                             marker=dict(color=colors[1], symbol='line-ns-open', size=10),
                              name='Censored (Group B)'), row=1, col=1)
 
-    # --- SME Enhancement: Add "At Risk" table ---
+    # Add "At Risk" table
     time_bins = np.linspace(0, max(time_A.max(), time_B.max()), 6).astype(int)
     at_risk_A = [np.sum(time_A >= t) for t in time_bins]
     at_risk_B = [np.sum(time_B >= t) for t in time_bins]

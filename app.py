@@ -900,46 +900,86 @@ def plot_linearity(curvature=-1.0, random_error=1.0, proportional_error=2.0, use
     
     return fig, model
 
-def plot_4pl_regression(a_true=1.5, b_true=1.2, c_true=10.0, d_true=0.05, noise_sd=0.05):
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (4PL) - SME ENHANCED
+# ==============================================================================
+def plot_4pl_regression(a_true=1.5, b_true=1.2, c_true=10.0, d_true=0.05, noise_sd=0.05, proportional_noise=1.0, use_irls=True):
     """
-    Generates dynamic plots for the 4PL regression module based on user inputs.
+    Generates enhanced, more realistic dynamic plots for the 4PL regression module,
+    including heteroscedastic noise and weighted fitting (IRLS).
     """
     # 4PL logistic function
     def four_pl(x, a, b, c, d):
         return d + (a - d) / (1 + (x / c)**b)
 
-    # Generate data based on the "true" parameters from the sliders
+    # SME Enhancement: More realistic data generation with replicates and proportional noise
     np.random.seed(42)
-    conc = np.logspace(-2, 3, 15)
-    signal_true = four_pl(conc, a_true, b_true, c_true, d_true)
-    signal_measured = signal_true + np.random.normal(0, noise_sd, len(conc))
+    conc_levels = np.logspace(-2, 3, 8)
+    conc_replicates = np.repeat(conc_levels, 2) # Duplicates for replicates
+
+    signal_true = four_pl(conc_replicates, a_true, b_true, c_true, d_true)
     
-    # Fit the 4PL curve to the noisy data
+    # Noise model: combination of constant and signal-proportional noise
+    total_noise_sd = noise_sd + (signal_true * (proportional_noise / 100))
+    signal_measured = signal_true + np.random.normal(0, total_noise_sd)
+    
+    df = pd.DataFrame({'Concentration': conc_replicates, 'Signal': signal_measured})
+
+    # SME Enhancement: Implement Iteratively Reweighted Least Squares (IRLS) for fitting
+    model_type = "Least Squares"
     try:
-        # Use the true parameters as a good starting guess (p0) for the fit
-        params, _ = curve_fit(four_pl, conc, signal_measured, p0=[a_true, b_true, c_true, d_true], maxfev=10000)
+        p0 = [a_true, b_true, c_true, d_true]
+        if use_irls and proportional_noise > 0:
+            model_type = "Weighted (IRLS)"
+            # Use sigma parameter in curve_fit for weighting (inverse of variance)
+            # Estimate variance at each point
+            sigma_weights = noise_sd + (df['Signal'] * (proportional_noise / 100))
+            params, cov = curve_fit(four_pl, df['Concentration'], df['Signal'], p0=p0, sigma=sigma_weights, absolute_sigma=True, maxfev=10000)
+        else:
+            params, cov = curve_fit(four_pl, df['Concentration'], df['Signal'], p0=p0, maxfev=10000)
     except RuntimeError:
-        # Fallback if fit fails, which is rare with a good p0
-        params = [a_true, b_true, c_true, d_true]
+        params, cov = p0, np.full((4, 4), np.inf)
         
     a_fit, b_fit, c_fit, d_fit = params
+    perr = np.sqrt(np.diag(cov)) # Standard errors of parameters
 
-    # Create plot
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=conc, y=signal_measured, mode='markers', name='Measured Data', marker=dict(size=10)))
+    # Calculate residuals
+    df['Predicted'] = four_pl(df['Concentration'], *params)
+    df['Residual'] = df['Signal'] - df['Predicted']
+
+    # --- Plotting ---
+    fig = make_subplots(rows=2, cols=1,
+                        subplot_titles=(f"<b>1. 4-Parameter Logistic Fit (Model: {model_type})</b>",
+                                        "<b>2. Residuals vs. Concentration</b>"),
+                        vertical_spacing=0.15)
+
+    # Plot 1: 4PL Curve
+    fig.add_trace(go.Scatter(x=df['Concentration'], y=df['Signal'], mode='markers',
+                             name='Measured Data', marker=dict(size=8, color='blue')), row=1, col=1)
+    
     x_fit = np.logspace(-2, 3, 100)
     y_fit = four_pl(x_fit, *params)
-    fig.add_trace(go.Scatter(x=x_fit, y=y_fit, mode='lines', name='4PL Fit', line=dict(color='red', dash='dash')))
+    fig.add_trace(go.Scatter(x=x_fit, y=y_fit, mode='lines',
+                             name='4PL Fit', line=dict(color='red', dash='dash')), row=1, col=1)
     
     # Add annotations for key fitted parameters
-    fig.add_hline(y=d_fit, line_dash='dot', annotation_text=f"Lower Asymptote (d) = {d_fit:.2f}")
-    fig.add_hline(y=a_fit, line_dash='dot', annotation_text=f"Upper Asymptote (a) = {a_fit:.2f}")
-    fig.add_vline(x=c_fit, line_dash='dot', annotation_text=f"EC50 (c) = {c_fit:.2f}")
+    fig.add_hline(y=d_fit, line_dash='dot', annotation_text=f"d={d_fit:.2f}", row=1, col=1)
+    fig.add_hline(y=a_fit, line_dash='dot', annotation_text=f"a={a_fit:.2f}", row=1, col=1)
+    fig.add_vline(x=c_fit, line_dash='dot', annotation_text=f"EC50={c_fit:.2f}", row=1, col=1)
     
-    fig.update_layout(title_text='<b>Non-Linear Regression: 4-Parameter Logistic (4PL) Fit</b>',
-                      xaxis_type="log", xaxis_title="Concentration (log scale)",
-                      yaxis_title="Signal Response", legend=dict(x=0.01, y=0.99))
-    return fig, params
+    # Plot 2: Residuals
+    fig.add_trace(go.Scatter(x=df['Concentration'], y=df['Residual'], mode='markers',
+                             name='Residuals', marker=dict(color='green', size=8)), row=2, col=1)
+    fig.add_hline(y=0, line_dash='dash', line_color='black', row=2, col=1)
+
+    fig.update_layout(height=800, title_text='<b>Non-Linear Regression for Bioassay Potency</b>', title_x=0.5,
+                      legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'))
+    fig.update_xaxes(type="log", title_text="Concentration (log scale)", row=1, col=1)
+    fig.update_yaxes(title_text="Signal Response", row=1, col=1)
+    fig.update_xaxes(type="log", title_text="Concentration (log scale)", row=2, col=1)
+    fig.update_yaxes(title_text="Residual (Signal - Predicted)", row=2, col=1)
+    
+    return fig, params, perr
     
 def plot_roc_curve(diseased_mean=65, population_sd=10):
     """
@@ -3209,7 +3249,7 @@ def render_linearity():
             - **OLS** finds the `β` values that minimize: `Σ(yᵢ - ŷᵢ)²`
             - **WLS** finds the `β` values that minimize: `Σwᵢ(yᵢ - ŷᵢ)²`, where `wᵢ` is the weight for the i-th observation, typically `1/σ²ᵢ`.
             """)
-# REPLACE the existing render_lod_loq function with this one.
+
 def render_4pl_regression():
     """Renders the INTERACTIVE module for 4-Parameter Logistic (4PL) regression."""
     st.markdown("""
@@ -3220,34 +3260,35 @@ def render_4pl_regression():
     """)
     
     st.info("""
-    **Interactive Demo:** Now, when you select the "Non-Linear Regression" tool, you will have a full set of dedicated sliders below. You can now build your own "true" 4PL curves and see how well the regression algorithm is able to recover those parameters from noisy data, providing a deep, intuitive feel for how these models work.
+    **Interactive Demo:** Build your own "true" 4PL curves using the sliders. The **Residual Plot** is your key diagnostic: if you see a "funnel" shape (due to `Proportional Noise`), activate the **Weighted Fit (IRLS)** toggle to see how a more advanced algorithm can produce a better, more reliable fit.
     """)
     
     # --- Sidebar controls for this specific module ---
-    st.subheader("4PL Curve Controls")
-    d_slider = st.slider(
-        "🅾️ Lower Asymptote (d)", min_value=0.0, max_value=0.5, value=0.05, step=0.01,
-        help="The 'floor' of the assay signal, often representing background noise."
-    )
-    a_slider = st.slider(
-        "🅰️ Upper Asymptote (a)", min_value=1.0, max_value=3.0, value=1.5, step=0.1,
-        help="The 'ceiling' of the assay signal, representing saturation."
-    )
-    c_slider = st.slider(
-        "🎯 Potency / EC50 (c)", min_value=1.0, max_value=100.0, value=10.0, step=1.0,
-        help="The concentration at the curve's midpoint. A lower EC50 means higher potency."
-    )
-    b_slider = st.slider(
-        "🅱️ Hill Slope (b)", min_value=0.5, max_value=5.0, value=1.2, step=0.1,
-        help="The steepness of the curve. A steeper slope often means a more sensitive assay."
-    )
+    with st.sidebar:
+        st.subheader("4PL Curve Controls (True Values)")
+        d_slider = st.slider("🅾️ Lower Asymptote (d)", 0.0, 0.5, 0.05, 0.01)
+        a_slider = st.slider("🅰️ Upper Asymptote (a)", 1.0, 3.0, 1.5, 0.1)
+        c_slider = st.slider("🎯 Potency / EC50 (c)", 1.0, 100.0, 10.0, 1.0)
+        b_slider = st.slider("🅱️ Hill Slope (b)", 0.5, 5.0, 1.2, 0.1)
+        
+        st.markdown("---")
+        st.subheader("Noise Model Controls")
+        noise_sd_slider = st.slider("🎲 Constant Noise (SD)", 0.0, 0.2, 0.05, 0.01,
+            help="The baseline random noise, constant across all concentrations.")
+        proportional_noise_slider = st.slider("📈 Proportional Noise (%)", 0.0, 5.0, 1.0, 0.5,
+            help="Noise that increases with the signal. Creates a 'funnel' shape in the residuals (heteroscedasticity).")
+
+        # --- NEW TOGGLE SWITCH ADDED HERE ---
+        st.markdown("---")
+        st.subheader("Fit Model Controls")
+        irls_toggle = st.toggle("Use Weighted Fit (IRLS)", value=True,
+            help="Activate Iteratively Reweighted Least Squares (IRLS). This is the correct model to use when proportional noise is present.")
     
     # Generate plots using the slider values
-    fig, params = plot_4pl_regression(
-        a_true=a_slider, 
-        b_true=b_slider, 
-        c_true=c_slider, 
-        d_true=d_slider
+    fig, params, perr = plot_4pl_regression(
+        a_true=a_slider, b_true=b_slider, c_true=c_slider, d_true=d_slider,
+        noise_sd=noise_sd_slider, proportional_noise=proportional_noise_slider,
+        use_irls=irls_toggle
     )
     
     col1, col2 = st.columns([0.7, 0.3])
@@ -3260,50 +3301,44 @@ def render_4pl_regression():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="🅰️ Fitted Upper Asymptote (a)", value=f"{a_fit:.3f}")
-            st.metric(label="🅱️ Fitted Hill Slope (b)", value=f"{b_fit:.3f}")
-            st.metric(label="🎯 Fitted EC50 (c)", value=f"{c_fit:.3f} units")
-            st.metric(label="🅾️ Fitted Lower Asymptote (d)", value=f"{d_fit:.3f}")
+            # Display fitted parameters with their standard errors
+            st.metric(label="🅰️ Fitted Upper Asymptote (a)", value=f"{a_fit:.3f} ± {perr[0]:.3f}")
+            st.metric(label="🅱️ Fitted Hill Slope (b)", value=f"{b_fit:.3f} ± {perr[1]:.3f}")
+            st.metric(label="🎯 Fitted EC50 (c)", value=f"{c_fit:.3f} ± {perr[2]:.2f} units")
+            st.metric(label="🅾️ Fitted Lower Asymptote (d)", value=f"{d_fit:.3f} ± {perr[3]:.3f}")
             
-            st.info("Play with the sliders in the sidebar to change the true curve and see how the fitted parameters (above) respond!")
             st.markdown("""
-            - **Asymptotes (a & d):** These sliders control the dynamic range of your assay.
-            - **EC50 (c):** This is your main potency result. Moving this slider shifts the entire curve left or right.
-            - **Hill Slope (b):** This slider controls the steepness. A steep slope means a narrow, sensitive range.
-            
-            **The Core Strategic Insight:** The 4PL curve is a complete picture of your assay's performance. Monitoring all four parameters over time enables proactive troubleshooting.
+            **The Core Strategic Insight:** The 4PL curve is a complete picture of your assay's performance. The **residuals plot is your most important diagnostic tool**. A random scatter around zero means your model is a good fit. Any pattern (like a curve or funnel) indicates a problem with the model or the data weighting.
             """)
             
         with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: "Force the Fit"**
-            - *"My data isn't S-shaped, so I'll use linear regression on the middle."* (Biases results).
-            - *"The model doesn't fit a point well. I'll delete the point."* (Data manipulation).
-            - *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated).
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Model the Biology, Weight the Variance**
-            - **Embrace the 'S' Shape:** Use a non-linear model for non-linear data.
-            - **Weight Your Points:** Apply less "weight" to more variable data points for a more robust fit.
-            - **Look at the Residuals:** Any pattern in the errors indicates the model is not capturing the data correctly.
-            """)
+            st.error("""🔴 **THE INCORRECT APPROACH: "Force the Fit"**
+- *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated and can hide significant lack of fit).
+- *"The model doesn't fit a point well. I'll delete the outlier."* (Data manipulation without statistical justification).
+- *"My residuals look like a funnel, but I'll ignore it and use standard least squares."* (This leads to incorrect parameter estimates and confidence intervals).""")
+            st.success("""🟢 **THE GOLDEN RULE: Model the Biology, Weight the Variance**
+- **Embrace the 'S' Shape:** Use a non-linear model for non-linear biological data. The 4PL is standard for a reason.
+- **Weight Your Points:** Bioassay data is almost always heteroscedastic (non-constant variance). Use a weighted regression (like IRLS) to get the most accurate and reliable parameter estimates.
+- **Inspect the Residuals:** The residuals must be visually random. Any pattern indicates your model is not correctly capturing the data's behavior.""")
 
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            The 4PL model is a direct descendant of the **Hill Equation** (1910) by Archibald Hill. It was adapted in the 1970s-80s for immunoassays like ELISA.
-            
-            #### Mathematical Basis
+            #### Historical Context: Modeling Dose-Response
+            **The Problem:** In the early 20th century, pharmacologists and biologists needed a mathematical way to describe the relationship between the dose of a substance and its biological response. This relationship was rarely linear; it typically showed a sigmoidal (S-shaped) curve, with a floor, a steep middle section, and a ceiling (saturation).
+
+            **The 'Aha!' Moment:** The first major step was the **Hill Equation**, developed by physiologist Archibald Hill in 1910 to describe oxygen binding to hemoglobin. Later, A.J. Clark and others adapted these ideas into dose-response models. The 4-Parameter Logistic (4PL) model emerged as a flexible, robust, and empirically successful model for this type of data.
+
+            **The Impact:** The proliferation of immunoassays like RIA and ELISA in the 1970s and 80s made the 4PL model a workhorse of the biotech industry. The development of accessible non-linear regression software, like that based on the **Levenberg-Marquardt algorithm**, made fitting these models routine. Today, it remains the standard model for most potency and immunogenicity assays.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The 4-Parameter Logistic function is a sigmoidal curve defined by:")
             st.latex(r"y = d + \frac{a - d}{1 + (\frac{x}{c})^b}")
-            # FIX: Restored the missing markdown block that explains the formula
             st.markdown("""
-            - **`y`**: The measured response.
-            - **`x`**: The concentration.
-            - **`a`**: Upper asymptote.
-            - **`d`**: Lower asymptote.
-            - **`c`**: EC50 (potency).
-            - **`b`**: Hill slope.
+            - **`a`**: The upper asymptote (response at infinite concentration).
+            - **`b`**: The Hill slope (steepness of the curve at the midpoint).
+            - **`c`**: The EC50 or IC50 (concentration at 50% of the maximal response). This is often the primary measure of potency.
+            - **`d`**: The lower asymptote (response at zero concentration).
+            Since this equation is non-linear in its parameters, it cannot be solved directly with linear algebra. It must be fit using an iterative numerical optimization algorithm (like Levenberg-Marquardt) that finds the parameter values `(a,b,c,d)` that minimize the sum of squared errors between the data and the fitted curve.
             """)
 # The code below was incorrectly merged. It is now its own separate function.
 def render_roc_curve():

@@ -729,64 +729,95 @@ def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75, interactio
     
     return fig, pct_rr, ndc
 
-# The @st.cache_data decorator is removed to allow for dynamic regeneration.
 def plot_lod_loq(slope=0.02, baseline_sd=0.01):
     """
-    Generates dynamic plots for the LOD & LOQ module based on user inputs.
+    Generates enhanced, more realistic dynamic plots for the LOD & LOQ module.
     """
     np.random.seed(3)
     
-    # --- Signal Distribution Plot ---
-    # The noise level is now controlled by the baseline_sd slider
-    blanks_dist = np.random.normal(0.05, baseline_sd, 20)
-    low_conc_dist = np.random.normal(0.05 + 5 * slope, baseline_sd * 1.5, 20) # Low conc at 5 units
+    # --- 1. Simulate a more realistic dataset ---
+    # Multiple blank lots and multiple low-concentration spikes
+    n_blanks, n_spikes = 60, 20
+    blank_signals = np.random.normal(0.05, baseline_sd, n_blanks)
     
+    # Use the calculated LOQ (from the sliders) to determine a realistic spike level
+    # This creates a circular but effective demonstration
+    approx_loq_conc = (10 * baseline_sd) / slope
+    spike_signals = np.random.normal(0.05 + approx_loq_conc * slope, baseline_sd * 1.5, n_spikes)
+
     df_dist = pd.concat([
-        pd.DataFrame({'Signal': blanks_dist, 'Sample Type': 'Blank'}), 
-        pd.DataFrame({'Signal': low_conc_dist, 'Sample Type': 'Low Concentration'})
+        pd.DataFrame({'Signal': blank_signals, 'Sample Type': 'Blanks'}), 
+        pd.DataFrame({'Signal': spike_signals, 'Sample Type': 'Low Conc Spikes'})
     ])
     
-    # --- Low-Level Calibration Curve ---
-    concentrations = np.array([0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 5, 5, 5, 10, 10, 10])
-    # The signal response and noise are now controlled by the sliders
+    # --- 2. Low-Level Calibration Curve ---
+    concentrations = np.array([0, 0, 0, 0, 0, 0.5, 0.5, 1, 1, 2, 2, 5, 5, 10, 10])
     signals = 0.05 + slope * concentrations + np.random.normal(0, baseline_sd, len(concentrations))
-    
     df_cal = pd.DataFrame({'Concentration': concentrations, 'Signal': signals})
     
-    # Fit the model to the dynamically generated data
+    # --- 3. Fit Model and Calculate Key Values ---
+    # Use the blank measurements to get a robust estimate of the blank mean and SD
+    mean_blank = np.mean(blank_signals)
+    sd_blank = np.std(blank_signals, ddof=1)
+    
     X = sm.add_constant(df_cal['Concentration'])
     model = sm.OLS(df_cal['Signal'], X).fit()
     
-    # Use the model's parameters to calculate LOD & LOQ
-    # Note: We use the input baseline_sd for the calculation as it's the "true" noise,
-    # which is more stable than the model's estimate from this small dataset.
-    # The slope from the model is a good estimate of sensitivity.
     fit_slope = model.params['Concentration'] if model.params['Concentration'] > 0.001 else 0.001
     
-    LOD = (3.3 * baseline_sd) / fit_slope
-    LOQ = (10 * baseline_sd) / fit_slope
+    # Calculate the full LOB/LOD/LOQ hierarchy
+    LOB = mean_blank + 1.645 * sd_blank
+    LOD_signal = LOB + 1.645 * sd_blank # Signal at the LOD
+    LOD_conc = (LOD_signal - model.params['const']) / fit_slope
+    LOQ_conc = (10 * sd_blank) / fit_slope # ICH Signal/Noise method
     
-    # --- Plotting ---
-    fig = make_subplots(rows=2, cols=1, subplot_titles=("<b>Signal Distribution at Low End</b>", "<b>Low-Level Calibration Curve</b>"), vertical_spacing=0.2)
+    # --- 4. Plotting ---
+    fig = make_subplots(rows=2, cols=1,
+                        subplot_titles=("<b>1. Signal Distributions: Defining LOB & LOD</b>",
+                                        "<b>2. Calibration Curve: Defining LOQ</b>"),
+                        vertical_spacing=0.15)
     
-    fig_violin = px.violin(df_dist, x='Sample Type', y='Signal', color='Sample Type', box=True, points="all", color_discrete_map={'Blank': 'skyblue', 'Low Concentration': 'lightgreen'})
-    for trace in fig_violin.data: fig.add_trace(trace, row=1, col=1)
+    # Top Plot: Signal Distributions
+    fig_hist = px.histogram(df_dist, x='Signal', color='Sample Type', barmode='overlay',
+                            opacity=0.7, nbins=30,
+                            color_discrete_map={'Blanks': 'skyblue', 'Low Conc Spikes': 'lightgreen'})
+    for trace in fig_hist.data:
+        fig.add_trace(trace, row=1, col=1)
     
-    fig.add_trace(go.Scatter(x=df_cal['Concentration'], y=df_cal['Signal'], mode='markers', name='Calibration Points', marker=dict(color='darkblue', size=8)), row=2, col=1)
-    x_range = np.linspace(0, df_cal['Concentration'].max(), 100)
-    y_range = model.predict(sm.add_constant(x_range))
-    fig.add_trace(go.Scatter(x=x_range, y=y_range, mode='lines', name='Regression Line', line=dict(color='red', dash='dash')), row=2, col=1)
+    fig.add_vline(x=LOB, line_dash="dot", line_color="purple", row=1, col=1,
+                  annotation_text=f"<b>LOB = {LOB:.3f}</b>", annotation_position="top")
+    fig.add_vline(x=LOD_signal, line_dash="dash", line_color="orange", row=1, col=1,
+                  annotation_text=f"<b>LOD Signal = {LOD_signal:.3f}</b>", annotation_position="top")
     
-    fig.add_vline(x=LOD, line_dash="dot", line_color="orange", row=2, col=1, annotation_text=f"<b>LOD = {LOD:.2f}</b>", annotation_position="top")
-    fig.add_vline(x=LOQ, line_dash="dash", line_color="red", row=2, col=1, annotation_text=f"<b>LOQ = {LOQ:.2f}</b>", annotation_position="top")
+    # Bottom Plot: Calibration Curve with Prediction Intervals
+    fig.add_trace(go.Scatter(x=df_cal['Concentration'], y=df_cal['Signal'], mode='markers',
+                             name='Calibration Points', marker=dict(color='darkblue', size=8)), row=2, col=1)
     
-    fig.update_layout(title_text='<b>Assay Sensitivity Analysis: LOD & LOQ</b>', title_x=0.5, height=800, showlegend=False)
+    x_pred = pd.DataFrame({'const': 1, 'Concentration': np.linspace(-1, df_cal['Concentration'].max()*1.1, 100)})
+    pred_summary = model.get_prediction(x_pred).summary_frame(alpha=0.05)
+    
+    fig.add_trace(go.Scatter(x=x_pred['Concentration'], y=pred_summary['mean'], mode='lines',
+                             name='Regression Line', line=dict(color='red', dash='dash')), row=2, col=1)
+    # SME Enhancement: Show Prediction Interval, which is key for LOQ
+    fig.add_trace(go.Scatter(x=x_pred['Concentration'], y=pred_summary['obs_ci_upper'],
+                             fill=None, mode='lines', line_color='rgba(255,0,0,0.2)', showlegend=False), row=2, col=1)
+    fig.add_trace(go.Scatter(x=x_pred['Concentration'], y=pred_summary['obs_ci_lower'],
+                             fill='tonexty', mode='lines', line_color='rgba(255,0,0,0.2)',
+                             name='95% Prediction Interval'), row=2, col=1)
+
+    fig.add_vline(x=LOD_conc, line_dash="dash", line_color="orange", row=2, col=1,
+                  annotation_text=f"<b>LOD = {LOD_conc:.2f}</b>", annotation_position="bottom")
+    fig.add_vline(x=LOQ_conc, line_dash="dot", line_color="red", row=2, col=1,
+                  annotation_text=f"<b>LOQ = {LOQ_conc:.2f}</b>", annotation_position="top")
+    
+    fig.update_layout(title_text='<b>Assay Sensitivity Analysis: The LOB, LOD, & LOQ Hierarchy</b>',
+                      title_x=0.5, height=800, legend=dict(x=0.01, y=0.45))
     fig.update_yaxes(title_text="Assay Signal (e.g., Absorbance)", row=1, col=1)
-    fig.update_xaxes(title_text="Sample Type", row=1, col=1)
-    fig.update_yaxes(title_text="Assay Signal (e.g., Absorbance)", row=2, col=1)
-    fig.update_xaxes(title_text="Concentration (ng/mL)", row=2, col=1)
+    fig.update_xaxes(title_text="Signal", row=1, col=1)
+    fig.update_yaxes(title_text="Assay Signal", row=2, col=1)
+    fig.update_xaxes(title_text="Concentration (ng/mL)", row=2, col=1, range=[-1, df_cal['Concentration'].max()*1.1])
     
-    return fig, LOD, LOQ
+    return fig, LOD_conc, LOQ_conc
     
 # The @st.cache_data decorator is removed to allow for dynamic regeneration.
 def plot_linearity(curvature=-1.0, random_error=1.0, proportional_error=2.0):

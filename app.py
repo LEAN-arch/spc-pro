@@ -524,58 +524,103 @@ def plot_ci_concept(n=30):
 
 def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, interference_effect=8.0):
     """
-    Generates dynamic plots for the core validation module based on user inputs.
+    Generates enhanced, more realistic dynamic plots for the core validation module.
     """
     # --- 1. Accuracy (Bias) Data ---
+    # SME Enhancement: The accuracy simulation now incorporates the precision (random error)
+    # parameters, which is more realistic.
     np.random.seed(42)
     true_values = np.array([50, 100, 150])
-    # The mean of the measured data is now controlled by the bias slider
-    measured_data = {
-        val: np.random.normal(val * (1 + bias_pct / 100), val * 0.025, 10) for val in true_values
-    }
-    df_accuracy = pd.DataFrame(measured_data)
-    df_accuracy = df_accuracy.melt(var_name='True Value', value_name='Measured Value')
+    df_accuracy_list = []
+    
+    # Calculate overall bias and recovery for annotation
+    all_measured = []
+    all_true = []
+
+    for val in true_values:
+        # Simulate data with both systematic bias and random error (%CV)
+        # Use the intermediate precision CV as it represents the total expected random error
+        random_error_sd = val * (intermed_cv / 100)
+        measurements = np.random.normal(val * (1 + bias_pct / 100), random_error_sd, 10)
+        all_measured.extend(measurements)
+        all_true.extend([val] * 10)
+        for m in measurements:
+            df_accuracy_list.append({'True Value': f'Level {val}', 'Measured Value': m, 'Nominal': val})
+    
+    df_accuracy = pd.DataFrame(df_accuracy_list)
+    
+    # Calculate overall %Bias
+    overall_bias = (np.mean(all_measured) - np.mean(all_true)) / np.mean(all_true) * 100
     
     fig1 = px.box(df_accuracy, x='True Value', y='Measured Value', 
-                  title='<b>1. Accuracy & Bias Evaluation</b>',
+                  title=f'<b>1. Accuracy (Systematic Error) | Overall Bias: {overall_bias:.2f}%</b>',
                   points='all', color_discrete_sequence=['#1f77b4'])
+    
     for val in true_values:
-        fig1.add_hline(y=val, line_dash="dash", line_color="black", annotation_text=f"True Value={val}", annotation_position="bottom right")
-    fig1.update_layout(xaxis_title="True (Nominal) Concentration", yaxis_title="Measured Concentration")
+        fig1.add_hline(y=val, line_dash="dash", line_color="black", annotation_text=f"True Value = {val}", annotation_position="bottom right")
+    fig1.update_layout(xaxis_title="Reference Material Concentration", yaxis_title="Measured Concentration")
 
-    # --- 2. Precision Data ---
+    # --- 2. Precision (Random Error) Data ---
+    # SME Enhancement: Simulate a more realistic intermediate precision study with multiple
+    # days and analysts to better visualize the components of random error.
     np.random.seed(123)
-    # The standard deviation is now controlled by the precision sliders (%CV)
-    repeatability_std = 100 * (repeat_cv / 100)
-    intermed_std = 100 * (intermed_cv / 100)
+    n_days, n_analysts_per_day, n_reps = 3, 2, 5
+    center_val = 100.0
     
-    repeatability = np.random.normal(100, repeatability_std, 30)
-    inter_precision = np.random.normal(100, intermed_std, 30)
+    # Define variance components from CV sliders
+    var_repeat = (center_val * repeat_cv / 100)**2
+    # Intermediate precision includes repeatability PLUS between-analyst/day variance
+    var_between_cond = max(0, (center_val * intermed_cv / 100)**2 - var_repeat)
     
-    df_precision = pd.concat([
-        pd.DataFrame({'value': repeatability, 'condition': 'Repeatability'}),
-        pd.DataFrame({'value': inter_precision, 'condition': 'Intermediate Precision'})
-    ])
-    fig2 = px.violin(df_precision, x='condition', y='value', box=True, points="all",
-                     title='<b>2. Precision: Repeatability vs. Intermediate Precision</b>',
-                     labels={'value': 'Measured Value', 'condition': 'Experimental Condition'})
+    precision_data = []
+    for day in range(1, n_days + 1):
+        for analyst in range(1, n_analysts_per_day + 1):
+            # Each day/analyst combination has its own small random bias
+            condition_bias = np.random.normal(0, np.sqrt(var_between_cond))
+            # Measurements within that condition have repeatability error
+            measurements = np.random.normal(center_val + condition_bias, np.sqrt(var_repeat), n_reps)
+            for m in measurements:
+                precision_data.append({'value': m, 'condition': f'Day {day}, Analyst {analyst}'})
     
-    # --- 3. Specificity Data ---
+    df_precision = pd.DataFrame(precision_data)
+    
+    # Calculate overall precision from the simulated data
+    total_cv_calc = df_precision['value'].std() / df_precision['value'].mean() * 100
+    
+    fig2 = px.box(df_precision, x='condition', y='value', points="all",
+                     title=f'<b>2. Intermediate Precision (Random Error) | Overall %CV: {total_cv_calc:.2f}%</b>',
+                     labels={'value': 'Measured Value @ 100', 'condition': 'Run Condition (Day, Analyst)'})
+    fig2.update_xaxes(tickangle=45)
+
+    # --- 3. Specificity (Interference Error) Data ---
     np.random.seed(2023)
-    analyte = np.random.normal(1.0, 0.05, 15)
-    matrix = np.random.normal(0.02, 0.01, 15)
+    analyte_signal = np.random.normal(1.0, 0.05, 15)
+    matrix_blank_signal = np.random.normal(0.02, 0.01, 15)
+    
     # The signal of the combined sample is now controlled by the interference slider
-    analyte_interference = analyte * (1 + interference_effect / 100)
+    interfered_signal = analyte_signal * (1 + interference_effect / 100)
+    
+    # SME Enhancement: Add pass/fail color and KPI to the title
+    is_significant_interference = abs(interference_effect) > 5 # Example threshold
+    interference_color = '#EF553B' if is_significant_interference else '#00CC96'
     
     df_specificity = pd.DataFrame({
-        'Analyte Only': analyte,
-        'Matrix Blank': matrix,
-        'Analyte + Interferent': analyte_interference
+        'Analyte Only': analyte_signal,
+        'Matrix Blank': matrix_blank_signal,
+        'Analyte + Interferent': interfered_signal
     }).melt(var_name='Sample Type', value_name='Signal Response')
 
     fig3 = px.box(df_specificity, x='Sample Type', y='Signal Response', points='all',
-                  title='<b>3. Specificity & Interference Study</b>')
-    fig3.update_layout(xaxis_title="Sample Composition", yaxis_title="Assay Signal (e.g., Absorbance)")
+                  title=f'<b>3. Specificity (Interference Error) | Effect: {interference_effect:.1f}%</b>',
+                  color='Sample Type',
+                  color_discrete_map={
+                      'Analyte Only': '#636EFA',
+                      'Matrix Blank': 'grey',
+                      'Analyte + Interferent': interference_color
+                  })
+    fig3.update_layout(xaxis_title="Sample Composition", yaxis_title="Assay Signal (e.g., Absorbance)", showlegend=False)
+
+    return fig1, fig2, fig3
 
     return fig1, fig2, fig3
     

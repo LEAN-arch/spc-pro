@@ -5367,8 +5367,14 @@ def render_kalman_nn_residual():
             """)
 
         with tabs[1]:
-            st.error("🔴 **THE INCORRECT APPROACH: Monitoring Raw, Noisy Data**\nCharting the raw measurements (blue dots) directly would lead to a wide, insensitive control chart. The process shock might not even trigger an alarm if it's small relative to the measurement noise. You are blind to subtle deviations from the expected *behavior*.")
-            st.success("🟢 **THE GOLDEN RULE: Model the Expected, Monitor the Unexpected**\n1. Use a dynamic model (like a Kalman Filter) to capture the known, predictable behavior of your process (e.g., its drift, its noise characteristics).\n2. This model separates the signal into two streams: the predictable part (the state estimate) and the unpredictable part (the residuals).\n3. Place your high-sensitivity control chart on the **residuals**. This is monitoring the "unexplained" portion of the data, which is where novel faults will always appear first.")
+            st.error("""🔴 **THE INCORRECT APPROACH: Monitoring Raw, Noisy Data**
+A chart on the raw measurements (blue dots) would be wide and insensitive. The process shock might not even trigger an alarm if it's small relative to the measurement noise. You are blind to subtle deviations from the expected *behavior*.""")
+            # --- THIS IS THE CORRECTED BLOCK ---
+            st.success("""🟢 **THE GOLDEN RULE: Model the Expected, Monitor the Unexpected**
+1.  Use a dynamic model (like a Kalman Filter) to capture the known, predictable behavior of your process (e.g., its drift, its noise characteristics).
+2.  This model separates the signal into two streams: the predictable part (the state estimate) and the unpredictable part (the residuals).
+3.  Place your high-sensitivity control chart on the **residuals**. This is monitoring the "unexplained" portion of the data, which is where novel faults will always appear first.""")
+            # --- END OF CORRECTION ---
 
         with tabs[2]:
             st.markdown("""

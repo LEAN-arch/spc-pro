@@ -2267,10 +2267,8 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strengt
     
     # Plot 1: Main Forecast
     fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')), row=1, col=1)
-    # Prophet with confidence interval
     fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat_upper'], mode='lines', line=dict(width=0), showlegend=False), row=1, col=1)
     fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat_lower'], mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(255,0,0,0.1)', name='Prophet 80% CI'), row=1, col=1)
-    # ARIMA with confidence interval
     fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean_ci_upper'], mode='lines', line=dict(width=0), showlegend=False), row=1, col=1)
     fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean_ci_lower'], mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(0,128,0,0.1)', name='ARIMA 80% CI'), row=1, col=1)
     
@@ -2278,10 +2276,17 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strengt
     fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean'], mode='lines', name='ARIMA Forecast', line=dict(dash='dash', color='green')), row=1, col=1)
     
     # --- THIS IS THE CORRECTED BLOCK ---
-    # The `row=1, col=1` arguments have been removed from the `add_vline` calls.
-    # This uses a different code path in Plotly that correctly handles Timestamps.
-    fig.add_vline(x=train['ds'].iloc[-1], line_width=2, line_dash="dash", line_color="grey", annotation_text="Forecast Start")
-    fig.add_vline(x=df['ds'][changepoint_loc], line_width=2, line_dash="dot", line_color="purple", annotation_text="Trend Changepoint")
+    # Draw the vertical lines WITHOUT annotation text first.
+    forecast_start_date = train['ds'].iloc[-1]
+    changepoint_date = df['ds'][changepoint_loc]
+    fig.add_vline(x=forecast_start_date, line_width=2, line_dash="dash", line_color="grey")
+    fig.add_vline(x=changepoint_date, line_width=2, line_dash="dot", line_color="purple")
+    
+    # Now, add the annotations separately using fig.add_annotation for full control.
+    fig.add_annotation(x=forecast_start_date, y=0.05, yref="paper", text="Forecast Start",
+                       showarrow=False, xshift=10, font=dict(color="grey"))
+    fig.add_annotation(x=changepoint_date, y=0.95, yref="paper", text="Trend Changepoint",
+                       showarrow=False, xshift=-10, font=dict(color="purple"))
     # --- END OF CORRECTION ---
 
     # Plot 2: ARIMA Residuals
@@ -2291,7 +2296,6 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strengt
     # Plot 3: ARIMA ACF
     acf_vals = sm.tsa.acf(residuals_arima, nlags=20)
     fig.add_trace(go.Bar(x=np.arange(1, 21), y=acf_vals[1:], name='ACF'), row=2, col=2)
-    # Add confidence interval for ACF
     fig.add_shape(type='line', x0=0.5, x1=20.5, y0=1.96/np.sqrt(len(residuals_arima)), y1=1.96/np.sqrt(len(residuals_arima)), line=dict(color='red', dash='dash'), row=2, col=2)
     fig.add_shape(type='line', x0=0.5, x1=20.5, y0=-1.96/np.sqrt(len(residuals_arima)), y1=-1.96/np.sqrt(len(residuals_arima)), line=dict(color='red', dash='dash'), row=2, col=2)
 

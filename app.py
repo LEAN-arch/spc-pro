@@ -1331,38 +1331,58 @@ def plot_split_plot_doe(lot_variation_sd=0.5, interaction_effect=0.0):
 def plot_causal_inference(confounding_strength=5.0):
     """
     Generates enhanced, more realistic dynamic plots for the Causal Inference module,
-    using a classic Simpson's Paradox scenario.
+    featuring a professionally redesigned Directed Acyclic Graph (DAG).
     """
-    # --- 1. The Causal Map (DAG) ---
+    # --- 1. The Causal Map (DAG) - Redesigned for professional rendering ---
     fig_dag = go.Figure()
-    nodes = {'Calibration Age': (0, 1), 'Sensor Reading': (2, 2), 'Product Purity': (4, 1)}
-    node_x = [v[0] for v in nodes.values()]
-    node_y = [v[1] for v in nodes.values()]
 
-    fig_dag.add_trace(go.Scatter(
-        x=node_x, y=node_y, mode="text", text=[f"<b>{k}</b>" for k in nodes.keys()],
-        textposition="middle center", textfont=dict(size=14, color='white')
-    ))
+    # Node positions and properties
+    nodes = {
+        'Sensor Reading': {'pos': (0, 0), 'color': '#636EFA'},
+        'Product Purity': {'pos': (3, 0), 'color': '#00CC96'},
+        'Calibration Age': {'pos': (1.5, 1.5), 'color': '#EF553B'}
+    }
     
-    # Add shapes for nodes
-    for x, y in zip(node_x, node_y):
-        fig_dag.add_shape(type="rect", x0=x-0.8, y0=y-0.4, x1=x+0.8, y1=y+0.4,
-                          fillcolor='royalblue', line=dict(width=2, color='black'))
+    # Add Edges (Arrows) with color-coding for paths
+    # Causal Path (Green)
+    fig_dag.add_annotation(x=nodes['Product Purity']['pos'][0], y=nodes['Product Purity']['pos'][1],
+                           ax=nodes['Sensor Reading']['pos'][0], ay=nodes['Sensor Reading']['pos'][1],
+                           xref='x', yref='y', axref='x', ayref='y', showarrow=True,
+                           arrowhead=2, arrowwidth=4, arrowcolor='#00CC96',
+                           axshift=60, ayshift=0, xshift=-80)
+    
+    # Backdoor Path (Red)
+    fig_dag.add_annotation(x=nodes['Sensor Reading']['pos'][0], y=nodes['Sensor Reading']['pos'][1],
+                           ax=nodes['Calibration Age']['pos'][0], ay=nodes['Calibration Age']['pos'][1],
+                           xref='x', yref='y', axref='x', ayref='y', showarrow=True,
+                           arrowhead=2, arrowwidth=3, arrowcolor='#EF553B',
+                           axshift=-40, ayshift=-40, xshift=50, yshift=40)
+    fig_dag.add_annotation(x=nodes['Product Purity']['pos'][0], y=nodes['Product Purity']['pos'][1],
+                           ax=nodes['Calibration Age']['pos'][0], ay=nodes['Calibration Age']['pos'][1],
+                           xref='x', yref='y', axref='x', ayref='y', showarrow=True,
+                           arrowhead=2, arrowwidth=3, arrowcolor='#EF553B',
+                           axshift=40, ayshift=-40, xshift=-50, yshift=40)
 
-    # Causal relationships (arrows)
-    edges = [('Calibration Age', 'Sensor Reading'), ('Sensor Reading', 'Product Purity'), ('Calibration Age', 'Product Purity')]
-    for start, end in edges:
-        fig_dag.add_annotation(
-            x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
-            xref='x', yref='y', axref='x', ayref='y', showarrow=True,
-            arrowhead=2, arrowwidth=3, arrowcolor='black',
-            xshift=-10, yshift=-10
-        )
+    # Add Nodes (Circles)
+    for name, attrs in nodes.items():
+        fig_dag.add_shape(type="circle", xref="x", yref="y",
+                          x0=attrs['pos'][0] - 0.4, y0=attrs['pos'][1] - 0.4,
+                          x1=attrs['pos'][0] + 0.4, y1=attrs['pos'][1] + 0.4,
+                          line_color="Black", fillcolor=attrs['color'], line_width=2)
+        fig_dag.add_annotation(x=attrs['pos'][0], y=attrs['pos'][1], text=f"<b>{name.replace(' ', '<br>')}</b>",
+                               showarrow=False, font=dict(color='white', size=12))
+
+    # Add Path Labels
+    fig_dag.add_annotation(x=1.5, y=-0.25, text="<b><span style='color:#00CC96'>Direct Causal Path</span></b>",
+                           showarrow=False, font_size=14)
+    fig_dag.add_annotation(x=1.5, y=0.8, text="<b><span style='color:#EF553B'>Confounding 'Backdoor' Path</span></b>",
+                           showarrow=False, font_size=14)
 
     fig_dag.update_layout(
         title="<b>1. The Causal Map (DAG): Calibration Drift Scenario</b>",
-        showlegend=False, xaxis=dict(visible=False, range=[-1, 5]),
-        yaxis=dict(visible=False, range=[-0.5, 2.5]), height=400, margin=dict(t=50)
+        showlegend=False, xaxis=dict(visible=False, showgrid=False, range=[-1, 4]),
+        yaxis=dict(visible=False, showgrid=False, range=[-1, 2.5]),
+        height=400, margin=dict(t=50, b=20), plot_bgcolor='rgba(0,0,0,0)'
     )
 
     # --- 2. Simulate data demonstrating Simpson's Paradox ---
@@ -1378,27 +1398,20 @@ def plot_causal_inference(confounding_strength=5.0):
     purity = 90 + true_causal_effect_sensor_on_purity * (sensor - 50) + true_effect_age_on_purity * cal_age + np.random.normal(0, 5, n_samples)
     
     df = pd.DataFrame({'SensorReading': sensor, 'Purity': purity, 'CalibrationAge': cal_age})
-    
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # Create the categorical column with a name that is a valid identifier (no spaces)
     df['calibration_status'] = df['CalibrationAge'].apply(lambda x: 'Old' if x == 1 else 'New')
-    # --- END OF CORRECTION ---
 
     # --- 3. Calculate effects ---
     naive_model = ols('Purity ~ SensorReading', data=df).fit()
     naive_effect = naive_model.params['SensorReading']
     
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # Use the corrected column name in the formula
     adjusted_model = ols('Purity ~ SensorReading + C(calibration_status)', data=df).fit()
-    # --- END OF CORRECTION ---
     adjusted_effect = adjusted_model.params['SensorReading']
 
     # --- 4. Create the scatter plot ---
-    fig_scatter = px.scatter(df, x='SensorReading', y='Purity', color='calibration_status', # Use the corrected column name
+    fig_scatter = px.scatter(df, x='SensorReading', y='Purity', color='calibration_status',
                              title="<b>2. Simpson's Paradox: The Danger of Confounding</b>",
                              color_discrete_map={'New': 'blue', 'Old': 'red'},
-                             labels={'SensorReading': 'In-Process Sensor Reading', 'calibration_status': 'Calibration Status'}) # Update label
+                             labels={'SensorReading': 'In-Process Sensor Reading', 'calibration_status': 'Calibration Status'})
     
     x_range = np.array([df['SensorReading'].min(), df['SensorReading'].max()])
     
@@ -1406,10 +1419,7 @@ def plot_causal_inference(confounding_strength=5.0):
                                      name='Naive Correlation (Misleading)', line=dict(color='orange', width=4, dash='dash')))
     
     intercept_new = adjusted_model.params['Intercept']
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # The coefficient name will also change based on the corrected column name
     intercept_old = intercept_new + adjusted_model.params['C(calibration_status)[T.Old]']
-    # --- END OF CORRECTION ---
     fig_scatter.add_trace(go.Scatter(x=x_range, y=intercept_new + adjusted_effect * x_range, mode='lines', 
                                      name='True Causal Effect (Within Groups)', line=dict(color='darkgreen', width=4)))
     fig_scatter.add_trace(go.Scatter(x=x_range, y=intercept_old + adjusted_effect * x_range, mode='lines', 

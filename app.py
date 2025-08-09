@@ -1715,79 +1715,105 @@ def plot_tolerance_intervals(n=30, coverage_pct=99.0):
 
 def plot_method_comparison(constant_bias=2.0, proportional_bias=3.0, random_error_sd=3.0):
     """
-    Generates dynamic plots for the method comparison module based on user inputs.
+    Generates an enhanced, more realistic, and integrated dashboard for method comparison,
+    using Passing-Bablok regression and adding CIs to the Bland-Altman plot.
     """
     np.random.seed(1)
     n_samples = 50
     true_values = np.linspace(20, 200, n_samples)
     
-    # Simulate data based on the slider inputs
+    # Simulate data with different error types
     error_ref = np.random.normal(0, random_error_sd, n_samples)
     error_test = np.random.normal(0, random_error_sd, n_samples)
     
     ref_method = true_values + error_ref
-    # The 'Test' method's results are a function of the true value and the biases
     test_method = constant_bias + true_values * (1 + proportional_bias / 100) + error_test
     
     df = pd.DataFrame({'Reference': ref_method, 'Test': test_method})
 
-    # Deming Regression (simplified calculation for plotting)
-    mean_x, mean_y = df['Reference'].mean(), df['Test'].mean()
-    cov_xy = np.cov(df['Reference'], df['Test'])[0, 1]
-    var_x, var_y = df['Reference'].var(ddof=1), df['Test'].var(ddof=1)
-    lambda_val = var_y / var_x if var_x > 0 else 1.0 # Ratio of variances
-    deming_slope = ( (var_y - lambda_val*var_x) + np.sqrt((var_y - lambda_val*var_x)**2 + 4 * lambda_val * cov_xy**2) ) / (2 * cov_xy)
-    deming_intercept = mean_y - deming_slope * mean_x
-
-    # Bland-Altman
+    # --- SME Enhancement: Implement Passing-Bablok Regression ---
+    # This is a simplified version for demonstration. A real implementation is more complex.
+    slopes = []
+    for i in range(n_samples):
+        for j in range(i + 1, n_samples):
+            if (df['Reference'][i] - df['Reference'][j]) != 0:
+                slope = (df['Test'][i] - df['Test'][j]) / (df['Reference'][i] - df['Reference'][j])
+                slopes.append(slope)
+    pb_slope = np.median(slopes)
+    pb_intercept = np.median(df['Test'] - pb_slope * df['Reference'])
+    
+    # --- Bland-Altman Calculations with Confidence Intervals ---
     df['Average'] = (df['Reference'] + df['Test']) / 2
     df['Difference'] = df['Test'] - df['Reference']
     mean_diff = df['Difference'].mean()
     std_diff = df['Difference'].std(ddof=1)
+    
+    # CIs for the mean bias and Limits of Agreement
+    ci_bias_margin = 1.96 * std_diff / np.sqrt(n_samples)
+    ci_loa_margin = 1.96 * std_diff * np.sqrt(3 / n_samples)
+    
     upper_loa = mean_diff + 1.96 * std_diff
     lower_loa = mean_diff - 1.96 * std_diff
     
-    # % Bias
-    df['%Bias'] = (df['Difference'] / df['Reference']) * 100
-
-    # --- Plotting ---
+    # --- Plotting: Integrated 2x2 Dashboard ---
     fig = make_subplots(
-        rows=3, cols=1,
-        subplot_titles=("<b>1. Deming Regression</b>", "<b>2. Bland-Altman Plot</b>", "<b>3. Percent Bias Plot</b>"),
-        vertical_spacing=0.15
+        rows=2, cols=2,
+        specs=[[{"rowspan": 2}, {}], [None, {}]],
+        subplot_titles=("<b>1. Method Agreement (Passing-Bablok)</b>",
+                        "<b>2. Bland-Altman Plot</b>",
+                        "<b>3. Residuals vs. Reference</b>"),
+        vertical_spacing=0.15, horizontal_spacing=0.1
     )
 
-    # Deming Plot
-    fig.add_trace(go.Scatter(x=df['Reference'], y=df['Test'], mode='markers', name='Samples'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df['Reference'], y=deming_intercept + deming_slope * df['Reference'], mode='lines', name='Deming Fit', line=dict(color='red')), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[0, 220], y=[0, 220], mode='lines', name='Identity (y=x)', line=dict(color='black', dash='dash')), row=1, col=1)
-    
-    # Bland-Altman Plot
-    fig.add_trace(go.Scatter(x=df['Average'], y=df['Difference'], mode='markers', name='Difference'), row=2, col=1)
-    fig.add_hline(y=mean_diff, line=dict(color='blue', dash='dash'), name='Mean Bias', row=2, col=1, annotation_text=f"Bias: {mean_diff:.2f}")
-    fig.add_hline(y=upper_loa, line=dict(color='red', dash='dash'), name='Upper LoA', row=2, col=1, annotation_text=f"Upper LoA: {upper_loa:.2f}")
-    fig.add_hline(y=lower_loa, line=dict(color='red', dash='dash'), name='Lower LoA', row=2, col=1, annotation_text=f"Lower LoA: {lower_loa:.2f}")
-    
-    # % Bias Plot
-    fig.add_trace(go.Scatter(x=df['Reference'], y=df['%Bias'], mode='markers', name='% Bias'), row=3, col=1)
-    fig.add_hline(y=0, line=dict(color='black', dash='dash'), row=3, col=1)
-    fig.add_hrect(y0=-15, y1=15, fillcolor="green", opacity=0.1, layer="below", line_width=0, row=3, col=1)
+    # Plot 1 (Main): Passing-Bablok Regression
+    fig.add_trace(go.Scatter(x=df['Reference'], y=df['Test'], mode='markers', name='Samples',
+                             marker=dict(color='#636EFA')), row=1, col=1)
+    x_range = np.array([0, df['Reference'].max() * 1.05])
+    y_fit = pb_intercept + pb_slope * x_range
+    fig.add_trace(go.Scatter(x=x_range, y=y_fit, mode='lines', name='Passing-Bablok Fit',
+                             line=dict(color='red', width=3)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=x_range, mode='lines', name='Line of Identity (y=x)',
+                             line=dict(color='black', dash='dash')), row=1, col=1)
+    fig.add_annotation(x=0.05, y=0.95, xref="x domain", yref="y domain",
+                       text=f"<b>y = {pb_slope:.2f}x + {pb_intercept:.2f}</b>",
+                       showarrow=False, font=dict(size=14, color='red'), row=1, col=1)
 
-    fig.update_layout(height=1000, showlegend=False)
+    # Plot 2 (Top-Right): Bland-Altman
+    fig.add_trace(go.Scatter(x=df['Average'], y=df['Difference'], mode='markers', name='Difference',
+                             marker=dict(color='#1f77b4')), row=1, col=2)
+    # Mean Bias with CI
+    fig.add_hrect(y0=mean_diff - ci_bias_margin, y1=mean_diff + ci_bias_margin,
+                  fillcolor='rgba(0,0,255,0.1)', line_width=0, row=1, col=2)
+    fig.add_hline(y=mean_diff, line=dict(color='blue'), name='Mean Bias', row=1, col=2,
+                  annotation_text=f"Bias: {mean_diff:.2f}", annotation_position="bottom right")
+    # Limits of Agreement with CIs
+    fig.add_hrect(y0=upper_loa - ci_loa_margin, y1=upper_loa + ci_loa_margin,
+                  fillcolor='rgba(255,0,0,0.1)', line_width=0, row=1, col=2)
+    fig.add_hrect(y0=lower_loa - ci_loa_margin, y1=lower_loa + ci_loa_margin,
+                  fillcolor='rgba(255,0,0,0.1)', line_width=0, row=1, col=2)
+    fig.add_hline(y=upper_loa, line=dict(color='red', dash='dash'), name='Upper LoA', row=1, col=2)
+    fig.add_hline(y=lower_loa, line=dict(color='red', dash='dash'), name='Lower LoA', row=1, col=2)
+
+    # Plot 3 (Bottom-Right): Residuals vs. Reference (to diagnose proportional bias)
+    df['Residuals'] = df['Test'] - (pb_intercept + pb_slope * df['Reference'])
+    fig.add_trace(go.Scatter(x=df['Reference'], y=df['Residuals'], mode='markers', name='Residuals',
+                             marker=dict(color='#ff7f0e')), row=2, col=2)
+    fig.add_hline(y=0, line=dict(color='black', dash='dash'), row=2, col=2)
+
+    fig.update_layout(height=800, title_text="<b>Method Comparison Dashboard</b>", title_x=0.5,
+                      legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'))
     fig.update_xaxes(title_text="Reference Method", row=1, col=1); fig.update_yaxes(title_text="Test Method", row=1, col=1)
-    fig.update_xaxes(title_text="Average of Methods", row=2, col=1); fig.update_yaxes(title_text="Difference (Test - Ref)", row=2, col=1)
-    fig.update_xaxes(title_text="Reference Method", row=3, col=1); fig.update_yaxes(title_text="% Bias", row=3, col=1)
+    fig.update_xaxes(title_text="Average of Methods", row=1, col=2); fig.update_yaxes(title_text="Difference (Test - Ref)", row=1, col=2)
+    fig.update_xaxes(title_text="Reference Method", row=2, col=2); fig.update_yaxes(title_text="Residuals from Fit", row=2, col=2)
     
-    return fig, deming_slope, deming_intercept, mean_diff, upper_loa, lower_loa
+    return fig, pb_slope, pb_intercept, mean_diff, upper_loa, lower_loa
 
 @st.cache_data
-def plot_bayesian(prior_type):
+def plot_bayesian(prior_type, n_qc=20, k_qc=18, spec_limit=0.90):
     """
-    Generates plots for the Bayesian inference module.
+    Generates enhanced, more realistic, and interactive plots for the Bayesian inference module,
+    including interactive data and visualization of the credible interval.
     """
-    # New QC Data (Likelihood)
-    n_qc, k_qc = 20, 18
-    
     # Define Priors based on selection
     if prior_type == "Strong R&D Prior":
         # Corresponds to ~98 successes in 100 trials
@@ -1795,9 +1821,9 @@ def plot_bayesian(prior_type):
     elif prior_type == "Skeptical/Regulatory Prior":
         # Weakly centered around 80%, wide uncertainty
         a_prior, b_prior = 4, 1
-    else: # "No Prior (Frequentist)"
-        # Uninformative prior
-        a_prior, b_prior = 1, 1
+    else: # "No Prior (Uninformative)"
+        # Uninformative Jeffreys prior
+        a_prior, b_prior = 0.5, 0.5
         
     # Bayesian Update (Posterior calculation)
     a_post = a_prior + k_qc
@@ -1805,32 +1831,49 @@ def plot_bayesian(prior_type):
     
     # Calculate key metrics
     prior_mean = a_prior / (a_prior + b_prior)
-    mle = k_qc / n_qc
+    mle = k_qc / n_qc if n_qc > 0 else 0
     posterior_mean = a_post / (a_post + b_post)
 
-    # Plotting
+    # --- Plotting ---
     x = np.linspace(0, 1, 500)
     fig = go.Figure()
 
-    # Prior
+    # Plot Prior
     prior_pdf = beta.pdf(x, a_prior, b_prior)
-    fig.add_trace(go.Scatter(x=x, y=prior_pdf, mode='lines', name='Prior', line=dict(color='green', dash='dash')))
+    fig.add_trace(go.Scatter(x=x, y=prior_pdf, mode='lines', name='Prior Belief',
+                             line=dict(color='green', dash='dash', width=3)))
 
-    # Likelihood (scaled for visualization)
-    likelihood = beta.pdf(x, k_qc + 1, n_qc - k_qc + 1)
-    fig.add_trace(go.Scatter(x=x, y=likelihood, mode='lines', name='Likelihood (from data)', line=dict(color='red', dash='dot')))
-
-    # Posterior
+    # Plot Posterior
     posterior_pdf = beta.pdf(x, a_post, b_post)
-    fig.add_trace(go.Scatter(x=x, y=posterior_pdf, mode='lines', name='Posterior', line=dict(color='blue', width=4), fill='tozeroy'))
+    fig.add_trace(go.Scatter(x=x, y=posterior_pdf, mode='lines', name='Posterior Belief (Updated)',
+                             line=dict(color='blue', width=4), fill='tozeroy',
+                             fillcolor='rgba(0,0,255,0.1)'))
+    
+    # SME Enhancement: Calculate and shade the 95% Credible Interval (HDI)
+    ci_lower, ci_upper = beta.ppf([0.025, 0.975], a_post, b_post)
+    x_fill = np.linspace(ci_lower, ci_upper, 100)
+    y_fill = beta.pdf(x_fill, a_post, b_post)
+    fig.add_trace(go.Scatter(x=x_fill, y=y_fill, fill='tozeroy', mode='none',
+                             fillcolor='rgba(0,0,255,0.3)', name='95% Credible Interval'))
+
+    # SME Enhancement: Show the data/likelihood as a point estimate
+    fig.add_trace(go.Scatter(x=[mle], y=[0], mode='markers', name=f'Data Likelihood (k/n = {mle:.2f})',
+                             marker=dict(color='red', size=15, symbol='diamond', line=dict(width=2, color='black'))))
+
+    # SME Enhancement: Calculate probability of meeting a spec
+    prob_gt_spec = 1.0 - beta.cdf(spec_limit, a_post, b_post)
+    fig.add_vline(x=spec_limit, line_dash="dot", line_color="black",
+                  annotation_text=f"Spec Limit ({spec_limit:.0%})", annotation_position="top")
 
     fig.update_layout(
-        title=f"<b>Bayesian Update for Pass Rate ({prior_type})</b>",
-        xaxis_title="True Pass Rate", yaxis_title="Probability Density",
-        legend=dict(x=0.01, y=0.99)
+        title=f"<b>Bayesian Update for QC Pass Rate</b>",
+        xaxis_title="True Pass Rate Parameter (θ)", yaxis_title="Probability Density",
+        legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
+        xaxis=dict(range=[0,1], tickformat=".0%"),
+        yaxis=dict(showticklabels=False)
     )
     
-    return fig, prior_mean, mle, posterior_mean
+    return fig, prior_mean, mle, posterior_mean, (ci_lower, ci_upper), prob_gt_spec
 
 ##=================================================================================================================================================================================================
 ##=======================================================================================END ACT II ===============================================================================================
@@ -4415,57 +4458,84 @@ def render_method_comparison():
 def render_bayesian():
     """Renders the interactive module for Bayesian Inference."""
     st.markdown("""
-    #### Purpose & Application
+    #### Purpose & Application: The Science of Belief Updating
     **Purpose:** To employ Bayesian inference to formally and quantitatively synthesize existing knowledge (a **Prior** belief) with new experimental data (the **Likelihood**) to arrive at an updated, more robust conclusion (the **Posterior** belief).
     
-    **Strategic Application:** This is a paradigm-shifting tool for driving efficient, knowledge-based validation and decision-making. In a traditional (Frequentist) world, every study starts from a blank slate. In the Bayesian world, we can formally leverage what we already know. This is powerful for:
+    **Strategic Application:** This is a paradigm-shifting tool for driving efficient, knowledge-based validation and decision-making. In a traditional (Frequentist) world, every study starts from a blank slate. In the Bayesian world, we can formally leverage what we already know.
     - **Accelerating Tech Transfer:** Use data from an R&D validation study to form a **strong, informative prior**. This allows the receiving QC lab to demonstrate success with a smaller confirmation study, saving time and resources.
-    - **Adaptive Clinical Trials:** Data from an interim analysis can serve as a prior for the final analysis, allowing trials to be stopped early.
-    - **Quantifying Belief & Risk:** It provides a natural framework to answer the question: "Given what we already knew, and what this new data shows, what is the probability that the pass rate is actually above 95%?"
+    - **Answering Direct Business Questions:** Provides a natural framework to answer the question: "Given all the evidence, what is the probability that our true pass rate is above 90%?"
     """)
     st.info("""
-    **Interactive Demo:** Use the **Prior Belief** radio buttons below to simulate how different levels of existing knowledge impact your conclusions. Observe how the final **Posterior (blue curve)** is always a weighted compromise between your initial **Prior (green curve)** and the new **Data (red curve)**. A strong prior will be very influential, while a weak or non-informative prior lets the new data speak for itself.
+    **Interactive Demo:** Use the controls in the sidebar to define your prior belief and the new experimental data. Observe how the final **Posterior (blue curve)** is always a weighted compromise between your initial **Prior (green curve)** and the new **Data (red diamond)**.
     """)
-    prior_type_bayes = st.radio("Select Prior Belief:", ("Strong R&D Prior", "No Prior (Frequentist)", "Skeptical/Regulatory Prior"))
     
+    with st.sidebar:
+        st.subheader("Bayesian Inference Controls")
+        prior_type_bayes = st.radio(
+            "Select Prior Belief:",
+            ("Strong R&D Prior", "No Prior (Uninformative)", "Skeptical/Regulatory Prior"),
+            index=0,
+            help="Your belief about the pass rate *before* seeing the new data. A 'Strong' prior has a large influence; an 'Uninformative' prior lets the data speak for itself."
+        )
+        # --- NEW INTERACTIVE SLIDERS ---
+        st.markdown("---")
+        st.markdown("**New QC Data**")
+        n_qc_slider = st.slider("Number of QC Samples (n)", 1, 100, 20, 1,
+            help="The total number of new QC samples run in the experiment.")
+        k_qc_slider = st.slider("Number of Passes (k)", 0, n_qc_slider, 18, 1,
+            help="Of the new samples run, how many passed?")
+
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        fig, prior_mean, mle, posterior_mean = plot_bayesian(prior_type_bayes)
+        fig, prior_mean, mle, posterior_mean, credible_interval, prob_gt_spec = plot_bayesian(
+            prior_type=prior_type_bayes,
+            n_qc=n_qc_slider,
+            k_qc=k_qc_slider,
+            spec_limit=0.90
+        )
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
         with tabs[0]:
-            st.metric(label="📈 KPI: Posterior Mean Rate", value=f"{posterior_mean:.3f}", help="The final, data-informed belief; a weighted average of the prior and the data.")
-            st.metric(label="💡 Prior Mean Rate", value=f"{prior_mean:.3f}", help="The initial belief *before* seeing the new QC data.")
-            st.metric(label="💡 Data-only Estimate (MLE)", value=f"{mle:.3f}", help="The evidence from the new QC data alone (the frequentist result).")
-            st.markdown("""
-            - **Prior (Green Dashed):** Our initial belief about the pass rate. A **Strong Prior** is tall and narrow, representing high confidence from historical data. A **Skeptical Prior** is wide and flat, representing uncertainty.
-            - **Likelihood (Red Dotted):** The "voice of the new data." This is the evidence from our new QC runs. Note that it is not a probability distribution.
-            - **Posterior (Blue Solid):** The final, updated belief. The posterior is always a **compromise** between the prior and the likelihood, weighted by their respective certainties (the narrowness of their distributions).
-
-            **The Core Strategic Insight:** This simulation demonstrates Bayesian updating in action.
-             - With a **Strong R&D Prior**, the new (and slightly worse) QC data barely moves our final belief. The strong prior evidence dominates the small new sample.
-             - With a **Skeptical Prior**, our final belief is a true compromise between the skeptical starting point and the new data.
-             - With **No Prior**, the posterior is determined almost entirely by the data, and the result mirrors the frequentist conclusion.
-            This framework provides a transparent and logical way to cumulate knowledge over time.
-            """)
+            st.metric(
+                label="🎯 Primary KPI: Prob(Pass Rate > 90%)",
+                value=f"{prob_gt_spec:.2%}",
+                help="The posterior probability that the true pass rate meets the 90% specification. This is a direct risk statement."
+            )
+            st.metric(
+                label="📈 Posterior Mean Pass Rate",
+                value=f"{posterior_mean:.1%}",
+                help="The final, data-informed belief; a weighted average of the prior and the data."
+            )
+            st.metric(
+                label="📊 95% Credible Interval",
+                value=f"[{credible_interval[0]:.1%}, {credible_interval[1]:.1%}]",
+                help="We can be 95% certain that the true pass rate lies within this interval."
+            )
+            st.markdown("---")
+            st.metric(label="Prior Mean Rate", value=f"{prior_mean:.1%}", help="The initial belief *before* seeing the new QC data.")
+            st.metric(label="Data-only Estimate (k/n)", value=f"{mle:.1%}", help="The evidence from the new QC data alone (the frequentist result).")
+            
         with tabs[1]:
             st.markdown("- The acceptance criterion is framed in terms of the **posterior distribution** and is probabilistic.")
-            st.markdown("- **Example Criterion 1 (Probability Statement):** 'There must be at least a 95% probability that the true pass rate is greater than 90%.' This is calculated by finding the area under the blue posterior curve to the right of the 0.90 threshold.")
-            st.markdown("- **Example Criterion 2 (Credible Interval):** 'The lower bound of the **95% Credible Interval** (the central 95% of the blue posterior distribution) must be above the target of 90%.'")
-            st.warning("**The Prior is Critical:** The choice of prior is the most controversial and important part of a Bayesian analysis. In a regulated setting, the prior must be transparent, justified by historical data, and pre-specified in the validation protocol. An unsubstantiated, overly optimistic prior would be a major red flag for an auditor.")
+            st.markdown("- **Example Criterion 1 (Probability Statement):** 'There must be at least a 95% probability that the true pass rate is greater than 90%.'")
+            st.markdown("- **Example Criterion 2 (Credible Interval):** 'The lower bound of the **95% Credible Interval** must be above the target of 90%.'")
+            st.warning("**The Prior is Critical:** In a regulated setting, the prior must be transparent, justified by historical data, and pre-specified in the validation protocol. An unsubstantiated, overly optimistic prior is a major red flag.")
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            The underlying theorem was conceived by the Reverend **Thomas Bayes** in the 1740s. However, for nearly 200 years, Bayesian inference remained a philosophical curiosity, largely overshadowed by the Frequentist school. This was due to philosophical objections to the subjective nature of priors and the computational difficulty of calculating the posterior distribution.
+            #### Historical Context: The 200-Year Winter
+            **The Problem:** The underlying theorem was conceived by the Reverend **Thomas Bayes** in the 1740s and published posthumously. However, for nearly 200 years, Bayesian inference remained a philosophical curiosity, largely overshadowed by the Frequentist school of Neyman and Fisher. There were two huge barriers:
+            1.  **The Philosophical Barrier:** The "subjective" nature of the prior was anathema to frequentists who sought pure objectivity.
+            2.  **The Computational Barrier:** For most real-world problems, calculating the denominator in Bayes' theorem (the "evidence") was mathematically intractable.
             
-            The **"Bayesian Revolution"** began in the late 20th century, driven by powerful computers and simulation algorithms like **Markov Chain Monte Carlo (MCMC)**. These methods allowed scientists to approximate the posterior distribution for incredibly complex models, making Bayesian methods practical for the first time.
+            **The 'Aha!' Moment (MCMC):** The **"Bayesian Revolution"** began in the late 20th century, driven by the explosion of computing power and the development of powerful simulation algorithms like **Markov Chain Monte Carlo (MCMC)**. MCMC provided a clever workaround: instead of trying to calculate the posterior distribution directly, you could create a smart algorithm that *draws samples from it*.
             
-            #### Mathematical Basis
-            Bayes' Theorem is elegantly simple:
+            **The Impact:** MCMC made the previously impossible possible. Scientists could now approximate the posterior distribution for incredibly complex models, making Bayesian methods practical for the first time. This has led to a renaissance of Bayesian thinking in fields from astrophysics to pharmaceutical development.
             """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("Bayes' Theorem is elegantly simple:")
             st.latex(r"P(\theta|D) = \frac{P(D|\theta) \cdot P(\theta)}{P(D)}")
             st.markdown(r"In words: **Posterior = (Likelihood × Prior) / Evidence**")
             st.markdown(r"""
@@ -4473,12 +4543,9 @@ def render_bayesian():
             - $P(D|\theta)$ (Likelihood): The probability of observing our Data D, given a specific value of the parameter $\theta$.
             - $P(\theta)$ (Prior): Our initial belief about the distribution of the parameter $\theta$.
             
-            For binomial data, the **Beta distribution** is a **conjugate prior**. This means if you start with a Beta prior and have a binomial likelihood, your posterior will also be a Beta distribution.
-            - If Prior is Beta($\alpha_{prior}, \beta_{prior}$)
-            - And Data is $k$ successes in $n$ trials:
-            - Then the Posterior is simply Beta($\alpha_{prior} + k, \beta_{prior} + n - k$).
-            The $\alpha$ and $\beta$ parameters can be thought of as "pseudo-counts" of prior successes and failures, which are simply added to the new observed counts.
+            For binomial data (pass/fail), the **Beta distribution** is a **conjugate prior**. This means if you start with a Beta prior and have a binomial likelihood, your posterior is also a simple, updated Beta distribution.
             """)
+            st.latex(r"\text{Posterior} \sim \text{Beta}(\alpha_{prior} + k, \beta_{prior} + n - k)")
 ##=======================================================================================================================================================================================================
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================

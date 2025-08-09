@@ -1285,85 +1285,72 @@ def plot_westgard_scenario(scenario='Stable'):
 def plot_multivariate_spc(scenario='Stable'):
     """
     Generates a dynamic and CORRECT 3-plot figure (Scatter, T², SPE) and a contribution plot.
+    This version now returns the actual status of the charts.
     """
     np.random.seed(42)
     n_in_control, n_out_of_control = 20, 10
     
-    # Define the true, underlying process model
     mean_vec = np.array([10, 20])
-    cov_mat = np.array([[1, 0.8], [0.8, 1]]) # Strong positive correlation
-    
-    # Generate in-control data that perfectly fits the model
+    cov_mat = np.array([[1, 0.8], [0.8, 1]])
     in_control = np.random.multivariate_normal(mean_vec, cov_mat, n_in_control)
     
-    # Generate out-of-control data based on the scenario
     if scenario == 'Stable':
-        # Use a different seed for a visually clean stable run
         np.random.seed(101)
         out_of_control = np.random.multivariate_normal(mean_vec, cov_mat, n_out_of_control)
     elif scenario == 'Shift in Y Only':
-        # Shift the mean of the second variable ONLY
-        mean_shifted = np.array([10, 22.5])
+        mean_shifted = np.array([10, 23.5]) # Increased shift for clarity
         out_of_control = np.random.multivariate_normal(mean_shifted, cov_mat, n_out_of_control)
     elif scenario == 'Correlation Break':
-        # The mean is the SAME, but the correlation is broken (becomes negative)
-        cov_mat_broken = np.array([[1, -0.8], [-0.8, 1]])
+        cov_mat_broken = np.array([[1, -0.9], [-0.9, 1]]) # Stronger break
         out_of_control = np.random.multivariate_normal(mean_vec, cov_mat_broken, n_out_of_control)
         
     data = np.vstack([in_control, out_of_control])
     
-    # --- T² and SPE Calculations ---
-    # Model is built ONLY on the in-control data
-    from sklearn.decomposition import PCA
+    # --- Model Building and Calculations ---
     from sklearn.preprocessing import StandardScaler
-
+    from sklearn.decomposition import PCA
     scaler = StandardScaler().fit(in_control)
     scaled_in_control = scaler.transform(in_control)
-    
-    # Model the single strong correlation with one component
     pca = PCA(n_components=1).fit(scaled_in_control)
     
-    # Apply the model to ALL data (in-control and out-of-control)
     scaled_data = scaler.transform(data)
     scores = pca.transform(scaled_data)
     
-    # T² Calculation
     t_squared = scores[:, 0]**2 / np.var(scores[:n_in_control, 0], ddof=1)
     UCL_T2 = stats.f.ppf(0.99, 1, n_in_control - 1)
 
-    # SPE Calculation
     residuals = scaled_data - pca.inverse_transform(scores)
     spe = np.sum(residuals**2, axis=1)
     g, h = np.mean(spe[:n_in_control]), np.var(spe[:n_in_control], ddof=1)
-    UCL_SPE = g * (h / (2*g)) * stats.chi2.ppf(0.99, (2*g**2)/h) if g > 0 and h > 0 else 0
+    UCL_SPE = g * (h / (2 * g)) * stats.chi2.ppf(0.99, (2 * g**2) / h) if g > 0 and h > 0 else 0
 
+    # --- FIX: Dynamic Status Check ---
+    is_t2_ooc = np.any(t_squared[n_in_control:] > UCL_T2)
+    is_spe_ooc = np.any(spe[n_in_control:] > UCL_SPE)
+    
     # --- Contribution Plot Calculation ---
     fig_contrib = None
-    if scenario != 'Stable':
-        first_ooc_index = n_in_control
-        if scenario == 'Shift in Y Only':
-            # T² contribution is the projection of the fault onto the principal axis
+    if is_t2_ooc or is_spe_ooc:
+        first_ooc_index = n_in_control + np.where( (t_squared[n_in_control:] > UCL_T2) | (spe[n_in_control:] > UCL_SPE) )[0][0]
+        
+        if is_t2_ooc and not is_spe_ooc: # T2 alarm
             fault_vector = scaled_data[first_ooc_index, :]
-            contributions = (fault_vector @ pca.components_.T)**2
-            df_contrib = pd.DataFrame({'Variable': ['Contribution'], 'Value': contributions})
-            fig_contrib = px.bar(df_contrib, x='Value', y='Variable', orientation='h', title=f"<b>Contribution to T² Alarm</b>")
-        elif scenario == 'Correlation Break':
-            # SPE contribution is simply the squared residual for each variable
+            contributions = (fault_vector * pca.components_).sum(axis=1) * pca.components_
+            contributions = np.sum(contributions**2, axis=0)
+            df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions})
+            fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Contributions to T² Alarm</b>")
+        elif is_spe_ooc: # SPE alarm
             contributions = residuals[first_ooc_index]**2
             df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions})
-            fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Contributions to SPE Alarm</b>",
-                                   color='Variable', color_discrete_sequence=['#1f77b4', '#ff7f0e'])
+            fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Contributions to SPE Alarm</b>")
+        
         if fig_contrib:
-            fig_contrib.update_layout(showlegend=False)
+            fig_contrib.update_layout(showlegend=False, yaxis_title="Contribution Magnitude")
 
-    # --- Main Plotting ---
-    fig_scatter = px.scatter(
-        x=data[:, 0], y=data[:, 1],
-        color=['In-Control'] * n_in_control + ['Out-of-Control'] * n_out_of_control,
-        title=f"<b>1. Process Data Scatter Plot ({scenario} Scenario)</b>",
-        labels={'x': 'Temperature (°C)', 'y': 'Pressure (PSI)', 'color': 'Status'}
-    )
-
+    # --- Plotting ---
+    fig_scatter = px.scatter(x=data[:, 0], y=data[:, 1], color=['In-Control'] * n_in_control + ['Out-of-Control'] * n_out_of_control,
+                             title=f"<b>1. Process Data Scatter Plot ({scenario} Scenario)</b>", labels={'x': 'Temperature (°C)', 'y': 'Pressure (PSI)', 'color': 'Status'})
+    
     fig_charts = make_subplots(rows=1, cols=2, subplot_titles=("<b>2. Hotelling's T² Chart</b>", "<b>3. SPE / DModX Chart</b>"))
     fig_charts.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=t_squared, mode='lines+markers', name="T²"), row=1, col=1)
     fig_charts.add_hline(y=UCL_T2, line=dict(color='red', dash='dash'), row=1, col=1)
@@ -1372,7 +1359,7 @@ def plot_multivariate_spc(scenario='Stable'):
         fig_charts.add_hline(y=UCL_SPE, line=dict(color='red', dash='dash'), row=1, col=2)
     fig_charts.update_layout(height=400, showlegend=False); fig_charts.update_xaxes(title_text="Batch Number")
     
-    return fig_scatter, fig_charts, fig_contrib
+    return fig_scatter, fig_charts, fig_contrib, is_t2_ooc, is_spe_ooc
     
 @st.cache_data
 def plot_wilson(successes, n_samples):

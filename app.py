@@ -1289,39 +1289,55 @@ def plot_multivariate_spc(scenario='Stable'):
     np.random.seed(42)
     n_in_control, n_out_of_control = 20, 10
     
-    mean_vec = [10, 20]
-    cov_mat = [[1, 0.8], [0.8, 1]]
-    in_control = np.random.multivariate_normal(mean_vec, cov_mat, n_in_control)
+    mean_vec_2d = [10, 20]
+    cov_mat_2d = [[1, 0.8], [0.8, 1]]
+    in_control_2d = np.random.multivariate_normal(mean_vec_2d, cov_mat_2d, n_in_control)
     
-    # Generate data based on scenario
-    if scenario == 'Stable':
-        out_of_control = np.random.multivariate_normal(mean_vec, cov_mat, n_out_of_control)
-    elif scenario == 'Shift in Y Only':
-        out_of_control = np.random.multivariate_normal([10, 22.5], cov_mat, n_out_of_control)
-    elif scenario == 'Correlation Break':
-        base = np.random.multivariate_normal(mean_vec, cov_mat, n_out_of_control)
-        base[:, 1] -= 2.5 * (base[:, 0] - mean_vec[0])
-        out_of_control = base
-        
-    data = np.vstack([in_control, out_of_control])
-    
-    # --- T² and SPE Calculations ---
-    from sklearn.preprocessing import StandardScaler
-    scaler = StandardScaler().fit(in_control)
-    scaled_data = scaler.transform(data)
-    scaled_in_control = scaled_data[:n_in_control]
-    
-    from sklearn.decomposition import PCA
-    pca = PCA(n_components=1).fit(scaled_in_control)
-    scores = pca.transform(scaled_data)
-    
-    t_squared = scores[:, 0]**2 / np.var(scores[:n_in_control, 0], ddof=1)
-    UCL_T2 = stats.f.ppf(0.99, 1, n_in_control - 1)
+    in_control_z = np.random.normal(5, 0.1, n_in_control)
+    in_control_3d = np.hstack((in_control_2d, in_control_z.reshape(-1, 1)))
 
-    residuals = scaled_data - pca.inverse_transform(scores)
+    out_of_control_2d = np.random.multivariate_normal(mean_vec_2d, cov_mat_2d, n_out_of_control)
+    out_of_control_z = np.random.normal(5, 0.1, n_out_of_control)
+
+    if scenario == 'Stable':
+        # No change for stable
+        pass
+    elif scenario == 'Shift in Y Only':
+        out_of_control_2d = np.random.multivariate_normal([10, 22.5], cov_mat_2d, n_out_of_control)
+    elif scenario == 'Correlation Break':
+        # This is a novel event in the 3rd dimension
+        out_of_control_z = np.random.normal(8, 0.1, n_out_of_control)
+        
+    out_of_control_3d = np.hstack((out_of_control_2d, out_of_control_z.reshape(-1, 1)))
+    data_3d = np.vstack([in_control_3d, out_of_control_3d])
+    
+    # --- PCA Model for SPE ---
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2).fit(in_control_3d)
+    scores = pca.transform(data_3d)
+    
+    # --- T² Calculation (on PCA scores) ---
+    scores_in_control = scores[:n_in_control, :]
+    mean_scores = np.mean(scores_in_control, axis=0)
+    S_inv = np.linalg.inv(np.cov(scores_in_control.T))
+    t_squared = [((s - mean_scores).T @ S_inv @ (s - mean_scores)) for s in scores]
+    p, n = 2, n_in_control
+    UCL_T2 = ((p * (n+1) * (n-1)) / (n*n - n*p)) * stats.f.ppf(0.9973, p, n-p)
+
+    # --- SPE Calculation ---
+    residuals = data_3d - pca.inverse_transform(scores)
     spe = np.sum(residuals**2, axis=1)
-    g, h = np.mean(spe[:n_in_control]), np.var(spe[:n_in_control], ddof=1)
-    UCL_SPE = g * (1 + stats.norm.ppf(0.99) * np.sqrt(2*h) / g)
+    
+    theta = np.sum(pca.explained_variance_[2:])
+    if theta > 0:
+        theta1 = np.sum(pca.explained_variance_[2:])
+        theta2 = np.sum(pca.explained_variance_[2:]**2)
+        theta3 = np.sum(pca.explained_variance_[2:]**3)
+        h0 = 1 - (2 * theta1 * theta3) / (3 * theta2**2)
+        c_alpha = stats.norm.ppf(0.99)
+        UCL_SPE = theta1 * ( (c_alpha * np.sqrt(2 * theta2 * h0**2) / theta1) + 1 + (theta2 * h0 * (h0 - 1) / theta1**2) )**(1/h0)
+    else:
+        UCL_SPE = 0
 
     # --- Contribution Plot Calculation ---
     fig_contrib = None
@@ -1329,29 +1345,29 @@ def plot_multivariate_spc(scenario='Stable'):
         first_ooc_index = n_in_control
         contributions = []
         if scenario == 'Shift in Y Only':
-            # T² contribution is related to the score's distance from the origin
-            contributions = (scaled_data[first_ooc_index] * pca.components_.T * scores[first_ooc_index, 0]).flatten()
+            contributions = (data_3d[first_ooc_index] - pca.mean_) * pca.components_.T @ np.linalg.inv(np.diag(pca.explained_variance_)) @ scores[first_ooc_index]
         elif scenario == 'Correlation Break':
-            # SPE contribution is simply the squared residual for each variable
             contributions = residuals[first_ooc_index]**2
         
-        df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions})
+        # FIX: Ensure the 'Variable' list has the same length as the 'contributions' list (3 in this case).
+        df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure', 'Other (Noise)'], 'Contribution': contributions})
+        
         fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Variable Contributions to Alarm at Batch #{first_ooc_index+1}</b>",
-                               color='Variable', color_discrete_sequence=['#1f77b4', '#ff7f0e'])
+                               color='Variable', color_discrete_sequence=['#1f77b4', '#ff7f0e', '#2ca02c'])
         fig_contrib.update_layout(showlegend=False)
 
     # --- Main Plotting ---
     fig_scatter = px.scatter(
-        x=data[:, 0], y=data[:, 1],
+        x=data_3d[:, 0], y=data_3d[:, 1],
         color=['In-Control'] * n_in_control + ['Out-of-Control'] * n_out_of_control,
         title=f"<b>1. Process Data Scatter Plot ({scenario} Scenario)</b>",
         labels={'x': 'Temperature (°C)', 'y': 'Pressure (PSI)', 'color': 'Status'}
     )
 
     fig_charts = make_subplots(rows=1, cols=2, subplot_titles=("<b>2. Hotelling's T² Chart</b>", "<b>3. SPE / DModX Chart</b>"))
-    fig_charts.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=t_squared, mode='lines+markers', name="T²"), row=1, col=1)
+    fig_charts.add_trace(go.Scatter(x=np.arange(1, len(data_3d)+1), y=t_squared, mode='lines+markers', name="T²"), row=1, col=1)
     fig_charts.add_hline(y=UCL_T2, line=dict(color='red', dash='dash'), row=1, col=1)
-    fig_charts.add_trace(go.Scatter(x=np.arange(1, len(data)+1), y=spe, mode='lines+markers', name="SPE"), row=1, col=2)
+    fig_charts.add_trace(go.Scatter(x=np.arange(1, len(data_3d)+1), y=spe, mode='lines+markers', name="SPE"), row=1, col=2)
     if not np.isnan(UCL_SPE):
         fig_charts.add_hline(y=UCL_SPE, line=dict(color='red', dash='dash'), row=1, col=2)
     fig_charts.update_layout(height=400, showlegend=False); fig_charts.update_xaxes(title_text="Batch Number")

@@ -1698,19 +1698,16 @@ def plot_mva_pls(signal_strength=2.0, noise_sd=0.2):
 
 def plot_clustering(separation=15, spread=2.5):
     """
-    Generates dynamic clustering plots based on user-defined separation and spread.
+    Generates dynamic clustering plots and an Elbow Method plot based on user-defined separation and spread.
     """
     np.random.seed(42)
     n_points_per_cluster = 50
     
     # --- Dynamic Data Generation ---
-    # The centers of the clusters are now controlled by the 'separation' slider
     X1 = np.random.normal(10, spread, n_points_per_cluster)
     Y1 = np.random.normal(10, spread, n_points_per_cluster)
-    
     X2 = np.random.normal(10 + separation, spread, n_points_per_cluster)
     Y2 = np.random.normal(10 + separation, spread, n_points_per_cluster)
-    
     X3 = np.random.normal(10, spread, n_points_per_cluster)
     Y3 = np.random.normal(10 + separation, spread, n_points_per_cluster)
     
@@ -1718,29 +1715,42 @@ def plot_clustering(separation=15, spread=2.5):
     Y = np.concatenate([Y1, Y2, Y3])
     df = pd.DataFrame({'X': X, 'Y': Y})
     
-    # --- Re-run Clustering and Calculate KPIs ---
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init='auto').fit(df)
-    df['Cluster'] = kmeans.labels_.astype(str)
-    
-    # Calculate Silhouette Score for cluster quality
-    score = silhouette_score(df[['X', 'Y']], df['Cluster'])
+    # --- 1. Generate Main Scatter Plot (fixed at k=3 for visualization) ---
+    kmeans_3 = KMeans(n_clusters=3, random_state=42, n_init='auto').fit(df)
+    df['Cluster'] = kmeans_3.labels_.astype(str)
+    silhouette_val = silhouette_score(df[['X', 'Y']], df['Cluster'])
 
-    # --- Plotting ---
-    fig = px.scatter(df, x='X', y='Y', color='Cluster', 
-                     title='<b>Clustering: Discovering Hidden Process Regimes</b>',
-                     labels={'X': 'Process Parameter 1 (e.g., Temperature)', 'Y': 'Process Parameter 2 (e.g., Pressure)'})
-    
-    # Add cluster centers to the plot
-    centers = kmeans.cluster_centers_
-    fig.add_trace(go.Scatter(x=centers[:, 0], y=centers[:, 1],
-                             mode='markers',
-                             marker=dict(color='black', size=15, symbol='cross'),
-                             name='Centroids'))
-    
-    fig.update_traces(marker=dict(size=8, line=dict(width=1, color='black')))
-    fig.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-    
-    return fig, score
+    fig_scatter = px.scatter(df, x='X', y='Y', color='Cluster', 
+                             title='<b>Discovered Process Regimes</b>',
+                             labels={'X': 'Process Parameter 1', 'Y': 'Process Parameter 2'})
+    centers = kmeans_3.cluster_centers_
+    fig_scatter.add_trace(go.Scatter(x=centers[:, 0], y=centers[:, 1],
+                                     mode='markers',
+                                     marker=dict(color='black', size=15, symbol='cross'),
+                                     name='Centroids'))
+    fig_scatter.update_traces(marker=dict(size=8, line=dict(width=1, color='black')))
+    fig_scatter.update_layout(legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+
+    # --- 2. Generate Elbow Method Plot ---
+    wcss = []
+    k_range = range(1, 11)
+    for k in k_range:
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto').fit(df[['X', 'Y']])
+        wcss.append(kmeans.inertia_) # Inertia is the WCSS
+
+    fig_elbow = go.Figure()
+    fig_elbow.add_trace(go.Scatter(x=list(k_range), y=wcss, mode='lines+markers'))
+    fig_elbow.update_layout(title='<b>Elbow Method for Selecting k</b>',
+                            xaxis_title='Number of Clusters (k)',
+                            yaxis_title='Inertia (WCSS)')
+    # Add an annotation to highlight the "elbow"
+    fig_elbow.add_annotation(x=3, y=wcss[2],
+                             text="The 'Elbow'",
+                             showarrow=True, arrowhead=2, arrowcolor='red', ax=40, ay=-40)
+                             
+    return fig_scatter, fig_elbow, silhouette_val
+
+
 @st.cache_data
 def plot_classification_models():
     np.random.seed(1)
@@ -4064,14 +4074,12 @@ def render_clustering():
     - **Customer Segmentation:** In a commercial context, it can be used to segment patients or customers into distinct groups based on their characteristics, enabling targeted strategies.
     """)
     
-    # --- NEW: Added Interactive Demo explanation ---
     st.info("""
     **Interactive Demo:** Use the sliders in the sidebar to change the underlying structure of the data.
-    - **Increase `Cluster Separation`:** Watch the groups move farther apart. This makes the clustering task easier, and you will see the **Silhouette Score (cluster quality) increase**.
+    - **Increase `Cluster Separation`:** Watch the groups move farther apart. This makes the clustering task easier, and you will see the **Silhouette Score (cluster quality) increase** and a **sharper bend in the Elbow Plot**.
     - **Increase `Cluster Spread (Noise)`:** Watch the groups become wider and more diffuse. This makes the clustering task harder, and the **Silhouette Score will decrease** as the clusters begin to overlap.
     """)
 
-    # --- NEW: Added slider gadgets to the sidebar ---
     st.sidebar.subheader("Clustering Controls")
     separation_slider = st.sidebar.slider(
         "Cluster Separation",
@@ -4084,69 +4092,88 @@ def render_clustering():
         help="Controls the standard deviation (spread) within each cluster. Higher spread means more overlap."
     )
     
-    # --- MODIFIED: Call backend with slider values and unpack KPIs ---
-    fig, silhouette_val = plot_clustering(separation=separation_slider, spread=spread_slider)
+    # Call the backend which now returns two figures and the KPI
+    fig_scatter, fig_elbow, silhouette_val = plot_clustering(separation=separation_slider, spread=spread_slider)
     
-    col1, col2 = st.columns([0.7, 0.3])
+    # --- NEW: Two-column layout for the plots ---
+    col1, col2 = st.columns(2)
     with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
+        st.plotly_chart(fig_scatter, use_container_width=True)
     with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        st.plotly_chart(fig_elbow, use_container_width=True)
         
-        with tabs[0]:
-            # --- MODIFIED: KPIs are now dynamic ---
-            st.metric(label="🏺 Discovered 'Regimes' (k)", value="3", help="The number of clusters the K-Means algorithm was asked to find.")
-            st.metric(label="🗺️ Cluster Quality (Silhouette Score)", value=f"{silhouette_val:.3f}", help="A measure of how distinct the clusters are from each other. Higher is better (max 1.0).")
-            st.metric(label="⛏️ Algorithm Used", value="K-Means", help="A classic and robust partitioning-based clustering algorithm.")
-            
-            st.markdown("""
-            **The Dig Site Findings:**
-            - The algorithm, without any help, has found three distinct groups in the data, color-coded for clarity. The black crosses mark the final calculated centers (centroids) of these groups.
-            - The **Silhouette Score** is the key metric for judging the result. A score > 0.7 indicates strong, well-separated clusters. A score < 0.25 indicates weak or non-existent structure.
-            
-            **The Core Strategic Insight:** The discovery of hidden clusters is one of the most valuable findings in data analysis. It proves that your single process is actually a collection of multiple sub-processes. Understanding the *causes* of this separation is the gateway to improved process control, robustness, and optimization.
-            """)
+    st.subheader("Analysis & Interpretation")
+    # --- MODIFIED: Added a new "How It Works" tab ---
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🧠 How It Works"])
+    
+    with tabs[0]:
+        st.metric(label="🏺 Assumed 'Regimes' (k)", value="3", help="The number of clusters the K-Means algorithm was asked to find for the scatter plot.")
+        st.metric(label="🗺️ Cluster Quality (Silhouette Score)", value=f"{silhouette_val:.3f}", help="A measure of how distinct the clusters are from each other. Higher is better (max 1.0).")
+        st.metric(label="⛏️ Algorithm Used", value="K-Means", help="A classic and robust partitioning-based clustering algorithm.")
+        
+        st.markdown("""
+        **The Dig Site Findings:**
+        - **Left Plot:** The algorithm, without any help, has found three distinct groups in the data, color-coded for clarity. The black crosses mark the final calculated centers (centroids) of these groups.
+        - **Right Plot:** The Elbow Method confirms that *k*=3 (the "elbow" of the curve) is the optimal number of clusters for this dataset.
+        
+        **The Core Strategic Insight:** The discovery of hidden clusters is one of the most valuable findings in data analysis. It proves that your single process is actually a collection of multiple sub-processes. Understanding the *causes* of this separation is the gateway to improved process control, robustness, and optimization.
+        """)
 
-        with tabs[1]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The "If It Ain't Broke..." Fallacy**
-            This is the most common way to squander the value of a clustering analysis.
-            
-            - An analyst presents the discovery of three distinct clusters. A manager responds, *"Interesting, but all of those batches passed QC testing, so who cares? Let's move on."*
-            - **The Flaw:** This treats a treasure map as a doodle. The fact that all batches passed is what makes the discovery so important! It means there are different—and potentially more or less robust—paths to success. One of those "regimes" might be living on the edge of a cliff (close to a specification limit), while another is safe in a valley.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: A Cluster is a Clue, Not a Conclusion**
-            The discovery of clusters is the **start** of the investigation, not the end. The correct approach is a disciplined forensic analysis.
-            
-            1.  **Find the Clusters:** Use an algorithm like K-Means to partition the data.
-            2.  **Validate the Clusters:** Use a metric like the Silhouette Score to ensure the clusters are meaningful.
-            3.  **Profile the Clusters (This is the most important step!):** Treat each cluster as a separate group. Overlay other information. Ask:
-                - Do batches in Cluster 1 use a different raw material lot than Cluster 2?
-                - Were the batches in Cluster 3 all run by the night shift?
-                - Is there a seasonal effect that separates the clusters?
-            
-            This profiling step is what turns a statistical finding into actionable process knowledge.
-            """)
+    with tabs[1]:
+        st.error("""
+        🔴 **THE INCORRECT APPROACH: The "If It Ain't Broke..." Fallacy**
+        This is the most common way to squander the value of a clustering analysis.
+        
+        - An analyst presents the discovery of three distinct clusters. A manager responds, *"Interesting, but all of those batches passed QC testing, so who cares? Let's move on."*
+        - **The Flaw:** This treats a treasure map as a doodle. The fact that all batches passed is what makes the discovery so important! It means there are different—and potentially more or less robust—paths to success. One of those "regimes" might be living on the edge of a cliff (close to a specification limit), while another is safe in a valley.
+        """)
+        st.success("""
+        🟢 **THE GOLDEN RULE: A Cluster is a Clue, Not a Conclusion**
+        The discovery of clusters is the **start** of the investigation, not the end. The correct approach is a disciplined forensic analysis.
+        
+        1.  **Find the Clusters:** Use an algorithm like K-Means to partition the data.
+        2.  **Validate the Clusters:** Use a metric like the Silhouette Score to ensure the clusters are meaningful.
+        3.  **Profile the Clusters (This is the most important step!):** Treat each cluster as a separate group. Overlay other information. Ask:
+            - Do batches in Cluster 1 use a different raw material lot than Cluster 2?
+            - Were the batches in Cluster 3 all run by the night shift?
+            - Is there a seasonal effect that separates the clusters?
+        
+        This profiling step is what turns a statistical finding into actionable process knowledge.
+        """)
 
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin
-            The K-Means algorithm is a foundational pillar of machine learning, with a history that predates many modern techniques. While the core idea was explored by several researchers, it was first proposed by **Stuart Lloyd** at Bell Labs in 1957 as a technique for pulse-code modulation. The term "k-means" itself was first coined by **James MacQueen** in a 1967 paper.
-            
-            Its simplicity, coupled with the explosion of computational power, has made it one of the most widely used and taught clustering algorithms. It represents a fundamental shift in data analysis—from testing pre-defined hypotheses to exploring data to generate *new* hypotheses.
-            
-            #### How K-Means Works: The "Pizza Shop" Analogy
-            Imagine you want to open 3 new pizza shops in a city to best serve its residents. How do you find the optimal locations?
-            1.  **Step 1 (Random Start):** You randomly drop 3 pins on a map of the city. These are your initial "cluster centroids."
-            2.  **Step 2 (Assignment):** You draw a boundary around each pin. Every house (data point) in the city is assigned to its *closest* pizza shop. You now have 3 customer bases.
-            3.  **Step 3 (Update):** For each of the 3 customer bases, you find its true geographic center. You then **move the pizza shop's pin** to that new center.
-            4.  **Step 4 (Repeat):** Now that the shops have moved, you repeat from Step 2. Re-assign every house to its new closest shop, then update the shop locations again.
-            
-            You repeat this "Assign-Update" process until the pins stop moving. The final locations of the pizza shops are the centers of your discovered clusters.
-            """)
+    with tabs[2]:
+        st.markdown("""
+        #### Historical Context & Origin
+        The K-Means algorithm is a foundational pillar of machine learning, with a history that predates many modern techniques. While the core idea was explored by several researchers, it was first proposed by **Stuart Lloyd** at Bell Labs in 1957 as a technique for pulse-code modulation. The term "k-means" itself was first coined by **James MacQueen** in a 1967 paper.
+        
+        Its simplicity, coupled with the explosion of computational power, has made it one of the most widely used and taught clustering algorithms. It represents a fundamental shift in data analysis—from testing pre-defined hypotheses to exploring data to generate *new* hypotheses.
+        """)
+    
+    # --- NEW CONTENT: Explanation of core clustering concepts ---
+    with tabs[3]:
+        st.markdown("""
+        #### How do you choose the number of clusters (k)?
+        
+        This is the most common question in clustering. While in this demo we set *k*=3 for the main plot, in a real analysis, you wouldn't know the right number. The **Elbow Method**, shown in the plot on the right, is a common technique to estimate *k*.
+        
+        1.  **Run K-Means multiple times:** The algorithm is run for a range of *k* values (from 1 to 10 in our plot).
+        2.  **Calculate the Inertia:** For each run, we calculate the **Within-Cluster Sum of Squares (WCSS)** or "inertia." This measures how compact the clusters are (lower is better).
+        3.  **Find the "Elbow":** We plot Inertia vs. *k*. The curve looks like an arm, and the point where it bends—the **"elbow"**—is considered the optimal number of clusters. It's the point of diminishing returns, where adding another cluster doesn't significantly reduce the inertia.
+        
+        ---
+        
+        #### How are the borders between clusters established?
+
+        The K-Means algorithm establishes borders with a simple rule: **every point in the space belongs to the closest cluster center (centroid).**
+
+        This creates a geometric structure called a **Voronoi Tessellation**. Imagine planting a flag at each of the final centroids (the black crosses). The border between any two clusters is the line that is exactly halfway between their flags. This carves the entire 2D space into distinct territories with perfectly defined, straight-line borders.
+        
+        ---
+        
+        #### How is the "size" of a cluster determined?
+        
+        This is the most straightforward part. The size of a cluster is simply the **total count of data points** that have been assigned to it after the algorithm finishes. For example, in this simulation, all three clusters have a size of 50.
+        """)
 
 
 def render_anomaly_detection():

@@ -1343,37 +1343,38 @@ def plot_causal_inference(confounding_strength=5.0):
         'Calibration Age': {'pos': (1.5, 1.5), 'color': '#EF553B'}
     }
     
+    # --- THIS IS THE CORRECTED BLOCK ---
     # Add Edges (Arrows) with color-coding for paths
+    # The arguments `axshift` and `ayshift` have been removed.
+    # The arrow's tail is now precisely controlled by `ax` and `ay` in data coordinates.
     # Causal Path (Green)
-    fig_dag.add_annotation(x=nodes['Product Purity']['pos'][0], y=nodes['Product Purity']['pos'][1],
-                           ax=nodes['Sensor Reading']['pos'][0], ay=nodes['Sensor Reading']['pos'][1],
+    fig_dag.add_annotation(x=nodes['Product Purity']['pos'][0] - 0.45, y=nodes['Product Purity']['pos'][1], # Arrow head
+                           ax=nodes['Sensor Reading']['pos'][0] + 0.45, ay=nodes['Sensor Reading']['pos'][1], # Arrow tail
                            xref='x', yref='y', axref='x', ayref='y', showarrow=True,
-                           arrowhead=2, arrowwidth=4, arrowcolor='#00CC96',
-                           axshift=60, ayshift=0, xshift=-80)
+                           arrowhead=2, arrowwidth=4, arrowcolor='#00CC96')
     
     # Backdoor Path (Red)
-    fig_dag.add_annotation(x=nodes['Sensor Reading']['pos'][0], y=nodes['Sensor Reading']['pos'][1],
-                           ax=nodes['Calibration Age']['pos'][0], ay=nodes['Calibration Age']['pos'][1],
+    fig_dag.add_annotation(x=nodes['Sensor Reading']['pos'][0] + 0.15, y=nodes['Sensor Reading']['pos'][1] + 0.4,
+                           ax=nodes['Calibration Age']['pos'][0] - 0.15, ay=nodes['Calibration Age']['pos'][1] - 0.4,
                            xref='x', yref='y', axref='x', ayref='y', showarrow=True,
-                           arrowhead=2, arrowwidth=3, arrowcolor='#EF553B',
-                           axshift=-40, ayshift=-40, xshift=50, yshift=40)
-    fig_dag.add_annotation(x=nodes['Product Purity']['pos'][0], y=nodes['Product Purity']['pos'][1],
-                           ax=nodes['Calibration Age']['pos'][0], ay=nodes['Calibration Age']['pos'][1],
+                           arrowhead=2, arrowwidth=3, arrowcolor='#EF553B')
+    fig_dag.add_annotation(x=nodes['Product Purity']['pos'][0] - 0.15, y=nodes['Product Purity']['pos'][1] + 0.4,
+                           ax=nodes['Calibration Age']['pos'][0] + 0.15, ay=nodes['Calibration Age']['pos'][1] - 0.4,
                            xref='x', yref='y', axref='x', ayref='y', showarrow=True,
-                           arrowhead=2, arrowwidth=3, arrowcolor='#EF553B',
-                           axshift=40, ayshift=-40, xshift=-50, yshift=40)
+                           arrowhead=2, arrowwidth=3, arrowcolor='#EF553B')
+    # --- END OF CORRECTION ---
 
     # Add Nodes (Circles)
     for name, attrs in nodes.items():
         fig_dag.add_shape(type="circle", xref="x", yref="y",
-                          x0=attrs['pos'][0] - 0.4, y0=attrs['pos'][1] - 0.4,
-                          x1=attrs['pos'][0] + 0.4, y1=attrs['pos'][1] + 0.4,
+                          x0=attrs['pos'][0] - 0.5, y0=attrs['pos'][1] - 0.5,
+                          x1=attrs['pos'][0] + 0.5, y1=attrs['pos'][1] + 0.5,
                           line_color="Black", fillcolor=attrs['color'], line_width=2)
         fig_dag.add_annotation(x=attrs['pos'][0], y=attrs['pos'][1], text=f"<b>{name.replace(' ', '<br>')}</b>",
                                showarrow=False, font=dict(color='white', size=12))
 
     # Add Path Labels
-    fig_dag.add_annotation(x=1.5, y=-0.25, text="<b><span style='color:#00CC96'>Direct Causal Path</span></b>",
+    fig_dag.add_annotation(x=1.5, y=-0.3, text="<b><span style='color:#00CC96'>Direct Causal Path</span></b>",
                            showarrow=False, font_size=14)
     fig_dag.add_annotation(x=1.5, y=0.8, text="<b><span style='color:#EF553B'>Confounding 'Backdoor' Path</span></b>",
                            showarrow=False, font_size=14)

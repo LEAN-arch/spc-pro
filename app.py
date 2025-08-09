@@ -1417,9 +1417,10 @@ def plot_ewma_cusum_comparison(shift_size=0.75):
     ewma_alarm_idx = np.where(ewma[20:] > ewma_ucl)[0]
     cusum_alarm_idx = np.where(sh[20:] > cusum_ucl)[0]
 
-    i_detect_time = f"{i_alarm_idx[0] + 1} Samples" if len(i_alarm_idx) > 0 else "Failed to Detect"
-    ewma_detect_time = f"{ewma_alarm_idx[0] + 1} Samples" if len(ewma_alarm_idx) > 0 else "Failed to Detect"
-    cusum_detect_time = f"{cusum_alarm_idx[0] + 1} Samples" if len(cusum_alarm_idx) > 0 else "Failed to Detect"
+    # --- FIX: Changed "Samples" to "Data Points" in the KPI strings ---
+    i_detect_time = f"{i_alarm_idx[0] + 1} Data Points" if len(i_alarm_idx) > 0 else "Failed to Detect"
+    ewma_detect_time = f"{ewma_alarm_idx[0] + 1} Data Points" if len(ewma_alarm_idx) > 0 else "Failed to Detect"
+    cusum_detect_time = f"{cusum_alarm_idx[0] + 1} Data Points" if len(cusum_alarm_idx) > 0 else "Failed to Detect"
 
     # --- Plotting ---
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
@@ -1448,8 +1449,9 @@ def plot_ewma_cusum_comparison(shift_size=0.75):
                   annotation_text="Process Shift Occurs", annotation_position="top left",
                   row='all', col=1)
 
+    # --- FIX: Changed "Sample Number" to "Data Point Number" in the axis title ---
     fig.update_layout(title=f"<b>Case Study: Detecting a {shift_size}σ Process Shift</b>", height=800, showlegend=False)
-    fig.update_xaxes(title_text="Sample Number", row=3, col=1)
+    fig.update_xaxes(title_text="Data Point Number", row=3, col=1)
     
     return fig, i_detect_time, ewma_detect_time, cusum_detect_time
     

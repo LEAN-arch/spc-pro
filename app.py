@@ -3220,17 +3220,17 @@ def render_tolerance_intervals():
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to explore the trade-offs in tolerance intervals. This simulation demonstrates how sample size and the desired quality guarantee (coverage) directly impact the calculated interval, which in turn affects process specifications and batch release decisions.
+    **Interactive Demo:** Use the sliders below to explore the trade-offs in tolerance intervals. This simulation demonstrates how sample size and the desired quality guarantee (coverage) directly impact the calculated interval, which in turn affects process specifications and batch release decisions.
     """)
     
     # --- NEW: Sidebar controls for this specific module ---
-    st.sidebar.subheader("Tolerance Interval Controls")
-    n_slider = st.sidebar.slider(
+    st.subheader("Tolerance Interval Controls")
+    n_slider = st.slider(
         "🔬 Sample Size (n)", 
         min_value=10, max_value=200, value=30, step=10,
         help="The number of samples collected. More samples lead to a narrower, more reliable interval."
     )
-    coverage_slider = st.sidebar.select_slider(
+    coverage_slider = st.select_slider(
         "🎯 Desired Population Coverage",
         options=[90.0, 95.0, 99.0, 99.9],
         value=99.0,
@@ -3298,7 +3298,7 @@ def render_method_comparison():
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to simulate different types of disagreement between a "Test" method and a "Reference" method. See in real-time how each diagnostic plot (Deming, Bland-Altman, %Bias) reveals a different aspect of the problem, helping you build a deep intuition for method comparison statistics.
+    **Interactive Demo:** Use the sliders at the bottom of the sidebar to simulate different types of disagreement between a "Test" method and a "Reference" method. See in real-time how each diagnostic plot (Deming, Bland-Altman, %Bias) reveals a different aspect of the problem, helping you build a deep intuition for method comparison statistics.
     """)
     
     # --- Sidebar controls for this specific module ---

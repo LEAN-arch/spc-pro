@@ -3780,8 +3780,32 @@ def render_survival_analysis():
     - **⚕️ Clinical Trials:** The gold standard for analyzing endpoints like "time to disease progression" or "overall survival." It provides definitive proof if a new drug helps patients live longer or stay disease-free for longer.
     - **🔬 Reagent & Product Stability:** A powerful way to model the "shelf-life" of a reagent lot or product by defining "failure" as dropping below a performance threshold.
     """)
+
+    # --- NEW: Added Interactive Demo explanation ---
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to simulate different reliability scenarios.
+    - **Increase `Group B Reliability`:** Watch the red curve flatten and separate from the blue curve, simulating a more reliable new component. Notice how the p-value drops and the median survival time increases.
+    - **Increase `Censoring Rate`:** Simulate a shorter study where fewer components fail. Notice the vertical tick marks (censored items) appear more frequently. With high censoring, it becomes harder to prove a significant difference.
+    """)
+
+    # --- NEW: Added slider gadgets to the sidebar ---
+    st.sidebar.subheader("Survival Analysis Controls")
+    lifetime_slider = st.sidebar.slider(
+        "⚙️ Group B Reliability (Lifetime Scale)",
+        min_value=15, max_value=45, value=30, step=1,
+        help="Controls the characteristic lifetime of the 'New Component' (Group B). A higher value means it's more reliable."
+    )
+    censor_slider = st.sidebar.slider(
+        " Censoring Rate (%)",
+        min_value=0, max_value=80, value=20, step=5,
+        help="The percentage of items that are still 'surviving' when the study ends. Simulates shorter vs. longer studies."
+    )
     
-    fig = plot_survival_analysis() # Assumes a function that plots K-M curves
+    # --- MODIFIED: Call backend with slider values and unpack KPIs ---
+    fig, median_a, median_b, p_value = plot_survival_analysis(
+        group_b_lifetime=lifetime_slider, 
+        censor_rate=censor_slider/100.0
+    )
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -3792,17 +3816,30 @@ def render_survival_analysis():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="📊 Log-Rank Test p-value", value="0.008", help="A p-value < 0.05 indicates a statistically significant difference between the survival curves.")
-            st.metric(label="⏳ Median Survival (Group A)", value="17 Months", help="Time at which 50% of Group A have experienced the event.")
-            st.metric(label="⏳ Median Survival (Group B)", value="28 Months", help="Time at which 50% of Group B have experienced the event.")
+            # --- MODIFIED: KPIs are now dynamic ---
+            st.metric(
+                label="📊 Log-Rank Test p-value", 
+                value=f"{p_value:.3f}", 
+                help="A p-value < 0.05 indicates a statistically significant difference between the survival curves."
+            )
+            st.metric(
+                label="⏳ Median Survival (Group A)", 
+                value=f"{median_a:.1f} Months" if not np.isnan(median_a) else "Not Reached",
+                help="Time at which 50% of Group A have experienced the event."
+            )
+            st.metric(
+                label="⏳ Median Survival (Group B)", 
+                value=f"{median_b:.1f} Months" if not np.isnan(median_b) else "Not Reached",
+                help="Time at which 50% of Group B have experienced the event."
+            )
 
             st.markdown("""
             **Reading the Curve:**
-            - **The Stepped Line:** This is the **Kaplan-Meier survival curve**. It shows the estimated probability of survival over time.
-            - **Vertical Drops:** Each "step down" represents a time when one or more "events" (e.g., equipment failures) occurred.
-            - **Vertical Ticks (Censoring):** These are the heroes of the story! They represent items that were still working perfectly when the study ended or they were removed for other reasons. We don't know their final failure time, but we know they survived *at least* this long.
+            - **The Stepped Line:** The **Kaplan-Meier curve** shows the estimated probability of survival over time.
+            - **Vertical Drops:** Each drop represents one or more "events" (e.g., failures).
+            - **Vertical Ticks (Censoring):** These represent items still working when the study ended. They are crucial pieces of information, not missing data.
             
-            **The Visual Verdict:** The curve for **Group B** is consistently higher and "flatter" than the curve for Group A. This visually demonstrates that items in Group B have a higher probability of surviving longer. The low p-value from the Log-Rank test confirms this visual impression is statistically significant.
+            **The Visual Verdict:** The curve for **Group B** is consistently higher than Group A, demonstrating that items in Group B have a higher probability of surviving longer. The low p-value confirms this visual impression is statistically significant.
             """)
 
         with tabs[1]:
@@ -3824,7 +3861,7 @@ def render_survival_analysis():
             """)
 
         with tabs[2]:
-            st.markdown("""
+            st.markdown(r"""
             #### Historical Context & Origin: The 1958 Revolution
             While the concept of life tables has existed for centuries in actuarial science, analyzing time-to-event data with censored observations was often messy and inconsistent. Different researchers used different ad-hoc methods, making it hard to compare results.
             
@@ -3835,8 +3872,8 @@ def render_survival_analysis():
             #### Mathematical Basis
             The Kaplan-Meier estimate of the survival function `S(t)` is a product of conditional probabilities:
             """)
-            st.latex(r"S(t_i) = S(t_{i-1}) \times \left( \frac{n_i - d_i}{n_i} \right)")
-            st.markdown("""
+            st.latex(r"S(t_i) = S(t_{i-1}) \times \left( 1 - \frac{d_i}{n_i} \right)")
+            st.markdown(r"""
             - **`S(tᵢ)`** is the probability of surviving past time `tᵢ`.
             - **`nᵢ`** is the number of subjects "at risk" (i.e., still surviving) just before time `tᵢ`.
             - **`dᵢ`** is the number of events (e.g., failures) that occurred at time `tᵢ`.

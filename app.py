@@ -1289,34 +1289,29 @@ def plot_multivariate_spc(scenario='Stable'):
     np.random.seed(42)
     n_in_control, n_out_of_control = 20, 10
     
-    mean_vec_2d = [10, 20]
-    cov_mat_2d = [[1, 0.8], [0.8, 1]]
-    in_control_2d = np.random.multivariate_normal(mean_vec_2d, cov_mat_2d, n_in_control)
+    mean_vec_3d = [10, 20, 5]
+    # In-control data is now 3D to properly simulate SPE
+    cov_mat_3d = [[1, 0.8, 0.1], [0.8, 1, 0.2], [0.1, 0.2, 1]]
+    in_control_3d = np.random.multivariate_normal(mean_vec_3d, cov_mat_3d, n_in_control)
     
-    in_control_z = np.random.normal(5, 0.1, n_in_control)
-    in_control_3d = np.hstack((in_control_2d, in_control_z.reshape(-1, 1)))
-
-    out_of_control_2d = np.random.multivariate_normal(mean_vec_2d, cov_mat_2d, n_out_of_control)
-    out_of_control_z = np.random.normal(5, 0.1, n_out_of_control)
-
-    if scenario == 'Stable':
-        # No change for stable
-        pass
-    elif scenario == 'Shift in Y Only':
-        out_of_control_2d = np.random.multivariate_normal([10, 22.5], cov_mat_2d, n_out_of_control)
+    # Generate out-of-control data based on the scenario
+    out_of_control_3d = np.random.multivariate_normal(mean_vec_3d, cov_mat_3d, n_out_of_control)
+    if scenario == 'Shift in Y Only':
+        mean_shifted = [10, 22.5, 5]
+        out_of_control_3d = np.random.multivariate_normal(mean_shifted, cov_mat_3d, n_out_of_control)
     elif scenario == 'Correlation Break':
-        # This is a novel event in the 3rd dimension
-        out_of_control_z = np.random.normal(8, 0.1, n_out_of_control)
+        # This is a novel event in the 3rd dimension, breaking the model
+        mean_spe_shift = [10, 20, 8]
+        out_of_control_3d = np.random.multivariate_normal(mean_spe_shift, cov_mat_3d, n_out_of_control)
         
-    out_of_control_3d = np.hstack((out_of_control_2d, out_of_control_z.reshape(-1, 1)))
     data_3d = np.vstack([in_control_3d, out_of_control_3d])
     
-    # --- PCA Model for SPE ---
+    # --- PCA Model and Calculations ---
     from sklearn.decomposition import PCA
     pca = PCA(n_components=2).fit(in_control_3d)
     scores = pca.transform(data_3d)
     
-    # --- T² Calculation (on PCA scores) ---
+    # T² Calculation
     scores_in_control = scores[:n_in_control, :]
     mean_scores = np.mean(scores_in_control, axis=0)
     S_inv = np.linalg.inv(np.cov(scores_in_control.T))
@@ -1324,20 +1319,13 @@ def plot_multivariate_spc(scenario='Stable'):
     p, n = 2, n_in_control
     UCL_T2 = ((p * (n+1) * (n-1)) / (n*n - n*p)) * stats.f.ppf(0.9973, p, n-p)
 
-    # --- SPE Calculation ---
+    # SPE Calculation
     residuals = data_3d - pca.inverse_transform(scores)
     spe = np.sum(residuals**2, axis=1)
     
-    theta = np.sum(pca.explained_variance_[2:])
-    if theta > 0:
-        theta1 = np.sum(pca.explained_variance_[2:])
-        theta2 = np.sum(pca.explained_variance_[2:]**2)
-        theta3 = np.sum(pca.explained_variance_[2:]**3)
-        h0 = 1 - (2 * theta1 * theta3) / (3 * theta2**2)
-        c_alpha = stats.norm.ppf(0.99)
-        UCL_SPE = theta1 * ( (c_alpha * np.sqrt(2 * theta2 * h0**2) / theta1) + 1 + (theta2 * h0 * (h0 - 1) / theta1**2) )**(1/h0)
-    else:
-        UCL_SPE = 0
+    # SPE Limit
+    in_control_spe = spe[:n_in_control]
+    UCL_SPE = np.mean(in_control_spe) + 3 * np.std(in_control_spe)
 
     # --- Contribution Plot Calculation ---
     fig_contrib = None
@@ -1345,11 +1333,15 @@ def plot_multivariate_spc(scenario='Stable'):
         first_ooc_index = n_in_control
         contributions = []
         if scenario == 'Shift in Y Only':
-            contributions = (data_3d[first_ooc_index] - pca.mean_) * pca.components_.T @ np.linalg.inv(np.diag(pca.explained_variance_)) @ scores[first_ooc_index]
+            # FIX: Corrected T² contribution calculation
+            # It's the sum of contributions from each principal component
+            T_contribs = np.zeros(data_3d.shape[1])
+            for i in range(pca.n_components_):
+                T_contribs += (scores[first_ooc_index, i] / np.sqrt(pca.explained_variance_[i])) * pca.components_[i, :]
+            contributions = T_contribs**2
         elif scenario == 'Correlation Break':
             contributions = residuals[first_ooc_index]**2
         
-        # FIX: Ensure the 'Variable' list has the same length as the 'contributions' list (3 in this case).
         df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure', 'Other (Noise)'], 'Contribution': contributions})
         
         fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Variable Contributions to Alarm at Batch #{first_ooc_index+1}</b>",

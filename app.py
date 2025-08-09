@@ -26,6 +26,8 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA
+from lifelines.statistics import logrank_test
+from lifelines import KaplanMeierFitter
 import shap
 import xgboost as xgb
 from scipy.special import logsumexp
@@ -2410,78 +2412,85 @@ def plot_stability_analysis(degradation_rate=-0.4, noise_sd=0.5, batch_to_batch_
 # The @st.cache_data decorator has been removed to allow for dynamic updates from sliders.
 def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
     """
-    Generates dynamic Kaplan-Meier survival plots based on user-defined reliability and censoring.
+    Generates an enhanced, more realistic survival analysis dashboard, including
+    confidence intervals, an "at risk" table, and a proper log-rank test.
     """
-    # ... (The rest of the function remains the same as you implemented it in the previous step) ...
     np.random.seed(42)
     n_samples = 50
     
+    # Generate time-to-event data from a Weibull distribution
     time_A = stats.weibull_min.rvs(c=1.5, scale=20, size=n_samples)
     time_B = stats.weibull_min.rvs(c=1.5, scale=group_b_lifetime, size=n_samples)
     
-    censor_A = np.random.binomial(1, censor_rate, n_samples)
-    censor_B = np.random.binomial(1, censor_rate, n_samples)
+    # Generate censoring status
+    event_observed_A = 1 - np.random.binomial(1, censor_rate, n_samples)
+    event_observed_B = 1 - np.random.binomial(1, censor_rate, n_samples)
 
-    def kaplan_meier_estimator(times, events):
-        df = pd.DataFrame({'time': times, 'event': events}).sort_values('time').reset_index(drop=True)
-        unique_times = sorted(df['time'][df['event'] == 1].unique())
-        
-        km_df = pd.DataFrame({'time': [0] + unique_times})
-        km_df['survival'] = 1.0
-
-        for i in range(1, len(km_df)):
-            t = km_df.loc[i, 'time']
-            at_risk = (df['time'] >= t).sum()
-            events_at_t = ((df['time'] == t) & (df['event'] == 1)).sum()
-            
-            if at_risk > 0:
-                km_df.loc[i, 'survival'] = km_df.loc[i-1, 'survival'] * (1 - events_at_t / at_risk)
-            else:
-                km_df.loc[i, 'survival'] = km_df.loc[i-1, 'survival']
-        
-        median_survival = np.nan
-        first_below_50 = km_df[km_df['survival'] < 0.5]
-        if not first_below_50.empty:
-            median_survival = first_below_50['time'].iloc[0]
-
-        ts = np.repeat(km_df['time'].values, 2)[1:]
-        surv = np.repeat(km_df['survival'].values, 2)[:-1]
-        
-        return np.append([0], ts), np.append([1.0], surv), median_survival
-
-    ts_A, surv_A, median_A = kaplan_meier_estimator(time_A, 1 - censor_A)
-    ts_B, surv_B, median_B = kaplan_meier_estimator(time_B, 1 - censor_B)
+    # --- SME Enhancement: Use the lifelines library for robust calculations ---
+    kmf_A = KaplanMeierFitter()
+    kmf_A.fit(time_A, event_observed=event_observed_A, label='Group A (Old Component)')
     
-    p_value = np.exp(-0.2 * abs(group_b_lifetime - 20)) * 0.5 + np.random.uniform(-0.01, 0.01)
-    p_value = max(0.001, p_value)
+    kmf_B = KaplanMeierFitter()
+    kmf_B.fit(time_B, event_observed=event_observed_B, label='Group B (New Component)')
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=ts_A, y=surv_A, mode='lines', name='Group A (Old Component)', line_shape='hv', line=dict(color='blue')))
-    fig.add_trace(go.Scatter(x=ts_B, y=surv_B, mode='lines', name='Group B (New Component)', line_shape='hv', line=dict(color='red')))
+    # Perform the log-rank test for statistical significance
+    results = logrank_test(time_A, time_B, event_observed_A, event_observed_B)
+    p_value = results.p_value
+
+    # --- Plotting ---
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+        row_heights=[0.8, 0.2],
+        subplot_titles=("<b>Kaplan-Meier Survival Estimates</b>", "")
+    )
     
-    censored_A = pd.DataFrame({'time': time_A, 'censor': censor_A, 'group': 'A'})
-    censored_B = pd.DataFrame({'time': time_B, 'censor': censor_B, 'group': 'B'})
-    censored_df = pd.concat([censored_A, censored_B])
-    censored_df = censored_df[censored_df['censor'] == 1]
+    # Plot curves with confidence intervals
+    for kmf, color in zip([kmf_A, kmf_B], ['blue', 'red']):
+        kmf_df = kmf.survival_function_.join(kmf.confidence_interval_)
+        fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[kmf.label], mode='lines',
+                                 name=kmf.label, line=dict(color=color, shape='hv', width=3)), row=1, col=1)
+        # Confidence interval shading
+        fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[f'{kmf.label}_upper_0.95'], mode='lines',
+                                 line=dict(width=0), showlegend=False), row=1, col=1)
+        fig.add_trace(go.Scatter(x=kmf_df.index, y=kmf_df[f'{kmf.label}_lower_0.95'], mode='lines',
+                                 line=dict(width=0), fill='tonexty', fillcolor=f'rgba({",".join(str(c) for c in px.colors.hex_to_rgb(color))}, 0.2)',
+                                 name=f'{kmf.label} 95% CI'), row=1, col=1)
+
+    # Add markers for censored data
+    censored_A = time_A[event_observed_A == 0]
+    censored_B = time_B[event_observed_B == 0]
+    fig.add_trace(go.Scatter(x=censored_A, y=kmf_A.predict(censored_A), mode='markers',
+                             marker=dict(color='blue', symbol='line-ns-open', size=10),
+                             name='Censored (Group A)'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=censored_B, y=kmf_B.predict(censored_B), mode='markers',
+                             marker=dict(color='red', symbol='line-ns-open', size=10),
+                             name='Censored (Group B)'), row=1, col=1)
+
+    # --- SME Enhancement: Add "At Risk" table ---
+    time_bins = np.linspace(0, max(time_A.max(), time_B.max()), 6).astype(int)
+    at_risk_A = [np.sum(time_A >= t) for t in time_bins]
+    at_risk_B = [np.sum(time_B >= t) for t in time_bins]
     
-    def find_surv_prob(t, times, probs):
-        idx = np.searchsorted(times, t, side='right') - 1
-        return probs[idx]
-
-    censored_df['surv_prob_A'] = censored_df.apply(lambda row: find_surv_prob(row['time'], ts_A, surv_A) if row['group'] == 'A' else np.nan, axis=1)
-    censored_df['surv_prob_B'] = censored_df.apply(lambda row: find_surv_prob(row['time'], ts_B, surv_B) if row['group'] == 'B' else np.nan, axis=1)
-
-    fig.add_trace(go.Scatter(x=censored_df[censored_df['group']=='A']['time'], y=censored_df['surv_prob_A'], mode='markers', marker_symbol='line-ns-open', marker_color='blue', name='Censored A', showlegend=False))
-    fig.add_trace(go.Scatter(x=censored_df[censored_df['group']=='B']['time'], y=censored_df['surv_prob_B'], mode='markers', marker_symbol='line-ns-open', marker_color='red', name='Censored B', showlegend=False))
-
-
-    fig.update_layout(title='<b>Reliability / Survival Analysis (Kaplan-Meier Curve)</b>',
-                      xaxis_title='Time to Event (e.g., Days to Failure)',
-                      yaxis_title='Survival Probability',
-                      yaxis_range=[0, 1.05],
-                      legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99))
-                      
-    return fig, median_A, median_B, p_value
+    fig.add_trace(go.Table(
+        header=dict(values=['<b>Time Point</b>'] + [f'<b>{t}</b>' for t in time_bins]),
+        cells=dict(values=[
+            ['<b>Group A At Risk</b>', '<b>Group B At Risk</b>'],
+            *[[at_risk_A[i], at_risk_B[i]] for i in range(len(time_bins))]
+        ], font=dict(size=12)),
+    ), row=2, col=1)
+    
+    fig.update_layout(
+        title='<b>Reliability / Survival Analysis Dashboard</b>',
+        xaxis_title='Time to Event (e.g., Days to Failure)',
+        yaxis_title='Survival Probability',
+        yaxis_range=[0, 1.05],
+        legend=dict(yanchor="top", y=0.98, xanchor="right", x=0.98, bgcolor='rgba(255,255,255,0.7)'),
+        height=800
+    )
+    
+    return fig, kmf_A.median_survival_time_, kmf_B.median_survival_time_, p_value
 
 def plot_mva_pls(signal_strength=2.0, noise_sd=0.2):
     """
@@ -5259,28 +5268,28 @@ def render_survival_analysis():
     **Purpose:** To model "time-to-event" data and forecast the probability of survival over time. Its superpower is its unique ability to handle **censored data**—observations where the study ends before the event (e.g., failure or death) occurs. It allows us to use every last drop of information, even from the subjects who "survived" the study.
     
     **Strategic Application:** This is the core methodology for reliability engineering and is essential for predictive maintenance, risk analysis, and clinical research.
-    - **⚙️ Predictive Maintenance:** Instead of replacing parts on a fixed schedule, you can model their failure probability over time. This answers: "What is the risk this HPLC column fails *in the next 100 injections*?" This moves maintenance from guesswork to a data-driven strategy.
-    - **⚕️ Clinical Trials:** The gold standard for analyzing endpoints like "time to disease progression" or "overall survival." It provides definitive proof if a new drug helps patients live longer or stay disease-free for longer.
-    - **🔬 Reagent & Product Stability:** A powerful way to model the "shelf-life" of a reagent lot or product by defining "failure" as dropping below a performance threshold.
+    - **⚙️ Predictive Maintenance:** Instead of replacing parts on a fixed schedule, you can model their failure probability over time, moving from guesswork to a data-driven strategy.
+    - **⚕️ Clinical Trials:** The gold standard for analyzing endpoints like "time to disease progression" or "overall survival."
     """)
 
     st.info("""
     **Interactive Demo:** Use the sliders in the sidebar to simulate different reliability scenarios.
-    - **Increase `Group B Reliability`:** Watch the red curve flatten and separate from the blue curve, simulating a more reliable new component. Notice how the p-value drops and the median survival time increases.
-    - **Increase `Censoring Rate`:** Simulate a shorter study where fewer components fail. Notice the vertical tick marks (censored items) appear more frequently. With high censoring, it becomes harder to prove a significant difference.
+    - **`Group B Reliability`**: A higher value simulates a more reliable new component. Watch the red curve flatten and separate from the blue curve.
+    - **`Censoring Rate`**: A higher rate simulates a shorter study. Notice the uncertainty (shaded confidence intervals) grows wider, and the "At Risk" numbers drop faster.
     """)
 
-    st.sidebar.subheader("Survival Analysis Controls")
-    lifetime_slider = st.sidebar.slider(
-        "⚙️ Group B Reliability (Lifetime Scale)",
-        min_value=15, max_value=45, value=30, step=1,
-        help="Controls the characteristic lifetime of the 'New Component' (Group B). A higher value means it's more reliable."
-    )
-    censor_slider = st.sidebar.slider(
-        " Censoring Rate (%)",
-        min_value=0, max_value=80, value=20, step=5,
-        help="The percentage of items that are still 'surviving' when the study ends. Simulates shorter vs. longer studies."
-    )
+    with st.sidebar:
+        st.sidebar.subheader("Survival Analysis Controls")
+        lifetime_slider = st.sidebar.slider(
+            "⚙️ Group B Reliability (Lifetime Scale)",
+            min_value=15, max_value=45, value=30, step=1,
+            help="Controls the characteristic lifetime of the 'New Component' (Group B). A higher value means it's more reliable."
+        )
+        censor_slider = st.sidebar.slider(
+            " Censoring Rate (%)",
+            min_value=0, max_value=80, value=20, step=5,
+            help="The percentage of items that are still 'surviving' when the study ends. Simulates shorter vs. longer studies."
+        )
     
     fig, median_a, median_b, p_value = plot_survival_analysis(
         group_b_lifetime=lifetime_slider, 
@@ -5313,24 +5322,22 @@ def render_survival_analysis():
             )
 
             st.markdown("""
-            **Reading the Curve:**
-            - **The Stepped Line:** The **Kaplan-Meier curve** shows the estimated probability of survival over time.
-            - **Vertical Drops:** Each drop represents one or more "events" (e.g., failures).
-            - **Vertical Ticks (Censoring):** These represent items still working when the study ended. They are crucial pieces of information, not missing data.
-            
-            **The Visual Verdict:** The curve for **Group B** is consistently higher than Group A, demonstrating that items in Group B have a higher probability of surviving longer. The low p-value confirms this visual impression is statistically significant.
+            **Reading the Dashboard:**
+            - **The Stepped Lines:** The Kaplan-Meier curves show the estimated probability of survival over time.
+            - **Shaded Areas:** The 95% confidence intervals. They widen as fewer subjects are "at risk."
+            - **Vertical Ticks:** Censored items (e.g., study ended).
+            - **"At Risk" Table:** Shows how many subjects are still being followed at each time point. This provides crucial context for the reliability of the curve estimates.
             """)
 
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Pessimist's Fallacy"**
 This is a catastrophic but common error that leads to dangerously biased results.
 - An analyst wants to know the average lifetime of a component. They take data from a one-year study, **throw away all the censored data** (the units that were still working at one year), and calculate the average time-to-failure for only the units that broke.
-- **The Flaw:** This is a massive pessimistic bias. You have selected **only the weakest items** that failed early and completely ignored the strong, reliable items that were still going strong. The calculated "average lifetime" will be far lower than the true value.""")
+- **The Flaw:** This is a massive pessimistic bias. You have selected **only the weakest items** that failed early and completely ignored the strong, reliable items that were still going strong.""")
             st.success("""🟢 **THE GOLDEN RULE: Respect the Censored Data**
 The core principle of survival analysis is that censored data is not missing data; it is valuable information.
 - A tick on the curve at 24 months is not an unknown. It is a powerful piece of information: **The lifetime of this unit is at least 24 months.**
-- The correct approach is to **always use a method specifically designed to handle censoring**, like the Kaplan-Meier estimator. This method correctly incorporates the information from both the "failures" and the "survivors" to produce an unbiased estimate of the true survival function.
-Never discard censored data. It is just as important as the failure data for getting the right answer.""")
+- The correct approach is to **always use a method specifically designed to handle censoring**, like the Kaplan-Meier estimator. This method correctly incorporates the information from both the "failures" and the "survivors" to produce an unbiased estimate of the true survival function.""")
 
         with tabs[2]:
             st.markdown(r"""
@@ -5348,8 +5355,9 @@ Never discard censored data. It is just as important as the failure data for get
             - **`S(tᵢ)`** is the probability of surviving past time `tᵢ`.
             - **`nᵢ`** is the number of subjects "at risk" (i.e., still surviving and not yet censored) just before time `tᵢ`.
             - **`dᵢ`** is the number of events (e.g., failures) that occurred at time `tᵢ`.
-            
-            Essentially, the probability of surviving to a certain time is the probability you survived up to the last event, *times* the conditional probability you survived this current event. This step-wise calculation gracefully handles censored observations, as they simply exit the "at risk" pool (`nᵢ`) at the time they are censored without causing a drop in the survival curve.
+            The confidence interval for the survival probability is often calculated using **Greenwood's formula**, which estimates the variance of `S(t)`:
+            """)
+            st.latex(r"\hat{Var}(S(t)) \approx S(t)^2 \sum_{t_i \leq t} \frac{d_i}{n_i(n_i - d_i)}"), the probability of surviving to a certain time is the probability you survived up to the last event, *times* the conditional probability you survived this current event. This step-wise calculation gracefully handles censored observations, as they simply exit the "at risk" pool (`nᵢ`) at the time they are censored without causing a drop in the survival curve.
             """)
 
 

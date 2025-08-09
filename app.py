@@ -3325,117 +3325,74 @@ def render_multivariate_spc():
             st.markdown("where **P** is the matrix of PCA loadings (the model directions).")
     
     # Nested plotting function from the user's code
-    def plot_ewma_cusum_comparison():
-        np.random.seed(123)
-        n_points = 40
-        data = np.random.normal(100, 2, n_points)
-        data[20:] += 1.5 # A small 0.75-sigma shift
-        mean, std = 100, 2
-        
-        # EWMA calculation
-        lam = 0.2 # Lambda, the weighting factor
-        ewma = np.zeros(n_points)
-        ewma[0] = mean
-        for i in range(1, n_points):
-            ewma[i] = lam * data[i] + (1 - lam) * ewma[i-1]
-        
-        # CUSUM calculation
-        target = mean
-        k = 0.5 * std # "Allowance" or "slack"
-        sh, sl = np.zeros(n_points), np.zeros(n_points)
-        for i in range(1, n_points):
-            sh[i] = max(0, sh[i-1] + (data[i] - target) - k)
-            sl[i] = max(0, sl[i-1] + (target - data[i]) - k)
-            
-        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                            subplot_titles=("<b>I-Chart: The Beat Cop (Misses the Shift)</b>", 
-                                            "<b>EWMA: The Sentinel (Catches the Shift)</b>", 
-                                            "<b>CUSUM: The Bloodhound (Catches it Fastest)</b>"))
+def render_ewma_cusum():
+    """Renders the comprehensive, interactive module for Small Shift Detection (EWMA/CUSUM)."""
+    st.markdown("""
+    #### Purpose & Application: The Process Sentinel
+    **Purpose:** To deploy a high-sensitivity monitoring system designed to detect small, sustained shifts in a process mean that would be invisible to a standard Shewhart control chart (like an I-MR or X-bar chart). These charts have "memory," accumulating evidence from past data to find subtle signals.
 
-        # I-Chart
-        fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=data, mode='lines+markers', name='Data'), row=1, col=1)
-        fig.add_hline(y=mean + 3*std, line_color='red', line_dash='dash', row=1, col=1)
-        fig.add_hline(y=mean - 3*std, line_color='red', line_dash='dash', row=1, col=1)
-        fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=1, col=1)
+    **Strategic Application:** This is an essential "second layer" of process monitoring for mature, stable processes where large, sudden failures are rare, but slow, gradual drifts are a significant risk.
+    - **🔬 EWMA (The Sentinel):** The Exponentially Weighted Moving Average chart is a robust, general-purpose tool that smoothly weights past observations, making it excellent for detecting the onset of a gradual drift.
+    - **🐕 CUSUM (The Bloodhound):** The Cumulative Sum chart is a specialized, high-power tool. It is the fastest possible detector for a shift of a specific magnitude, making it ideal for processes where you want to catch a known, critical shift size as quickly as possible.
+    """)
 
-        # EWMA Chart
-        fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=ewma, mode='lines+markers', name='EWMA'), row=2, col=1)
-        sigma_ewma = std * np.sqrt(lam / (2-lam)) # Asymptotic SD
-        fig.add_hline(y=mean + 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
-        fig.add_hline(y=mean - 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
-        fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=2, col=1)
-        
-        # CUSUM Chart
-        fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sh, mode='lines+markers', name='CUSUM High'), row=3, col=1)
-        fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sl, mode='lines+markers', name='CUSUM Low'), row=3, col=1)
-        fig.add_hline(y=5*std, line_color='red', line_dash='dash', row=3, col=1) # Decision interval H
-        fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=3, col=1, annotation_text="Process Shift Occurs", annotation_position="top")
-
-        fig.update_layout(title="<b>Case Study: Detecting a Small Process Shift (0.75σ)</b>", height=800, showlegend=False)
-        fig.update_xaxes(title_text="Sample Number", row=3, col=1)
-        return fig
+    st.info("""
+    **Interactive Demo:** This case study simulates a small but significant **0.75-sigma shift** occurring at sample #20. Compare the three charts below. Notice how the I-Chart (the "beat cop") completely misses the signal, while the memory-based EWMA and CUSUM charts (the "sentinels") sound the alarm, demonstrating their superior sensitivity.
+    """)
 
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
+        # Note: This assumes the 'plot_ewma_cusum_comparison' helper function
+        # is correctly defined in the plotting functions section of your script.
         fig = plot_ewma_cusum_comparison()
         st.plotly_chart(fig, use_container_width=True)
-        
+
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
+
         with tabs[0]:
             st.metric(label="Shift Size", value="0.75 σ", help="A small, sustained shift was introduced at sample #20.")
-            st.metric(label="I-Chart Detection Time", value="> 20 Samples (Failed)", help="The I-Chart never signaled an alarm.")
+            st.metric(label="I-Chart Detection Time", value="> 20 Samples (Failed)", delta_color="inverse", help="The I-Chart never signaled an alarm.")
             st.metric(label="EWMA Detection Time", value="~10 Samples", help="The EWMA signaled an alarm around sample #30.")
             st.metric(label="CUSUM Detection Time", value="~7 Samples", help="The CUSUM signaled an alarm around sample #27.")
 
             st.markdown("""
             **The Visual Evidence:**
             - **The I-Chart (Top):** This chart is blind to the problem. The small 0.75σ shift is lost in the normal process noise. All points look "in-control," giving a false sense of security.
-            
             - **The EWMA Chart (Middle):** This chart has memory. The weighted average (the blue line) clearly begins to drift upwards after the shift occurs. It smoothly accumulates evidence until it crosses the red control limit, signaling a real change.
-            
             - **The CUSUM Chart (Bottom):** This chart is a "bloodhound" for a specific scent. It accumulates all deviations from the target. Once the process shifts, the `CUSUM High` plot takes off like a rocket, providing the fastest possible signal.
 
-            **The Core Strategic Insight:** Relying only on Shewhart charts creates a significant blind spot. For processes where small, slow drifts in performance are possible (e.g., tool wear, reagent degradation, column aging), EWMA or CUSUM charts are not optional—they are essential for effective process control.
+            **The Core Strategic Insight:** Relying only on Shewhart charts creates a significant blind spot. For processes where small, slow drifts are possible (e.g., tool wear, reagent degradation), EWMA or CUSUM charts are essential.
             """)
 
         with tabs[1]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: "The One-Chart-Fits-All Fallacy"**
-            A manager insists on using only I-MR charts for everything because "that's how we've always done it" and they are easy to understand.
-            
+            A manager insists on using only I-MR charts for everything because they are easy to understand.
             - They miss a slow 1-sigma drift for weeks, producing tons of near-spec material.
             - When a batch finally fails, they are shocked and have no leading indicators to explain why. They have been flying blind.
-            - They see no value in the "complex" EWMA/CUSUM charts, viewing them as academic exercises.
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: Layer Your Statistical Defenses**
-            The goal is to use a combination of charts to create a comprehensive security system for your process.
-            
-            - **Use Shewhart Charts (I-MR, X-bar) as your front-line "Beat Cops":** They are simple and unmatched for detecting large, sudden special causes (e.g., an operator error, a major equipment failure).
+            The goal is to use a combination of charts to create a comprehensive security system.
+            - **Use Shewhart Charts (I-MR, X-bar) as your front-line "Beat Cops":** They are unmatched for detecting large, sudden special causes.
             - **Use EWMA or CUSUM as your "Sentinels":** Deploy them alongside Shewhart charts to stand guard against the silent, creeping threats that the beat cops will miss.
-            
-            This layered approach provides a complete picture of process stability, protecting against both sudden shocks and slow drifts.
+            This layered approach provides a complete picture of process stability.
             """)
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context & Origin: Beyond Shewhart
-            The quality revolution sparked by **Walter Shewhart's** control charts in the 1920s was a massive success. However, by the 1950s, industries were pushing for even higher levels of quality and needed tools to detect smaller and smaller process deviations.
-            
-            - **CUSUM (1954):** The first major innovation came from British statistician **E. S. Page**. He developed the Cumulative Sum (CUSUM) chart, borrowing concepts from sequential analysis. Its design was revolutionary: it was explicitly optimized to detect a shift of a specific size in the minimum possible time, making it a powerful tool for targeted process monitoring.
-            
-            - **EWMA (1959):** Shortly after, statistician **S. W. Roberts** proposed the Exponentially Weighted Moving Average (EWMA) chart as a more general-purpose alternative. Its roots are in forecasting, where smoothing techniques developed by visionaries like **George Box** were used to predict future values from past data. Roberts adapted this "smoothing" concept to create a chart that was highly effective at picking up small shifts, easy to implement, and less rigid than the CUSUM chart.
-            
-            These two inventions marked the second generation of SPC, giving engineers the sensitive tools they needed to manage the increasingly complex and precise manufacturing processes of the late 20th century.
-            
+            By the 1950s, industries needed tools to detect smaller process deviations.
+            - **CUSUM (1954):** British statistician **E. S. Page** developed the Cumulative Sum chart, optimized to detect a specific shift size in the minimum time.
+            - **EWMA (1959):** Statistician **S. W. Roberts** proposed the Exponentially Weighted Moving Average chart as a general-purpose alternative, adapting forecasting "smoothing" techniques.
+            These inventions marked the second generation of SPC, giving engineers the sensitive tools they needed for increasingly precise manufacturing.
             #### Mathematical Basis
-            - **EWMA:** `EWMA_t = λ * Y_t + (1-λ) * EWMA_{t-1}`
-              - `λ` (lambda) is the weighting factor (0 < λ ≤ 1). A smaller `λ` gives more weight to past data (longer memory) and is better for detecting smaller shifts.
-            - **CUSUM:** `SH_t = max(0, SH_{t-1} + (Y_t - T) - k)`
-              - This formula for the "high-side" CUSUM accumulates upward deviations. `T` is the process target, and `k` is a "slack" parameter, typically set to half the size of the shift you want to detect quickly. The CUSUM only starts accumulating when a deviation is larger than the slack.
+            - **EWMA:** $EWMA_t = \lambda \cdot Y_t + (1-\lambda) \cdot EWMA_{t-1}$
+              - `λ` is the weighting factor (0 < λ ≤ 1). A smaller `λ` gives more weight to past data.
+            - **CUSUM:** $SH_t = \max(0, SH_{t-1} + (Y_t - T) - k)$
+              - `T` is the process target, and `k` is a "slack" parameter. The CUSUM only accumulates when a deviation is larger than the slack.
             """)
             
 def render_time_series_analysis():

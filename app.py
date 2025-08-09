@@ -4364,15 +4364,11 @@ def render_xai_shap():
     - The **Local Prediction Explanation** will update to show the specific root cause analysis for the case you've chosen to investigate. Compare the 'highest risk' and 'lowest risk' cases to see how the factors change.
     """)
 
-    # --- NEW: Replaced slider with a more purposeful radio button gadget ---
+    # --- Redesigned gadget using radio buttons for clear choices ---
     st.sidebar.subheader("XAI Investigation Controls")
     case_choice = st.sidebar.radio(
         "Select a Case to Investigate:",
-        options={
-            'highest_risk': "Highest Predicted Failure Risk",
-            'lowest_risk': "Lowest Predicted Failure Risk",
-            'most_ambiguous': "Most Ambiguous Case (Prediction ≈ 50%)"
-        },
+        options=['highest_risk', 'lowest_risk', 'most_ambiguous'],
         format_func=lambda key: {
             'highest_risk': "Highest Predicted Failure Risk",
             'lowest_risk': "Lowest Predicted Failure Risk",
@@ -4389,7 +4385,6 @@ def render_xai_shap():
         st.subheader("Global Feature Importance (The Model's General Strategy)")
         st.image(summary_buf, caption="This plot shows which factors have the biggest impact on run failure risk across all runs.")
         
-        # --- MODIFIED: Subheader is now dynamic based on the case ---
         st.subheader(f"Local Prediction Explanation for Run #{found_index} ({case_choice.replace('_', ' ').title()})")
         st.dataframe(selected_instance_df)
         st.components.v1.html(force_html, height=150, scrolling=False)
@@ -4397,7 +4392,8 @@ def render_xai_shap():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        # --- Added the new "SME Analysis" tab ---
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🔬 SME Analysis"])
 
         with tabs[0]:
             st.metric("Actual Run Outcome", actual_outcome)
@@ -4440,6 +4436,52 @@ def render_xai_shap():
             Imagine a team of players collaborates to win a prize. How do you divide the winnings fairly based on each player's individual contribution? **Shapley values** provided a mathematically rigorous and unique solution.
             
             Fast forward to 2017. Scott Lundberg and Su-In Lee at the University of Washington had a genius insight. They realized that a machine learning model's prediction could be seen as a "game" and the model's features could be seen as the "players." They adapted Shapley's game theory concepts to create **SHAP (SHapley Additive exPlanations)**, a method to fairly distribute the "payout" (the prediction) among the features. This clever fusion of game theory and machine learning provided the first unified and theoretically sound framework for explaining the output of any machine learning model, a breakthrough that is driving the adoption of AI in high-stakes fields.
+            """)
+
+        with tabs[3]:
+            st.markdown("""
+            #### SME Analysis: From Raw Data to Actionable Intelligence
+
+            As a Subject Matter Expert (SME) in process validation and tech transfer, this tool isn't just a data science curiosity; it's a powerful diagnostic and risk-management engine. Here’s how we would use this in a real-world GxP environment.
+
+            ---
+
+            ##### How is this data gathered and what are the parameters?
+
+            The data used by this model is a simplified version of what we collect during **late-stage development, process characterization, and tech transfer validation runs**.
+
+            -   **Data Gathering:** Every time an assay run is performed, we log key parameters in a Laboratory Information Management System (LIMS) or an Electronic Lab Notebook (ELN). This includes automated readings from the instrument and manual entries by the technician. The final "Pass/Fail" result of the run is the target we are trying to predict.
+
+            -   **Parameters Considered:**
+                *   **`Operator Experience`**: This is critical, especially during tech transfer. We track this from training records. A junior analyst at a receiving site might follow the SOP perfectly, but their inexperience can be a hidden source of variability.
+                *   **`Reagent Age`**: We track this via lot numbers and expiration dates. Even within its expiry, a reagent that is 90 days old might perform differently than one that is 5 days old. This model helps quantify that risk.
+                *   **`Calibrator Slope`**: This is a direct output from the instrument's software. It's a key health indicator for the assay. A decreasing slope over time often signals a systemic issue.
+                *   **`QC Level 1 Value`**: This is the result for a known Quality Control sample. We monitor this using standard SPC charts (like Westgard Rules), but including it here allows the model to learn complex interactions, like how a slight drop in QC value is more dangerous when reagent age is also high.
+                *   **`Instrument ID`**: In a lab with multiple instruments, we always log which machine was used. They are never perfectly identical, and this model can detect if one instrument is contributing disproportionately to run failures.
+
+            ---
+
+            ##### How do we interpret the plots and gain insights?
+
+            The true power here is moving from "what happened" to "why it happened."
+
+            -   **Global Plot (The Big Picture):** The summary plot is our first validation checkpoint for the model itself. As an SME, if I saw that `Instrument ID` was the most important factor and `Calibrator Slope` was irrelevant, I would immediately reject the model. It would mean the model learned a spurious correlation (e.g., our failing instrument is also where we train new operators) rather than the true science. The fact that `Operator Experience` and `Calibrator Slope` are top drivers gives me confidence that the AI's "thinking" aligns with scientific reality.
+
+            -   **Local Plot (The Smoking Gun):** This is our **automated root cause investigation tool**.
+                *   When I select the **"Highest Predicted Failure Risk"** case, the force plot instantly shows me the "root cause narrative." For the selected run, the story is clear: an inexperienced operator combined with a low calibrator slope created a high-risk situation. The fact that the reagent was fresh (a blue, risk-lowering factor) wasn't enough to save it.
+                *   When I select the **"Lowest Predicted Failure Risk"** case, I see the "golden run" profile: an experienced operator, a perfect calibrator slope, and fresh reagents. This confirms what an ideal run looks like.
+
+            ---
+
+            ##### How would we implement this?
+
+            Implementation is a phased process moving from monitoring to proactive control.
+
+            1.  **Phase 1 (Silent Monitoring):** The model runs in the background. It predicts the failure risk for every run, and we use SHAP to analyze the reasons for high-risk predictions. This data is reviewed during weekly process monitoring meetings. It helps us spot trends—"Are we seeing more failures driven by `Reagent Age` lately?"—and guides our investigations.
+
+            2.  **Phase 2 (Advisory Mode):** The system is integrated with the LIMS. When an operator starts a run, the model calculates a risk score based on the chosen reagents and their own logged experience. If the risk is high, it could generate an advisory: **"Warning: Reagent Lot XYZ is 85 days old. This significantly increases the risk of run failure. Consider using a newer lot."**
+
+            3.  **Phase 3 (Proactive Control / Real-Time Release):** This is the ultimate goal of PAT. Once the model is fully validated and trusted, its predictions can become part of the official batch record. A run with a very low predicted risk and a favorable SHAP explanation could be eligible for **Real-Time Release Testing (RTRT)**, skipping certain redundant final QC tests. This dramatically accelerates production timelines and reduces costs, all while increasing quality assurance.
             """)
             
 def render_advanced_ai_concepts():

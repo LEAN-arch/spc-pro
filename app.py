@@ -1804,62 +1804,6 @@ def wilson_score_interval(p_hat, n, z=1.96):
     # This helper function remains the same, but it's good to keep it near the plotting function.
     if n == 0: return (0, 1)
     term1 = (p_hat + z**2 / (2 * n)); denom = 1 + z**2 / n; term2 = z * np.sqrt((p_hat * (1-p_hat)/n) + (z**2 / (4 * n**2))); return (term1 - term2) / denom, (term1 + term2) / denom
-
-# The @st.cache_data decorator is removed to allow for dynamic regeneration.
-def plot_binomial_intervals(successes, n_samples):
-    """
-    Generates dynamic plots for comparing binomial confidence intervals.
-    """
-    # --- Plot 1: CI Comparison ---
-    p_hat = successes / n_samples if n_samples > 0 else 0
-    
-    # Wald Interval
-    if n_samples > 0 and p_hat > 0 and p_hat < 1:
-        wald_se = np.sqrt(p_hat * (1 - p_hat) / n_samples)
-        wald_ci = (p_hat - 1.96 * wald_se, p_hat + 1.96 * wald_se)
-    else:
-        wald_ci = (p_hat, p_hat) # Collapses at boundaries
-
-    # Wilson Score Interval
-    wilson_ci = wilson_score_interval(p_hat, n_samples)
-    
-    # Clopper-Pearson (Exact) Interval
-    if n_samples > 0:
-        alpha = 0.05
-        cp_low = beta.ppf(alpha / 2, successes, n_samples - successes + 1)
-        cp_high = beta.ppf(1 - alpha / 2, successes + 1, n_samples - successes)
-        cp_ci = (cp_low if successes > 0 else 0, cp_high if successes < n_samples else 1)
-    else:
-        cp_ci = (0, 1)
-
-    fig1 = go.Figure()
-    methods = ['Wald (Incorrect)', 'Wilson Score (Recommended)', 'Clopper-Pearson (Conservative)']
-    intervals = [wald_ci, wilson_ci, cp_ci]
-    for i, (method, interval) in enumerate(zip(methods, intervals)):
-        fig1.add_trace(go.Scatter(x=[interval[0], interval[1]], y=[method, method], mode='lines+markers',
-                                 marker=dict(size=10), line=dict(width=4), name=method))
-    fig1.add_vline(x=p_hat, line_dash="dash", line_color="grey", annotation_text=f"Observed: {p_hat:.2%}")
-    fig1.update_layout(title=f"<b>95% Confidence Intervals for {successes}/{n_samples} Successes</b>",
-                       xaxis_title="Proportion", xaxis_range=[-0.05, 1.05], showlegend=False)
-
-    # --- Plot 2: Coverage Probability (static for performance) ---
-    true_p = np.linspace(0.01, 0.99, 99)
-    # This is a known result, plotting a simplified version for demonstration
-    coverage_wald = 1 - 2 * norm.cdf(-1.96 - (true_p - 0.5) * np.sqrt(n_samples/true_p/(1-true_p)))
-    coverage_wilson = np.full_like(true_p, 0.95) 
-    np.random.seed(42)
-    coverage_wilson += np.random.normal(0, 0.015, len(true_p))
-    coverage_wilson[coverage_wilson > 0.99] = 0.99
-    
-    fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=true_p, y=coverage_wald, mode='lines', name='Wald Coverage', line=dict(color='red')))
-    fig2.add_trace(go.Scatter(x=true_p, y=coverage_wilson, mode='lines', name='Wilson Coverage', line=dict(color='blue')))
-    fig2.add_hline(y=0.95, line_dash="dash", line_color="black", annotation_text="Nominal 95% Coverage")
-    fig2.update_layout(title=f"<b>Actual vs. Nominal Coverage Probability (n={n_samples})</b>",
-                       xaxis_title="True Proportion (p)", yaxis_title="Actual Coverage Probability",
-                       yaxis_range=[min(0.8, coverage_wald.min()), 1.05], legend=dict(x=0.01, y=0.01))
-
-    return fig1, fig2
     
 def plot_isolation_forest(contamination_rate=0.1):
     """
@@ -1899,11 +1843,13 @@ def plot_isolation_forest(contamination_rate=0.1):
     return fig, num_flagged
     
 @st.cache_data
-def plot_xai_shap():
-    # This function uses matplotlib backend for SHAP, so we need to handle image conversion
+def plot_xai_shap(instance_index=0):
+    """
+    Trains a model, calculates SHAP values, and generates plots for a selected instance.
+    """
     plt.style.use('default')
     
-    # Load sample data (no changes needed here)
+    # --- 1. Load Data and Train Model (this part is slow and should be cached) ---
     github_data_url = "https://github.com/slundberg/shap/raw/master/data/"
     data_url = github_data_url + "adult.data"
     dtypes = [
@@ -1914,7 +1860,7 @@ def plot_xai_shap():
         ("Capital Gain", "float32"), ("Capital Loss", "float32"),
         ("Hours per week", "float32"), ("Country", "category"), ("Target", "category")
     ]
-    raw_data = pd.read_csv(data_url, names=[d[0] for d in dtypes], na_values="?", dtype=dict(dtypes))
+    raw_data = pd.read_csv(data_url, names=[d[0] for d in dtypes], na_values="?", dtype=dict(dtypes)).dropna()
     X_display = raw_data.drop("Target", axis=1)
     y = (raw_data["Target"] == " >50K").astype(int)
     X = X_display.copy()
@@ -1923,45 +1869,32 @@ def plot_xai_shap():
 
     model = RandomForestClassifier(random_state=42).fit(X, y)
     explainer = shap.Explainer(model, X)
-    shap_values_obj = explainer(X.iloc[:100]) 
     
-    # --- Beeswarm plot (no changes needed here) ---
-    shap.summary_plot(shap_values_obj.values[:,:,1], X.iloc[:100], show=False)
+    # Calculate SHAP values for the first 100 instances for the demo
+    n_instances = 100
+    shap_values_obj = explainer(X.iloc[:n_instances]) 
+    
+    # --- 2. Generate Global Summary Plot (always the same) ---
+    shap.summary_plot(shap_values_obj.values[:,:,1], X.iloc[:n_instances], show=False)
     buf_summary = io.BytesIO()
     plt.savefig(buf_summary, format='png', bbox_inches='tight')
     plt.close()
     buf_summary.seek(0)
     
-    # --- Force plot HTML generation (THIS IS THE FIX) ---
-    # 1. Generate the plot object
+    # --- 3. Generate Local Force Plot for the SELECTED instance ---
+    # The 'instance_index' is now a parameter controlled by the user's slider
     force_plot = shap.force_plot(
         explainer.expected_value[1], 
-        shap_values_obj.values[0,:,1], 
-        X_display.iloc[0,:], 
+        shap_values_obj.values[instance_index,:,1], 
+        X_display.iloc[instance_index,:], 
         show=False
     )
     
-    # 2. Get the raw HTML from the plot object
     force_plot_html = force_plot.html()
-
-    # 3. Create a fully self-contained HTML string by adding the SHAP JS library.
-    #    shap.initjs() injects the necessary <script> tag for rendering.
     full_html = f"<html><head>{shap.initjs()}</head><body>{force_plot_html}</body></html>"
-
-    return buf_summary, full_html
     
-    # Beeswarm plot as an image
-    shap.summary_plot(shap_values_obj.values[:,:,1], X.iloc[:100], show=False)
-    buf_summary = io.BytesIO()
-    plt.savefig(buf_summary, format='png', bbox_inches='tight')
-    plt.close()
-    buf_summary.seek(0)
-    
-    # Force plot as html
-    force_plot_html = shap.force_plot(explainer.expected_value[1], shap_values_obj.values[0,:,1], X_display.iloc[0,:], show=False)
-    html_string = force_plot_html.html()
-
-    return buf_summary, html_string
+    # Return both plots and the data for the selected instance for display
+    return buf_summary, full_html, X_display.iloc[instance_index:instance_index+1]
 
 @st.cache_data
 def plot_advanced_ai_concepts(concept):
@@ -4412,37 +4345,52 @@ def render_xai_shap():
     - **⚖️ Regulatory Compliance:** It provides the auditable, scientific rationale needed to justify a model-based decision to regulators and quality assurance.
     - **Actionable Insights:** It pinpoints which input variables are driving a prediction, guiding targeted corrective actions and deepening process understanding.
     """)
-    
-    summary_buf, force_html = plot_xai_shap() # Assumes a function returns these components
-    
-    # FIX: Re-structured to use the standard two-column layout for consistency.
-    col1, col2 = st.columns([0.7, 0.3])
 
+    # --- NEW: Added Interactive Demo explanation ---
+    st.info("""
+    **Interactive Demo:** Use the slider in the sidebar to select a specific individual from the dataset.
+    - The **Global Feature Importance** plot (top) always stays the same, showing the model's overall logic.
+    - The **Local Prediction Explanation** plot (bottom) will dynamically update for each individual you select. Observe how the same features (like 'Age' or 'Capital Gain') have a different impact for different people, demonstrating the power of local, instance-specific explanations.
+    """)
+
+    # --- NEW: Added slider gadget to the sidebar ---
+    st.sidebar.subheader("XAI Controls")
+    instance_slider = st.sidebar.slider(
+        "Select an Individual to Explain:",
+        min_value=0, max_value=99, value=0, step=1,
+        help="Choose a specific data point (person) from the first 100 in the dataset to see its unique SHAP explanation."
+    )
+    
+    # --- MODIFIED: Call backend with slider value and unpack new return value ---
+    summary_buf, force_html, selected_instance_df = plot_xai_shap(instance_index=instance_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        st.subheader("Global Feature Importance")
-        st.image(summary_buf, caption="The SHAP Summary Plot shows the overall impact of each feature.")
+        st.subheader("Global Feature Importance (The Model's General Strategy)")
+        st.image(summary_buf, caption="The SHAP Summary Plot shows the overall impact of each feature across many predictions.")
         
-        st.subheader("Local Prediction Explanation")
-        st.components.v1.html(f"<body>{force_html}</body>", height=150, scrolling=True)
-        st.caption("The SHAP Force Plot explains a single, specific prediction.")
+        st.subheader(f"Local Prediction Explanation for Individual #{instance_slider}")
+        st.dataframe(selected_instance_df)
+        st.components.v1.html(force_html, height=150, scrolling=False)
+        st.caption("The SHAP Force Plot explains why the model made its prediction for this specific individual.")
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
         with tabs[0]:
-            st.info("💡 **Pro-Tip:** SHAP provides two levels of explanation: **Global** (how the model works overall) and **Local** (why it made one specific prediction).")
+            st.info("💡 SHAP provides two levels of explanation: **Global** (how the model works overall) and **Local** (why it made one specific prediction).")
 
             st.markdown("""
             **Global Explanation (Top-Left Plot):**
-            - **Feature Importance (Y-axis):** This plot ranks features by their total impact. We can see `Age` is the most important factor overall.
-            - **Impact (X-axis) & Value (Color):** We can see a clear pattern: high `Age` (red dots) has a high positive SHAP value, meaning it strongly pushes the model to predict a higher income.
+            - **Feature Importance (Y-axis):** This plot ranks features by their total impact. We can see `Relationship`, `Age`, and `Capital Gain` are the most important factors overall.
+            - **Impact (X-axis) & Value (Color):** We can see a clear pattern: high `Capital Gain` (red dots) has a high positive SHAP value, meaning it strongly pushes the model to predict a higher income.
             
             **Local Explanation (Bottom-Left Plot):**
             - This plot is a **tug-of-war for a single prediction**.
-            - **Red Forces:** Features pushing the prediction higher. For this person, `Capital Gain` was the dominant factor.
-            - **Blue Forces:** Features pushing the prediction lower.
-            - **Final Prediction (`f(x)`):** The result after all pushes and pulls are tallied up.
+            - **Red Forces:** Features pushing the prediction higher (towards '>50K').
+            - **Blue Forces:** Features pushing the prediction lower (towards '<=50K').
+            - **Final Prediction (`f(x)`):** The result after all pushes and pulls are tallied up. For each individual you select, this tug-of-war will be different.
             """)
 
         with tabs[1]:
@@ -4478,7 +4426,7 @@ def render_xai_shap():
             #### How it Works
             SHAP calculates the contribution of each feature to a prediction by simulating every possible combination of features ("coalitions"). It asks: "How much does the prediction change, on average, when we add this specific feature to all possible subsets of other features?" This exhaustive, computationally intensive approach is the only method proven to have a unique set of desirable properties (Local Accuracy, Missingness, and Consistency) that guarantee a fair and accurate explanation.
             """)
-
+            
 def render_advanced_ai_concepts():
     """Renders the module for advanced AI concepts."""
     st.markdown("""

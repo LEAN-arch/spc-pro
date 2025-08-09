@@ -1352,16 +1352,12 @@ def plot_causal_inference(confounding_strength=5.0):
     # Causal relationships (arrows)
     edges = [('Calibration Age', 'Sensor Reading'), ('Sensor Reading', 'Product Purity'), ('Calibration Age', 'Product Purity')]
     for start, end in edges:
-        # --- THIS IS THE CORRECTED BLOCK ---
-        # The arguments `axshift` and `ayshift` have been corrected to `xshift` and `yshift`.
-        # I also adjusted the shift values slightly for better aesthetics.
         fig_dag.add_annotation(
             x=nodes[end][0], y=nodes[end][1], ax=nodes[start][0], ay=nodes[start][1],
             xref='x', yref='y', axref='x', ayref='y', showarrow=True,
             arrowhead=2, arrowwidth=3, arrowcolor='black',
-            xshift=-10, yshift=-10 # Corrected keyword arguments
+            xshift=-10, yshift=-10
         )
-        # --- END OF CORRECTION ---
 
     fig_dag.update_layout(
         title="<b>1. The Causal Map (DAG): Calibration Drift Scenario</b>",
@@ -1382,20 +1378,27 @@ def plot_causal_inference(confounding_strength=5.0):
     purity = 90 + true_causal_effect_sensor_on_purity * (sensor - 50) + true_effect_age_on_purity * cal_age + np.random.normal(0, 5, n_samples)
     
     df = pd.DataFrame({'SensorReading': sensor, 'Purity': purity, 'CalibrationAge': cal_age})
-    df['Calibration Status'] = df['CalibrationAge'].apply(lambda x: 'Old' if x == 1 else 'New')
+    
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # Create the categorical column with a name that is a valid identifier (no spaces)
+    df['calibration_status'] = df['CalibrationAge'].apply(lambda x: 'Old' if x == 1 else 'New')
+    # --- END OF CORRECTION ---
 
     # --- 3. Calculate effects ---
     naive_model = ols('Purity ~ SensorReading', data=df).fit()
     naive_effect = naive_model.params['SensorReading']
     
-    adjusted_model = ols('Purity ~ SensorReading + C(CalibrationStatus)', data=df).fit()
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # Use the corrected column name in the formula
+    adjusted_model = ols('Purity ~ SensorReading + C(calibration_status)', data=df).fit()
+    # --- END OF CORRECTION ---
     adjusted_effect = adjusted_model.params['SensorReading']
 
     # --- 4. Create the scatter plot ---
-    fig_scatter = px.scatter(df, x='SensorReading', y='Purity', color='Calibration Status',
+    fig_scatter = px.scatter(df, x='SensorReading', y='Purity', color='calibration_status', # Use the corrected column name
                              title="<b>2. Simpson's Paradox: The Danger of Confounding</b>",
                              color_discrete_map={'New': 'blue', 'Old': 'red'},
-                             labels={'SensorReading': 'In-Process Sensor Reading'})
+                             labels={'SensorReading': 'In-Process Sensor Reading', 'calibration_status': 'Calibration Status'}) # Update label
     
     x_range = np.array([df['SensorReading'].min(), df['SensorReading'].max()])
     
@@ -1403,7 +1406,10 @@ def plot_causal_inference(confounding_strength=5.0):
                                      name='Naive Correlation (Misleading)', line=dict(color='orange', width=4, dash='dash')))
     
     intercept_new = adjusted_model.params['Intercept']
-    intercept_old = intercept_new + adjusted_model.params['C(CalibrationStatus)[T.Old]']
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # The coefficient name will also change based on the corrected column name
+    intercept_old = intercept_new + adjusted_model.params['C(calibration_status)[T.Old]']
+    # --- END OF CORRECTION ---
     fig_scatter.add_trace(go.Scatter(x=x_range, y=intercept_new + adjusted_effect * x_range, mode='lines', 
                                      name='True Causal Effect (Within Groups)', line=dict(color='darkgreen', width=4)))
     fig_scatter.add_trace(go.Scatter(x=x_range, y=intercept_old + adjusted_effect * x_range, mode='lines', 

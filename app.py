@@ -1483,19 +1483,27 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2):
     fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat'], mode='lines', name='Prophet Forecast', line=dict(dash='dash', color='red')))
     fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean'], mode='lines', name='ARIMA Forecast', line=dict(dash='dash', color='green')))
     
-    # --- FIX: Convert the Pandas Timestamp to a standard datetime object ---
-    forecast_start_date = train['ds'].iloc[-1].to_pydatetime()
+    forecast_start_date = train['ds'].iloc[-1]
 
-    # Add a vertical line to show where the forecast begins
-    fig.add_vline(x=forecast_start_date, line_width=2, line_dash="dash", line_color="grey",
-                  annotation_text="Forecast Start", annotation_position="bottom right")
+    # --- FIX: Separate the line drawing from the annotation ---
+    # 1. Add the vertical line without any annotation text.
+    fig.add_vline(x=forecast_start_date, line_width=2, line_dash="dash", line_color="grey")
+
+    # 2. Add the annotation as a separate object with an explicit position.
+    fig.add_annotation(
+        x=forecast_start_date,
+        y=0.05, # Position annotation at 5% of the y-axis height
+        yref="paper", # Use paper coordinates for y to keep it at the bottom
+        text="Forecast Start",
+        showarrow=False,
+        xshift=10 # Shift text slightly to the right of the line
+    )
 
     fig.update_layout(title='<b>Time Series Forecasting: Prophet vs. ARIMA</b>', 
                       xaxis_title='Date', yaxis_title='Process Value',
                       legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
                       
     return fig, mae_arima, mae_prophet
-
 @st.cache_data
 def plot_stability_analysis():
     np.random.seed(1)

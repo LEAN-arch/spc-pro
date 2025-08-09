@@ -3261,7 +3261,7 @@ def render_multivariate_spc():
         captions=["A normal, in-control process.", "A 'stealth shift' in one variable.", "An unprecedented event breaks the model."]
     )
 
-    # --- MODIFIED: Unpack the new error_type_str return value ---
+    # Call the backend function and unpack all return values
     fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc, error_type_str = plot_multivariate_spc(scenario=scenario)
     
     st.plotly_chart(fig_scatter, use_container_width=True)
@@ -3271,7 +3271,8 @@ def render_multivariate_spc():
         st.plotly_chart(fig_charts, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        # --- MODIFIED: Added a new tab for conceptual explanations ---
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🧠 Concepts: Bias, Error, & Factors"])
         
         with tabs[0]:
             t2_verdict_str = "Out-of-Control" if t2_ooc else "In-Control"
@@ -3279,8 +3280,6 @@ def render_multivariate_spc():
             
             st.metric("📈 T² Chart Verdict", t2_verdict_str, help="Monitors deviation *within* the normal process model.")
             st.metric("📈 SPE Chart Verdict", spe_verdict_str, help="Monitors deviation *from* the normal process model.")
-            
-            # --- NEW: Add the metric for the error type determination ---
             st.metric(
                 "📊 Error Type Determination",
                 error_type_str,
@@ -3345,6 +3344,46 @@ def render_multivariate_spc():
             """)
             st.latex(r"SPE = || \mathbf{x} - \mathbf{P}\mathbf{P}'\mathbf{x} ||^2")
             st.markdown("where **P** is the matrix of PCA loadings (the model directions).")
+
+        # --- NEW CONTENT: Explanation of core concepts ---
+        with tabs[3]:
+            st.markdown("""
+            #### Understanding the Sources of Variation
+
+            In any process, the total observed variation can be broken down into distinct components. Understanding these components is the key to effective process control and improvement.
+
+            **1. Bias (Systematic Error)**
+            - **Definition:** Bias is a consistent, repeatable error where the average of measurements is offset from the true value. It represents **inaccuracy**.
+            - **Analogy:** A bathroom scale that always reads 5 pounds too heavy. The readings might be very consistent (low noise), but they are all consistently wrong in the same direction.
+            - **In this Demo:** The **'Shift in Y Only'** scenario simulates a pure bias. The process mean for Pressure shifts from 150 to 175, but the underlying correlation structure and noise remain the same. The T² chart is excellent at detecting this kind of systematic bias.
+
+            **2. Noise (Random Error)**
+            - **Definition:** Noise is the unpredictable, non-repeatable fluctuation in measurements. It is inherent to any system and represents **imprecision**. It's the "static" that remains even after all biases are removed.
+            - **Analogy:** A bathroom scale where the reading fluctuates randomly by a pound or two every time you step on it, even if your weight hasn't changed.
+            - **In this Demo:** All scenarios include inherent noise, simulated by the `np.random.multivariate_normal` function. This is the "common cause" variation that control charts are designed to filter out, so we can see the "special cause" signals.
+
+            ---
+
+            #### Intrinsic vs. External Factors
+
+            The sources of bias and noise can be categorized by their origin.
+
+            **1. Intrinsic Factors (Internal Variability)**
+            - **Definition:** These are sources of variation that are a fundamental, built-in part of the process itself. They define the "normal operating state."
+            - **Examples:**
+                - The inherent correlation between Temperature and Pressure in a chemical reaction.
+                - The natural lot-to-lot variability of a raw material from a single, qualified supplier.
+                - The baseline electronic noise of a sensor.
+            - **In this Demo:** The strong positive correlation between Temperature and Pressure, defined by the covariance matrix `[[5, 12], [12, 40]]`, is an **intrinsic factor**. The T² chart models this intrinsic relationship.
+
+            **2. External Factors (Special Causes)**
+            - **Definition:** These are sources of variation that are not part of the normal process design. They are "shocks" or changes to the system that disrupt the stable state.
+            - **Examples:**
+                - A sensor failing, leading to a sudden shift in readings (Bias).
+                - A new, untrained operator introducing inconsistent technique (Noise).
+                - An unprecedented event, like a valve failure, that breaks the established relationship between two parameters.
+            - **In this Demo:** The **'Correlation Break'** scenario simulates a powerful external factor. The covariance matrix changes to `[[5, 0], [0, 40]]`, breaking the intrinsic relationship. This is an event the original process model has never seen, which is why the SPE chart alarms loudly.
+            """)
             
     # Nested plotting function from the user's code
 def render_ewma_cusum():

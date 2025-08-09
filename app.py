@@ -1504,40 +1504,56 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2):
                       legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
                       
     return fig, mae_arima, mae_prophet
-@st.cache_data
-def plot_stability_analysis():
+
+
+def plot_stability_analysis(degradation_rate=-0.4, noise_sd=0.5):
+    """
+    Generates dynamic plots for stability analysis based on user-defined parameters.
+    """
     np.random.seed(1)
     time_points = np.array([0, 3, 6, 9, 12, 18, 24]) # Months
-    # Simulate 3 batches
+    
+    # --- Dynamic Data Generation for 3 batches ---
     batches = {}
     for i in range(3):
+        # Each batch has a slightly different starting point and degradation rate
         initial_potency = np.random.normal(102, 0.5)
-        degradation_rate = np.random.normal(-0.4, 0.05)
-        noise = np.random.normal(0, 0.5, len(time_points))
-        batches[f'Batch {i+1}'] = initial_potency + degradation_rate * time_points + noise
+        batch_degradation_rate = np.random.normal(degradation_rate, 0.05)
+        # The random measurement noise is now controlled by the slider
+        noise = np.random.normal(0, noise_sd, len(time_points))
+        batches[f'Batch {i+1}'] = initial_potency + batch_degradation_rate * time_points + noise
     
     df = pd.DataFrame(batches)
     df['Time'] = time_points
     df_melt = df.melt(id_vars='Time', var_name='Batch', value_name='Potency')
 
-    # Fit a pooled regression model
+    # --- Re-fit model and calculate shelf life on dynamic data ---
     model = ols('Potency ~ Time', data=df_melt).fit()
     LSL = 95.0
     
-    # Calculate shelf life: Time when lower 95% CI of mean prediction crosses LSL
-    x_pred = pd.DataFrame({'Time': np.linspace(0, 36, 100)})
+    x_pred = pd.DataFrame({'Time': np.linspace(0, 48, 100)})
     predictions = model.get_prediction(x_pred).summary_frame(alpha=0.05)
     
     shelf_life_df = predictions[predictions['mean_ci_lower'] >= LSL]
+    # Handle cases where the shelf life is immediate or very long
     shelf_life = x_pred['Time'][shelf_life_df.index[-1]] if not shelf_life_df.empty else 0
+    if shelf_life > 47: shelf_life = ">48"
+    else: shelf_life = f"{shelf_life:.1f}"
 
+    # --- Plotting ---
     fig = px.scatter(df_melt, x='Time', y='Potency', color='Batch', title='<b>Stability Analysis for Shelf-Life Estimation</b>')
     fig.add_trace(go.Scatter(x=x_pred['Time'], y=predictions['mean'], mode='lines', name='Mean Trend', line=dict(color='black')))
     fig.add_trace(go.Scatter(x=x_pred['Time'], y=predictions['mean_ci_lower'], mode='lines', name='95% Lower CI', line=dict(color='red', dash='dash')))
-    fig.add_hline(y=LSL, line=dict(color='red', dash='dot'), name='Specification Limit')
-    fig.add_vline(x=shelf_life, line=dict(color='blue', dash='dash'), annotation_text=f'Shelf-Life = {shelf_life:.1f} Months')
-    fig.update_layout(xaxis_title="Time (Months)", yaxis_title="Potency (%)")
-    return fig
+    fig.add_hline(y=LSL, line=dict(color='red', dash='dot'), annotation_text="Specification Limit")
+    
+    if isinstance(shelf_life, str) and ">" not in shelf_life:
+        fig.add_vline(x=float(shelf_life), line=dict(color='blue', dash='dash'), annotation_text=f'Shelf-Life = {shelf_life} Months')
+
+    fig.update_layout(xaxis_title="Time (Months)", yaxis_title="Potency (%)", xaxis_range=[0, 48], yaxis_range=[85, 105])
+    
+    # Return dynamic KPIs
+    fitted_slope = model.params['Time']
+    return fig, shelf_life, fitted_slope
 
 @st.cache_data
 def plot_survival_analysis():
@@ -3664,7 +3680,28 @@ def render_stability_analysis():
     - Using a conservative confidence interval to set a shelf-life that accounts for future batch-to-batch variability.
     """)
     
-    fig = plot_stability_analysis() # Assumes a function that plots the stability data and model
+    # --- NEW: Added Interactive Demo explanation ---
+    st.info("""
+    **Interactive Demo:** Use the sliders in the sidebar to simulate different product stability profiles.
+    - **Increase `Degradation Rate`:** Simulate a less stable product that degrades more quickly and see how it dramatically shortens the approved shelf-life.
+    - **Increase `Assay Variability`:** Simulate a noisy, imprecise measurement method. Notice how this increases the uncertainty in the model (widens the red confidence interval), which also shortens the shelf-life even if the degradation rate is low.
+    """)
+    
+    # --- NEW: Added slider gadgets to the sidebar ---
+    st.sidebar.subheader("Stability Analysis Controls")
+    degradation_slider = st.sidebar.slider(
+        "📉 Degradation Rate (%/month)",
+        min_value=-1.0, max_value=-0.1, value=-0.4, step=0.05,
+        help="Controls how quickly the product loses potency. A more negative number means faster degradation."
+    )
+    noise_slider = st.sidebar.slider(
+        "🎲 Assay Variability (SD)",
+        min_value=0.2, max_value=2.0, value=0.5, step=0.1,
+        help="The random error or 'noise' of the potency assay. Higher noise increases uncertainty."
+    )
+
+    # --- MODIFIED: Call backend with slider values and unpack KPIs ---
+    fig, shelf_life, fitted_slope = plot_stability_analysis(degradation_rate=degradation_slider, noise_sd=noise_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -3675,18 +3712,19 @@ def render_stability_analysis():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric(label="📈 Approved Shelf-Life", value="31 Months", help="The time at which the lower confidence bound intersects the specification limit.")
-            st.metric(label="📉 Degradation Rate (Slope)", value="-0.21 %/month", help="The estimated average loss of potency per month.")
+            # --- MODIFIED: KPIs are now dynamic ---
+            st.metric(label="📈 Approved Shelf-Life", value=f"{shelf_life} Months", help="The time at which the lower confidence bound intersects the specification limit.")
+            st.metric(label="📉 Fitted Degradation Rate", value=f"{fitted_slope:.2f} %/month", help="The estimated average loss of potency per month from the regression model.")
             st.metric(label="🥅 Specification Limit", value="95.0 %", help="The minimum acceptable potency for the product to be considered effective.")
 
             st.markdown("""
             **Reading the Race Against Time:**
-            - **The Data Points:** These are your real-world potency measurements from three different production batches.
-            - **The Black Line (The Average Trend):** This is the best-fit regression line. It shows the *average* degradation path we expect.
-            - **The Red Dashed Line (The Safety Net):** This is the **95% Lower Confidence Bound**. This is the most important line on the chart. It represents a conservative, worst-case estimate for the *mean* degradation trend, accounting for uncertainty.
-            - **The Finish Line (Red Dotted Line):** This is the specification limit.
+            - **The Data Points:** Your real-world potency measurements from three different production batches.
+            - **The Black Line (Average Trend):** The best-fit regression line showing the average degradation path.
+            - **The Red Dashed Line (Safety Net):** The **95% Lower Confidence Bound**. This is the most important line, representing a conservative estimate for the mean trend.
+            - **The Red Dotted Line (Finish Line):** The specification limit.
 
-            **The Verdict:** The shelf-life is declared at the exact moment **the Safety Net (red dashed line) hits the Finish Line.** This conservative approach ensures that even with the uncertainty of our model and the variability between batches, we are 95% confident the average product potency will not drop below the spec limit before the expiration date.
+            **The Verdict:** The shelf-life is declared at the exact moment **the Safety Net (red dashed line) hits the Finish Line.** This conservative approach ensures high confidence that the average product potency will not drop below spec before the expiration date.
             """)
 
         with tabs[1]:
@@ -3710,7 +3748,7 @@ def render_stability_analysis():
             """)
 
         with tabs[2]:
-            st.markdown("""
+            st.markdown(r"""
             #### Historical Context & Origin: The ICH Revolution
             Prior to the 1990s, the requirements for stability testing could differ significantly between major markets like the USA, Europe, and Japan. This forced pharmaceutical companies to run slightly different, redundant, and costly stability programs for each region to gain global approval.
             
@@ -3722,7 +3760,7 @@ def render_stability_analysis():
             The core of the analysis is typically a linear regression model:
             """)
             st.latex(r"Y_i = \beta_0 + \beta_1 X_i + \epsilon_i")
-            st.markdown("""
+            st.markdown(r"""
             - **`Yᵢ`**: The CQA measurement (e.g., Potency) at time point `i`.
             - **`Xᵢ`**: The time point `i` (e.g., in months).
             - **`β₁`**: The slope, representing the degradation rate.

@@ -1843,46 +1843,24 @@ def plot_isolation_forest(contamination_rate=0.1):
     return fig, num_flagged
     
 @st.cache_data
-def plot_xai_shap(instance_index=0):
+def plot_xai_shap(case_to_explain="highest_risk"):
     """
-    Trains a model on simulated assay run data, calculates SHAP values, 
-    and generates plots for a selected assay run.
+    Trains a model on assay data, finds a specific case (e.g., highest risk),
+    and generates SHAP explanations for it.
     """
     plt.style.use('default')
     
-    # --- 1. Simulate Assay V&V / Tech Transfer Data ---
+    # 1. Simulate Assay Data and Train Model (This part is cached)
     np.random.seed(42)
     n_runs = 200
-    
-    # Feature Generation
-    # Operator Experience (a clear driver)
-    operator_experience = np.random.randint(1, 25, n_runs) # Months
-    
-    # Calibrator Slope (key performance indicator)
+    operator_experience = np.random.randint(1, 25, n_runs)
     cal_slope = np.random.normal(1.0, 0.05, n_runs) - (operator_experience * 0.001)
-    
-    # QC Level 1 (should be stable, but with some noise)
     qc1_value = np.random.normal(50, 2, n_runs) - np.random.uniform(0, operator_experience / 10, n_runs)
-    
-    # Reagent Lot Age (older lots are slightly worse)
     reagent_age_days = np.random.randint(5, 90, n_runs)
-    
-    # Instrument ID (categorical factor, some are better than others)
     instrument_id = np.random.choice(['Inst_A', 'Inst_B', 'Inst_C'], n_runs, p=[0.5, 0.3, 0.2])
-
-    # Target Variable: Run Failure (binary outcome)
-    # Failure probability increases with low experience, old reagents, and low calibrator slope
-    prob_failure = 1 / (1 + np.exp(-(
-        -2.5                                # Base failure rate
-        - 0.15 * operator_experience        # More experience = lower failure prob
-        + (reagent_age_days / 30)           # Older reagents = higher failure prob
-        - (cal_slope - 1.0) * 20            # Lower slope = higher failure prob
-        + (instrument_id == 'Inst_C') * 1.5 # Instrument C is problematic
-    )))
-    
+    prob_failure = 1 / (1 + np.exp(-(-2.5 - 0.15 * operator_experience + (reagent_age_days / 30) - (cal_slope - 1.0) * 20 + (instrument_id == 'Inst_C') * 1.5)))
     run_failed = np.random.binomial(1, prob_failure)
 
-    # Create DataFrames
     X_display = pd.DataFrame({
         'Operator Experience (Months)': operator_experience,
         'Reagent Age (Days)': reagent_age_days,
@@ -1890,41 +1868,45 @@ def plot_xai_shap(instance_index=0):
         'QC Level 1 Value': qc1_value,
         'Instrument ID': instrument_id
     })
-    
     y = pd.Series(run_failed, name="Run Failed")
-    
-    # Preprocess for model
     X = X_display.copy()
     X['Instrument ID'] = X['Instrument ID'].astype('category').cat.codes
 
-    # --- 2. Train Model and Calculate SHAP values ---
     model = RandomForestClassifier(random_state=42).fit(X, y)
     explainer = shap.Explainer(model)
     shap_values = explainer(X)
 
-    # --- 3. Generate Global Summary Plot ---
-    # We explain the probability of the "Failure" class, which is class 1
+    # --- 2. Find the instance index based on the selected case ---
+    failure_probabilities = model.predict_proba(X)[:, 1]
+    
+    if case_to_explain == "highest_risk":
+        instance_index = np.argmax(failure_probabilities)
+    elif case_to_explain == "lowest_risk":
+        instance_index = np.argmin(failure_probabilities)
+    else: # "most_ambiguous"
+        instance_index = np.argmin(np.abs(failure_probabilities - 0.5))
+
+    # 3. Generate Global Summary Plot (always the same)
     shap.summary_plot(shap_values.values[:,:,1], X, show=False)
     buf_summary = io.BytesIO()
     plt.savefig(buf_summary, format='png', bbox_inches='tight')
     plt.close()
     buf_summary.seek(0)
     
-    # --- 4. Generate Local Force Plot for the SELECTED instance ---
+    # 4. Generate Local Force Plot for the dynamically found instance
     force_plot = shap.force_plot(
         explainer.expected_value[1], 
         shap_values.values[instance_index,:,1], 
         X_display.iloc[instance_index,:],
         show=False
     )
-    
     force_plot_html = force_plot.html()
     full_html = f"<html><head>{shap.initjs()}</head><body>{force_plot_html}</body></html>"
     
-    # Return the actual outcome for the selected instance for display
     actual_outcome = "Failed" if y.iloc[instance_index] == 1 else "Passed"
     
-    return buf_summary, full_html, X_display.iloc[instance_index:instance_index+1], actual_outcome
+    # Return the found index for display in the UI
+    return buf_summary, full_html, X_display.iloc[instance_index:instance_index+1], actual_outcome, instance_index
     
 @st.cache_data
 def plot_advanced_ai_concepts(concept):
@@ -4377,27 +4359,38 @@ def render_xai_shap():
     """)
 
     st.info("""
-    **Interactive Demo:** Use the slider in the sidebar to select a specific assay run to investigate.
-    - The **Global Feature Importance** plot (top) shows the model's overall understanding of what drives run failures.
-    - The **Local Prediction Explanation** (bottom) updates for each run, showing the specific "tug-of-war" between factors that led to the model's prediction for that single run.
+    **Interactive Demo:** Use the **"Select a Case to Investigate"** radio buttons in the sidebar to choose a specific, high-interest assay run.
+    - The **Global Feature Importance** plot always shows the model's overall strategy.
+    - The **Local Prediction Explanation** will update to show the specific root cause analysis for the case you've chosen to investigate. Compare the 'highest risk' and 'lowest risk' cases to see how the factors change.
     """)
 
-    st.sidebar.subheader("XAI Controls")
-    instance_slider = st.sidebar.slider(
-        "Select an Assay Run to Explain:",
-        min_value=0, max_value=199, value=15, step=1,
-        help="Choose a specific assay run from the simulated dataset to see its unique SHAP explanation."
+    # --- NEW: Replaced slider with a more purposeful radio button gadget ---
+    st.sidebar.subheader("XAI Investigation Controls")
+    case_choice = st.sidebar.radio(
+        "Select a Case to Investigate:",
+        options={
+            'highest_risk': "Highest Predicted Failure Risk",
+            'lowest_risk': "Lowest Predicted Failure Risk",
+            'most_ambiguous': "Most Ambiguous Case (Prediction ≈ 50%)"
+        },
+        format_func=lambda key: {
+            'highest_risk': "Highest Predicted Failure Risk",
+            'lowest_risk': "Lowest Predicted Failure Risk",
+            'most_ambiguous': "Most Ambiguous Case (Prediction ≈ 50%)"
+        }[key],
+        help="Select a meaningful scenario to see its specific SHAP explanation."
     )
     
-    # Call backend with slider value
-    summary_buf, force_html, selected_instance_df, actual_outcome = plot_xai_shap(instance_index=instance_slider)
+    # Call backend with the selected case
+    summary_buf, force_html, selected_instance_df, actual_outcome, found_index = plot_xai_shap(case_to_explain=case_choice)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.subheader("Global Feature Importance (The Model's General Strategy)")
         st.image(summary_buf, caption="This plot shows which factors have the biggest impact on run failure risk across all runs.")
         
-        st.subheader(f"Local Prediction Explanation for Assay Run #{instance_slider}")
+        # --- MODIFIED: Subheader is now dynamic based on the case ---
+        st.subheader(f"Local Prediction Explanation for Run #{found_index} ({case_choice.replace('_', ' ').title()})")
         st.dataframe(selected_instance_df)
         st.components.v1.html(force_html, height=150, scrolling=False)
         st.caption("This force plot explains why the model made its prediction for this specific run.")
@@ -4417,12 +4410,12 @@ def render_xai_shap():
             - This is a root cause analysis for the selected run.
             - **Red Forces:** These are the factors pushing this specific run's risk **higher**.
             - **Blue Forces:** These are the factors pushing this run's risk **lower**.
-            - **Final Prediction:** The model's final risk assessment. By moving the slider, you can find a run where `Reagent Age` was the main problem, and another where `Calibrator Slope` was the primary driver of the failure risk.
+            - **Final Prediction:** The model's final risk assessment. By switching between the cases in the sidebar, you can see a clear story: the 'highest risk' run is dominated by red factors, while the 'lowest risk' run is dominated by blue factors.
             """)
 
         with tabs[1]:
             st.error("""
-            🔴 **THE INCORRECT APPROACH: "The Accuracy is Everything" Fallacy**
+            🔴 **THE INCORRECT APPROACH: The "Accuracy is Everything" Fallacy**
             This is a dangerous mindset that leads to deploying untrustworthy models.
             
             - An analyst builds a model with 99% accuracy to predict run failures. They declare victory and push to put it into production without any further checks.

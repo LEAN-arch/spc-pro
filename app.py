@@ -1379,55 +1379,79 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=20, random_s
     # --- MODIFIED: Add the new error_type_str to the return values ---
     return fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc, error_type_str
     
-def plot_ewma_cusum_comparison():
+def plot_ewma_cusum_comparison(shift_size=0.75):
+    """
+    Generates dynamic I, EWMA, and CUSUM charts based on a user-defined shift size.
+    """
     np.random.seed(123)
     n_points = 40
-    data = np.random.normal(100, 2, n_points)
-    data[20:] += 1.5 # A small 0.75-sigma shift
     mean, std = 100, 2
+    
+    # --- Data Generation with dynamic shift ---
+    data = np.random.normal(mean, std, n_points)
+    actual_shift_value = shift_size * std
+    data[20:] += actual_shift_value
 
-    # EWMA calculation
-    lam = 0.2 # Lambda, the weighting factor
+    # --- Calculations ---
+    # EWMA
+    lam = 0.2
     ewma = np.zeros(n_points)
     ewma[0] = mean
     for i in range(1, n_points):
         ewma[i] = lam * data[i] + (1 - lam) * ewma[i-1]
-
-    # CUSUM calculation
+    
+    # CUSUM
     target = mean
-    k = 0.5 * std # "Allowance" or "slack"
+    k = 0.5 * std # Slack
     sh, sl = np.zeros(n_points), np.zeros(n_points)
     for i in range(1, n_points):
         sh[i] = max(0, sh[i-1] + (data[i] - target) - k)
         sl[i] = max(0, sl[i-1] + (target - data[i]) - k)
+        
+    # --- Dynamic KPI Calculation ---
+    i_ucl = mean + 3 * std
+    ewma_ucl = mean + 3 * (std * np.sqrt(lam / (2-lam)))
+    cusum_ucl = 5 * std
 
+    i_alarm_idx = np.where(data[20:] > i_ucl)[0]
+    ewma_alarm_idx = np.where(ewma[20:] > ewma_ucl)[0]
+    cusum_alarm_idx = np.where(sh[20:] > cusum_ucl)[0]
+
+    i_detect_time = f"{i_alarm_idx[0] + 1} Samples" if len(i_alarm_idx) > 0 else "Failed to Detect"
+    ewma_detect_time = f"{ewma_alarm_idx[0] + 1} Samples" if len(ewma_alarm_idx) > 0 else "Failed to Detect"
+    cusum_detect_time = f"{cusum_alarm_idx[0] + 1} Samples" if len(cusum_alarm_idx) > 0 else "Failed to Detect"
+
+    # --- Plotting ---
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=("<b>I-Chart: The Beat Cop (Misses the Shift)</b>",
-                                        "<b>EWMA: The Sentinel (Catches the Shift)</b>",
-                                        "<b>CUSUM: The Bloodhound (Catches it Fastest)</b>"))
+                        subplot_titles=("<b>I-Chart: The Beat Cop</b>",
+                                        "<b>EWMA: The Sentinel</b>",
+                                        "<b>CUSUM: The Bloodhound</b>"))
 
     # I-Chart
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=data, mode='lines+markers', name='Data'), row=1, col=1)
-    fig.add_hline(y=mean + 3*std, line_color='red', line_dash='dash', row=1, col=1)
+    fig.add_hline(y=i_ucl, line_color='red', line_dash='dash', row=1, col=1)
     fig.add_hline(y=mean - 3*std, line_color='red', line_dash='dash', row=1, col=1)
-    fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=1, col=1)
 
     # EWMA Chart
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=ewma, mode='lines+markers', name='EWMA'), row=2, col=1)
-    sigma_ewma = std * np.sqrt(lam / (2-lam)) # Asymptotic SD
-    fig.add_hline(y=mean + 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
-    fig.add_hline(y=mean - 3*sigma_ewma, line_color='red', line_dash='dash', row=2, col=1)
-    fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=2, col=1)
-
+    fig.add_hline(y=ewma_ucl, line_color='red', line_dash='dash', row=2, col=1)
+    fig.add_hline(y=mean - 3*(std * np.sqrt(lam / (2-lam))), line_color='red', line_dash='dash', row=2, col=1)
+    
     # CUSUM Chart
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sh, mode='lines+markers', name='CUSUM High'), row=3, col=1)
     fig.add_trace(go.Scatter(x=np.arange(1, n_points+1), y=sl, mode='lines+markers', name='CUSUM Low'), row=3, col=1)
-    fig.add_hline(y=5*std, line_color='red', line_dash='dash', row=3, col=1) # Decision interval H
-    fig.add_vline(x=20.5, line_color='orange', line_dash='dot', row=3, col=1, annotation_text="Process Shift Occurs", annotation_position="top")
+    fig.add_hline(y=cusum_ucl, line_color='red', line_dash='dash', row=3, col=1)
 
-    fig.update_layout(title="<b>Case Study: Detecting a Small Process Shift (0.75σ)</b>", height=800, showlegend=False)
+    # Add annotation for all subplots
+    fig.add_vrect(x0=20.5, x1=n_points + 0.5, 
+                  fillcolor="rgba(255,150,0,0.1)", line_width=0,
+                  annotation_text="Process Shift Occurs", annotation_position="top left",
+                  row='all', col=1)
+
+    fig.update_layout(title=f"<b>Case Study: Detecting a {shift_size}σ Process Shift</b>", height=800, showlegend=False)
     fig.update_xaxes(title_text="Sample Number", row=3, col=1)
-    return fig
+    
+    return fig, i_detect_time, ewma_detect_time, cusum_detect_time
     
 @st.cache_data
 def plot_time_series_analysis():
@@ -3397,15 +3421,26 @@ def render_ewma_cusum():
     - **🐕 CUSUM (The Bloodhound):** The Cumulative Sum chart is a specialized, high-power tool. It is the fastest possible detector for a shift of a specific magnitude, making it ideal for processes where you want to catch a known, critical shift size as quickly as possible.
     """)
 
+    # --- MODIFIED: Added Interactive Demo explanation ---
     st.info("""
-    **Interactive Demo:** This case study simulates a small but significant **0.75-sigma shift** occurring at sample #20. Compare the three charts below. Notice how the I-Chart (the "beat cop") completely misses the signal, while the memory-based EWMA and CUSUM charts (the "sentinels") sound the alarm, demonstrating their superior sensitivity.
+    **Interactive Demo:** Use the **Shift Size** slider in the sidebar to control how large of a process shift to simulate. Observe how the detection performance of the three charts changes. At what shift size does the I-Chart finally detect the problem? Notice how much earlier the EWMA and CUSUM charts signal an alarm for small shifts.
     """)
+
+    # --- NEW: Added slider gadget to the sidebar ---
+    st.sidebar.subheader("Small Shift Detection Controls")
+    shift_size_slider = st.sidebar.slider(
+        "Select Process Shift Size (in multiples of σ):",
+        min_value=0.25,
+        max_value=3.5,
+        value=0.75,
+        step=0.25,
+        help="Controls the magnitude of the process shift introduced at sample #20. Small shifts are harder to detect."
+    )
 
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        # Note: This assumes the 'plot_ewma_cusum_comparison' helper function
-        # is correctly defined in the plotting functions section of your script.
-        fig = plot_ewma_cusum_comparison()
+        # --- MODIFIED: Call the backend with the slider's value and unpack new KPIs ---
+        fig, i_time, ewma_time, cusum_time = plot_ewma_cusum_comparison(shift_size=shift_size_slider)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -3413,18 +3448,19 @@ def render_ewma_cusum():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
         with tabs[0]:
-            st.metric(label="Shift Size", value="0.75 σ", help="A small, sustained shift was introduced at sample #20.")
-            st.metric(label="I-Chart Detection Time", value="> 20 Samples (Failed)", delta_color="inverse", help="The I-Chart never signaled an alarm.")
-            st.metric(label="EWMA Detection Time", value="~10 Samples", help="The EWMA signaled an alarm around sample #30.")
-            st.metric(label="CUSUM Detection Time", value="~7 Samples", help="The CUSUM signaled an alarm around sample #27.")
-
+            # --- MODIFIED: KPIs are now dynamic based on the slider ---
+            st.metric(label="Shift Size", value=f"{shift_size_slider} σ", help="The simulated shift introduced at sample #20.")
+            st.metric(label="I-Chart Detection Time (post-shift)", value=i_time, help="The I-Chart is only sensitive to large shifts (>3σ).")
+            st.metric(label="EWMA Detection Time (post-shift)", value=ewma_time, help="The EWMA is sensitive to small and moderate shifts.")
+            st.metric(label="CUSUM Detection Time (post-shift)", value=cusum_time, help="The CUSUM is the fastest at detecting small, sustained shifts.")
+            
             st.markdown("""
             **The Visual Evidence:**
-            - **The I-Chart (Top):** This chart is blind to the problem. The small 0.75σ shift is lost in the normal process noise. All points look "in-control," giving a false sense of security.
-            - **The EWMA Chart (Middle):** This chart has memory. The weighted average (the blue line) clearly begins to drift upwards after the shift occurs. It smoothly accumulates evidence until it crosses the red control limit, signaling a real change.
-            - **The CUSUM Chart (Bottom):** This chart is a "bloodhound" for a specific scent. It accumulates all deviations from the target. Once the process shifts, the `CUSUM High` plot takes off like a rocket, providing the fastest possible signal.
+            - **The I-Chart (Top):** This chart is blind to small problems. The shift is lost in the normal process noise. All points look "in-control," giving a false sense of security until the shift is very large.
+            - **The EWMA Chart (Middle):** This chart has memory. The weighted average (the blue line) clearly begins to drift upwards after the shift occurs, eventually crossing the control limit.
+            - **The CUSUM Chart (Bottom):** This chart is a "bloodhound." It accumulates all deviations from the target. Once the process shifts, the `CUSUM High` plot takes off, providing the fastest possible signal for small, sustained shifts.
 
-            **The Core Strategic Insight:** Relying only on Shewhart charts creates a significant blind spot. For processes where small, slow drifts are possible (e.g., tool wear, reagent degradation), EWMA or CUSUM charts are essential.
+            **The Core Strategic Insight:** Relying only on Shewhart charts creates a significant blind spot. For processes where small, slow drifts are a risk (e.g., reagent degradation, column aging), EWMA or CUSUM charts are essential.
             """)
 
         with tabs[1]:
@@ -3443,17 +3479,42 @@ def render_ewma_cusum():
             """)
 
         with tabs[2]:
-            st.markdown("""
-            #### Historical Context & Origin: Beyond Shewhart
-            By the 1950s, industries needed tools to detect smaller process deviations.
-            - **CUSUM (1954):** British statistician **E. S. Page** developed the Cumulative Sum chart, optimized to detect a specific shift size in the minimum time.
-            - **EWMA (1959):** Statistician **S. W. Roberts** proposed the Exponentially Weighted Moving Average chart as a general-purpose alternative, adapting forecasting "smoothing" techniques.
-            These inventions marked the second generation of SPC, giving engineers the sensitive tools they needed for increasingly precise manufacturing.
+            st.markdown(r"""
+            #### Historical Context & Origin: The Second Generation of SPC
+
+            The quality revolution sparked by **Dr. Walter Shewhart's** control charts in the 1920s was a monumental success. For the first time, manufacturers had a tool to distinguish signal from noise, allowing them to achieve a state of statistical control. However, Shewhart's charts were designed like a **smoke detector**—brilliantly effective at detecting large, sudden events (a "fire"), but intentionally insensitive to small, slow changes. This design choice was deliberate, as it prevented "process tampering" by reacting to common cause noise.
+
+            By the 1950s, the industrial world had evolved. Processes in fields like chemistry and electronics were becoming more complex and precise. The critical challenge was no longer just preventing large breakdowns, but detecting subtle, gradual drifts that could slowly degrade quality over time. The "smoke detector" wasn't sensitive enough; a new kind of sensor was needed. This set the stage for the second generation of SPC.
+
+            - **CUSUM (1954): The Bloodhound**
+                - **The Inventor:** The first major innovation came from British statistician **E. S. Page**. His work was rooted in **sequential analysis**, a field developed during WWII for efficiently testing munitions.
+                - **The "Aha!" Moment:** Page realized that instead of looking at each data point in isolation, he could **accumulate the evidence** of small deviations over time. The Cumulative Sum (CUSUM) chart was born. It acts like a **bloodhound on a trail**. It ignores random noise (scents off the trail) by using a "slack" parameter, `k`. But once it detects a persistent scent in one direction—a real process shift—it starts accumulating the signal rapidly, leading to the fastest possible detection for a shift of a known size. Its V-mask design made it a powerful, albeit somewhat rigid, diagnostic tool.
+
+            - **EWMA (1959): The Sentinel**
+                - **The Inventor:** Five years later, statistician **S. W. Roberts** of Bell Labs (Shewhart's old stomping ground) proposed a more flexible alternative. His inspiration came not from quality control, but from **time series forecasting**.
+                - **The "Aha!" Moment:** Forecasters like George Box had long used smoothing techniques to predict future values by giving more weight to recent data. Roberts ingeniously adapted this idea for process control. The Exponentially Weighted Moving Average (EWMA) chart acts like a **sentinel with a memory**. It doesn't treat all past data equally. By using the weighting parameter `λ`, it gives the most weight to the most recent data point, a little less to the one before, and so on, with the influence of old data decaying exponentially. This creates a smooth, sensitive trend line that effectively filters out noise while quickly reacting to the beginning of a real drift.
+
+            These two inventions were not replacements for Shewhart's charts but essential complements. They gave engineers the sensitive, memory-based tools they needed to manage the increasingly precise and complex manufacturing processes of the late 20th century.
+
             #### Mathematical Basis
-            - **EWMA:** $EWMA_t = \lambda \cdot Y_t + (1-\lambda) \cdot EWMA_{t-1}$
-              - `λ` is the weighting factor (0 < λ ≤ 1). A smaller `λ` gives more weight to past data.
-            - **CUSUM:** $SH_t = \max(0, SH_{t-1} + (Y_t - T) - k)$
-              - `T` is the process target, and `k` is a "slack" parameter. The CUSUM only accumulates when a deviation is larger than the slack.
+            The elegance of these charts lies in their simple, recursive formulas.
+
+            - **EWMA (Exponentially Weighted Moving Average):**
+            """)
+            st.latex(r"EWMA_t = \lambda \cdot Y_t + (1-\lambda) \cdot EWMA_{t-1}")
+            st.markdown(r"""
+            - **`λ` (lambda):** This is the **memory parameter** (0 < λ ≤ 1).
+                - A **small `λ`** (e.g., 0.1) creates a chart with a long memory, giving significant weight to past data. This makes it very sensitive to detecting tiny, persistent shifts.
+                - A **large `λ`** (e.g., 0.4) creates a chart with a short memory, behaving more like a Shewhart chart. It's better for detecting larger shifts more quickly.
+                - A typical starting value is `λ = 0.2`.
+
+            - **CUSUM (Cumulative Sum):**
+            """)
+            st.latex(r"SH_t = \max(0, SH_{t-1} + (Y_t - T) - k)")
+            st.markdown(r"""
+            - This formula tracks upward shifts (`SH`). A similar formula tracks downward shifts (`SL`).
+            - **`T`**: The process target or historical mean.
+            - **`k`**: The **"slack" or "allowance" parameter**. This is the key to the CUSUM's power. It is typically set to half the size of the shift you want to detect quickly. For example, if you want to rapidly detect a 1-sigma shift, you set `k = 0.5σ`. Any deviation from the target that is smaller than `k` is considered noise and is absorbed, preventing the CUSUM from accumulating. Any deviation larger than `k` is considered a signal and is added to the cumulative sum. This makes the CUSUM chart a highly targeted detector.
             """)
             
 def render_time_series_analysis():

@@ -3373,68 +3373,69 @@ def render_method_comparison():
             st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
 
 def render_pass_fail():
-    """Renders the INTERACTIVE module for Pass/Fail (Binomial Proportion) analysis."""
+    """
+    NOTE: The function name is per user request. The content has been modified
+    to render the Method Comparison (Quantitative) analysis.
+    """
     st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To accurately calculate and critically compare confidence intervals for a binomial proportion, which is the underlying statistic for any pass/fail, present/absent, or concordant/discordant outcome.
+    #### Purpose & Application: Method Comparison
+    **Purpose:** To compare two quantitative measurement methods (e.g., a new "Test" method vs. an established "Reference" method) to see if they agree sufficiently.
     
-    **Strategic Application:** This is essential for the validation of **qualitative assays** or for agreement studies. The goal is to prove, with a high degree of statistical confidence, that the assay's success rate is above a required performance threshold. The critical challenge, especially with small sample sizes, is that simple textbook methods for calculating confidence intervals (the 'Wald' interval) are dangerously inaccurate.
+    **Strategic Application:** This is essential for validating a new assay, instrument, or laboratory procedure. The goal is to quantify any systematic differences (**bias**) and the random variation between the methods to ensure the new method can be used interchangeably with the old one.
     """)
-    
+
     st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to simulate the results of a validation study (e.g., comparing a new test to a gold standard). Observe how sample size and the number of successes dramatically affect the confidence in your result, and see why the 'Wald' interval should almost never be used.
+    **Interactive Demo:** Use the sliders in the sidebar to define the "true" relationship between a test method and a reference method. Observe how different types of bias (constant and proportional) and random error appear in the plots.
     """)
+
+    # --- FIX: Sidebar controls updated to match the inputs of `plot_method_comparison` ---
+    st.sidebar.subheader("Method Comparison Controls")
+    constant_bias_slider = st.sidebar.slider("Constant Bias", -10.0, 10.0, 2.0, 0.5, help="A fixed offset. The Test method is always X units higher/lower than the Reference.")
+    proportional_bias_slider = st.sidebar.slider("Proportional Bias (%)", -10.0, 10.0, 3.0, 0.5, help="A bias that depends on the concentration. The Test method deviates by X% of the Reference value.")
+    random_error_slider = st.sidebar.slider("Random Error (SD)", 0.1, 10.0, 3.0, 0.1, help="The random 'noise' or imprecision of the methods.")
     
-    # --- Sidebar controls for this specific module ---
-    st.sidebar.subheader("Pass/Fail Controls")
-    n_samples_slider = st.sidebar.slider("Number of Validation Samples (n)", 1, 100, 30, key='wilson_n')
-    successes_slider = st.sidebar.slider("Concordant Results (Successes)", 0, n_samples_slider, int(n_samples_slider * 0.95), key='wilson_s')
-    
-    # Generate plots using the slider values
-    fig1_intervals, fig2_coverage = plot_binomial_intervals(successes_slider, n_samples_slider)
-    
+    # --- FIX: Call the correct plotting function and unpack its return values ---
+    fig, deming_slope, deming_intercept, mean_diff, upper_loa, lower_loa = plot_method_comparison(
+        constant_bias=constant_bias_slider,
+        proportional_bias=proportional_bias_slider,
+        random_error_sd=random_error_slider
+    )
+
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        st.plotly_chart(fig1_intervals, use_container_width=True)
-        st.plotly_chart(fig2_coverage, use_container_width=True)
-        
+        # --- FIX: Display the single figure returned by the plotting function ---
+        st.plotly_chart(fig, use_container_width=True)
+    
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        # --- FIX: Tabs and text updated to be relevant to the new plots ---
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory"])
         
         with tabs[0]:
-            st.metric(label="📈 KPI: Observed Rate", value=f"{(successes_slider/n_samples_slider if n_samples_slider > 0 else 0):.2%}", help="The point estimate. Insufficient without a confidence interval.")
+            st.metric("Deming Slope", f"{deming_slope:.3f}", help="Ideal is 1.0. A value > 1 indicates positive proportional bias.")
+            st.metric("Deming Intercept", f"{deming_intercept:.2f}", help="Ideal is 0.0. A non-zero value indicates constant bias.")
+            st.metric("Mean Bias (Bland-Altman)", f"{mean_diff:.2f}", help="The average difference between the two methods.")
             
             st.info("Play with the sliders in the sidebar and observe the plots!")
             st.markdown("""
-            - **CI Comparison (Top Plot):** This plot reveals the dramatic differences between interval methods. 
-                - Set the sliders to a perfect score (e.g., 30/30). The **Wald interval collapses to zero width**, an absurd claim of perfect knowledge from a small sample. The Wilson and Clopper-Pearson intervals give a much more honest, wider range.
-                - Set the sliders to a low sample size (e.g., 5/5). The Wald interval gives a nonsensical range that goes above 100%!
-            - **Coverage Probability (Bottom Plot):** This shows *why* the Wald interval is so bad. Its actual probability of capturing the true value (the red line) is often far below the promised 95% level. The Wilson interval (blue) is much more reliable.
-
-            **The Core Strategic Insight:** Never use the standard Wald (or "Normal Approximation") interval for important decisions. The **Wilson Score interval** provides the best balance of accuracy and interval width for most applications. The **Clopper-Pearson** is the most conservative ("exact") choice, often preferred in regulatory submissions for its guaranteed coverage.
+            - **Constant Bias:** Increasing this slider shifts the entire cloud of points up in the Deming plot and raises the "Mean Bias" line in the Bland-Altman plot.
+            - **Proportional Bias:** Increasing this slider *tilts* the cloud of points in the Deming plot, making the slope deviate from 1. In the Bland-Altman plot, this creates a trend where the difference changes as the average value increases.
+            - **Random Error:** Increasing this slider makes the cloud of points "fluffier" or more spread out around the regression line. In the Bland-Altman plot, this widens the Limits of Agreement (LoA).
             """)
         with tabs[1]:
-            st.markdown("- **The Golden Rule of Binomial Acceptance:** The acceptance criterion must **always be based on the lower bound of the confidence interval**, never on the point estimate.")
-            st.markdown("- **Example Criterion:** 'The lower bound of the 95% **Wilson Score** (or Clopper-Pearson) confidence interval for the concordance rate must be greater than or equal to the target of 90%.'")
-            st.markdown("- **Sample Size Implication:** This tool powerfully demonstrates why larger sample sizes are needed for high-confidence claims. With a small `n`, even a perfect result (e.g., 20/20 successes) may have a lower confidence bound that fails to meet a high target (like 95%), forcing the study to be repeated with more samples.")
+            st.markdown("- **The Golden Rule of Method Comparison:** Acceptance criteria should be pre-defined and based on the clinical or analytical needs of the test.")
+            st.markdown("""
+            - **Example Criteria:**
+                1.  The 95% CI for the **Deming slope** must contain 1.0.
+                2.  The 95% CI for the **Deming intercept** must contain 0.0.
+                3.  The **Bland-Altman Limits of Agreement** must be within a clinically acceptable range (e.g., ±15%).
+            """)
         with tabs[2]:
             st.markdown("""
-            #### Historical Context & Origin
-            For much of the 20th century, the simple **Wald interval** (named after Abraham Wald) was taught in introductory statistics classes. However, its poor performance was well-known. A famous 1998 paper by Brown, Cai, and DasGupta comprehensively documented its failures and advocated for superior alternatives.
-            
-            The **Wilson Score Interval** (1927) and the **Clopper-Pearson Interval** (1934) were created to solve this problem.
-            - The **Clopper-Pearson** interval is an "exact" method derived from the binomial distribution. It guarantees coverage will never be less than the nominal level, making it conservative (wider).
-            - The **Wilson Score** interval is derived by inverting the score test. Its average coverage probability is much closer to the nominal 95% level, making it more accurate and less conservative in practice.
+            #### Plot Explanations
+            - **Deming Regression:** A type of linear regression that accounts for measurement error in *both* the X and Y variables. This is crucial for method comparison, as both the reference and test methods have imprecision. A perfect agreement would have a slope of 1 and an intercept of 0.
+            - **Bland-Altman Plot:** A graphical method to visualize the agreement between two quantitative measurements. It plots the *difference* between the two methods against their *average*. It is excellent for identifying bias and seeing if the difference depends on the magnitude of the measurement.
             """)
-            
-            # --- FIX: SEPARATED EACH FUNCTION CALL ---
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The Wald interval is simply:")
-            st.latex(r"\hat{p} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}")
-            st.markdown("The Wilson Score interval's superior formula is:")
-            st.latex(r"CI_{\text{Wilson}} = \frac{1}{1 + z_{\alpha/2}^2/n} \left( \hat{p} + \frac{z_{\alpha/2}^2}{2n} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z_{\alpha/2}^2}{4n^2}} \right)")
-            st.markdown("Notice it adds pseudo-successes and failures ($z_{\alpha/2}^2/2$), pulling the center away from 0 or 1. This is what gives it such good performance where the Wald interval fails catastrophically.")
             
 def render_bayesian():
     """Renders the interactive module for Bayesian Inference."""

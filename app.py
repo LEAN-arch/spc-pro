@@ -1845,57 +1845,87 @@ def plot_isolation_forest(contamination_rate=0.1):
 @st.cache_data
 def plot_xai_shap(instance_index=0):
     """
-    Trains a model, calculates SHAP values, and generates plots for a selected instance.
+    Trains a model on simulated assay run data, calculates SHAP values, 
+    and generates plots for a selected assay run.
     """
     plt.style.use('default')
     
-    # --- 1. Load Data and Train Model (this part is slow and should be cached) ---
-    github_data_url = "https://github.com/slundberg/shap/raw/master/data/"
-    data_url = github_data_url + "adult.data"
-    dtypes = [
-        ("Age", "float32"), ("Workclass", "category"), ("fnlwgt", "float32"),
-        ("Education", "category"), ("Education-Num", "float32"),
-        ("Marital Status", "category"), ("Occupation", "category"),
-        ("Relationship", "category"), ("Race", "category"), ("Sex", "category"),
-        ("Capital Gain", "float32"), ("Capital Loss", "float32"),
-        ("Hours per week", "float32"), ("Country", "category"), ("Target", "category")
-    ]
-    raw_data = pd.read_csv(data_url, names=[d[0] for d in dtypes], na_values="?", dtype=dict(dtypes)).dropna()
-    X_display = raw_data.drop("Target", axis=1)
-    y = (raw_data["Target"] == " >50K").astype(int)
-    X = X_display.copy()
-    for col in X.select_dtypes(include=['category']).columns:
-        X[col] = X[col].cat.codes
+    # --- 1. Simulate Assay V&V / Tech Transfer Data ---
+    np.random.seed(42)
+    n_runs = 200
+    
+    # Feature Generation
+    # Operator Experience (a clear driver)
+    operator_experience = np.random.randint(1, 25, n_runs) # Months
+    
+    # Calibrator Slope (key performance indicator)
+    cal_slope = np.random.normal(1.0, 0.05, n_runs) - (operator_experience * 0.001)
+    
+    # QC Level 1 (should be stable, but with some noise)
+    qc1_value = np.random.normal(50, 2, n_runs) - np.random.uniform(0, operator_experience / 10, n_runs)
+    
+    # Reagent Lot Age (older lots are slightly worse)
+    reagent_age_days = np.random.randint(5, 90, n_runs)
+    
+    # Instrument ID (categorical factor, some are better than others)
+    instrument_id = np.random.choice(['Inst_A', 'Inst_B', 'Inst_C'], n_runs, p=[0.5, 0.3, 0.2])
 
+    # Target Variable: Run Failure (binary outcome)
+    # Failure probability increases with low experience, old reagents, and low calibrator slope
+    prob_failure = 1 / (1 + np.exp(-(
+        -2.5                                # Base failure rate
+        - 0.15 * operator_experience        # More experience = lower failure prob
+        + (reagent_age_days / 30)           # Older reagents = higher failure prob
+        - (cal_slope - 1.0) * 20            # Lower slope = higher failure prob
+        + (instrument_id == 'Inst_C') * 1.5 # Instrument C is problematic
+    )))
+    
+    run_failed = np.random.binomial(1, prob_failure)
+
+    # Create DataFrames
+    X_display = pd.DataFrame({
+        'Operator Experience (Months)': operator_experience,
+        'Reagent Age (Days)': reagent_age_days,
+        'Calibrator Slope': cal_slope,
+        'QC Level 1 Value': qc1_value,
+        'Instrument ID': instrument_id
+    })
+    
+    y = pd.Series(run_failed, name="Run Failed")
+    
+    # Preprocess for model
+    X = X_display.copy()
+    X['Instrument ID'] = X['Instrument ID'].astype('category').cat.codes
+
+    # --- 2. Train Model and Calculate SHAP values ---
     model = RandomForestClassifier(random_state=42).fit(X, y)
-    explainer = shap.Explainer(model, X)
-    
-    # Calculate SHAP values for the first 100 instances for the demo
-    n_instances = 100
-    shap_values_obj = explainer(X.iloc[:n_instances]) 
-    
-    # --- 2. Generate Global Summary Plot (always the same) ---
-    shap.summary_plot(shap_values_obj.values[:,:,1], X.iloc[:n_instances], show=False)
+    explainer = shap.Explainer(model)
+    shap_values = explainer(X)
+
+    # --- 3. Generate Global Summary Plot ---
+    # We explain the probability of the "Failure" class, which is class 1
+    shap.summary_plot(shap_values.values[:,:,1], X, show=False)
     buf_summary = io.BytesIO()
     plt.savefig(buf_summary, format='png', bbox_inches='tight')
     plt.close()
     buf_summary.seek(0)
     
-    # --- 3. Generate Local Force Plot for the SELECTED instance ---
-    # The 'instance_index' is now a parameter controlled by the user's slider
+    # --- 4. Generate Local Force Plot for the SELECTED instance ---
     force_plot = shap.force_plot(
         explainer.expected_value[1], 
-        shap_values_obj.values[instance_index,:,1], 
-        X_display.iloc[instance_index,:], 
+        shap_values.values[instance_index,:,1], 
+        X_display.iloc[instance_index,:],
         show=False
     )
     
     force_plot_html = force_plot.html()
     full_html = f"<html><head>{shap.initjs()}</head><body>{force_plot_html}</body></html>"
     
-    # Return both plots and the data for the selected instance for display
-    return buf_summary, full_html, X_display.iloc[instance_index:instance_index+1]
-
+    # Return the actual outcome for the selected instance for display
+    actual_outcome = "Failed" if y.iloc[instance_index] == 1 else "Passed"
+    
+    return buf_summary, full_html, X_display.iloc[instance_index:instance_index+1], actual_outcome
+    
 @st.cache_data
 def plot_advanced_ai_concepts(concept):
     fig = go.Figure()
@@ -4337,69 +4367,66 @@ def render_anomaly_detection():
 def render_xai_shap():
     """Renders the module for Explainable AI (XAI) using SHAP."""
     st.markdown("""
-    #### Purpose & Application: The AI Interrogator
-    **Purpose:** To deploy an **AI Interrogator** that forces a complex "black box" model (like Gradient Boosting or a Neural Network) to confess exactly *why* it made a specific prediction. **Explainable AI (XAI)** cracks open the black box to reveal the model's internal logic.
+    #### Purpose & Application: The AI Root Cause Investigator
+    **Purpose:** To deploy an **AI Investigator** that forces a complex "black box" model to confess exactly *why* it predicted a specific assay run would fail. **Explainable AI (XAI)** cracks open the black box to reveal the model's reasoning.
     
-    **Strategic Application:** This is arguably the **single most important enabling technology for deploying advanced Machine Learning in regulated GxP environments.** A major barrier to using powerful models has been their lack of interpretability. **SHAP (SHapley Additive exPlanations)** is the state-of-the-art framework that provides this crucial evidence.
-    - **🔬 Model Trust & Validation:** XAI confirms that the model is learning real, scientifically plausible relationships, not just memorizing spurious correlations.
-    - **⚖️ Regulatory Compliance:** It provides the auditable, scientific rationale needed to justify a model-based decision to regulators and quality assurance.
-    - **Actionable Insights:** It pinpoints which input variables are driving a prediction, guiding targeted corrective actions and deepening process understanding.
+    **Strategic Application:** This is a crucial tool for validating and deploying predictive models in a regulated GxP environment, especially for **tech transfer and continued process verification.** Instead of just getting a pass/fail prediction, you get a full root cause analysis for every run.
+    - **🔬 Model Validation:** Confirm that the model is flagging runs for scientifically valid reasons (e.g., a low calibrator slope) and not due to spurious correlations (e.g., the day of the week).
+    - **🎯 Proactive Troubleshooting:** If the model predicts a run has a high risk of failure, the SHAP plot immediately points to the most likely reasons, allowing technicians to intervene *before* the run is completed.
+    - **⚖️ Tech Transfer Evidence:** Provides objective, data-driven evidence that a receiving lab's process is performing identically to the sending lab's, or pinpoints exactly which parameters are driving any observed differences.
     """)
 
-    # --- NEW: Added Interactive Demo explanation ---
     st.info("""
-    **Interactive Demo:** Use the slider in the sidebar to select a specific individual from the dataset.
-    - The **Global Feature Importance** plot (top) always stays the same, showing the model's overall logic.
-    - The **Local Prediction Explanation** plot (bottom) will dynamically update for each individual you select. Observe how the same features (like 'Age' or 'Capital Gain') have a different impact for different people, demonstrating the power of local, instance-specific explanations.
+    **Interactive Demo:** Use the slider in the sidebar to select a specific assay run to investigate.
+    - The **Global Feature Importance** plot (top) shows the model's overall understanding of what drives run failures.
+    - The **Local Prediction Explanation** (bottom) updates for each run, showing the specific "tug-of-war" between factors that led to the model's prediction for that single run.
     """)
 
-    # --- NEW: Added slider gadget to the sidebar ---
     st.sidebar.subheader("XAI Controls")
     instance_slider = st.sidebar.slider(
-        "Select an Individual to Explain:",
-        min_value=0, max_value=99, value=0, step=1,
-        help="Choose a specific data point (person) from the first 100 in the dataset to see its unique SHAP explanation."
+        "Select an Assay Run to Explain:",
+        min_value=0, max_value=199, value=15, step=1,
+        help="Choose a specific assay run from the simulated dataset to see its unique SHAP explanation."
     )
     
-    # --- MODIFIED: Call backend with slider value and unpack new return value ---
-    summary_buf, force_html, selected_instance_df = plot_xai_shap(instance_index=instance_slider)
+    # Call backend with slider value
+    summary_buf, force_html, selected_instance_df, actual_outcome = plot_xai_shap(instance_index=instance_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.subheader("Global Feature Importance (The Model's General Strategy)")
-        st.image(summary_buf, caption="The SHAP Summary Plot shows the overall impact of each feature across many predictions.")
+        st.image(summary_buf, caption="This plot shows which factors have the biggest impact on run failure risk across all runs.")
         
-        st.subheader(f"Local Prediction Explanation for Individual #{instance_slider}")
+        st.subheader(f"Local Prediction Explanation for Assay Run #{instance_slider}")
         st.dataframe(selected_instance_df)
         st.components.v1.html(force_html, height=150, scrolling=False)
-        st.caption("The SHAP Force Plot explains why the model made its prediction for this specific individual.")
+        st.caption("This force plot explains why the model made its prediction for this specific run.")
         
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
 
         with tabs[0]:
-            st.info("💡 SHAP provides two levels of explanation: **Global** (how the model works overall) and **Local** (why it made one specific prediction).")
-
+            st.metric("Actual Run Outcome", actual_outcome)
             st.markdown("""
             **Global Explanation (Top-Left Plot):**
-            - **Feature Importance (Y-axis):** This plot ranks features by their total impact. We can see `Relationship`, `Age`, and `Capital Gain` are the most important factors overall.
-            - **Impact (X-axis) & Value (Color):** We can see a clear pattern: high `Capital Gain` (red dots) has a high positive SHAP value, meaning it strongly pushes the model to predict a higher income.
+            - **Feature Importance:** The model has correctly learned that `Operator Experience`, `Calibrator Slope`, and `Reagent Age` are the most important predictors of run failure.
+            - **Impact Direction:** High values of `Reagent Age` (red dots) push the prediction towards failure (positive SHAP value), while high `Operator Experience` (red dots) pushes the prediction towards success (negative SHAP value). This confirms the model's logic is scientifically sound.
             
             **Local Explanation (Bottom-Left Plot):**
-            - This plot is a **tug-of-war for a single prediction**.
-            - **Red Forces:** Features pushing the prediction higher (towards '>50K').
-            - **Blue Forces:** Features pushing the prediction lower (towards '<=50K').
-            - **Final Prediction (`f(x)`):** The result after all pushes and pulls are tallied up. For each individual you select, this tug-of-war will be different.
+            - This is a root cause analysis for the selected run.
+            - **Red Forces:** These are the factors pushing this specific run's risk **higher**.
+            - **Blue Forces:** These are the factors pushing this run's risk **lower**.
+            - **Final Prediction:** The model's final risk assessment. By moving the slider, you can find a run where `Reagent Age` was the main problem, and another where `Calibrator Slope` was the primary driver of the failure risk.
             """)
 
         with tabs[1]:
             st.error("""
-            🔴 **THE INCORRECT APPROACH: The "Accuracy is Everything" Fallacy**
+            🔴 **THE INCORRECT APPROACH: "The Accuracy is Everything" Fallacy**
             This is a dangerous mindset that leads to deploying untrustworthy models.
             
-            - An analyst builds a model with 99% accuracy. They declare victory and push to put it into production without any further checks.
-            - **The Flaw:** The model might be a "Clever Hans"—like the horse that could supposedly do math but was actually just reacting to its trainer's subtle cues. The model might have learned a nonsensical, spurious correlation in the training data (e.g., "batches made on a Monday always pass"). The high accuracy is an illusion that will shatter when the model sees new data where that spurious correlation doesn't hold.
+            - An analyst builds a model with 99% accuracy to predict run failures. They declare victory and push to put it into production without any further checks.
+            - **The Flaw:** The model might be a "Clever Hans"—like the horse that could supposedly do math but was actually just reacting to its trainer's subtle cues. The model might have learned a nonsensical, spurious correlation in the training data (e.g., "runs performed on Mondays always fail"). The high accuracy is an illusion that will shatter when the model sees new data where that spurious correlation doesn't hold.
             """)
             st.success("""
             🟢 **THE GOLDEN RULE: Explainability Builds Trust and Uncovers Flaws**
@@ -4407,11 +4434,9 @@ def render_xai_shap():
             
             1.  **Build the Model:** Train your powerful "black box" model (e.g., XGBoost, Random Forest) to achieve high predictive accuracy.
             2.  **Interrogate with SHAP:** Apply SHAP to the model's predictions on a validation set.
-            3.  **Consult the Expert:** Show the SHAP plots (especially the global summary plot) to a Subject Matter Expert (SME) who knows the process science. Ask them: *"Does this make sense?"*
+            3.  **Consult the Expert:** Show the SHAP plots to a Subject Matter Expert (SME) who knows the assay science. Ask them: *"Does this make sense? Is the model using the right features in the right way?"*
                 - **If YES:** The model has likely learned real, scientifically valid relationships. You can now trust its predictions.
                 - **If NO:** The model has learned a spurious correlation. XAI has just saved you from deploying a flawed model. Use the insight to improve your feature engineering and retrain.
-                
-            XAI transforms machine learning from a pure data science exercise into a collaborative process between data scientists and domain experts.
             """)
 
         with tabs[2]:
@@ -4422,9 +4447,6 @@ def render_xai_shap():
             Imagine a team of players collaborates to win a prize. How do you divide the winnings fairly based on each player's individual contribution? **Shapley values** provided a mathematically rigorous and unique solution.
             
             Fast forward to 2017. Scott Lundberg and Su-In Lee at the University of Washington had a genius insight. They realized that a machine learning model's prediction could be seen as a "game" and the model's features could be seen as the "players." They adapted Shapley's game theory concepts to create **SHAP (SHapley Additive exPlanations)**, a method to fairly distribute the "payout" (the prediction) among the features. This clever fusion of game theory and machine learning provided the first unified and theoretically sound framework for explaining the output of any machine learning model, a breakthrough that is driving the adoption of AI in high-stakes fields.
-            
-            #### How it Works
-            SHAP calculates the contribution of each feature to a prediction by simulating every possible combination of features ("coalitions"). It asks: "How much does the prediction change, on average, when we add this specific feature to all possible subsets of other features?" This exhaustive, computationally intensive approach is the only method proven to have a unique set of desirable properties (Local Accuracy, Missingness, and Consistency) that guarantee a fair and accurate explanation.
             """)
             
 def render_advanced_ai_concepts():

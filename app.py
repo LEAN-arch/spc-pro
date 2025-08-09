@@ -2223,18 +2223,18 @@ def render_core_validation_params():
         min_value=-10.0, max_value=10.0, value=1.5, step=0.5,
         help="Simulates a constant positive or negative bias in the accuracy study. Watch the box plots shift."
     )
-    repeat_cv_slider = st.sidebar.slider(
+    repeat_cv_slider = st.slider(
         "🏹 Repeatability %CV", 
         min_value=0.5, max_value=10.0, value=1.5, step=0.5,
         help="Simulates the best-case random error (intra-assay precision). Watch the 'Repeatability' violin width."
     )
     # Ensure intermediate precision is always worse than or equal to repeatability
-    intermed_cv_slider = st.sidebar.slider(
+    intermed_cv_slider = st.slider(
         "🏹 Intermediate Precision %CV", 
         min_value=repeat_cv_slider, max_value=20.0, value=max(2.5, repeat_cv_slider), step=0.5,
         help="Simulates real-world random error (inter-assay). A large gap from repeatability indicates poor robustness."
     )
-    interference_slider = st.sidebar.slider(
+    interference_slider = st.slider(
         "🔬 Interference Effect (%)", 
         min_value=-20.0, max_value=20.0, value=8.0, step=1.0,
         help="Simulates an interferent that falsely increases (+) or decreases (-) the analyte signal."

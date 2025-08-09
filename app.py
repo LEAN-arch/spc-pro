@@ -1282,13 +1282,10 @@ def plot_westgard_scenario(scenario='Stable'):
     
 
 
-@st.cache_data
 def plot_multivariate_spc(scenario='Stable'):
     """
     Generates dynamic plots for MSPC demonstration, including a scatter plot,
     T² and SPE charts, and a contribution plot for diagnostics.
-
-    This function is fully corrected and contains all calculation logic.
     """
     # --- 1. Data Generation ---
     np.random.seed(42)
@@ -1299,13 +1296,13 @@ def plot_multivariate_spc(scenario='Stable'):
     in_control = np.random.multivariate_normal(mean_vec, cov_mat, n_in_control)
     
     if scenario == 'Stable':
-        np.random.seed(101) # Use different seed to ensure it's not the same data
+        np.random.seed(101)
         out_of_control = np.random.multivariate_normal(mean_vec, cov_mat, n_out_of_control)
     elif scenario == 'Shift in Y Only':
-        mean_shifted = np.array([10, 23.5]) # Increased shift for clarity
+        mean_shifted = np.array([10, 23.5])
         out_of_control = np.random.multivariate_normal(mean_shifted, cov_mat, n_out_of_control)
     elif scenario == 'Correlation Break':
-        cov_mat_broken = np.array([[1, -0.9], [-0.9, 1]]) # Stronger break
+        cov_mat_broken = np.array([[1, -0.9], [-0.9, 1]])
         out_of_control = np.random.multivariate_normal(mean_vec, cov_mat_broken, n_out_of_control)
         
     data = np.vstack([in_control, out_of_control])
@@ -1318,11 +1315,9 @@ def plot_multivariate_spc(scenario='Stable'):
     scaled_data = scaler.transform(data)
     scores = pca.transform(scaled_data)
     
-    # T-squared calculation
     t_squared = scores[:, 0]**2 / np.var(scores[:n_in_control, 0], ddof=1)
     UCL_T2 = stats.f.ppf(0.99, 1, n_in_control - 1)
 
-    # SPE (Q-statistic) calculation
     residuals = scaled_data - pca.inverse_transform(scores)
     spe = np.sum(residuals**2, axis=1)
     g = np.mean(spe[:n_in_control])
@@ -1333,23 +1328,20 @@ def plot_multivariate_spc(scenario='Stable'):
     is_t2_ooc = np.any(t_squared[n_in_control:] > UCL_T2)
     is_spe_ooc = np.any(spe[n_in_control:] > UCL_SPE)
     
-    fig_contrib = None # Initialize as None
+    fig_contrib = None
     ooc_indices = np.where((t_squared[n_in_control:] > UCL_T2) | (spe[n_in_control:] > UCL_SPE))[0]
 
     if ooc_indices.size > 0:
         first_ooc_index = n_in_control + ooc_indices[0]
         
-        # Prioritize T² alarm for contribution analysis if both alarm
         if t_squared[first_ooc_index] > UCL_T2:
             fault_vector = scaled_data[first_ooc_index, :]
-            # Correct T² contribution calculation
             score = fault_vector @ pca.components_.T
             contributions = (score * pca.components_)**2
             df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions.flatten()})
             fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Contributions to T² Alarm</b> (Batch {first_ooc_index+1})")
         
         elif spe[first_ooc_index] > UCL_SPE:
-            # SPE contribution is simply the squared residuals
             contributions = residuals[first_ooc_index]**2
             df_contrib = pd.DataFrame({'Variable': ['Temperature', 'Pressure'], 'Contribution': contributions})
             fig_contrib = px.bar(df_contrib, x='Variable', y='Contribution', title=f"<b>Contributions to SPE Alarm</b> (Batch {first_ooc_index+1})")
@@ -1364,10 +1356,7 @@ def plot_multivariate_spc(scenario='Stable'):
 
     # --- 5. Create Plotly Figures ---
     fig_scatter = px.scatter(
-        data_frame=df_plot,
-        x='Temperature',
-        y='Pressure',
-        color='Status',
+        data_frame=df_plot, x='Temperature', y='Pressure', color='Status',
         color_discrete_map={'In-Control': 'blue', 'Out-of-Control': 'red'},
         title=f"<b>1. Process Data Scatter Plot ({scenario} Scenario)</b>",
         labels={'Temperature': 'Temperature (°C)', 'Pressure': 'Pressure (PSI)'}
@@ -1377,7 +1366,6 @@ def plot_multivariate_spc(scenario='Stable'):
     
     fig_charts.add_trace(go.Scatter(x=df_plot['Batch'], y=t_squared, mode='lines+markers', name="T²", line_color='blue'), row=1, col=1)
     fig_charts.add_hline(y=UCL_T2, line=dict(color='red', dash='dash'), name='UCL', row=1, col=1)
-    
     fig_charts.add_trace(go.Scatter(x=df_plot['Batch'], y=spe, mode='lines+markers', name="SPE", line_color='blue'), row=1, col=2)
     if not np.isnan(UCL_SPE) and UCL_SPE > 0:
         fig_charts.add_hline(y=UCL_SPE, line=dict(color='red', dash='dash'), name='UCL', row=1, col=2)
@@ -3234,7 +3222,6 @@ def render_multivariate_spc():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            # Use dynamic verdicts instead of hardcoded logic
             t2_verdict_str = "Out-of-Control" if t2_ooc else "In-Control"
             spe_verdict_str = "Out-of-Control" if spe_ooc else "In-Control"
             
@@ -3263,8 +3250,7 @@ def render_multivariate_spc():
                 4.  **Contribution Plot:** This diagnostic tool shows that both variables are contributing to the SPE alarm, confirming the fundamental breakdown of the process model itself.
                 """)
             
-            # Conditionally display the contribution plot if it was generated
-            if fig_contrib:
+            if fig_contrib is not None:
                 st.markdown("---")
                 st.markdown("##### Root Cause Diagnosis")
                 st.plotly_chart(fig_contrib, use_container_width=True)

@@ -1444,9 +1444,7 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
     # 2. Fit TWO models: a simple RSM and a powerful ML model
     X = df[['pH_coded', 'Temp_coded']]
     y = df['Response']
-    # Model 1: Simple RSM (OLS)
     rsm_model = ols('Response ~ pH_coded + Temp_coded + I(pH_coded**2) + I(Temp_coded**2) + pH_coded:Temp_coded', data=df).fit()
-    # Model 2: Advanced ML (Gradient Boosting)
     ml_model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100, random_state=42).fit(X, y)
 
     # 3. Create prediction grids for both models
@@ -1463,35 +1461,37 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
     fig_rsm_2d = go.Figure(data=[go.Contour(z=pred_rsm, x=y_range_real, y=x_range_real, contours_coloring='fill', colorscale='Plasma')])
     fig_rsm_2d.update_layout(title='<b>1b. RSM Model (2D Contour)</b>', xaxis_title='Temperature (°C)', yaxis_title='pH', margin=dict(l=0,r=0,b=0,t=40))
 
-    # 5. Generate ML PDP/ICE Plot
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # 5. Generate ML PDP Plot (now correctly requesting two 1D plots)
     fig_pdp, ax_pdp = plt.subplots(figsize=(8, 6))
-    X_display = df.rename(columns={'pH_real': 'pH', 'Temp_real': 'Temperature'})
+    feature_names_for_pdp = ['pH (coded)', 'Temp (coded)']
+    # The 'features' argument is now a list of the column indices [0, 1]
     PartialDependenceDisplay.from_estimator(
-        estimator=ml_model, X=X, features=[('pH_coded', 'Temp_coded')],
-        feature_names=['pH (coded)', 'Temp (coded)'], kind="average", ax=ax_pdp
+        estimator=ml_model, X=X, features=[0, 1],
+        feature_names=feature_names_for_pdp,
+        kind="average", n_cols=2, ax=ax_pdp
     )
-    ax_pdp.set_title("2. PDP from ML Model", fontsize=16)
+    fig_pdp.suptitle("2. Partial Dependence Plots from ML Model", fontsize=16)
+    fig_pdp.tight_layout(rect=[0, 0, 1, 0.95]) # Adjust layout to make space for suptitle
     pdp_ice_buffer = io.BytesIO()
     fig_pdp.savefig(pdp_ice_buffer, format='png', bbox_inches='tight')
     plt.close(fig_pdp)
     pdp_ice_buffer.seek(0)
+    # --- END OF CORRECTION ---
     
     # 6. Visualize Gradient Descent on the ML surface
     fig_gd_2d = go.Figure(data=[go.Contour(z=pred_ml, x=y_range_real, y=x_range_real, contours_coloring='fill', colorscale='Viridis')])
-    # Gradient Descent Algorithm
-    start_point = np.array([34.0, 7.5]) # Start at a non-optimal point
+    start_point = np.array([34.0, 7.5])
     path = [start_point]
     grad_y, grad_x = np.gradient(pred_ml, y_range_real, x_range_real)
     for _ in range(gd_steps):
         current_x, current_y = path[-1]
-        # Find closest grid point to get gradient
         ix = np.argmin(np.abs(y_range_real - current_x))
         iy = np.argmin(np.abs(x_range_real - current_y))
         g_x, g_y = grad_x[iy, ix], grad_y[iy, ix]
         new_point = path[-1] + gd_learning_rate * np.array([g_x, g_y])
         path.append(new_point)
     path = np.array(path)
-    # Add path to plot
     fig_gd_2d.add_trace(go.Scatter(x=path[:,0], y=path[:,1], mode='lines+markers',
                                   line=dict(color='red', width=3), marker=dict(color='white', size=8, symbol='circle')))
     fig_gd_2d.update_layout(title='<b>3. Gradient Descent Optimization</b>', xaxis_title='Temperature (°C)', yaxis_title='pH', margin=dict(l=0,r=0,b=0,t=40))
@@ -4992,8 +4992,12 @@ def render_process_optimization_suite():
     
     **Strategic Application:** This dashboard integrates three powerful techniques to tell a complete story.
     1.  **DOE/RSM:** Provides a simple, causal model and an initial map of the process landscape.
-    2.  **ML & PDP/ICE:** Uncovers more complex, non-linear relationships from data that the simple RSM model might miss.
+    2.  **ML & PDP:** Uncovers more complex, non-linear relationships from data that the simple RSM model might miss.
     3.  **Gradient Descent:** Shows how we can use the AI model as a "GPS" to automatically find the path to the optimal process conditions.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sidebar controls to define the "true" physics of your process. The dashboard follows a real-world workflow: check the **statistical model results** first, then review the **visual process maps** to understand the findings.
     """)
     
     with st.sidebar:
@@ -5022,7 +5026,6 @@ def render_process_optimization_suite():
         gd_learning_rate=gd_lr_slider, gd_steps=gd_steps_slider
     )
 
-    # --- NEW PROFESSIONAL LAYOUT ---
     st.header("Part 1: Statistical Modeling (DOE/RSM)")
     st.markdown("We begin by fitting a simple, interpretable quadratic model to the experimental data to get our initial understanding of the process.")
     col1, col2 = st.columns(2)
@@ -5046,36 +5049,41 @@ def render_process_optimization_suite():
     with tabs[0]:
         st.markdown("""
         **The Four-Step Workflow:**
-        1.  **RSM Plots:** The top plots show the simplified, quadratic view of the world. This is our baseline causal model from the planned experiment.
-        2.  **PDP/ICE Plot:** This plot (bottom-left) reveals the more complex, nuanced relationships learned by the advanced ML model. Notice how it captures the asymmetry that the simple RSM model misses.
-        3.  **Gradient Descent:** The bottom-right plot shows an AI agent "climbing the hill" on the ML model's map to find the peak. The red path shows its journey to the optimal settings.
+        1.  **RSM Plots:** The top plots show the simplified, quadratic view of the world. This is our baseline causal model from the planned experiment. It's easy to interpret but may not be perfectly accurate.
+        2.  **PDP Plots:** The bottom-left plot reveals the more complex, nuanced relationships learned by the advanced ML model. Notice how the pH plot captures the asymmetric "cliff" that the simple RSM model misses. This is a more accurate, but correlational, view.
+        3.  **Gradient Descent:** The bottom-right plot shows an AI agent "climbing the hill" on the ML model's more accurate map to find the peak. The red path shows its journey from a suboptimal starting point to the best predicted conditions.
         
-        **Core Insight:** DOE/RSM is essential for building a causal foundation. Advanced ML models are superior for analyzing complex historical data. Gradient-based optimization is how we turn a descriptive model into a prescriptive, actionable tool.
+        **Core Insight:** The workflow demonstrates a powerful modern paradigm: **Use DOE to build a simple, causal foundation. Then, use ML on larger historical datasets to refine that understanding and create a high-fidelity "digital twin" of your process that can be used for automated optimization.**
         """)
-    
+        
     with tabs[1]:
-        st.error("""🔴 **THE INCORRECT APPROACH: One-Factor-at-a-Time (OFAT)**
-An engineer optimizes Temperature, locks it in, then optimizes pH.
-**The Flaw:** This method is guaranteed to miss the true optimum if any interaction exists. It results in a process that is fragile and operates on a sub-optimal 'ridge' rather than at the true peak.""")
-        st.success("""🟢 **THE GOLDEN RULE: Map the Space, Own the Process**
-The Quality by Design (QbD) approach is superior.
-1.  **Map the Entire Space:** Use a eficient DOE (like a Central Composite Design) to explore the full multidimensional space at once.
-2.  **Model the Relationship:** Build a predictive statistical model (RSM) from the DOE data.
-3.  **Define the Space:** Use the model to define and justify the Design Space based on a desired quality attribute. This provides maximum flexibility and process understanding.""")
-            
+        st.error("""🔴 **THE INCORRECT APPROACH: The "ML is Magic" Fallacy**
+An analyst takes a messy historical dataset, trains a complex ML model, and uses Gradient Descent to find a "perfect" optimum without understanding the underlying causality.
+- **The Flaw:** The historical data may contain confounding. The model might learn that "high yield is correlated with Operator Bob," but this is not an actionable insight. Trying to optimize for "more Bob" is nonsensical. The model has learned a correlation, not a causal lever.""")
+        st.success("""🟢 **THE GOLDEN RULE: DOE for Causality, ML for Complexity**
+A robust optimization strategy uses the best of both worlds.
+1.  **Establish Causality with DOE:** First, use a planned DOE to prove which parameters are true causal levers for the process. This grounds your model in scientific reality.
+2.  **Capture Complexity with ML:** Once you have a large historical dataset, use a more powerful ML model to capture the complex, non-linear interactions your simple RSM model might miss.
+3.  **Optimize on Causal Levers:** Finally, use optimization algorithms like Gradient Descent on your ML model, but only allow it to optimize the parameters you have already proven to be causal. This ensures your final "optimum" is both accurate and actionable.""")
+
     with tabs[2]:
         st.markdown("""
-        #### Historical Context: From Screening to Optimization
-        **The Problem:** In the 1920s, **Sir Ronald A. Fisher**'s Design of Experiments was brilliant for *screening*—efficiently figuring out *which* factors were important. However, the post-war chemical industry needed to *optimize*—not just know *what* mattered, but *where the best settings were*. A simple factorial design can't model curvature and therefore can't find a peak.
-
-        **The 'Aha!' Moment:** In 1951, **George Box** and K.B. Wilson developed **Response Surface Methodology (RSM)**. They created efficient new designs (like the Central Composite Design) that cleverly add "axial" (star) and center points to a factorial design. These extra points allow for the fitting of a **quadratic model**, which is the key to modeling curvature and finding the "peak of the mountain."
+        #### Historical Context: A Convergence of Titans
+        This dashboard represents the convergence of three separate, powerful intellectual traditions that developed over nearly a century.
+        1.  **Statistical Experimentation (DOE/RSM, 1920s-1950s):** Pioneered by **Sir Ronald A. Fisher** and later perfected for optimization by **George Box**. The focus was on extracting maximum causal information from a minimum number of planned, physical experiments. This was the era of "small data" and deep statistical theory.
+        2.  **Machine Learning (Gradient Boosting, 1990s-2000s):** With the rise of computing power, researchers like Jerome Friedman developed algorithms like Gradient Boosting Machines (GBM). The focus shifted from simple, interpretable models to highly accurate, complex algorithms that could learn intricate patterns from large "found" datasets. **XGBoost** (2014) is a highly optimized, modern implementation of these ideas.
+        3.  **Mathematical Optimization (Gradient Descent, 1847):** The core idea of "climbing the hill" by following the steepest path was first proposed by Augustin-Louis Cauchy. For over a century, it was a mathematical curiosity. The AI revolution of the 2010s turned it into the engine of modern deep learning, as it is the algorithm used to train virtually every neural network.
         
-        **The Impact:** This moved DOE from simple screening to true, powerful optimization. It became the statistical foundation of modern process development and the engine for the **Quality by Design (QbD)** movement, championed by pharmaceutical regulators in the early 2000s.
+        **The Modern Synthesis:** Today, we can combine these three titans. We use the principles of Fisher and Box to design smart experiments, the predictive power of Friedman's algorithms to build an accurate map, and the efficiency of Cauchy's optimization to find the peak.
         """)
-        st.markdown("#### Mathematical Basis")
-        st.markdown("RSM fits a second-order (quadratic) model: `Yield = β₀ + β₁(Temp) + β₂(pH) + β₁₂(Temp*pH) + β₁₁(Temp²) + β₂₂(pH²)`. The Design Space is the set of `(Temp, pH)` combinations for which the model predicts `Yield ≥ Threshold`.")
-
+        
     with tabs[3]:
+        st.markdown("""
+        This integrated workflow is a direct implementation of the most advanced principles of **Quality by Design (QbD)** and **Process Analytical Technology (PAT)**.
+        - **ICH Q8(R2) - Pharmaceutical Development:** The DOE/RSM portion is the standard method for establishing a **Design Space**. The ML and Gradient Descent portions represent an advanced method for achieving a deeper **Process Understanding** and identifying an optimal **Control Strategy**.
+        - **FDA Guidance for Industry - PAT:** Using an ML model as a "digital twin" for your process and running optimization algorithms on it is a core concept of PAT. It allows for process control and optimization to be done proactively and based on a deep, data-driven model.
+        - **FDA AI/ML Action Plan & GMLP:** Deploying an ML model for process optimization in a GxP environment requires a robust validation lifecycle. This includes justifying the model choice, validating its predictive accuracy, and using explainability tools like PDP plots to ensure its reasoning is scientifically sound. The entire workflow shown here would be a key part of the validation package for an AI-driven control strategy.
+        """)
         st.markdown("""
         This tool directly implements the core principles of the **ICH Q8(R2) Pharmaceutical Development** guideline, which is the foundational document for Quality by Design (QbD).
         

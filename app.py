@@ -1459,11 +1459,11 @@ def plot_doe_design_space(ph_effect, temp_effect, interaction_effect, ph_quad_ef
     max_response = np.max(pred)
     nor = {'x0': opt_temp_real - 1, 'y0': opt_ph_real - 0.1, 'x1': opt_temp_real + 1, 'y1': opt_ph_real + 0.1}
 
-    # 5. Generate Pareto Plot of Effects (CRITICAL NEW PLOT)
+    # 5. Generate Pareto Plot of Effects
     effects = model.params[1:]; std_errs = model.bse[1:]
     t_values = np.abs(effects / std_errs)
     p_values_map = anova_table.set_index('Term')['p-value']
-    effect_names = ['pH', 'Temp', 'I(pH**2)', 'I(Temp**2)', 'pH:Temp']
+    effect_names = ['pH', 'Temp', 'pH²', 'Temp²', 'pH:Temp'] # More intuitive names
     p_values = [p_values_map.get(name.replace('_coded', ''), 1.0) for name in effects.index]
     effects_df = pd.DataFrame({'Effect': effect_names, 't-value': t_values, 'p-value': p_values}).sort_values('t-value', ascending=False)
     fig_pareto = px.bar(effects_df, x='Effect', y='t-value', title='<b>1. Pareto Plot of Effects</b>',
@@ -1474,35 +1474,36 @@ def plot_doe_design_space(ph_effect, temp_effect, interaction_effect, ph_quad_ef
     fig_pareto.add_hline(y=t_crit, line_dash="dash", line_color="red", annotation_text="Significance (p=0.05)")
     fig_pareto.update_layout(showlegend=False)
 
-    # 6. Generate 2D Contour Plot (Design Space View)
+    # 6. Generate 3D Surface Plot
+    fig_3d = go.Figure(data=[go.Surface(z=pred, x=y_range_real, y=x_range_real, colorscale='viridis', cmin=80, cmax=100, opacity=0.9)])
+    fig_3d.add_trace(go.Scatter3d(x=df['Temp'], y=df['pH'], z=df['Response'], mode='markers', 
+                                 marker=dict(color='red', size=5, line=dict(width=2, color='black')), name='DOE Runs'))
+    fig_3d.update_layout(title='<b>2. Response Surface (3D View)</b>', 
+                         scene=dict(xaxis_title='Temperature (°C)', yaxis_title='pH', zaxis_title='Yield (%)'), 
+                         margin=dict(l=0, r=0, b=0, t=40))
+
+    # 7. Generate 2D Contour Plot
     fig_2d = go.Figure(data=go.Contour(
         z=pred, x=y_range_real, y=x_range_real, colorscale='viridis',
         contours_coloring='fill', showscale=True, colorbar_title='Yield (%)',
         contours=dict(showlabels=True, labelfont=dict(color='white')),
-        zmin=pred.min(), zmax=pred.max()
+        zmin=80, zmax=100
     ))
-    # Add PAR boundary line
     fig_2d.add_trace(go.Contour(z=pred, x=y_range_real, y=x_range_real, contours_coloring='lines',
                                line_width=4, line_color='#FFBF00', name='PAR Boundary',
                                contours=dict(start=yield_threshold, end=yield_threshold, coloring='lines')))
-    # Add NOR box
     fig_2d.add_shape(type="rect", x0=nor['x0'], y0=nor['y0'], x1=nor['x1'], y1=nor['y1'],
                      line=dict(color=SUCCESS_GREEN, width=4))
-    # Add Optimum Star
     fig_2d.add_trace(go.Scatter(x=[opt_temp_real], y=[opt_ph_real], mode='markers',
                                marker=dict(color='white', size=18, symbol='star', line=dict(width=2, color='black')),
                                name='Predicted Optimum'))
-    fig_2d.add_annotation(x=np.mean([nor['x0'], nor['x1']]), y=np.mean([nor['y0'], nor['y1']]),
-                          text="<b>NOR</b>", showarrow=False, font=dict(color=SUCCESS_GREEN, size=16))
-    fig_2d.add_annotation(x=opt_temp_real, y=pred.min() + (pred.max()-pred.min())*0.05,
-                          text=f"<b>PAR / Design Space (Yield ≥ {yield_threshold}%)</b>", showarrow=False,
-                          font=dict(color='white', size=12), bgcolor='rgba(0,0,0,0.5)')
-    
-    fig_2d.update_layout(title='<b>2. Process Operating Space Map (2D)</b>',
+    fig_2d.add_trace(go.Scatter(x=df['Temp'], y=df['pH'], mode='markers', 
+                               marker=dict(color='red', size=8, line=dict(width=1, color='black')), name='DOE Runs'))
+    fig_2d.update_layout(title='<b>3. Process Map (2D View)</b>',
                          xaxis_title='Temperature (°C)', yaxis_title='pH',
                          margin=dict(l=0, r=0, b=0, t=40), showlegend=False)
     
-    return fig_pareto, fig_2d, anova_table, opt_ph_real, opt_temp_real, max_response
+    return fig_pareto, fig_3d, fig_2d, anova_table, opt_ph_real, opt_temp_real, max_response
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Split-Plot) - SME ENHANCED
 # ==============================================================================
@@ -4996,15 +4997,12 @@ def render_doe_design_space():
     **Purpose:** To systematically explore the relationship between process parameters and product quality, culminating in the creation of a **Design Space**. This is the core activity of **Quality by Design (QbD)**.
     
     **Strategic Application:** Defining a Design Space is a revolutionary step up from traditional validation. Instead of validating a single operating point, you validate a multi-dimensional "safe operating zone."
-    - **Operational Flexibility:** As long as the process runs within the approved Design Space, any changes to parameters (e.g., pH from 7.1 to 7.3) are **not considered a regulatory change**, eliminating the need for costly re-validation.
-    - **Deep Process Understanding:** This approach forces a deep, scientific understanding of the process, which is a key expectation from modern regulators like the FDA.
+    - **Operational Flexibility:** As long as the process runs within the approved Design Space, any changes to parameters are **not considered a regulatory change**, eliminating the need for costly re-validation.
+    - **Deep Process Understanding:** This approach forces a deep, scientific understanding of the process, a key expectation from modern regulators.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sidebar controls to define the "true" physics of your process and the quality requirements.
-    - The **Pareto Plot** instantly shows you which factors are driving the process.
-    - The **KPIs** show the predicted optimal settings.
-    - The **Process Map** visualizes the final Design Space (PAR) and Normal Operating Range (NOR).
+    **Interactive Demo:** Use the sidebar controls to define the "true" physics of your process and the quality requirements. The dashboard follows a real-world workflow: check the **statistical results** first, then review the **visual process maps**.
     """)
 
     with st.sidebar:
@@ -5021,7 +5019,7 @@ def render_doe_design_space():
         yield_threshold_slider = st.slider("Acceptable Yield Threshold (%)", 85, 99, 95, 1,
             help="This defines the boundary of your Design Space / PAR.")
 
-    fig_pareto, fig_2d, anova_table, opt_ph, opt_temp, max_resp = plot_doe_design_space(
+    fig_pareto, fig_3d, fig_2d, anova_table, opt_ph, opt_temp, max_resp = plot_doe_design_space(
         ph_effect=ph_slider, temp_effect=temp_slider, interaction_effect=interaction_slider,
         ph_quad_effect=ph_quad_slider, temp_quad_effect=temp_quad_slider, noise_sd=noise_slider,
         yield_threshold=yield_threshold_slider
@@ -5029,7 +5027,7 @@ def render_doe_design_space():
 
     # --- NEW, IMPROVED LAYOUT ---
     st.header("Results Dashboard")
-    col1, col2 = st.columns([0.6, 0.4])
+    col1, col2 = st.columns([0.55, 0.45])
     with col1:
         st.plotly_chart(fig_pareto, use_container_width=True)
     with col2:
@@ -5039,21 +5037,28 @@ def render_doe_design_space():
         m2.metric("Optimal Temp (°C)", f"{opt_temp:.2f}")
         m3.metric("Max Predicted Yield", f"{max_resp:.1f}%")
         st.markdown("---")
-        st.markdown("The **Process Map** below visualizes these optimal conditions and the resulting operational ranges.")
+        st.markdown("##### Statistical Model Summary (ANOVA)")
+        st.dataframe(anova_table.style.format({'p-value': '{:.4f}'}).applymap(
+            lambda p: 'background-color: #C8E6C9' if p < 0.05 else '', subset=['p-value']),
+            use_container_width=True, height=240)
 
-    st.plotly_chart(fig_2d, use_container_width=True)
+    st.header("Process Visualizations")
+    col3, col4 = st.columns(2)
+    with col3:
+        st.plotly_chart(fig_3d, use_container_width=True)
+    with col4:
+        st.plotly_chart(fig_2d, use_container_width=True)
     
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
-    # --- FIX: INDENTATION CORRECTED FOR ALL TABS ---
     with tabs[0]:
         st.markdown("""
         **A Realistic Workflow:**
         1.  **Start with the Pareto Plot:** This is your primary diagnostic. It instantly shows which factors are the main drivers. Green bars (significant effects) are the ones that build your predictive model. If there are no significant curvature effects, you cannot define an optimum peak.
-        2.  **Check the KPIs:** Once you have a valid model, the KPIs tell you the "answer"—the predicted best operating point to maximize yield.
-        3.  **Consult the Map:** The 2D plot is your operational guide. It visualizes the Design Space (PAR) where you are guaranteed to meet your yield threshold, and the tighter Normal Operating Range (NOR) for routine production.
+        2.  **Check the ANOVA Table:** This provides the statistical proof for the Pareto plot. Look for p-values < 0.05.
+        3.  **Consult the Process Maps:** The 3D plot gives you intuition for the "shape" of the process, while the 2D plot is your operational guide. It visualizes the **Design Space (PAR)** where you are guaranteed to meet your yield threshold, and the tighter **Normal Operating Range (NOR)** for routine production.
 
         **Core Insight:** The power of this method is building a **predictive model**. The plots are not just pictures; they are a graphical representation of a mathematical equation `Yield = f(Temp, pH)`. This equation allows you to predict the outcome at any point in the space, which is the foundation of Quality by Design.
         """)

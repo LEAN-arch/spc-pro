@@ -78,7 +78,6 @@ st.markdown("""
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (V-Model) - INTERACTIVE DASHBOARD VERSION
 # ==============================================================================
-@st.cache_data
 def plot_v_model(context='Assay Method'):
     """
     Generates a substantially enhanced, interactive V-Model dashboard where the
@@ -196,7 +195,6 @@ def plot_v_model(context='Assay Method'):
     )
     
     return fig
-
 
 # --- RESTORED PLOTTING FUNCTION 2 ---
 @st.cache_data

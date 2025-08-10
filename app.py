@@ -3595,81 +3595,108 @@ def plot_tcn_cusum(drift_magnitude=0.05, daily_cycle_strength=1.0):
 # HELPER & PLOTTING FUNCTION (Method 6) - CORRECTED
 # ==============================================================================
 @st.cache_data
-def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=5.0):
+def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=2.0):
     """
-    Simulates the reconstruction error from an LSTM Autoencoder and applies a hybrid
-    EWMA + BOCPD monitoring system to it.
+    Generates an enhanced, more realistic LSTM Autoencoder dashboard, simulating
+    multivariate data and visualizing the model's reconstruction performance.
     """
     np.random.seed(42)
     n_points = 250
+    time = np.arange(n_points)
     
-    # 1. --- Simulate Reconstruction Error ---
-    # A well-behaved LSTM Autoencoder on normal data produces low, random error.
-    # We simulate this error directly.
-    recon_error = np.random.chisquare(df=2, size=n_points) * 0.2
+    # --- 1. SME Enhancement: Simulate realistic multivariate bioprocess data ---
+    # Normal process has a slight correlation and oscillation
+    temp = 70 + 5 * np.sin(time / 20) + np.random.normal(0, 0.5, n_points)
+    ph = 7.0 - 0.2 * np.sin(time / 20 + np.pi/2) + np.random.normal(0, 0.05, n_points)
+    df = pd.DataFrame({'Temperature': temp, 'pH': ph})
     
-    # Inject a gradual drift anomaly (e.g., equipment degradation)
+    # --- 2. Simulate the Reconstruction and Error ---
+    # A real LSTM autoencoder is complex. We simulate its key property: it reconstructs
+    # normal data well, but struggles with anomalies.
+    df_recon = df.copy()
+    recon_error = np.random.chisquare(df=2, size=n_points) * 0.1 # Base reconstruction error
+
+    # Inject a gradual drift anomaly (e.g., sensor drift in both signals)
     drift_start = 100
-    drift = np.linspace(0, drift_rate * (n_points - drift_start), n_points - drift_start)
-    recon_error[drift_start:] += drift
-    
+    drift_duration = n_points - drift_start
+    drift = np.linspace(0, drift_rate * drift_duration, drift_duration)
+    # Add drift to the real data (the model won't know how to reconstruct this)
+    df['Temperature'][drift_start:] += drift
+    df['pH'][drift_start:] -= drift * 0.01
+    recon_error[drift_start:] += np.linspace(0, 1.5, drift_duration)**2 # Error accelerates
+
     # Inject a sudden spike anomaly (e.g., process shock)
     spike_point = 200
-    recon_error[spike_point] += spike_magnitude
-    
-    # 2. --- Apply EWMA to detect the drift ---
+    df['Temperature'][spike_point] += spike_magnitude * 2
+    df['pH'][spike_point] += spike_magnitude * 0.1
+    recon_error[spike_point] += spike_magnitude**2
+
+    # --- 3. Apply Hybrid Monitoring to the Reconstruction Error ---
+    # EWMA for drift detection
     lambda_ewma = 0.1
-    
-    # --- THIS IS THE CORRECTED LINE ---
     ewma = pd.Series(recon_error).ewm(alpha=lambda_ewma, adjust=False).mean().values
-    # --- END OF CORRECTION ---
-    
     ewma_mean = np.mean(recon_error[:drift_start])
     ewma_std = np.std(recon_error[:drift_start])
     ewma_ucl = ewma_mean + 3 * ewma_std * np.sqrt(lambda_ewma / (2 - lambda_ewma))
-    ewma_ooc = np.where(ewma > ewma_ucl)[0]
-    first_ewma_ooc = ewma_ooc[0] if len(ewma_ooc) > 0 else None
-    
-    # 3. --- Apply BOCPD to detect the spike ---
+    ewma_ooc_mask = ewma > ewma_ucl
+    first_ewma_ooc = np.argmax(ewma_ooc_mask) if np.any(ewma_ooc_mask) else None
+
+    # BOCPD for spike detection
     hazard = 1/500.0
     mean0, var0 = np.mean(recon_error[:drift_start]), np.var(recon_error[:drift_start])
     R = np.zeros((n_points + 1, n_points + 1)); R[0, 0] = 1
-    
+    prob_rl_zero = np.zeros(n_points)
     for t in range(1, n_points + 1):
-        # We need to account for the ongoing drift for the BOCPD likelihood
-        current_mean_est = mean0 + drift_rate * max(0, t - drift_start)
-        pred_probs = stats.norm.pdf(recon_error[t-1], loc=current_mean_est, scale=np.sqrt(var0))
+        x = recon_error[t-1]
+        pred_probs = stats.norm.pdf(x, loc=mean0, scale=np.sqrt(var0)) # Simplified model
         R[1:t+1, t] = R[0:t, t-1] * pred_probs * (1 - hazard)
         R[0, t] = np.sum(R[:, t-1] * pred_probs * hazard)
-        R[:, t] = R[:, t] / np.sum(R[:, t]) if np.sum(R[:, t]) > 0 else R[:, t]
-        
-    bocpd_max_prob_at_spike = R[0, spike_point]
-
-    # 4. --- Plotting ---
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=("LSTM Autoencoder Reconstruction Error",
-                                        "EWMA Chart on Error (for Drift Detection)",
-                                        "BOCPD on Error (for Sudden Change Detection)"))
-
-    fig.add_trace(go.Scatter(y=recon_error, mode='lines', name='Reconstruction Error'), row=1, col=1)
-    fig.add_vline(x=drift_start, line_dash='dot', line_color='orange', annotation_text='Drift Starts', row=1, col=1)
-    fig.add_vline(x=spike_point, line_dash='dot', line_color='red', annotation_text='Spike Event', row=1, col=1)
-
-    fig.add_trace(go.Scatter(y=ewma, mode='lines', name='EWMA'), row=2, col=1)
-    fig.add_hline(y=ewma_ucl, line_color='red', row=2, col=1)
-    if first_ewma_ooc:
-        fig.add_trace(go.Scatter(x=[first_ewma_ooc], y=[ewma[first_ewma_ooc]], mode='markers',
-                                 marker=dict(color='orange', size=12, symbol='x'), name='Drift Alarm'), row=2, col=1)
-
-    fig.add_trace(go.Heatmap(z=R[0:50, :], showscale=False, colorscale='Reds'), row=3, col=1)
-    fig.update_yaxes(title_text="Run Length", row=3, col=1)
-
-    fig.update_layout(height=800, title_text="<b>LSTM Autoencoder with Hybrid Monitoring System</b>")
-    fig.update_xaxes(title_text="Time", row=3, col=1)
+        if np.sum(R[:, t]) > 0: R[:, t] /= np.sum(R[:, t])
+        prob_rl_zero[t-1] = R[0, t]
     
-    return fig, first_ewma_ooc, bocpd_max_prob_at_spike
+    # Find spike detection point
+    bocpd_ooc_mask = prob_rl_zero > 0.5 # Threshold for spike detection
+    first_bocpd_ooc = np.argmax(bocpd_ooc_mask) if np.any(bocpd_ooc_mask) else None
+    
+    # --- 4. Plotting Dashboard ---
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05,
+                        subplot_titles=("<b>1. Multivariate Process Data & AI Reconstruction</b>",
+                                        "<b>2. AI Reconstruction Error (Process Health Score)</b>",
+                                        "<b>3. Hybrid Monitoring Charts on Health Score</b>"))
 
+    # Plot 1: Raw Data and Reconstruction
+    for col, color in zip(df.columns, ['red', 'blue']):
+        fig.add_trace(go.Scatter(x=time, y=df[col], name=f'Actual {col}', mode='lines', line=dict(color=color)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=time, y=df_recon[col], name=f'Reconstructed {col}', mode='lines',
+                                 line=dict(color=color, dash='dash')), row=1, col=1)
+    
+    # Plot 2: Reconstruction Error
+    fig.add_trace(go.Scatter(x=time, y=recon_error, mode='lines', name='Recon. Error', line_color='black'), row=2, col=1)
 
+    # Plot 3: Hybrid Monitoring
+    fig.add_trace(go.Scatter(x=time, y=ewma, mode='lines', name='EWMA (for Drift)', line_color='orange'), row=3, col=1)
+    fig.add_hline(y=ewma_ucl, line_color='orange', line_dash='dash', row=3, col=1)
+    fig.add_trace(go.Scatter(x=time, y=prob_rl_zero, mode='lines', name='BOCPD (for Spikes)', line_color='purple', yaxis='y2'), row=3, col=1)
+
+    # Add dynamic annotations for alarms
+    if first_ewma_ooc:
+        fig.add_vline(x=first_ewma_ooc, line=dict(color='orange', width=2),
+                      annotation_text="EWMA Drift Alarm", annotation_position='top', row='all', col=1)
+    if first_bocpd_ooc:
+        fig.add_vline(x=first_bocpd_ooc, line=dict(color='purple', width=2, dash='dot'),
+                      annotation_text="BOCPD Spike Alarm", annotation_position='bottom', row='all', col=1)
+
+    fig.update_layout(
+        height=800, title_text="<b>LSTM Autoencoder with Hybrid Monitoring System</b>",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        yaxis3=dict(overlaying='y', side='right', title='P(Change)', range=[0,1]), # Secondary axis for BOCPD
+        yaxis_title="Value",
+        yaxis2_title="Recon. Error",
+        yaxis3_title="EWMA",
+        xaxis3_title="Time (Hours)"
+    )
+    
+    return fig, first_ewma_ooc, first_bocpd_ooc
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================
@@ -6609,52 +6636,53 @@ def render_lstm_autoencoder_monitoring():
     """Renders the LSTM Autoencoder + Hybrid Monitoring module."""
     st.markdown("""
     #### Purpose & Application: The AI Immune System
-    **Purpose:** To create a sophisticated, self-learning "immune system" for your process. An **LSTM Autoencoder** learns the normal, dynamic "fingerprint" of a healthy process over time. It then generates a single health score: the **reconstruction error**. We then deploy a **hybrid monitoring system** on this health score to detect different types of diseases (anomalies).
+    **Purpose:** To create a sophisticated, self-learning "immune system" for your process. An **LSTM Autoencoder** learns the normal, dynamic "fingerprint" of a healthy multivariate process. It then generates a single health score: the **reconstruction error**. We then deploy a **hybrid monitoring system** on this health score to detect different types of diseases (anomalies).
     
     **Strategic Application:** This is a state-of-the-art approach for unsupervised anomaly detection in multivariate time-series data, like that from a complex bioprocess.
-    - **Learns Normal Behavior:** The LSTM Autoencoder learns the complex, time-dependent correlations between many process parameters.
-    - **One Score to Rule Them All:** It distills hundreds of parameters into a single, chartable health score.
-    - **Hybrid Detection:**
-        - An **EWMA chart** on the health score detects slow-onset diseases (like gradual equipment degradation).
-        - A **BOCPD algorithm** on the health score detects acute events (like a sudden process shock).
+    - **Learns Normal Dynamics:** The LSTM Autoencoder learns the complex, time-dependent correlations between many process parameters.
+    - **One Health Score:** It distills hundreds of parameters into a single, chartable health score.
+    - **Hybrid Detection:** An **EWMA chart** detects slow-onset diseases (gradual degradation), while a **BOCPD algorithm** detects acute events (sudden shocks).
     """)
     st.info("""
-    **Interactive Demo:** Use the sliders to control two different types of anomalies that occur in the process. Observe how the two different monitoring charts are specialized to detect each one.
-    - **`Drift Rate`**: Controls how quickly the reconstruction error grows after time #100. Watch the **EWMA chart (middle)** slowly rise to catch this.
-    - **`Spike Magnitude`**: Controls the size of the sudden shock at time #200. Watch the **BOCPD heatmap (bottom)** instantly react to this.
+    **Interactive Demo:** Use the sliders to introduce two different types of anomalies into the multivariate process.
+    - **`Gradual Drift Rate`**: Controls a slow, creeping deviation in both Temp and pH. Watch the **EWMA chart (orange)** in the bottom plot slowly rise to catch this.
+    - **`Spike Magnitude`**: Controls a sudden shock at time #200. Watch the **BOCPD probability (purple)** in the bottom plot instantly react to this.
     """)
-    st.sidebar.subheader("LSTM Anomaly Controls")
-    drift_slider = st.sidebar.slider("Drift Rate of Error", 0.0, 0.05, 0.02, 0.005,
-        help="Controls how quickly the reconstruction error grows after the drift begins at time #100. Simulates gradual equipment degradation.")
-    spike_slider = st.sidebar.slider("Spike Magnitude in Error", 1.0, 10.0, 5.0, 1.0,
-        help="Controls the size of the sudden shock in the reconstruction error at time #200. Simulates a sudden process fault or sensor failure.")
+    with st.sidebar:
+        st.sidebar.subheader("LSTM Anomaly Controls")
+        drift_slider = st.sidebar.slider("Gradual Drift Rate", 0.0, 0.05, 0.02, 0.005,
+            help="Controls how quickly the process drifts away from its normal behavior after time #100. Simulates gradual equipment degradation.")
+        spike_slider = st.sidebar.slider("Spike Magnitude", 1.0, 5.0, 2.0, 0.5,
+            help="Controls the size of the sudden shock at time #200. Simulates a sudden process fault or sensor failure.")
 
-    fig, ewma_time, bocpd_prob = plot_lstm_autoencoder_monitoring(drift_rate=drift_slider, spike_magnitude=spike_slider)
+    fig, ewma_time, bocpd_time = plot_lstm_autoencoder_monitoring(drift_rate=drift_slider, spike_magnitude=spike_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
-
+        
     with col2:
         st.subheader("Analysis & Interpretation")
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric("EWMA Drift Detection Time", f"#{ewma_time}" if ewma_time else "N/A", help="Time the EWMA chart alarmed on the slow drift.")
-            st.metric("BOCPD Spike Detection Certainty", f"{bocpd_prob:.1%}", help="The posterior probability of a change point at the moment of the spike event.")
+            st.metric("EWMA Drift Detection Time", f"Hour #{ewma_time}" if ewma_time else "Not Detected",
+                      help="Time the EWMA chart alarmed on the slow drift.")
+            st.metric("BOCPD Spike Detection Time", f"Hour #{bocpd_time}" if bocpd_time else "Not Detected",
+                      help="Time the BOCPD algorithm alarmed on the sudden spike.")
             
             st.markdown("""
-            **A Tale of Two Alarms:**
-            1.  **Reconstruction Error (Top):** This is the process's single "health score." Notice the slow, gradual increase starting at time #100 and the huge, sudden spike at time #200.
-            2.  **EWMA Chart (Middle):** This chart has memory. It is blind to the sudden spike but effectively detects the **slow drift**, accumulating the signal until it crosses the red control limit (orange 'x').
-            3.  **BOCPD Heatmap (Bottom):** This chart is designed for sudden changes. It mostly ignores the slow drift but reacts powerfully to the **spike event** at time #200, with the probability of a change (dark red) becoming very high.
+            **Reading the Dashboard:**
+            1.  **Process Data (Top):** The solid lines show the true (but noisy) process data for Temperature and pH. The dashed lines show the AI's reconstruction. Note how the reconstruction fails to follow the data after an anomaly occurs.
+            2.  **Health Score (Middle):** This is the **reconstruction error**. It's low when the process is normal, but increases when the AI can't reconstruct the anomalous data.
+            3.  **Hybrid Monitoring (Bottom):** Two charts monitor the health score. The **EWMA (orange)** catches the slow rise, while the **BOCPD (purple)** spikes in response to the sudden shock.
             """)
 
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The 'One-Tool' Mindset**
 An engineer tries to use a single Shewhart chart on the reconstruction error. It misses the slow drift entirely, and while it might catch the big spike, it gives no probabilistic context.""")
             st.success("""🟢 **THE GOLDEN RULE: Use a Layered Defense for Anomaly Detection**
-Different types of process failures leave different signatures in the data. A robust monitoring system must use a combination of tools, each specialized for a different type of signature. By running EWMA (for drifts) and BOCPD (for shocks) in parallel on the same anomaly score, you create a comprehensive immune system that can effectively detect both chronic and acute process diseases.""")
+Different types of process failures leave different signatures in the data. A robust monitoring system must use a combination of tools, each specialized for a different type of signature. By running EWMA (for drifts) and BOCPD (for shocks) in parallel on the same AI-driven health score, you create a comprehensive immune system that can effectively detect both chronic and acute process diseases.""")
 
         with tabs[2]:
             st.markdown("""
@@ -6662,9 +6690,9 @@ Different types of process failures leave different signatures in the data. A ro
             **The Problem:** Monitoring high-dimensional time-series data (like a bioreactor with hundreds of sensors) for anomalies is extremely difficult. A fault might not be a single sensor going haywire, but a subtle change in the *temporal correlation* between many sensors. How can you detect a deviation from a complex, dynamic "normal" state without having any examples of what "abnormal" looks like?
 
             **The 'Aha!' Moment (Synthesis):** This architecture became a popular and powerful technique in the late 2010s by intelligently combining three distinct ideas to solve the problem piece by piece:
-            1.  **The Autoencoder:** A classic neural network design for unsupervised learning. It learns to compress data down to its essential features and then decompress it back to the original. When trained on normal data, its ability to reconstruct the input serves as a measure of normalcy.
-            2.  **The LSTM:** The Long Short-Term Memory network (Hochreiter & Schmidhuber, 1997) was the perfect choice to build the encoder and decoder, as it is specifically designed to learn the "grammar" and patterns of sequential data. Fusing these created the **LSTM Autoencoder**, a model that learns the *normal dynamic fingerprint* of a process.
-            3.  **Hybrid Monitoring:** The final piece was realizing that the autoencoder's output—the reconstruction error—is a single, powerful time series representing the health of the process. This insight allowed engineers to apply the best-in-class univariate monitoring tools, like **EWMA** and **BOCPD**, to this signal, creating a specialized, layered defense system.
+            1.  **The Autoencoder:** A classic neural network design for unsupervised learning. It learns to compress data down to its essential features and then decompress it back to the original. Its ability to reconstruct the input serves as a measure of normalcy.
+            2.  **The LSTM:** The Long Short-Term Memory network (Hochreiter & Schmidhuber, 1997) was the perfect choice to build the encoder and decoder, as it is specifically designed to learn the "grammar" and patterns of sequential data. Fusing these created the **LSTM Autoencoder**.
+            3.  **Hybrid Monitoring:** The final piece was realizing that the autoencoder's output—the reconstruction error—is a single, powerful time series representing the health of the process. This allowed engineers to apply the best-in-class univariate monitoring tools, like **EWMA** and **BOCPD**, to this signal, creating a specialized, layered defense system.
             """)
             st.markdown("#### Mathematical Basis")
             st.markdown("The autoencoder consists of an **Encoder** `f` and a **Decoder** `g`. The encoder compresses the input time series `X` into a low-dimensional latent vector `Z`. The decoder attempts to reconstruct the original series `X` from `Z`.")

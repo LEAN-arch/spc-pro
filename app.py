@@ -3822,9 +3822,8 @@ def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=2.0):
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================
 
-# --- RESTORED INTRO RENDERING FUNCTION ---
 def render_introduction_content():
-    """Renders the three introductory sections as a single page."""
+    """Renders the complete, all-in-one introduction and framework dashboard."""
     st.title("🛠️ Biotech V&V Analytics Toolkit")
     st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
     st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
@@ -3845,6 +3844,27 @@ def render_introduction_content():
     
     st.divider()
 
+    st.header("🚀 The V&V Model: A Strategic Framework")
+    st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
+    # For the main page, we can show a default context or make it interactive too.
+    # Let's default to 'Assay Method' for the main dashboard.
+    fig_v_model = plot_v_model(context='Assay Method')
+    st.plotly_chart(fig_v_model, use_container_width=True)
+    
+    st.divider()
+    
+    st.header("📈 Project Workflow")
+    st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value.")
+    st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True)
+
+    st.header("⏳ A Chronological View of V&V Analytics")
+    st.markdown("This timeline organizes the same tools purely by their year of invention, showing the evolution of statistical and machine learning thought over the last century.")
+    st.plotly_chart(plot_chronological_timeline(), use_container_width=True)
+
+    st.header("🗺️ Conceptual Map of Tools")
+    st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
+    st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
+
 def render_v_model_single():
     """Renders a dedicated, interactive page for the V-Model plot."""
     st.markdown("### The V&V Model: A Strategic Framework")
@@ -3861,24 +3881,9 @@ def render_v_model_single():
     
     st.info("Hover over any stage to see its guiding question and tools relevant to the selected context.")
     
-    # This new version passes the user's choice to the plot function, making it dynamic.
+    # This function now correctly calls the plot function and displays ONLY the V-Model.
     fig = plot_v_model(context=context_choice)
     st.plotly_chart(fig, use_container_width=True)
-    
-    st.divider()
-    
-    st.header("📈 Project Workflow")
-    st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value, and are ordered chronologically within each phase.")
-    st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True)
-
-        # --- ADDED THIS NEW SECTION ---
-    st.header("⏳ A Chronological View of V&V Analytics")
-    st.markdown("This timeline organizes the same tools purely by their year of invention, showing the evolution of statistical and machine learning thought over the last century.")
-    st.plotly_chart(plot_chronological_timeline(), use_container_width=True)
-
-    st.header("🗺️ Conceptual Map of Tools")
-    st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
-    st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
 
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)

@@ -5181,8 +5181,8 @@ def render_sample_size_calculator():
             """)
         
         with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "Just run triplicates" or  "Square Root of N Plus One" Fallacy**
-An engineer is asked for a sampling plan and defaults to an arbitrary, non-statistical rule of thumb they learned years ago, like `n = sqrt(Lot Size) + 1`, or someone simply proposes to arbitrarily just run three samples.
+            st.error("""🔴 **THE INCORRECT APPROACH: The common "just run triplicates" or  "Square Root of N Plus One" Fallacy**
+An engineer is asked for a sampling plan and defaults to an arbitrary, non-statistical rule of thumb they learned years ago, like `n = sqrt(Lot Size) + 1`, or someone proposes to arbitrarily run only three samples.
 - **The Flaw:** This plan is completely disconnected from risk. It cannot answer the question: "What level of confidence and reliability does this plan provide?" It is indefensible during a regulatory audit.""")
             st.success("""🟢 **THE GOLDEN RULE: State Your Risk, Then Calculate Your Sample**
 A compliant and statistically sound sampling plan is always derived from pre-defined risk criteria.

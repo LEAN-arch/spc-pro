@@ -4012,10 +4012,14 @@ def render_4pl_regression():
     # --- Sidebar controls for this specific module ---
     with st.sidebar:
         st.subheader("4PL Curve Controls (True Values)")
-        d_slider = st.slider("🅾️ Lower Asymptote (d)", 0.0, 0.5, 0.05, 0.01)
-        a_slider = st.slider("🅰️ Upper Asymptote (a)", 1.0, 3.0, 1.5, 0.1)
-        c_slider = st.slider("🎯 Potency / EC50 (c)", 1.0, 100.0, 10.0, 1.0)
-        b_slider = st.slider("🅱️ Hill Slope (b)", 0.5, 5.0, 1.2, 0.1)
+        d_slider = st.slider("🅾️ Lower Asymptote (d)", 0.0, 0.5, 0.05, 0.01,
+            help="The minimum signal response of the assay, typically the background signal at zero concentration. This defines the 'floor' of the curve.")
+        a_slider = st.slider("🅰️ Upper Asymptote (a)", 1.0, 3.0, 1.5, 0.1,
+            help="The maximum signal response of the assay at infinite concentration. This represents the saturation point or the 'ceiling' of the curve.")
+        c_slider = st.slider("🎯 Potency / EC50 (c)", 1.0, 100.0, 10.0, 1.0,
+            help="The concentration that produces a response halfway between the lower (d) and upper (a) asymptotes. A lower EC50 value indicates a more potent substance.")
+        b_slider = st.slider("🅱️ Hill Slope (b)", 0.5, 5.0, 1.2, 0.1,
+            help="Controls the steepness of the curve at its midpoint (the EC50). A steeper slope (higher value) often indicates a more sensitive assay in its dynamic range.")
         
         st.markdown("---")
         st.subheader("Noise Model Controls")
@@ -4024,7 +4028,6 @@ def render_4pl_regression():
         proportional_noise_slider = st.slider("📈 Proportional Noise (%)", 0.0, 5.0, 1.0, 0.5,
             help="Noise that increases with the signal. Creates a 'funnel' shape in the residuals (heteroscedasticity).")
 
-        # --- NEW TOGGLE SWITCH ADDED HERE ---
         st.markdown("---")
         st.subheader("Fit Model Controls")
         irls_toggle = st.toggle("Use Weighted Fit (IRLS)", value=True,

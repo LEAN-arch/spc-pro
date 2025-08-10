@@ -3215,65 +3215,93 @@ def plot_mewma_xgboost(drift_magnitude=0.03, lambda_mewma=0.2):
 
     return fig, buf_waterfall, first_ooc_index
 
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Method 2) - SME ENHANCED
+# ==============================================================================
 @st.cache_data
-def plot_bocpd_ml_features(mean_shift=3.0, noise_increase=2.0):
+def plot_bocpd_ml_features(autocorr_shift=0.4, noise_increase=2.0):
     """
-    Simulates Bayesian Online Change Point Detection on an ML-derived feature.
+    Generates an enhanced, more realistic BOCPD dashboard, monitoring the residuals
+    of an AR model and visualizing the run length probability.
     """
     np.random.seed(42)
     n_points = 200
     change_point = 100
     
-    # 1. --- Simulate Raw Data with a Change Point ---
-    data = np.random.normal(0, 1, n_points)
-    # After change point, both mean and variance shift
-    data[change_point:] = np.random.normal(mean_shift, 1 * noise_increase, n_points - change_point)
+    # --- 1. SME Enhancement: Simulate a process with a change in dynamics ---
+    data = np.zeros(n_points)
+    # Phase 1: High autocorrelation, low noise
+    phi1 = 0.9
+    for i in range(1, change_point):
+        data[i] = phi1 * data[i-1] + np.random.normal(0, 1)
+    # Phase 2: Lower autocorrelation, higher noise
+    phi2 = phi1 - autocorr_shift
+    for i in range(change_point, n_points):
+        data[i] = phi2 * data[i-1] + np.random.normal(0, noise_increase)
+        
+    # --- 2. Create an "ML Feature": 1-step-ahead forecast error (residuals) ---
+    # A simple AR(1) model is our "ML" feature extractor
+    ml_feature = np.zeros(n_points)
+    for i in range(1, n_points):
+        prediction = phi1 * data[i-1] # Model assumes Phase 1 dynamics
+        ml_feature[i] = data[i] - prediction
     
-    # 2. --- Create an "ML Feature" ---
-    # A simple but effective feature: rolling standard deviation
-    ml_feature = pd.Series(data).rolling(window=10).std().bfill().values
-    
-    # 3. --- BOCPD Algorithm (Simplified) ---
-    # We use a known hazard rate (probability of a change at any step)
-    hazard = 1 / (n_points * 2) 
-    # Use a simple Gaussian model for the likelihood
-    mean0, var0 = np.mean(ml_feature[:change_point]), np.var(ml_feature[:change_point])
+    # --- 3. BOCPD Algorithm ---
+    hazard = 1 / 250.0 # Constant hazard rate
+    # Assume a Gaussian model for the residuals
+    mean0, var0 = 0, np.var(ml_feature[1:change_point])
     
     R = np.zeros((n_points + 1, n_points + 1))
-    R[0, 0] = 1 # Initial state: run length is 0 with probability 1
-    
+    R[0, 0] = 1 # Initial state
     max_run_lengths = np.zeros(n_points)
+    prob_rl_zero = np.zeros(n_points) # Probability that run length is 0
     
     for t in range(1, n_points + 1):
         x = ml_feature[t-1]
-        
-        # Calculate predictive probability for each possible run length
         pred_probs = stats.norm.pdf(x, loc=mean0, scale=np.sqrt(var0))
         
-        # Growth probabilities (continue the run)
+        # Growth probabilities
         R[1:t+1, t] = R[0:t, t-1] * pred_probs * (1 - hazard)
-        
-        # Change point probability (a new run starts)
+        # Change point probability
         R[0, t] = np.sum(R[:, t-1] * pred_probs * hazard)
         
         # Normalize
-        R[:, t] = R[:, t] / np.sum(R[:, t])
+        R[:, t] /= np.sum(R[:, t])
+        
+        # Store metrics
+        prob_rl_zero[t-1] = R[0, t]
         max_run_lengths[t-1] = np.argmax(R[:, t])
 
-    # 4. --- Plotting ---
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=("Raw Process Data", "ML Feature (Rolling SD)", "BOCPD: Probability of Run Length"))
+    # --- 4. Plotting Dashboard ---
+    fig = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=0.05,
+                        subplot_titles=("<b>1. Raw Process Data (Change is subtle)</b>",
+                                        "<b>2. Model Residuals (ML Feature)</b>",
+                                        "<b>3. BOCPD: Most Likely Run Length (MAP)</b>",
+                                        "<b>4. BOCPD: Probability of a Changepoint</b>"))
+    # Plot 1: Raw Data
     fig.add_trace(go.Scatter(y=data, mode='lines', name='Raw Data'), row=1, col=1)
-    fig.add_vline(x=change_point, line_dash='dash', line_color='red', row='all', col=1)
-    fig.add_trace(go.Scatter(y=ml_feature, mode='lines', name='Rolling SD'), row=2, col=1)
     
-    fig.add_trace(go.Heatmap(z=R[1:150, :], showscale=False, colorscale='Blues'), row=3, col=1)
-    fig.update_yaxes(title_text="Current Run Length", row=3, col=1)
-    fig.update_xaxes(title_text="Observation Number", row=3, col=1)
+    # Plot 2: ML Feature (Residuals)
+    fig.add_trace(go.Scatter(y=ml_feature, mode='lines', name='Residuals', line_color='orange'), row=2, col=1)
     
-    fig.update_layout(height=700, title_text="<b>Bayesian Online Change Point Detection on an ML Feature</b>")
+    # Plot 3: Most Likely Run Length (MAP Estimate)
+    fig.add_trace(go.Scatter(y=max_run_lengths, mode='lines', name='MAP Run Length', line_color='green'), row=3, col=1)
     
-    return fig, R[:, change_point].max()
+    # Plot 4: Probability of a Changepoint (Run Length = 0)
+    fig.add_trace(go.Scatter(y=prob_rl_zero, mode='lines', name='P(Changepoint)', line_color='purple', fill='tozeroy'), row=4, col=1)
+    
+    # Add changepoint line to all plots
+    fig.add_vline(x=change_point, line_dash='dash', line_color='red', row='all', col=1,
+                  annotation_text="True Changepoint", annotation_position="top")
+
+    fig.update_layout(height=800, title_text="<b>Bayesian Online Change Point Detection on Model Residuals</b>", showlegend=False)
+    fig.update_yaxes(title_text="Value", row=1, col=1)
+    fig.update_yaxes(title_text="Residual", row=2, col=1)
+    fig.update_yaxes(title_text="Run Length", row=3, col=1)
+    fig.update_yaxes(title_text="Probability", row=4, col=1, range=[0, 1])
+    fig.update_xaxes(title_text="Observation Number", row=4, col=1)
+    
+    return fig, prob_rl_zero[change_point]
 
 @st.cache_data
 def plot_kalman_nn_residual(process_drift=0.1, measurement_noise=1.0, shock_magnitude=10.0):
@@ -6175,24 +6203,27 @@ def render_bocpd_ml_features():
     """Renders the Bayesian Online Change Point Detection module."""
     st.markdown("""
     #### Purpose & Application: The AI Seismologist
-    **Purpose:** To provide a real-time, probabilistic assessment of process stability. Unlike traditional charts that give a binary "in/out" signal, **Bayesian Online Change Point Detection (BOCPD)** calculates the full probability distribution of the "current run length" (time since the last change). It answers not "Did it change?" but **"What is the probability it just changed?"**
+    **Purpose:** To provide a real-time, probabilistic assessment of process stability. Unlike traditional charts that give a binary "in/out" signal, **Bayesian Online Change Point Detection (BOCPD)** calculates the full probability distribution of the "current run length" (time since the last change). It acts like a seismologist, constantly looking for the tremors that signal a process earthquake.
     
     **Strategic Application:** This is a sophisticated method for monitoring high-value processes where understanding uncertainty is critical.
-    - **Monitoring ML Models:** Instead of monitoring raw process data, we can monitor a feature derived from an ML model (e.g., a rolling standard deviation, a predictive risk score). BOCPD can detect when the *behavior* of the model's output changes, signaling a change in the process itself.
-    - **Adaptive Alarming:** Instead of a fixed control limit, you can set alarms based on probability (e.g., "alarm if P(changepoint occurred in last 5 steps) > 90%").
+    - **Monitoring Model Performance:** We can monitor the forecast errors (residuals) from a predictive model. BOCPD can detect when the model's performance suddenly degrades, signaling that the underlying process has changed in a way the model doesn't understand.
+    - **Adaptive Alarming:** Instead of a fixed control limit, you can set alarms based on probability (e.g., "alarm if the probability of a recent changepoint exceeds 90%").
     """)
 
     st.info("""
-    **Interactive Demo:** Use the sliders to control the nature of the process change at observation #100. Observe how the BOCPD heatmap (bottom plot) responds. A clear, sharp drop to zero in the run length probability is a high-confidence signal of a change.
+    **Interactive Demo:** Use the sliders to control the nature of the process change at observation #100.
+    - The top two plots show the raw data and the model residuals. Notice how the change is much more apparent in the residuals.
+    - The bottom two plots show the BOCPD output. A high-confidence detection is marked by the **"Most Likely Run Length"** dropping to zero and the **"Probability of a Changepoint"** spiking towards 100%.
     """)
 
-    st.sidebar.subheader("BOCPD Controls")
-    mean_shift_slider = st.sidebar.slider("Mean Shift", 0.0, 5.0, 3.0, 0.5,
-        help="The magnitude of the change in the mean of the raw process data at the change point (Obs #100).")
-    noise_inc_slider = st.sidebar.slider("Noise Increase Factor", 1.0, 5.0, 2.0, 0.5,
-        help="The factor by which the process standard deviation increases after the change point. A value of 2 means the noise doubles.")
+    with st.sidebar:
+        st.sidebar.subheader("BOCPD Controls")
+        autocorr_slider = st.sidebar.slider("Change in Autocorrelation", 0.0, 0.8, 0.4, 0.1,
+            help="How much the process's 'memory' or smoothness changes at the changepoint. A large change is easier to detect.")
+        noise_inc_slider = st.sidebar.slider("Increase in Noise (Factor)", 1.0, 5.0, 2.0, 0.5,
+            help="The factor by which the process standard deviation increases after the change point. A value of 2 means the noise doubles.")
 
-    fig, change_prob = plot_bocpd_ml_features(mean_shift=mean_shift_slider, noise_increase=noise_inc_slider)
+    fig, change_prob = plot_bocpd_ml_features(autocorr_shift=autocorr_slider, noise_increase=noise_inc_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -6203,31 +6234,34 @@ def render_bocpd_ml_features():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric("Change Point Location", "Obs #100")
-            st.metric("Max Probability at Change Point", f"{change_prob:.2%}", help="The posterior probability of a new run length of 1 at the true change point.")
+            st.metric("True Changepoint Location", "Obs #100")
+            st.metric("Detection Certainty at Changepoint", f"{change_prob:.1%}",
+                      help="The posterior probability that a changepoint occurred at exactly observation #100.")
             
             st.markdown("""
-            **Reading the Plots:**
-            1.  **Raw Data:** Shows the simulated process. At the red line, the mean and variance both change.
-            2.  **ML Feature:** We monitor the `10-point rolling standard deviation`. Notice it is low and stable before the change, and high and volatile after. This feature is more sensitive to the change than the raw data.
-            3.  **BOCPD Heatmap:** This is the core output. The y-axis is the "run length" (time since last change), and the x-axis is time.
-                - **Before the change:** The bright blue line steadily increases, showing the algorithm is confident the run length is growing (no change).
-                - **At the change (red line):** The probability mass instantly collapses to the bottom of the chart (run length = 0), signaling a high-confidence detection of a change.
+            **Reading the Dashboard:**
+            1.  **Raw Data:** Shows the simulated process. The change in dynamics at the red line is subtle and very difficult to spot by eye.
+            2.  **Model Residuals:** We monitor the errors from a simple predictive model. Because the process dynamics change at the changepoint, the model starts making bigger errors, making the change much more visible.
+            3.  **Most Likely Run Length:** The algorithm's "best guess" of how long the process has been stable. Note the sharp drop to zero at the changepoint.
+            4.  **Probability of a Changepoint:** This is the clearest signal. The algorithm becomes highly confident that a changepoint has just occurred right at observation #100.
             """)
 
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The 'Delayed Reaction'**
-Waiting for a traditional SPC chart to alarm on a complex signal (like a combined mean and variance shift) can take a long time. By the time it alarms, the process has been unstable for a while, and valuable context is lost.""")
-            st.success("""🟢 **THE GOLDEN RULE: Monitor the Probability, Not Just the Value**
-BOCPD provides a richer, more informative signal. The full probability distribution allows for more nuanced decision-making. Instead of a binary alarm, you can create risk-based alerts: a low-probability 'watch' state and a high-probability 'act' state, enabling earlier, more proactive interventions.""")
+Waiting for a traditional SPC chart to alarm on a complex signal (like a change in autocorrelation) can take a very long time, if it alarms at all. By the time it does, significant out-of-spec material may have been produced.""")
+            st.success("""🟢 **THE GOLDEN RULE: Monitor Model Residuals, Not Just Raw Data**
+For complex, dynamic processes, the most sensitive way to detect a change is to:
+1.  Build a model of the process's **normal** behavior.
+2.  Monitor the **residuals** (forecast errors) of that model.
+3.  When the process changes, the model's assumptions will be violated, and the residuals will change their behavior, providing a powerful and early signal that something is wrong. BOCPD is an excellent algorithm for detecting this change.""")
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context: From Offline to Online
-            **The Problem:** For decades, changepoint detection was primarily an *offline*, retrospective analysis. An engineer would collect an entire dataset (e.g., a full batch record), run a complex statistical algorithm, and get a result like: "A significant change in the process mean was detected at observation #152." While useful for forensic investigations after a failure, this was useless for preventing the failure in the first place. The rise of streaming data from sensors in the 2000s created a massive demand for a method that could detect changes *as they happened*.
+            **The Problem:** For decades, changepoint detection was primarily an *offline*, retrospective analysis. An engineer would collect an entire dataset, run a complex algorithm, and get a result like: "A significant change was detected at observation #152." While useful for forensic investigations after a failure, this was useless for preventing the failure in the first place.
 
             **The 'Aha!' Moment:** In their 2007 paper, "Bayesian Online Changepoint Detection," Ryan P. Adams and David J.C. MacKay presented a brilliantly elegant solution. Their key insight was to reframe the problem from finding a single "best" changepoint to calculating the full, evolving probability distribution of the "run length" (the time since the last changepoint). 
-
+            
             **The Impact:** This probabilistic approach was a game-changer. It provided a much richer output than a simple binary alarm, and its recursive, online nature was computationally efficient enough to run in real-time on streaming data. It effectively transformed changepoint detection from a historical analysis tool into a modern, real-time process monitoring system.
             """)
             st.markdown("#### Mathematical Basis")

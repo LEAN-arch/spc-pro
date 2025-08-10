@@ -3952,7 +3952,7 @@ def render_ci_concept():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label=f"📈 KPI: Average CI Width (Precision) at n={n_slider}", value=f"{avg_width:.2f} units", help="A smaller width indicates higher precision. This is inversely proportional to the square root of n.")
             st.metric(label="🎯 Empirical Coverage Rate", value=f"{(capture_count/n_sims):.1%}", help=f"The % of our {n_sims} simulated CIs that successfully 'captured' the true population mean. Should be close to 95%.")
@@ -3997,6 +3997,13 @@ def render_ci_concept():
             For a 95% CI for the mean, the formula is:
             """)
             st.latex(r"\bar{x} \pm t_{(0.975, n-1)} \cdot \frac{s}{\sqrt{n}}")
+        with tabs[3]:
+            st.markdown("""
+            While not a standalone requirement, the correct application and interpretation of confidence intervals are a **foundational statistical principle** that underpins compliance with numerous guidelines.
+            - **ICH Q2(R1) - Validation of Analytical Procedures:** Used to establish confidence intervals for key parameters like the slope and intercept in linearity studies.
+            - **FDA Process Validation Guidance:** Used to set confidence bounds on process parameters and quality attributes during Process Performance Qualification (PPQ).
+            - **21 CFR Part 211:** Implicitly required for demonstrating statistical control and for the "appropriate statistical quality control criteria" mentioned in §211.165.
+            """)
             
 def render_core_validation_params():
     """Renders the INTERACTIVE module for core validation parameters."""
@@ -4055,7 +4062,7 @@ def render_core_validation_params():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.info("Play with the sliders in the sidebar to see how different sources of error affect the results!")
@@ -4110,6 +4117,13 @@ def render_core_validation_params():
             st.markdown("""
             **Specificity is often assessed via Hypothesis Testing:** A Student's t-test compares the means of the "Analyte Only" and "Analyte + Interferent" groups. The null hypothesis ($H_0$) is that the means are equal. A high p-value (e.g., > 0.05) means we fail to reject $H_0$, providing evidence that the interferent has no significant effect.
             """)
+        with tabs[3]:
+            st.markdown("""
+            The concepts of Accuracy, Precision, and Specificity are the absolute core of analytical method validation as defined by global regulators.
+            - **ICH Q2(R1) - Validation of Analytical Procedures:** This is the primary global guideline that explicitly defines these parameters and provides methodologies for their assessment.
+            - **FDA Guidance for Industry - Analytical Procedures and Methods Validation:** The FDA's specific guidance, which is harmonized with ICH Q2(R1).
+            - **USP General Chapter <1225> - Validation of Compendial Procedures:** Provides detailed requirements for validation within the United States Pharmacopeia framework.
+            """)
             
 def render_gage_rr():
     """Renders the INTERACTIVE module for Gage R&R."""
@@ -4157,7 +4171,7 @@ def render_gage_rr():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse")
             st.metric(label="📊 KPI: Number of Distinct Categories (ndc)", value=f"{ndc}", help="How many distinct groups of parts the system can reliably distinguish. Must be ≥ 5.")
@@ -4201,6 +4215,13 @@ def render_gage_rr():
             st.latex(r"\hat{\sigma}^2_{\text{Operator}} = \frac{MS_{\text{Operator}} - MS_{\text{Interaction}}}{n \cdot r}")
             st.markdown("The final KPI is the **% Gage R&R**, which is the percentage of the total variation that is consumed by the measurement system:")
             st.latex(r"\% \text{Gage R\&R} = \frac{\hat{\sigma}_{\text{Gage R\&R}}}{\hat{\sigma}_{\text{Total}}} \times 100")
+        with tabs[3]:
+            st.markdown("""
+            Gage R&R is the standard methodology for Measurement Systems Analysis (MSA), a critical component of ensuring data integrity and process control.
+            - **AIAG MSA Manual:** While from the automotive industry, this is considered the global "gold standard" reference for Gage R&R methodology and acceptance criteria.
+            - **FDA Process Validation Guidance:** Stage 1 (Process Design) and Stage 2 (Process Qualification) require an understanding of all sources of variability, including measurement error. A Gage R&R is the formal proof that a measurement system is suitable for its intended use.
+            - **21 CFR 211.160(b):** Requires that "laboratory controls shall include the establishment of scientifically sound and appropriate... standards, and test procedures... to assure that components... and drug products conform to appropriate standards of identity, strength, quality, and purity." A qualified measurement system is a prerequisite.
+            """)
 
 def render_lod_loq():
     """Renders the INTERACTIVE module for Limit of Detection & Quantitation."""
@@ -4237,7 +4258,7 @@ def render_lod_loq():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} units", help="The lowest concentration you can report with confidence in the numerical value.")
             st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} units", help="The lowest concentration you can reliably claim is 'present'.")
@@ -4270,6 +4291,12 @@ def render_lod_loq():
             st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
             st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
             st.markdown("The factor of 10 for LOQ is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.")
+        with tabs[3]:
+            st.markdown("""
+            The determination of detection and quantitation limits is a mandatory part of validating quantitative assays for impurities or trace components.
+            - **ICH Q2(R1) - Validation of Analytical Procedures:** Explicitly lists "Quantitation Limit" and "Detection Limit" as key validation characteristics and provides the statistical methodologies (e.g., based on signal-to-noise or standard deviation of the response and the slope).
+            - **USP General Chapter <1225>:** Mirrors the requirements of ICH Q2(R1) for the validation of analytical procedures.
+            """)
 
 def render_linearity():
     """Renders the INTERACTIVE module for Linearity analysis."""
@@ -4314,7 +4341,7 @@ def render_linearity():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}", help="Indicates the proportion of variance explained by the model. Note how a high R² can hide clear non-linearity!")
             st.metric(label="💡 Metric: Slope", value=f"{model.params['Nominal']:.3f}", help="Ideal = 1.0.")
@@ -4348,6 +4375,13 @@ def render_linearity():
             st.markdown("""
             - **OLS** finds the `β` values that minimize: `Σ(yᵢ - ŷᵢ)²`
             - **WLS** finds the `β` values that minimize: `Σwᵢ(yᵢ - ŷᵢ)²`, where `wᵢ` is the weight for the i-th observation, typically `1/σ²ᵢ`.
+            """)
+        with tabs[3]:
+            st.markdown("""
+            Linearity is a fundamental characteristic required for all quantitative analytical methods.
+            - **ICH Q2(R1) - Validation of Analytical Procedures:** Mandates the evaluation of Linearity and Range for quantitative tests. It specifies that a linear relationship should be evaluated across the range of the analytical procedure.
+            - **FDA Guidance for Industry:** Recommends a minimum of five concentration levels to establish linearity and emphasizes the importance of visual inspection of the data and analysis of residuals.
+            - **USP General Chapter <1225>:** Requires the statistical evaluation of linearity, including the calculation of the correlation coefficient, y-intercept, and slope of the regression line.
             """)
 
 def render_4pl_regression():
@@ -4401,7 +4435,7 @@ def render_4pl_regression():
     with col2:
         a_fit, b_fit, c_fit, d_fit = params
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             # Display fitted parameters with their standard errors
@@ -4443,6 +4477,13 @@ def render_4pl_regression():
             - **`d`**: The lower asymptote (response at zero concentration).
             Since this equation is non-linear in its parameters, it cannot be solved directly with linear algebra. It must be fit using an iterative numerical optimization algorithm (like Levenberg-Marquardt) that finds the parameter values `(a,b,c,d)` that minimize the sum of squared errors between the data and the fitted curve.
             """)
+        with tabs[3]:
+            st.markdown("""
+            While the 4PL model itself is a mathematical tool, its use is governed by guidelines on the validation of bioassays, where such non-linear responses are common.
+            - **USP General Chapters <111>, <1032>, <1033>:** These chapters provide extensive guidance on the design and statistical analysis of biological assays. They discuss the importance of using an appropriate non-linear model to fit dose-response curves and assess parallelism.
+            - **FDA Guidance on Bioanalytical Method Validation:** Stresses the need to characterize the full concentration-response relationship and use appropriate regression models (including weighted regression for heteroscedastic data).
+            """)
+
 def render_roc_curve():
     """Renders the INTERACTIVE module for Receiver Operating Characteristic (ROC) curve analysis."""
     st.markdown("""
@@ -4491,7 +4532,7 @@ def render_roc_curve():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History" "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Overall KPI: Area Under Curve (AUC)", value=f"{auc_value:.3f}",
@@ -4532,7 +4573,14 @@ Ask: **"What is worse? A false positive or a false negative?"**
             st.markdown("The curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)**.")
             st.latex(r"\text{Sensitivity} = \frac{TP}{TP + FN} \quad , \quad \text{Specificity} = \frac{TN}{TN + FP}")
             st.markdown("Each point on the curve represents the (Sensitivity, 1-Specificity) pair for a specific cutoff value. The **Area Under the Curve (AUC)** has a powerful probabilistic interpretation: it is the probability that a randomly chosen 'Diseased' subject will have a higher test score than a randomly chosen 'Healthy' subject.")
-
+        with tabs[3]:
+            st.markdown("""
+            ROC analysis is the global standard for demonstrating the clinical performance of In Vitro Diagnostics (IVDs) and medical devices.
+            - **FDA 21 CFR 820 (Quality System Regulation):** The design validation section (§820.30(g)) requires objective evidence that the device conforms to user needs and intended uses. For a diagnostic, this evidence is typically clinical sensitivity and specificity, which are summarized by ROC analysis.
+            - **EU IVDR (In Vitro Diagnostic Regulation):** The European regulation requires a Performance Evaluation Report (PER) that includes data on clinical sensitivity, specificity, and the rationale for the chosen cutoff value.
+            - **ISO 13485:2016:** The international quality management standard for medical devices, which aligns with the principles of design validation found in 21 CFR 820.
+            """)
+            
 def render_tost():
     """Renders the INTERACTIVE module for Two One-Sided Tests (TOST) for equivalence."""
     st.markdown("""
@@ -4585,7 +4633,7 @@ def render_tost():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             status = "✅ EQUIVALENT" if is_equivalent else "❌ NOT EQUIVALENT"
@@ -4632,6 +4680,13 @@ The TOST procedure forces a more rigorous scientific approach.
             You must run two separate one-sided t-tests to reject **both** of these null hypotheses. The overall p-value for the TOST procedure is the larger of the two individual p-values. If this final p-value is less than your alpha (e.g., 0.05), you have statistically demonstrated equivalence within the margin `[-Δ, +Δ]`.
             
             A mathematically equivalent shortcut is to calculate the **90% confidence interval** for the difference. If this entire interval falls within `[-Δ, +Δ]`, you can conclude equivalence at the 5% significance level.
+            """)
+        with tabs[3]:
+            st.markdown("""
+            TOST is the required statistical method for demonstrating similarity or equivalence in various regulated contexts.
+            - **FDA Guidance on Bioequivalence Studies:** TOST is the standard method for proving that the rate and extent of absorption of a generic drug are not significantly different from the reference listed drug.
+            - **USP General Chapter <1224> - Transfer of Analytical Procedures:** Suggests the use of equivalence testing to formally demonstrate that a receiving laboratory can obtain comparable results to the transferring laboratory.
+            - **Biosimilars (BPCIA Act):** The principles of equivalence testing are central to the analytical and clinical studies required to demonstrate biosimilarity to a reference biologic product.
             """)
 
 def render_assay_robustness_doe():
@@ -4712,7 +4767,7 @@ def render_assay_robustness_doe():
     # Keep the original tabs for theory and context
     st.divider()
     st.subheader("Deeper Dive")
-    tabs_deep = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+    tabs_deep = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs_deep[0]:
         st.markdown("""
         - **Pareto Plot is Key:** This is your primary diagnostic. It instantly shows you which factors (linear, interaction, quadratic) are the main drivers of the process. Green bars are statistically significant (p < 0.05).
@@ -4751,6 +4806,13 @@ By testing factors in combination using a dedicated design (like a Central Compo
         - `β₁₂`: The **interaction effect** (the twist of the surface).
         - `ϵ`: The random experimental error.
         To get stable estimates of these coefficients, the analysis is performed on **coded variables**, where the high and low levels of each factor are scaled to be +1 and -1, respectively.
+        """)
+    with tabs[3]:
+        st.markdown("""
+        DOE and RSM are core methodologies for fulfilling the principles of Quality by Design (QbD), which is strongly encouraged by regulators.
+        - **ICH Q8(R2) - Pharmaceutical Development:** This guideline introduces the concept of the **Design Space**, which is defined as "the multidimensional combination and interaction of input variables... that has been demonstrated to provide assurance of quality." RSM is the primary statistical tool used to establish a Design Space.
+        - **ICH Q2(R1) - Validation of Analytical Procedures:** Requires the assessment of **Robustness**, which is typically evaluated through a DOE by making small, deliberate variations in method parameters.
+        - **FDA Guidance on Process Validation:** Emphasizes a lifecycle approach and process understanding, which are best achieved through the systematic study of process parameters using DOE.
         """)
 
 
@@ -4797,7 +4859,7 @@ def render_split_plot():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.markdown("##### ANOVA Results")
@@ -4846,6 +4908,12 @@ The way you conduct your experiment dictates the only valid way to analyze it.
             -   `εᵢⱼₖ`: The random **sub-plot error**, ~ N(0, σ²_ε). This is the error term for testing factor B and the interaction.
             Because `σ²_γ` is typically larger than `σ²_ε`, the test for the hard-to-change factor (A) is less powerful than the test for the easy-to-change factor (B), which is the fundamental trade-off of this design.
             """)
+        with tabs[3]:
+            st.markdown("""
+            As a specific type of Design of Experiments, Split-Plot designs are tools used to fulfill the broader regulatory expectations around process understanding and robustness.
+            - **ICH Q8(R2) - Pharmaceutical Development:** The principles of efficient experimentation to gain process knowledge are central to QbD. A split-plot design is a practical tool for achieving this when certain factors are hard to change.
+            - **FDA Guidance on Process Validation:** Encourages a scientific, risk-based approach to validation. Using an efficient design like a split-plot demonstrates statistical maturity and a commitment to resource optimization while still generating the required process knowledge.
+            """)
             
 def render_causal_inference():
     """Renders the INTERACTIVE module for Causal Inference."""
@@ -4881,7 +4949,7 @@ def render_causal_inference():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="Biased Estimate (Naive Correlation)", value=f"{naive_effect:.3f}",
@@ -4921,6 +4989,14 @@ A robust causal analysis follows a disciplined process.
             st.markdown("Pearl's **backdoor adjustment formula** shows how to calculate the intervention from observational data. To find the effect of `X` on `Y` with a set of confounders `Z`, we calculate:")
             st.latex(r"P(Y | do(X=x)) = \sum_z P(Y | X=x, Z=z) P(Z=z)")
             st.markdown("In simple terms, this means: for each level of the confounder `z`, find the relationship between `X` and `Y`, and then average those relationships across the distribution of `z`. This is precisely what a multiple regression model does when you include `Z` as a covariate.")
+        with tabs[3]:
+            st.markdown("""
+            Causal inference is an advanced technique that provides a rigorous framework for Root Cause Analysis (RCA), a fundamental requirement of a compliant quality system.
+            - **ICH Q10 - Pharmaceutical Quality System:** Mandates a system for Corrective and Preventive Actions (CAPA) that includes a thorough investigation to determine the root cause of deviations. Causal inference provides a formal language and toolset to move beyond simple correlation in these investigations.
+            - **21 CFR 211.192 - Production Record Review:** Requires that any unexplained discrepancy or failure of a batch to meet its specifications "shall be thoroughly investigated."
+            - **GAMP 5:** While focused on software, its principles of risk management and root cause analysis for deviations apply broadly.
+            """)
+
 ##=========================================================================================================================================================================================================
 ##===============================================================================END ACT I UI Render ========================================================================================================================================
 ##=========================================================================================================================================================================================================
@@ -4955,7 +5031,7 @@ def render_spc_charts():
     fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
     
     st.subheader(f"Analysis & Interpretation: {scenario} Process")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
     with tabs[0]:
         st.info("💡 Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
@@ -5001,6 +5077,13 @@ The control chart's signal dictates one of two paths:
         - **Estimating Sigma:** In practice, the true `σ` is unknown. For an I-MR chart, it is estimated from the average moving range (`MR-bar`) using a statistical constant `d₂`:
         """)
         st.latex(r"\hat{\sigma} = \frac{\overline{MR}}{d_2}")
+    with tabs[3]:
+        st.markdown("""
+        SPC is the primary tool for Stage 3 of the process validation lifecycle, known as Continued or Ongoing Process Verification (CPV/OPV).
+        - **FDA Process Validation Guidance (Stage 3):** Explicitly states that "an ongoing program to collect and analyze product and process data... must be established." SPC charts are the standard method for this real-time monitoring.
+        - **ICH Q7 - Good Manufacturing Practice for APIs:** Section 2.5 on Quality Risk Management discusses the importance of monitoring and reviewing process performance.
+        - **21 CFR 211.110(a):** Requires the establishment of control procedures "to monitor the output and to validate the performance of those manufacturing processes that may be responsible for causing variability."
+        """)
 
 def render_capability():
     """Renders the interactive module for Process Capability (Cpk)."""
@@ -5030,7 +5113,7 @@ def render_capability():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label="📈 KPI: Process Capability (Cpk)",
                       value=f"{cpk_val:.2f}" if not np.isnan(cpk_val) else "INVALID",
@@ -5069,6 +5152,12 @@ def render_capability():
             st.latex(r"C_p = \frac{\text{USL} - \text{LSL}}{6\hat{\sigma}}")
             st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit, in units of 3-sigma.")
             st.latex(r"C_{pk} = \min \left( \frac{\text{USL} - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - \text{LSL}}{3\hat{\sigma}} \right)")
+        with tabs[3]:
+            st.markdown("""
+            Process capability analysis (Cpk) is the key metric used during Stage 2 of the validation lifecycle, Process Performance Qualification (PPQ).
+            - **FDA Process Validation Guidance (Stage 2):** The goal of PPQ is to demonstrate that the process, operating under normal conditions, is capable of consistently producing conforming product. A high Cpk is the statistical evidence that this goal has been met.
+            - **Global Harmonization Task Force (GHTF):** For medical devices, guidance on process validation similarly requires demonstrating that the process output consistently meets predetermined requirements.
+            """)
             
 def render_tolerance_intervals():
     """Renders the INTERACTIVE module for Tolerance Intervals."""
@@ -5106,7 +5195,7 @@ def render_tolerance_intervals():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="🎯 Desired Coverage", value=f"{coverage_slider:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
@@ -5146,6 +5235,12 @@ def render_tolerance_intervals():
             st.latex(r"\text{TI} = \bar{x} \pm k \cdot s")
             st.markdown("""
             - **`k`**: The **k-factor** is the magic ingredient. It is a special value that depends on **three** inputs: the sample size (`n`), the desired population coverage (e.g., 99%), and the desired confidence level (e.g., 95%). This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation.
+            """)
+        with tabs[3]:
+            st.markdown("""
+            Tolerance intervals are a statistically rigorous method for setting acceptance criteria and release specifications based on validation data.
+            - **FDA Process Validation Guidance (Stage 2):** PPQ runs are used to demonstrate that the process can reliably produce product meeting its Critical Quality Attributes (CQAs). A tolerance interval calculated from PPQ data provides a high-confidence range where a large proportion of all future production will fall.
+            - **USP General Chapter <1010> - Analytical Data:** Discusses various statistical intervals and their correct application, including tolerance intervals for making claims about a proportion of a population.
             """)
 
 def render_method_comparison():
@@ -5192,7 +5287,7 @@ def render_method_comparison():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference.")
@@ -5231,7 +5326,13 @@ def render_method_comparison():
             """)
             st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
             st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
-
+        with tabs[3]:
+            st.markdown("""
+            Method comparison studies are essential for method transfer, validation of a new method against a standard, or bridging studies.
+            - **ICH Q2(R1) - Validation of Analytical Procedures:** The principles of comparing methods fall under the assessment of **Accuracy** and **Intermediate Precision**.
+            - **USP General Chapter <1224> - Transfer of Analytical Procedures:** This chapter is entirely dedicated to the process of qualifying a laboratory to use an analytical test procedure. It explicitly mentions "Comparative Testing" as a transfer option, for which Bland-Altman and Deming regression are the standard analysis tools.
+            - **CLIA (Clinical Laboratory Improvement Amendments):** In the US, clinical labs are required to perform method comparison studies to validate new tests.
+            """)
             
 def render_bayesian():
     """Renders the interactive module for Bayesian Inference."""
@@ -5275,7 +5376,7 @@ def render_bayesian():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(
                 label="🎯 Primary KPI: Prob(Pass Rate > 90%)",
@@ -5324,6 +5425,13 @@ def render_bayesian():
             For binomial data (pass/fail), the **Beta distribution** is a **conjugate prior**. This means if you start with a Beta prior and have a binomial likelihood, your posterior is also a simple, updated Beta distribution.
             """)
             st.latex(r"\text{Posterior} \sim \text{Beta}(\alpha_{prior} + k, \beta_{prior} + n - k)")
+        with tabs[3]:
+            st.markdown("""
+            While less common than frequentist methods, Bayesian statistics are explicitly accepted and even encouraged by regulators in certain contexts, particularly where prior information is valuable.
+            - **FDA Guidance on Adaptive Designs for Clinical Trials:** This guidance openly discusses and accepts the use of Bayesian methods for modifying trial designs based on accumulating data.
+            - **FDA Guidance on Medical Device Decision Making:** The benefit-risk assessments for medical devices are often framed in a way that is highly compatible with Bayesian thinking, allowing for the formal incorporation of prior knowledge.
+            - **ICH Q8, Q9, Q10:** The lifecycle and risk-based principles of these guidelines are well-aligned with the Bayesian paradigm of updating knowledge as more data becomes available.
+            """)
 ##=======================================================================================================================================================================================================
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================
@@ -5360,7 +5468,7 @@ def render_multi_rule():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.markdown("##### Detected Violations")
@@ -5414,6 +5522,13 @@ The goal is to treat the specific rule violation as the starting point of a targ
             st.markdown("- A point outside **±2σ** is more common (p ≈ 0.0455). Seeing one is not a strong signal. However, the probability of seeing *two consecutive points* on the same side of the mean purely by chance is much, much lower:")
             st.latex(r"P(\text{2-2s}) \approx \left( \frac{0.0455}{2} \right)^2 \approx 0.0005")
             st.markdown("This makes the **2-2s** rule a powerful and specific detector of systematic shifts with a very low false alarm rate, even though the individual points themselves are not extreme.")
+        with tabs[3]:
+            st.markdown("""
+            Westgard Rules are the de facto standard for routine QC run validation in clinical and diagnostic laboratories, and their principles are widely adopted in pharmaceutical QC.
+            - **CLIA (Clinical Laboratory Improvement Amendments):** US federal regulations that require clinical laboratories to monitor the accuracy and precision of their testing. Westgard Rules provide a compliant framework for this.
+            - **ISO 15189:** The international quality standard for medical laboratories, which requires robust internal quality control procedures.
+            - **USP General Chapter <1010> - Analytical Data:** Discusses the treatment of analytical data and the principles of statistical control, for which multi-rule systems are a best practice.
+            """)
 
 def render_multivariate_spc():
     """Renders the comprehensive, interactive module for Multivariate SPC."""
@@ -5444,7 +5559,7 @@ def render_multivariate_spc():
         st.plotly_chart(fig_charts, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🔬 SME Analysis"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🔬 SME Analysis", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             t2_verdict_str = "Out-of-Control" if t2_ooc else "In-Control"
@@ -5558,6 +5673,14 @@ Using dozens of individual charts is doomed to fail due to alarm fatigue and its
 
             3.  **Phase 3 (Proactive Control / Real-Time Release):** This is the ultimate goal of PAT. Once the model is fully validated and trusted, its predictions can become part of the official batch record. A run with a very low predicted risk and a favorable SHAP explanation could be eligible for **Real-Time Release Testing (RTRT)**, skipping certain redundant final QC tests. This dramatically accelerates production timelines and reduces costs, all while increasing quality assurance.
             """)
+        with tabs[4]: # Note: this is the 5th tab
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
             
 def render_ewma_cusum():
     """Renders the comprehensive, interactive module for Small Shift Detection (EWMA/CUSUM)."""
@@ -5597,7 +5720,7 @@ def render_ewma_cusum():
 
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
         with tabs[0]:
             st.markdown(f"##### Detection Performance for a **{shift_size_slider}σ** {scenario_slider}")
@@ -5658,6 +5781,14 @@ This layered approach provides a complete picture of process stability.""")
             - **`T`**: The process target or historical mean.
             - **`k`**: The **"slack" or "allowance" parameter**, typically set to half the size of the shift you want to detect quickly (e.g., `k = 0.5σ`). This makes the CUSUM chart a highly targeted detector.
             """)
+        with tabs[3]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
             
 def render_time_series_analysis():
     """Renders the module for Time Series analysis."""
@@ -5697,7 +5828,7 @@ def render_time_series_analysis():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="⌚ ARIMA Forecast Error (MAE)", value=f"{mae_arima:.2f} units")
@@ -5746,6 +5877,14 @@ A robust forecasting process is disciplined and applies regardless of the model 
             st.markdown(r"""
             Where `g(t)` is a saturating growth trend with automatic changepoint detection, `s(t)` models complex seasonality using Fourier series, `h(t)` is for holidays, and `ε` is the error.
             """)
+        with tabs[3]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
 
 def render_stability_analysis():
     """Renders the module for pharmaceutical stability analysis."""
@@ -5781,7 +5920,7 @@ def render_stability_analysis():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Approved Shelf-Life (from Pooled Model)", value=f"{shelf_life}")
@@ -5832,6 +5971,13 @@ The ICH Q1E guideline is built on a principle of statistical conservatism to pro
             -   `H₁`: At least one `(αβ)ᵢ` is not zero (at least one slope is different).
             If the p-value for this test is > 0.25, we fail to reject H₀ and proceed with a simpler, pooled model: `Y = β₀ + β₁X + ε`.
             """)
+        with tabs[3]:
+            st.markdown("""
+            Stability analysis and shelf-life determination are governed by a specific set of harmonized international guidelines.
+            - **ICH Q1E - Evaluation of Stability Data:** This is the primary global guideline that dictates the statistical methodology for analyzing stability data, including the use of regression analysis, confidence intervals, and the rules for pooling data from different batches.
+            - **ICH Q1A(R2) - Stability Testing of New Drug Substances and Products:** Defines the study design, storage conditions, and testing frequency for stability studies.
+            - **FDA Guidance for Industry - Q1E Evaluation of Stability Data:** The FDA's adoption and implementation of the ICH guideline.
+            """)
 
 def render_survival_analysis():
     """Renders the module for Survival Analysis."""
@@ -5874,7 +6020,7 @@ def render_survival_analysis():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(
@@ -5932,8 +6078,13 @@ The core principle of survival analysis is that censored data is not missing dat
             # --- THIS IS THE CORRECTED BLOCK ---
             st.markdown("The confidence interval for the survival probability is often calculated using **Greenwood's formula**, which estimates the variance of `S(t)`:")
             st.latex(r"\hat{Var}(S(t)) \approx S(t)^2 \sum_{t_i \leq t} \frac{d_i}{n_i(n_i - d_i)}")
-            # --- END OF CORRECTION ---
-
+        with tabs[3]:
+            st.markdown("""
+            Survival analysis is the standard methodology for time-to-event data in clinical trials and is also used for reliability engineering in medical devices.
+            - **ICH E9 - Statistical Principles for Clinical Trials:** Discusses the appropriate analysis of time-to-event data, including the handling of censored data, for which Kaplan-Meier is the standard non-parametric method.
+            - **FDA 21 CFR 820.30 (Design Controls):** For medical devices, design validation requires demonstrating reliability. Survival analysis is used to analyze data from reliability testing to predict the probability of failure over time.
+            - **ICH Q1E:** The principles can also be applied to stability data to model the "time to Out-of-Specification (OOS)" event.
+            """)
 
 def render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
@@ -5969,7 +6120,7 @@ def render_mva_pls():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="🎯 Model Q² (Predictive Power)", value=f"{q2:.3f}",
@@ -6006,6 +6157,14 @@ A robust chemometric workflow is disciplined:
             st.latex(r"y = T q^T + f")
             st.markdown("""
             The key is how the LVs (`T`) are found. Unlike PCA, which finds LVs that explain the most variance in `X` alone, PLS finds LVs that maximize the **covariance** between `X` and `y`. This means the LVs are constructed not just to summarize the inputs, but to be maximally useful for *predicting the output*. This makes PLS a supervised dimensionality reduction technique, which is why it is often more powerful than PCA followed by regression.
+            """)
+        with tabs[3]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
             """)
 
 def render_clustering():
@@ -6046,7 +6205,7 @@ def render_clustering():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Optimal 'k' Found by Model", value=f"{optimal_k}",
@@ -6093,6 +6252,14 @@ This profiling step is what turns a statistical finding into actionable process 
             1.  **Assignment Step:** Assign each data point `x` to the cluster `Cᵢ` with the nearest centroid `μᵢ`.
             2.  **Update Step:** Recalculate the centroid `μᵢ` for each cluster by taking the mean of all points assigned to it.
             """)
+        with tabs[3]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
 
 def render_classification_models():
     """Renders the module for Predictive QC (Classification)."""
@@ -6128,7 +6295,7 @@ def render_classification_models():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Logistic Regression AUC", value=f"{auc_lr:.3f}",
@@ -6176,6 +6343,14 @@ The success of a predictive model depends less on the algorithm and more on the 
             st.markdown("- **Random Forest:** It is a collection of `N` individual decision tree models. For a new input `x`, the final prediction is the mode (most common vote) of all the individual tree predictions:")
             st.latex(r"\text{Prediction}(x) = \text{mode}\{ \text{Tree}_1(x), \text{Tree}_2(x), \dots, \text{Tree}_N(x) \}")
             st.markdown("Randomness is injected in two ways to ensure the trees are diverse: each tree is trained on a random bootstrap sample of the data, and at each split in a tree, only a random subset of features is considered.")
+        with tabs[3]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
 
 def render_anomaly_detection():
     """Renders the module for unsupervised anomaly detection."""
@@ -6211,7 +6386,7 @@ def render_anomaly_detection():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="Total Data Points Scanned", value="215")
@@ -6249,6 +6424,14 @@ The goal is to treat every flagged anomaly as the start of a forensic investigat
             st.markdown("The **path length** `h(x)` for a point `x` is the number of splits required to isolate it. Anomalies, being different, will have a much shorter average path length across all trees in the forest. The final anomaly score `s(x, n)` for a point is calculated based on its average path length `E(h(x))`:")
             st.latex(r"s(x, n) = 2^{-\frac{E(h(x))}{c(n)}}")
             st.markdown("Where `c(n)` is a normalization factor based on the sample size `n`. Scores close to 1 are highly anomalous, while scores much smaller than 0.5 are normal.")
+        with tabs[3]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
             
 def render_xai_shap():
     """Renders the module for Explainable AI (XAI) using SHAP."""
@@ -6292,7 +6475,7 @@ def render_xai_shap():
         dependence_feature=dependence_feature_choice
     )
     
-    tab1, tab2, tab3, tab4 = st.tabs(["Global Explanations", "Local Explanation", "Feature Deep Dive", "🔬 SME Analysis"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Global Explanations", "Local Explanation", "Feature Deep Dive", "🔬 SME Analysis" "🏛️ Regulatory & Compliance"])
 
     with tab1:
         st.subheader("Global Feature Importance (The Model's General Strategy)")
@@ -6342,6 +6525,13 @@ def render_xai_shap():
         2.  **Phase 2 (Advisory Mode):** The system is integrated with the LIMS. It can generate advisories like: **"Warning: Reagent Lot XYZ is 85 days old. This significantly increases risk. Consider using a newer lot."**
         3.  **Phase 3 (Proactive Control / Real-Time Release):** A fully validated model's predictions can become part of the batch record. A run with a very low predicted risk and a favorable SHAP explanation could be eligible for **Real-Time Release Testing (RTRT)**, accelerating production timelines.
         """)
+    with tabs[4]: # Note: this is the 5th tab
+        st.markdown("""
+        Explainable AI (XAI) is a critical emerging field for the validation of AI/ML models in a regulated environment. It addresses the "black box" problem.
+        - **FDA AI/ML Action Plan:** The FDA is actively developing its framework for regulating AI/ML-based software. A key principle is transparency, and XAI methods like SHAP provide the evidence that a model's reasoning is scientifically sound.
+        - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** The principles of system validation require a thorough understanding and verification of the system's logic. For an AI model, XAI is essential for fulfilling the spirit of User and Functional Requirement Specifications (URS/FS).
+        - **Good Machine Learning Practice (GMLP):** While not yet a formal regulation, this set of principles is emerging as a standard for developing robust and trustworthy ML models in healthcare, and explainability is a core pillar.
+        """)
             
 def render_advanced_ai_concepts():
     """Renders the interactive dashboard for advanced AI concepts in a V&V context."""
@@ -6384,7 +6574,7 @@ def render_advanced_ai_concepts():
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        tabs = st.tabs(["💡 Application Insight", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Application Insight", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             if concept_key == "Transformers":
@@ -6474,6 +6664,15 @@ def render_advanced_ai_concepts():
                 st.markdown("In a **GAN**, the Generator `G` and Discriminator `D` play a minimax game. The Generator tries to minimize a value function `V(D, G)` while the Discriminator tries to maximize it:")
                 st.latex(r"\min_G \max_D V(D, G) = E_{x \sim p_{data}}[\log D(x)] + E_{z \sim p_z}[\log(1 - D(G(z)))]")
                 st.markdown("This game theoretically converges when the generator's distribution is identical to the real data distribution, meaning the discriminator can't do better than random guessing.")
+            with tabs[3]:
+                st.markdown("""
+                These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+                - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
+                - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+                - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+                - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+                - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+                """)
 #==============================================================================================================================================================================================
 #======================================================================NEW METHODS UI RENDERING ==============================================================================================
 #=============================================================================================================================================================================================
@@ -6529,7 +6728,7 @@ def render_mewma_xgboost():
         st.success("✅ IN-CONTROL: No alarm detected in the monitoring phase.")
 
     st.markdown("---")
-    tabs = st.tabs(["✅ The Golden Rule", "📖 Theory & History"])
+    tabs = st.tabs(["✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.error("""🔴 **THE INCORRECT APPROACH: The 'Whack-a-Mole' Investigation**
 An alarm sounds. Engineers frantically check every individual parameter chart, trying to find a clear signal. They might chase a noisy pH sensor, ignoring the subtle, combined drift in Temp and Pressure that is the real root cause.""")
@@ -6548,6 +6747,15 @@ An alarm sounds. Engineers frantically check every individual parameter chart, t
 
         **The Modern Fusion:** This is where the AI revolution provided the missing piece. **XGBoost** (2014) offered a way to build highly accurate models to predict an alarm state, and **SHAP** (2017) provided the key to unlock that model's "black box." By fusing the robust statistical detection of MEWMA with the powerful, explainable diagnostics of XGBoost and SHAP, we finally solved the diagnostic bottleneck, creating a true "detect and diagnose" system.
         """)
+    with tabs[2]:
+    st.markdown("""
+    These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+    - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
+    - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+    - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+    - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+    - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+    """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 2)
 # ==============================================================================
@@ -6583,7 +6791,7 @@ def render_bocpd_ml_features():
 
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric("True Changepoint Location", "Obs #100")
@@ -6623,6 +6831,15 @@ For complex, dynamic processes, the most sensitive way to detect a change is to:
             -   The **Predictive Probability** is the likelihood of the new data point `x_t` given the data seen during the current run.
             -   The **Changepoint Model** is based on a *hazard rate*, which is our prior belief about how likely a changepoint is at any given step.
             The algorithm calculates this for two cases: the run continues (`r_t = r_{t-1} + 1`) or a changepoint occurs (`r_t = 0`), and then normalizes to get the final probability distribution shown in the heatmap.
+            """)
+        with tabs[3]:
+            st.markdown("""
+            These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
             """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 3)
@@ -6664,7 +6881,7 @@ def render_kalman_nn_residual():
 
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric("Process Shock Event", "Time #70")
@@ -6703,6 +6920,15 @@ Charting the raw measurements (grey dots) directly would lead to a wide, insensi
             st.latex(r"K_k = P_{k|k-1} H^T (H P_{k|k-1} H^T + R)^{-1} \quad (\text{Kalman Gain})")
             st.latex(r"\hat{x}_{k|k} = \hat{x}_{k|k-1} + K_k (z_k - H \hat{x}_{k|k-1}) \quad (\text{State Update})")
             st.markdown("The term `(z_k - H \hat{x}_{k|k-1})` is the **residual** or **innovation**, which is the signal we monitor for faults.")
+        with tabs[3]:
+            st.markdown("""
+            These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
 
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 4)
@@ -6759,7 +6985,7 @@ def render_rl_tuning():
 
     # --- Keep the original tabs for theory and context ---
     st.markdown("---")
-    tabs = st.tabs(["✅ The Golden Rule", "📖 Theory & History"])
+    tabs = st.tabs(["✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.error("""🔴 **THE INCORRECT APPROACH: The 'Cookbook' Method**
 A scientist reads a textbook that says 'use λ=0.2 and L=3 for EWMA charts.' They apply these default values to every process, regardless of the process stability or the economic consequences of an error.""")
@@ -6784,6 +7010,15 @@ The control chart is not just a statistical tool; it's an economic asset. The tu
         -   `ARL₀`: The average time until a false alarm, which depends on `λ` and `L`. We want this to be high.
         -   `ARL₁`: The average time to detect a real shift of size `δ`, which also depends on `λ` and `L`. We want this to be low.
         The RL agent explores the trade-off between these two competing objectives to find the (`λ`, `L`) combination that minimizes the total long-run cost.
+        """)
+    with tabs[2]:
+        st.markdown("""
+        These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+        - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
+        - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+        - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+        - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
         """)
         
 # ==============================================================================
@@ -6818,7 +7053,7 @@ def render_tcn_cusum():
 
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric("Drift Detection Time", f"Hour #{alarm_time}" if alarm_time else "Not Detected",
@@ -6857,6 +7092,15 @@ This is a fundamental principle of modern process monitoring.
             -   `k`: A "slack" parameter, typically `0.5 * σ_e`, that allows the chart to ignore small, random fluctuations in the residuals.
             An alarm is signaled when `S_t` exceeds a control limit `H`.
             """)
+        with tabs[3]:
+            st.markdown("""
+            These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 6)
 # ==============================================================================
@@ -6891,7 +7135,7 @@ def render_lstm_autoencoder_monitoring():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric("EWMA Drift Detection Time", f"Hour #{ewma_time}" if ewma_time else "Not Detected",
@@ -6929,6 +7173,15 @@ Different types of process failures leave different signatures in the data. A ro
             st.markdown("The **reconstruction error** `E` is the difference between the original and the reconstructed series, often measured by the Mean Squared Error (MSE). This scalar value is the health score we monitor.")
             st.latex(r"E = || X - \hat{X} ||^2 = || X - g(f(X)) ||^2")
             st.markdown("If the model is trained only on normal data, it will be very good at reconstructing normal series (low `E`), but very bad at reconstructing anomalous series (high `E`).")
+        with tabs[3]:
+            st.markdown("""
+            These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
 
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT

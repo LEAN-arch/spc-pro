@@ -3005,117 +3005,144 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     # Return the new PDP buffer instead of the old dependence buffer
     return buf_summary, buf_waterfall, buf_pdp, X_display.iloc[instance_index:instance_index+1], actual_outcome, instance_index
     
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Advanced AI) - SME VISUAL OVERHAUL
+# ==============================================================================
 @st.cache_data
 def plot_advanced_ai_concepts(concept, p1=0, p2=0, p3=0):
     """
-    Generates enhanced, interactive, and conceptually rich Plotly figures
-    for advanced AI topics, driven by slider parameters.
+    Generates professionally redesigned, interactive, and domain-specific Plotly figures
+    for advanced AI topics in a V&V and Tech Transfer context.
     """
     fig = go.Figure()
 
     if concept == "Transformers":
-        steps = ["Inoculation", "Growth Phase", "Feed 1", "Production", "Harvest"]
-        x = [1, 3, 5, 7, 9]; y = [2] * 5
-        query_idx = p1 # Controlled by slider
+        time = np.arange(14)
+        vcd = 1 / (1 + np.exp(-0.8 * (time - 6))) * 15
+        glucose = 5 - 0.4 * time + np.random.normal(0, 0.1, 14)
+        do = 30 + 10 * np.sin(time / 2) + np.random.normal(0, 1, 14)
         
-        # Base importance of each step to the final outcome
-        base_importance = np.array([0.1, 0.8, 0.2, 0.5, 1.0])
-        attention_weights = base_importance * np.exp(-0.5 * np.abs(np.arange(5) - query_idx))
-        attention_weights /= attention_weights.sum() # Normalize
+        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                            specs=[[{"secondary_y": True}]] * 3)
         
-        fig.add_trace(go.Scatter(x=x, y=y, mode="markers+text", text=steps,
-                               textposition="top center", textfont=dict(size=14),
-                               marker=dict(size=40, color='lightblue', line=dict(width=2, color='black'))))
-        
-        for i in range(len(x) - 1): # Connecting lines
-            fig.add_shape(type="line", x0=x[i]+0.6, y0=y[i], x1=x[i+1]-0.6, y1=y[i+1],
-                          line=dict(color="grey", width=1, dash="dash"))
+        # Plot time series data
+        fig.add_trace(go.Scatter(x=time, y=do, mode='lines', name='DO', line=dict(color='#636EFA')), row=1, col=1, secondary_y=False)
+        fig.add_trace(go.Scatter(x=time, y=glucose, mode='lines', name='Glucose', line=dict(color='#00CC96')), row=2, col=1, secondary_y=False)
+        fig.add_trace(go.Scatter(x=time, y=vcd, mode='lines', name='VCD', line=dict(color='#FECB52')), row=3, col=1, secondary_y=False)
 
-        # Visualize Attention from the selected step
-        for i, weight in enumerate(attention_weights):
-            fig.add_annotation(x=x[i], y=y[i], ax=x[query_idx], ay=y[query_idx],
-                               showarrow=True, arrowhead=2, arrowwidth=1 + weight * 10,
-                               arrowcolor=f'rgba(255, 65, 54, {0.1 + weight * 0.9})')
+        # SME Enhancement: Visualize attention as a bar chart on a secondary axis
+        attention_day = p1
+        importance_profile = np.exp(-0.5 * (np.abs(time - attention_day)))
+        importance_profile[6] = max(importance_profile[6], 1.5) # Peak growth is always important
+        importance_profile /= importance_profile.sum()
 
-        fig.add_annotation(x=x[query_idx], y=y[query_idx]-0.7,
-                           text=f"<b>Paying Attention From:<br>{steps[query_idx]}</b>",
-                           showarrow=False, font=dict(color='red', size=14))
-        fig.update_layout(title_text="<b>Transformer: Understanding the Entire Batch Narrative</b>")
+        fig.add_trace(go.Bar(x=time, y=importance_profile, name='Attention', marker_color='#EF553B', opacity=0.6), row=1, col=1, secondary_y=True)
+        fig.add_trace(go.Bar(x=time, y=importance_profile, showlegend=False, marker_color='#EF553B', opacity=0.6), row=2, col=1, secondary_y=True)
+        fig.add_trace(go.Bar(x=time, y=importance_profile, showlegend=False, marker_color='#EF553B', opacity=0.6), row=3, col=1, secondary_y=True)
+        
+        fig.update_layout(title_text=f"<b>Transformer Attention: Predicting final titer from Day {attention_day}</b>",
+                          legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        fig.update_xaxes(title_text="Day", row=3, col=1)
+        fig.update_yaxes(title_text="DO (%)", row=1, col=1, secondary_y=False)
+        fig.update_yaxes(title_text="Glucose (g/L)", row=2, col=1, secondary_y=False)
+        fig.update_yaxes(title_text="VCD", row=3, col=1, secondary_y=False)
+        fig.update_yaxes(title_text="Attention Weight", showgrid=False, row=1, col=1, secondary_y=True)
+        fig.update_yaxes(showticklabels=False, row=2, col=1, secondary_y=True)
+        fig.update_yaxes(showticklabels=False, row=3, col=1, secondary_y=True)
+
 
     elif concept == "Graph Neural Networks (GNNs)":
-        evidence_strength = p1 # Controlled by slider
+        evidence_strength = p1
         nodes = {
-            'Raw Mat A': {'pos': (1, 4), 'type': 'Material'}, 'Raw Mat B': {'pos': (1, 2), 'type': 'Material'},
-            'Bioreactor 1': {'pos': (3, 5), 'type': 'Equipment'}, 'Bioreactor 2': {'pos': (3, 1), 'type': 'Equipment'},
-            'Batch 101': {'pos': (5, 5), 'type': 'Batch'}, 'Batch 102': {'pos': (5, 3), 'type': 'Batch'},
-            'Batch 103': {'pos': (5, 1), 'type': 'Batch'},
+            'Media Lot A1': {'pos': (1, 5)}, 'Buffer Lot B2': {'pos': (1, 3)},
+            'Assay Kit C3': {'pos': (1, 1)}, 'Batch 101': {'pos': (3, 5)},
+            'Batch 102': {'pos': (3, 3)}, 'Batch 103': {'pos': (3, 1)},
+            'Final QC Test': {'pos': (5, 3)}
         }
-        edges = [('Raw Mat A', 'Batch 101'), ('Raw Mat A', 'Batch 102'), ('Raw Mat B', 'Batch 103'),
-                 ('Bioreactor 1', 'Batch 101'), ('Bioreactor 1', 'Batch 102'), ('Bioreactor 2', 'Batch 103')]
-
-        # Propagate failure probability
-        node_probs = {name: 0.0 for name in nodes}
-        node_probs['Batch 102'] = 0.99 # Initial failure event
+        edges = [('Media Lot A1', 'Batch 101'), ('Media Lot A1', 'Batch 102'), ('Buffer Lot B2', 'Batch 101'),
+                 ('Buffer Lot B2', 'Batch 102'), ('Buffer Lot B2', 'Batch 103'), ('Assay Kit C3', 'Batch 103'),
+                 ('Batch 101', 'Final QC Test'), ('Batch 102', 'Final QC Test'), ('Batch 103', 'Final QC Test')]
         
-        # Simple 1-step propagation based on evidence strength
-        node_probs['Raw Mat A'] = min(0.99, node_probs['Batch 102'] * 0.5 * evidence_strength)
-        node_probs['Bioreactor 1'] = min(0.99, node_probs['Batch 102'] * 0.3 * evidence_strength)
+        # Propagate "guilt" probability backwards
+        node_probs = {name: 0.0 for name in nodes}
+        node_probs['Final QC Test'] = 0.99
+        node_probs['Batch 102'] = min(0.99, node_probs['Final QC Test'] * 0.8 * evidence_strength)
+        node_probs['Media Lot A1'] = min(0.99, node_probs['Batch 102'] * 0.7 * evidence_strength)
+        node_probs['Buffer Lot B2'] = min(0.99, node_probs['Batch 102'] * 0.9 * evidence_strength)
 
         for start, end in edges:
-            fig.add_shape(type="line", x0=nodes[start]['pos'][0], y0=nodes[start]['pos'][1],
-                          x1=nodes[end]['pos'][0], y1=nodes[end]['pos'][1], line=dict(color="grey", width=2))
+            fig.add_trace(go.Scatter(x=[nodes[start]['pos'][0], nodes[end]['pos'][0]],
+                                     y=[nodes[start]['pos'][1], nodes[end]['pos'][1]],
+                                     mode='lines', line=dict(color="lightgrey", width=2)))
         
         for name, props in nodes.items():
             prob = node_probs[name]
-            color = f'rgb(255, {200 - prob*200}, {200 - prob*200})'
+            color = f'rgb(255, {220 - prob*200}, {220 - prob*200})'
             fig.add_trace(go.Scatter(x=[props['pos'][0]], y=[props['pos'][1]], mode='markers+text',
-                                     text=f"<b>{name.replace(' ', '<br>')}</b><br>P(Fail)={prob:.2f}", textposition="middle center",
-                                     marker=dict(size=100, color=color, line=dict(width=2, color='black'))))
-        fig.update_layout(title_text="<b>GNN: Tracing a Failure Back Through the Supply Chain</b>")
+                                     text=f"<b>{name.replace(' ', '<br>')}</b><br>P(Cause)={prob:.2f}", textposition="middle center",
+                                     marker=dict(size=120, color=color, symbol='circle',
+                                                 line=dict(width=3, color='black'))))
+        fig.update_layout(title_text="<b>GNN: Root Cause Analysis via Lot Genealogy</b>")
 
     elif concept == "Reinforcement Learning (RL)":
-        cost_of_deviation = p1 # Slider
-        process_noise = p2   # Slider
+        cost_of_waste = p1; process_variability = p2
         
-        fig.add_shape(type="rect", x0=0.5, y0=3, x1=2.5, y1=4.5, fillcolor='lightblue', line=dict(width=2))
-        fig.add_annotation(x=1.5, y=3.75, text="<b>AI Agent</b><br>(Control Policy)", showarrow=False)
-        fig.add_shape(type="rect", x0=4.5, y0=0.5, x1=9.5, y1=5, fillcolor='lightgrey', line=dict(width=2, dash='dash'))
-        fig.add_annotation(x=7, y=4.5, text="<b>Digital Twin (Safe Simulation)</b>", showarrow=False)
+        # Agent
+        fig.add_shape(type="rect", x0=1, y0=3.5, x1=3, y1=5, fillcolor='#636EFA', line=dict(width=2))
+        fig.add_annotation(x=2, y=4.25, text="<b>RL Agent</b><br>(Feed Policy)", showarrow=False, font_color="white")
+        # Digital Twin
+        fig.add_shape(type="rect", x0=5, y0=0.5, x1=11, y1=5.5, fillcolor='rgba(128,128,128,0.1)', line=dict(width=2, dash='dash'))
+        fig.add_annotation(x=8, y=5.2, text="<b>Digital Twin (Bioreactor Sim)</b>", showarrow=False)
+        # Real Process
+        fig.add_shape(type="rect", x0=1, y0=1, x1=3, y1=2.5, fillcolor='#00CC96', line=dict(width=2))
+        fig.add_annotation(x=2, y=1.75, text="<b>Real Process</b>", showarrow=False, font_color="white")
+        
+        # Arrows
+        fig.add_annotation(x=4.8, y=4.25, ax=3.2, ay=4.25, text="<b>Action</b>", showarrow=True, arrowhead=2)
+        fig.add_annotation(x=3.2, y=3.75, ax=4.8, ay=3.75, text="<b>State, Reward</b>", showarrow=True, arrowhead=2)
+        fig.add_annotation(x=2, y=2.7, ax=2, ay=3.3, text="<b>Deploy<br>Optimal Policy</b>", showarrow=True, arrowhead=5, arrowcolor='#00CC96')
 
-        # Simulate the learned policy
-        x_sim = np.linspace(5, 9, 50)
-        y_target = 2.5
-        # The agent learns to apply stronger control (higher frequency) when deviation is costly and noise is low
-        control_strength = cost_of_deviation / (1 + process_noise)
-        y_sim = y_target + (0.5 / (1 + control_strength)) * np.sin(x_sim * (2 + control_strength)) + np.random.normal(0, process_noise * 0.1, 50)
+        time = np.linspace(5.5, 10.5, 100)
+        target_vcd = 3.5
+        aggressiveness = 1 / (1 + cost_of_waste * process_variability)
+        vcd_profile = target_vcd - 1 * np.exp(-aggressiveness * (time-5.5)) + np.random.normal(0, process_variability*0.1, 100)
         
-        fig.add_trace(go.Scatter(x=x_sim, y=y_sim, mode='lines', line=dict(color='royalblue')))
-        fig.add_hline(y=y_target, line=dict(color='black', dash='dot'), line_width=1)
-        fig.update_yaxes(range=[1.5, 3.5])
-        fig.update_layout(title_text="<b>RL: Learning an Optimal Control Policy</b>")
+        fig.add_trace(go.Scatter(x=time, y=vcd_profile, mode='lines', line=dict(color='royalblue', width=3)))
+        fig.add_hline(y=target_vcd, line=dict(color='black', dash='dot'), line_width=2)
+        fig.update_yaxes(range=[2.2, 4.2], title_text="VCD")
+        fig.update_xaxes(title_text="Days")
+        fig.update_layout(title_text="<b>RL: Learning an Optimal Feeding Strategy</b>")
 
     elif concept == "Generative AI":
-        creativity = p1 # Slider
+        creativity = p1
         np.random.seed(42)
-        x_real = [2, 2.5, 3]; y_real = [8, 9, 8.5]
+        x_real = np.random.normal(98, 0.5, 4); y_real = np.random.normal(70, 2, 4)
+        x_synth = np.random.normal(98, 0.5 + creativity, 100); y_synth = np.random.normal(70, 2 + creativity * 5, 100)
         
-        # Synthetic Data generation is now dynamic
-        x_synth = np.random.normal(2.5, 0.5 + creativity * 2, 100)
-        y_synth = np.random.normal(8.5, 0.5 + creativity * 2, 100)
+        fig.add_trace(go.Scatter(x=x_real, y=y_real, mode='markers', name='Real OOS Data',
+                                 marker=dict(color='#EF553B', size=15, symbol='x-thin', line=dict(width=3))))
+        fig.add_trace(go.Scatter(x=x_synth, y=y_synth, mode='markers', name='Synthetic OOS Data',
+                                 marker=dict(color='#FECB52', size=8, symbol='circle', opacity=0.7)))
         
-        fig.add_trace(go.Scatter(x=x_real, y=y_real, mode='markers', name='Real Failure Data',
-                                 marker=dict(color='red', size=15, symbol='x-thin', line=dict(width=3))))
-        fig.add_trace(go.Scatter(x=x_synth, y=y_synth, mode='markers', name='Synthetic Failure Data',
-                                 marker=dict(color='rgba(255,165,0,0.6)', size=8, symbol='circle')))
+        fig.add_vrect(x0=95, x1=105, fillcolor='rgba(0,204,150,0.1)', line_width=0)
+        fig.add_hrect(y0=80, y1=120, fillcolor='rgba(0,204,150,0.1)', line_width=0,
+                      annotation_text="In-Spec Region", annotation_position="top left")
         
-        fig.update_layout(title_text="<b>Generative AI: Creating Synthetic Data for Rare Failures</b>",
-                          xaxis_title="Process Parameter A", yaxis_title="Process Parameter B")
+        fig.add_annotation(x=103, y=100, text="<b>Generative<br>Model</b>", showarrow=True, arrowhead=2,
+                           ax=101, ay=85, font=dict(size=14, color='white'), bgcolor='#636EFA', borderpad=10)
+        
+        fig.update_layout(title_text="<b>Generative AI: Augmenting Rare Assay Failure Data</b>",
+                          xaxis_title="Assay Parameter 1 (e.g., Purity)",
+                          yaxis_title="Assay Parameter 2 (e.g., Potency)")
 
     # Standardize final layout
-    fig.update_layout(height=450, showlegend=False, margin=dict(l=10, r=10, t=50, b=10))
-    if concept in ["Transformers", "Graph Neural Networks (GNNs)", "Reinforcement Learning (RL)"]:
-        fig.update_layout(xaxis=dict(visible=False, showgrid=False, range=[-0, 10]), 
-                          yaxis=dict(visible=False, showgrid=False, range=[0, 7]))
+    fig.update_layout(height=500, showlegend=False, margin=dict(l=10, r=10, t=50, b=10))
+    if concept in ["Graph Neural Networks (GNNs)"]:
+        fig.update_layout(xaxis=dict(visible=False, showgrid=False, range=[0, 6]), 
+                          yaxis=dict(visible=False, showgrid=False, range=[0, 6]))
+    elif concept in ["Reinforcement Learning (RL)"]:
+        fig.update_layout(xaxis=dict(visible=False, showgrid=False), 
+                          yaxis=dict(visible=False, showgrid=False))
                       
     return fig
 #================================================================================================================================================================================================
@@ -6163,69 +6190,69 @@ def render_xai_shap():
         """)
             
 def render_advanced_ai_concepts():
-    """Renders the interactive dashboard for advanced AI concepts."""
+    """Renders the interactive dashboard for advanced AI concepts in a V&V context."""
     st.markdown("""
-    #### Purpose & Application: A Glimpse into the AI Frontier
-    **Purpose:** To provide a high-level, interactive overview of cutting-edge AI architectures that represent the future of process analytics. While coding them is beyond the scope of this toolkit, understanding their capabilities is crucial for shaping future strategy.
+    #### Purpose & Application: A Glimpse into the AI Frontier for V&V
+    **Purpose:** To provide a high-level, interactive overview of how cutting-edge AI architectures can solve some of the most difficult challenges in bioprocess V&V and technology transfer.
     """)
     st.info("""
-    Select an AI concept below. The diagram will become an interactive simulation, and a dedicated set of controls will appear in the sidebar, allowing you to explore the core idea of each technology.
+    Select an AI concept below. The diagram will become an interactive simulation of a real-world biotech problem, and a dedicated set of controls will appear in the sidebar to let you explore the solution.
     """)
 
-    # --- Main Controls ---
     concept_key = st.radio(
         "Select an Advanced AI Concept to Explore:", 
         ["Transformers", "Graph Neural Networks (GNNs)", "Reinforcement Learning (RL)", "Generative AI"],
         horizontal=True
     )
     
-    # --- Dynamic Sidebar Controls ---
     p1, p2, p3 = 0, 0, 0
     with st.sidebar:
         st.subheader(f"{concept_key} Controls")
         if concept_key == "Transformers":
-            p1 = st.select_slider("Focus Attention From (Query):",
-                                  options=["Inoculation", "Growth Phase", "Feed 1", "Production", "Harvest"],
-                                  value="Harvest",
-                                  help="Select a batch step. The arrows show how much attention this step pays to all others.")
-            # Convert text to index for the plotting function
-            p1 = ["Inoculation", "Growth Phase", "Feed 1", "Production", "Harvest"].index(p1)
+            p1 = st.select_slider("Focus Attention on Day:", options=list(range(14)), value=10,
+                help="Select a day in the batch. The red bars show how much the model 'attends to' other days when making a prediction based on this day's data.")
         elif concept_key == "Graph Neural Networks (GNNs)":
-            p1 = st.slider("Evidence Strength", 0.0, 2.0, 1.0, 0.1,
-                           help="How strongly to propagate the failure signal backwards from Batch 102. High strength quickly implicates the source material.")
+            p1 = st.slider("Strength of Evidence", 0.0, 2.0, 1.0, 0.1,
+                           help="How strongly to propagate the 'guilt' signal backwards from the failed QC test. High strength quickly pinpoints the likely source lots.")
         elif concept_key == "Reinforcement Learning (RL)":
-            p1 = st.slider("Cost of Deviation", 1.0, 10.0, 3.0, 0.5,
-                           help="How 'expensive' it is for the process to deviate from its target. Higher cost forces the AI agent to learn a tighter control policy.")
-            p2 = st.slider("Process Noise Level", 0.1, 1.0, 0.3, 0.1,
-                           help="The amount of random noise in the system. High noise makes precise control more difficult.")
+            p1 = st.slider("Cost of Feed Waste ($/L)", 1.0, 10.0, 3.0, 0.5,
+                           help="How 'expensive' wasted feed media is. Higher cost forces the AI agent to learn a more conservative, efficient feeding strategy.")
+            p2 = st.slider("Process Variability", 0.1, 1.0, 0.3, 0.1,
+                           help="The amount of random, unpredictable noise in the cell culture. High variability makes aggressive control strategies risky.")
         elif concept_key == "Generative AI":
             p1 = st.slider("Model 'Creativity' (Variance)", 0.1, 1.0, 0.3, 0.1,
-                           help="Controls the diversity of the generated data. Low values create realistic but similar samples. High values create diverse but potentially unrealistic samples.")
+                           help="Controls the diversity of the generated failure data. Low values are safe but less informative. High values are diverse but may be unrealistic.")
     
-    # --- Main Display Area ---
     fig = plot_advanced_ai_concepts(concept_key, p1, p2, p3)
     
-    col1, col2 = st.columns([0.6, 0.4])
+    col1, col2 = st.columns([0.65, 0.35])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         tabs = st.tabs(["💡 Application Insight", "✅ The Golden Rule", "📖 Theory & History"])
         
-        # This content remains largely the same, but is now driven by a single concept_key
         with tabs[0]:
             if concept_key == "Transformers":
                 st.metric(label="🧠 Core Concept", value="Self-Attention")
                 st.markdown("**The AI Historian for Your Batch Record.** It learns long-range dependencies, such as how an early event in a batch influences the final outcome weeks later.")
+                st.markdown("**Challenge:** A batch fails, but the root cause isn't obvious. Was it an event on Day 3 or a slow drift starting on Day 9?")
+                st.markdown("**AI Solution:** A Transformer can analyze the entire multivariate history of a batch. By examining its attention weights (red bars), we can ask the model: 'To predict the final titer, which days were most important?' This can pinpoint critical process periods that univariate SPC would miss.")
             elif concept_key == "Graph Neural Networks (GNNs)":
                 st.metric(label="🧠 Core Concept", value="Message Passing")
                 st.markdown("**The System-Wide Process Cartographer.** It models your entire facility as a network to trace contamination or failures back to their root cause.")
+                st.markdown("**Challenge:** A QC assay for a released batch fails. Which of the dozens of raw material lots used across multiple batches is the most likely root cause?")
+                st.markdown("**AI Solution:** A GNN models the entire supply chain as a network. When a failure is input, it propagates a 'guilt' signal backwards through the graph, increasing the `P(Cause)` for all connected lots. This allows for rapid, targeted investigations.")
             elif concept_key == "Reinforcement Learning (RL)":
                 st.metric(label="🧠 Core Concept", value="Reward Maximization")
                 st.markdown("**The AI Process Optimization Pilot.** It learns the optimal control strategy for a process by running millions of experiments in a safe, digital twin environment.")
+                st.markdown("**Challenge:** During tech transfer to a new site, the optimal feeding strategy for a bioreactor is unknown and expensive to determine experimentally.")
+                st.markdown("**AI Solution:** An RL agent is trained in a 'digital twin' (a high-fidelity simulation) of the new site's bioreactor. It runs millions of virtual batches to learn an optimal, robust feeding policy before the first real GMP run ever starts.")
             elif concept_key == "Generative AI":
                 st.metric(label="🧠 Core Concept", value="Distribution Learning")
-                st.markdown("**The Synthetic Data Factory.** It learns from a few examples of rare events (like failures) and generates hundreds of new, realistic synthetic examples to train more robust predictive models.")
+                st.markdown("**The Synthetic Data Factory.** It learns from a few examples of rare events and generates new, realistic synthetic examples to train more robust predictive models.")
+                st.markdown("**Challenge:** We want to build a model to predict rare Out-of-Specification (OOS) events for an assay, but we only have 4 historical examples.")
+                st.markdown("**AI Solution:** A Generative AI model can learn the statistical 'fingerprint' of the few real failures. It can then generate hundreds of new, plausible synthetic failure examples. This augmented dataset can then be used to train a robust predictive QC classifier.")
         
         with tabs[1]:
             if concept_key == "Transformers":
@@ -6239,13 +6266,60 @@ def render_advanced_ai_concepts():
         
         with tabs[2]:
             if concept_key == "Transformers":
-                st.markdown("""**Historical Context:** Introduced in the 2017 Google Brain paper, **"Attention Is All You Need."** It revolutionized AI by showing that a mechanism called **self-attention** could outperform dominant architectures (LSTMs) while being much faster to train. This is the foundation for models like GPT.""")
+                st.markdown("""
+                #### Historical Context: Attention is All You Need
+                **The Problem:** For years, Recurrent Neural Networks (RNNs) and LSTMs were the state-of-the-art for sequence data, but their sequential nature made them slow and poor at capturing very long-range dependencies.
+                
+                **The 'Aha!' Moment:** The 2017 Google Brain paper, **"Attention Is All You Need,"** introduced the Transformer architecture. It completely discarded recurrence and relied solely on a mechanism called **self-attention**, allowing every point in a sequence to directly look at every other point.
+                
+                **The Impact:** This was a revolution. Transformers could be trained in parallel, were vastly more efficient, and excelled at capturing long-range context. This breakthrough is the foundation for virtually all modern large language models, including GPT.
+                """)
+                st.markdown("#### Mathematical Basis")
+                st.markdown("The core of a Transformer is the **Scaled Dot-Product Attention** mechanism:")
+                st.latex(r"\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V")
+                st.markdown("Where `Q` (Queries), `K` (Keys), and `V` (Values) are matrices derived from the input sequence. This operation allows every point to dynamically decide which other points are most important and weight their influence accordingly.")
+
             elif concept_key == "Graph Neural Networks (GNNs)":
-                st.markdown("""**Historical Context:** The field exploded around 2017-2018. The development of unifying frameworks like **Message Passing Neural Networks (MPNNs)** generalized the success of deep learning from grids (images) and sequences (text) to the more flexible structure of graphs.""")
+                st.markdown("""
+                #### Historical Context: Deep Learning on Networks
+                **The Problem:** Deep learning achieved massive success on orderly data like images (grids) and text (sequences). But how could you apply it to irregular, networked data like social networks, molecular structures, or supply chains?
+                
+                **The 'Aha!' Moment:** The field exploded around 2017-2018 with the development of unifying frameworks like **Message Passing Neural Networks (MPNNs)**. The key insight was to create a "convolution-like" operation for graphs: each node would update its state by aggregating information ("messages") from its immediate neighbors.
+                
+                **The Impact:** GNNs generalized deep learning to a much broader class of problems. They are now state-of-the-art for tasks like drug discovery (predicting molecular properties) and fraud detection (finding anomalous patterns in transaction networks).
+                """)
+                st.markdown("#### Mathematical Basis")
+                st.markdown("GNNs work via **neighbor aggregation** or **message passing**. To update the state (embedding) `h_v` of a node `v`, the GNN aggregates messages from all its neighboring nodes `u` in the set `N(v)`:")
+                st.latex(r"h_v^{(k)} = \text{UPDATE}^{(k)}\left(h_v^{(k-1)}, \bigoplus_{u \in N(v)} \phi^{(k)}(h_u^{(k-1)})\right)")
+                st.markdown("This process is repeated for `k` layers, allowing information to propagate across the graph. The `UPDATE` and `AGGREGATE` (⊕, φ) functions are learnable neural networks.")
+
             elif concept_key == "Reinforcement Learning (RL)":
-                st.markdown("""**Historical Context:** With deep roots in control theory, RL was supercharged by **DeepMind** in the mid-2010s. Their landmark achievement, **AlphaGo**, demonstrated that "Deep RL" could solve problems with enormous state spaces previously thought to be intractable.""")
+                st.markdown("""
+                #### Historical Context: Learning from Trial and Error
+                **The Problem:** How do you teach a machine to perform a complex task, like playing a game or controlling a robot, without explicitly programming the rules for every possible situation?
+                
+                **The 'Aha!' Moment:** RL, with deep roots in control theory and psychology, provided the answer: let the agent learn from trial and error. The breakthrough came in the mid-2010s when researchers at **DeepMind** combined traditional RL algorithms with deep neural networks.
+                
+                **The Impact:** Their landmark achievement, **AlphaGo**, defeated the world's best Go player in 2016. This demonstrated that "Deep RL" could solve problems with enormous state spaces previously thought to be intractable, sparking a massive wave of research into self-learning systems for everything from game playing to process control.
+                """)
+                st.markdown("#### Mathematical Basis")
+                st.markdown("RL agents learn to maximize a cumulative reward. The core is the **Bellman equation**, which defines the optimal action-value function `Q*(s, a)`:")
+                st.latex(r"Q^*(s, a) = E\left[R_{t+1} + \gamma \max_{a'} Q^*(s', a')\right]")
+                st.markdown("This states that the value of taking action `a` in state `s` is the immediate reward `R` plus the discounted (`γ`) value of the best possible action from the next state `s'`. Deep RL uses a neural network to approximate this `Q*` function.")
+        
             elif concept_key == "Generative AI":
-                st.markdown("""**Historical Context:** Revolutionized in 2014 by Ian Goodfellow's invention of **Generative Adversarial Networks (GANs)**, which pit two neural networks against each other. More recently, **Diffusion Models** (e.g., DALL-E 2) have become state-of-the-art.""")
+                st.markdown("""
+                #### Historical Context: Teaching AI to Create
+                **The Problem:** For decades, AI was primarily *discriminative*—it could classify images, but not create them. How could you teach a machine to generate new, realistic data that looked like it came from a given dataset?
+                
+                **The 'Aha!' Moment:** The field was revolutionized in 2014 by Ian Goodfellow's invention of **Generative Adversarial Networks (GANs)**. The key insight was to pit two neural networks against each other in a game: a **Generator** trying to create realistic fakes, and a **Discriminator** trying to tell the fakes from real data.
+                
+                **The Impact:** This adversarial game forces the generator to become incredibly good at mimicking the true data distribution. This sparked a creative explosion in AI. More recently, **Diffusion Models** (popularized by models like DALL-E 2 and Stable Diffusion) have become state-of-the-art for many generation tasks.
+                """)
+                st.markdown("#### Mathematical Basis")
+                st.markdown("In a **GAN**, the Generator `G` and Discriminator `D` play a minimax game. The Generator tries to minimize a value function `V(D, G)` while the Discriminator tries to maximize it:")
+                st.latex(r"\min_G \max_D V(D, G) = E_{x \sim p_{data}}[\log D(x)] + E_{z \sim p_z}[\log(1 - D(G(z)))]")
+                st.markdown("This game theoretically converges when the generator's distribution is identical to the real data distribution, meaning the discriminator can't do better than random guessing.")
 #==============================================================================================================================================================================================
 #======================================================================NEW METHODS UI RENDERING ==============================================================================================
 #=============================================================================================================================================================================================

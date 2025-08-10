@@ -453,33 +453,38 @@ def plot_chronological_timeline():
 
 @st.cache_data
 def create_toolkit_conceptual_map():
-    # SME Note: Added the six new methods to the conceptual hierarchy. They are all
-    # advanced, so they logically fit under existing categories in 'Advanced Analytics'
-    # and 'Statistical Process Control'. Assigned them the 'Data Science / ML' origin.
+    # SME Note: Added the two new validation tools to their logical homes in the hierarchy.
     structure = {
         'Foundational Statistics': ['Statistical Inference', 'Regression Models'],
         'Process & Quality Control': ['Measurement Systems Analysis', 'Statistical Process Control', 'Validation & Lifecycle'],
         'Advanced Analytics (ML/AI)': ['Predictive Modeling', 'Unsupervised Learning']
     }
     sub_structure = {
-        'Statistical Inference': ['Confidence Interval Concept', 'Equivalence Testing (TOST)', 'Bayesian Inference', 'ROC Curve Analysis'],
+        'Statistical Inference': [
+            'Confidence Interval Concept', 'Equivalence Testing (TOST)', 'Bayesian Inference', 
+            'ROC Curve Analysis',
+            'Comprehensive Diagnostic Validation' # <-- ADDED HERE
+        ],
         'Regression Models': ['Linearity & Range', 'Non-Linear Regression (4PL/5PL)', 'Stability Analysis (Shelf-Life)', 'Time Series Analysis'],
         'Measurement Systems Analysis': ['Gage R&R / VCA', 'Method Comparison'],
         'Statistical Process Control': [
             'Process Stability (SPC)', 'Small Shift Detection', 'Multivariate SPC',
-            'Kalman Filter + Residual Chart' # New item
+            'Kalman Filter + Residual Chart'
         ],
-        'Validation & Lifecycle': ['Process Capability (Cpk)', 'Tolerance Intervals', 'Reliability / Survival Analysis'],
+        'Validation & Lifecycle': [
+            'Process Capability (Cpk)', 'Tolerance Intervals', 'Reliability / Survival Analysis',
+            'Sample Size for Qualification' # <-- ADDED HERE
+        ],
         'Predictive Modeling': [
             'Predictive QC (Classification)', 'Explainable AI (XAI)', 'Multivariate Analysis (MVA)',
-            'TCN + CUSUM' # New item
+            'TCN + CUSUM'
         ],
         'Unsupervised Learning': [
             'Anomaly Detection', 'Clustering (Unsupervised)',
-            'LSTM Autoencoder', # New item
-            'BOCPD + ML Features', # New item
-            'MEWMA + AI Diagnostics', # New item
-            'RL for Chart Tuning' # New item
+            'LSTM Autoencoder', 
+            'BOCPD + ML Features', 
+            'MEWMA + AI Diagnostics', 
+            'RL for Chart Tuning'
         ]
     }
     tool_origins = {
@@ -490,13 +495,16 @@ def create_toolkit_conceptual_map():
         'Process Capability (Cpk)': 'Industrial Quality Control', 'Tolerance Intervals': 'Statistics', 'Reliability / Survival Analysis': 'Biostatistics',
         'Predictive QC (Classification)': 'Data Science / ML', 'Explainable AI (XAI)': 'Data Science / ML', 'Multivariate Analysis (MVA)': 'Data Science / ML',
         'Anomaly Detection': 'Data Science / ML', 'Clustering (Unsupervised)': 'Data Science / ML',
-        # New Items
         'Kalman Filter + Residual Chart': 'Statistics',
         'MEWMA + AI Diagnostics': 'Data Science / ML',
         'BOCPD + ML Features': 'Data Science / ML',
         'RL for Chart Tuning': 'Data Science / ML',
         'TCN + CUSUM': 'Data Science / ML',
         'LSTM Autoencoder': 'Data Science / ML',
+        # --- NEW ITEMS ADDED HERE ---
+        'Comprehensive Diagnostic Validation': 'Biostatistics',
+        'Sample Size for Qualification': 'Industrial Quality Control',
+        # --- END OF ADDITION ---
     }
     origin_colors = {
         'Statistics': '#1f77b4', 'Biostatistics': '#2ca02c',
@@ -512,7 +520,9 @@ def create_toolkit_conceptual_map():
     y_coords = np.linspace(len(all_tools_flat) * vertical_spacing, -len(all_tools_flat) * vertical_spacing, len(all_tools_flat))
     x_positions = [4, 5]
     for i, tool_key in enumerate(all_tools_flat):
-        nodes[tool_key] = {'x': x_positions[i % 2], 'y': y_coords[i], 'name': tool_key, 'short': tool_key.replace(' +', '<br>+').replace(' (', '<br>('), 'origin': tool_origins.get(tool_key)}
+        # UPDATED: Added replacement logic for the new tools
+        short_name = tool_key.replace(' +', '<br>+').replace(' (', '<br>(').replace('Comprehensive ', 'Comprehensive<br>')
+        nodes[tool_key] = {'x': x_positions[i % 2], 'y': y_coords[i], 'name': tool_key, 'short': short_name, 'origin': tool_origins.get(tool_key)}
 
     for l2_key, l3_keys in sub_structure.items():
         child_ys = [nodes[child_key]['y'] for child_key in l3_keys]
@@ -582,9 +592,9 @@ def create_toolkit_conceptual_map():
         showlegend=True,
         legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)', bordercolor="Black", borderwidth=1),
         xaxis=dict(visible=False, range=[-1, 6]),
-        # Adjust y-axis range to accommodate the new tools
-        yaxis=dict(visible=False, range=[-38, 38]),
-        height=3200, # Increase height to prevent overlap
+        # UPDATED: Automatically adjust y-axis range and height to accommodate all tools
+        yaxis=dict(visible=False, range=[-len(all_tools_flat)*1.2, len(all_tools_flat)*1.2]),
+        height=len(all_tools_flat) * 80, # Dynamically set height
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#f0f2f6'

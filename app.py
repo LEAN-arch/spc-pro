@@ -1271,10 +1271,18 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     kde_B = gaussian_kde(data_B)
     fig.add_trace(go.Scatter(x=x_range, y=kde_A(x_range), fill='tozeroy', name='Method A', line=dict(color='blue')), row=1, col=1)
     fig.add_trace(go.Scatter(x=x_range, y=kde_B(x_range), fill='tozeroy', name='Method B', line=dict(color='green')), row=1, col=1)
+    
+    # --- THIS IS THE KEY VISUAL FIX ---
+    # Add vertical lines to explicitly show the sample means on the top plot.
+    fig.add_vline(x=mean_A, line=dict(color='royalblue', dash='dash'), row=1, col=1,
+                  annotation_text=f"Mean A = {mean_A:.2f}", annotation_position="top left")
+    fig.add_vline(x=mean_B, line=dict(color='darkgreen', dash='dash'), row=1, col=1,
+                  annotation_text=f"Mean B = {mean_B:.2f}", annotation_position="top right")
+    # --- END OF VISUAL FIX ---
+    
     fig.update_yaxes(showticklabels=False, row=1, col=1) # Hide density y-axis for clarity
 
     # Plot 2: Confidence Interval for the Difference
-    # 90% confidence interval for TOST (standard practice)
     ci_margin = t.ppf(0.95, df_welch) * std_err_diff
     ci_lower = diff_mean - ci_margin
     ci_upper = diff_mean + ci_margin
@@ -1300,7 +1308,6 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     fig.update_xaxes(title_text="Difference in Means (Method B - Method A)", row=2, col=1)
     fig.update_yaxes(showticklabels=False, row=2, col=1, range=[-1, 1])
     
-    # --- THIS IS THE ONLY LINE THAT HAS CHANGED ---
     return fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B, diff_mean
 
 # ==============================================================================
@@ -4632,7 +4639,6 @@ def render_tost():
             help="The number of samples per group. Higher sample size narrows the confidence interval, increasing your power to prove equivalence."
         )
     
-    # --- THIS LINE IS UPDATED to unpack the new value ---
     fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B, diff_mean = plot_tost(
         delta=delta_slider,
         true_diff=diff_slider,
@@ -4657,32 +4663,24 @@ def render_tost():
 
             st.metric(label="p-value (TOST)", value=f"{p_tost:.4f}", help="If p < 0.05, we conclude equivalence.")
             st.metric(label="📊 Observed 90% CI for Difference", value=f"[{ci_lower:.2f}, {ci_upper:.2f}]")
+            st.metric(label="📈 Observed Difference (from sample)", value=f"{diff_mean:.2f}",
+                      help="The difference between the two sample means (vertical lines in top plot). The CI is centered on this value.")
             
-            # --- THIS SECTION IS NEW AND IMPROVED ---
             st.markdown("---")
-            st.metric(
-                label="📈 Observed Difference (from sample)",
-                value=f"{diff_mean:.2f}",
-                help="The difference calculated from this specific random sample. The CI in the plot is centered on this value."
-            )
-            st.metric(
-                label="⚙️ Underlying 'True' Difference",
-                value=f"{diff_slider:.2f}",
-                help="The value you set with the slider. Due to random sampling, the observed difference will not be exactly equal to this."
-            )
-            st.markdown("---")
-            # --- END OF IMPROVED SECTION ---
-
-            st.metric(label="⚖️ Pre-defined Equivalence Margin", value=f"± {delta_slider:.1f} units")
             
+            # --- THIS IS THE KEY EXPLANATION FIX ---
+            st.markdown("##### Connecting the Plots: Why the Disconnect?")
             st.markdown("""
-            **How to achieve equivalence:**
-            - **Decrease `Standard Deviation`**: Less noise makes your evidence stronger.
-            - **Increase `Sample Size`**: More data narrows the CI, increasing your statistical power.
-            - **Observe a small difference**: If the true difference is small, the CI will be centered near zero.
-            - **Widen the `Equivalence Margin`**: If scientifically justified, wider goalposts are easier to meet.
+            You might see two distributions in Plot 1 that look clearly different, yet the test concludes they are equivalent. This is not an error!
+            
+            - **Plot 1 shows RAW DATA.** The overlap of the distributions is influenced by the **Standard Deviation**.
+            - **Plot 2 shows the CONCLUSION ABOUT THE MEANS.** The confidence interval is influenced by the **Standard Error (`s/√n`)**.
+            
+            With a large sample size (`n`), the Standard Error can be very small even if the Standard Deviation is large. This means we can be **very confident** that the true difference between the means is small, even if the raw data distributions have a lot of overlap. **Equivalence is a conclusion about the means, not about the overlap of all data points.**
             """)
+            # --- END OF EXPLANATION FIX ---
         
+        # ... (The rest of the tabs remain the same) ...
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The Fallacy of the Non-Significant P-Value**
 - A scientist runs a standard t-test and gets a p-value of 0.25. They exclaim, *"Great, p > 0.05, so the methods are the same!"*

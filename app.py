@@ -812,19 +812,10 @@ def plot_diagnostic_dashboard(sensitivity, specificity, prevalence, n_total=1000
     fp = n_healthy - tn
     
     # 2. --- Calculate ALL 24 derived metrics systematically ---
-    # Core Rates
-    tpr = tp / (tp + fn) if (tp + fn) > 0 else 0
-    tnr = tn / (tn + fp) if (tn + fp) > 0 else 0
-    fpr = 1 - tnr  # Alpha, Type I Error Rate
-    fnr = 1 - tpr  # Beta, Type II Error Rate
-    
-    # Predictive Values
-    ppv = tp / (tp + fp) if (tp + fp) > 0 else 0
-    npv = tn / (tn + fn) if (tn + fn) > 0 else 0
-    fdr = 1 - ppv # False Discovery Rate
-    for_val = 1 - npv # False Omission Rate
-    
-    # Overall Performance & Agreement
+    tpr, tnr = (tp / (tp + fn) if (tp + fn) > 0 else 0), (tn / (tn + fp) if (tn + fp) > 0 else 0)
+    fpr, fnr = 1 - tnr, 1 - tpr
+    ppv, npv = (tp / (tp + fp) if (tp + fp) > 0 else 0), (tn / (tn + fn) if (tn + fn) > 0 else 0)
+    fdr, for_val = 1 - ppv, 1 - npv
     accuracy = (tp + tn) / n_total
     f1_score = 2 * (ppv * tpr) / (ppv + tpr) if (ppv + tpr) > 0 else 0
     youdens_j = tpr + tnr - 1
@@ -833,41 +824,30 @@ def plot_diagnostic_dashboard(sensitivity, specificity, prevalence, n_total=1000
     kappa = (p_obs - p_exp) / (1 - p_exp) if (1 - p_exp) != 0 else 0
     mcc_denom = np.sqrt(float(tp + fp) * float(tp + fn) * float(tn + fp) * float(tn + fn))
     mcc = (tp * tn - fp * fn) / mcc_denom if mcc_denom > 0 else 0
+    lr_plus, lr_minus = (tpr / fpr if fpr > 0 else float('inf')), (fnr / tnr if tnr > 0 else 0)
     
-    # Advanced Metrics
-    lr_plus = tpr / fpr if fpr > 0 else float('inf')
-    lr_minus = fnr / tnr if tnr > 0 else 0
-    
-    # For ROC and Log-Loss, we simulate scores that match the Sens/Spec
     separation = norm.ppf(sensitivity) + norm.ppf(specificity)
     scores_diseased = np.random.normal(separation, 1, 5000)
     scores_healthy = np.random.normal(0, 1, 5000)
-    y_true_roc = np.concatenate([np.ones(5000), np.zeros(5000)])
-    y_scores_roc = np.concatenate([scores_diseased, scores_healthy])
+    y_true_roc, y_scores_roc = np.concatenate([np.ones(5000), np.zeros(5000)]), np.concatenate([scores_diseased, scores_healthy])
     fpr_roc, tpr_roc, _ = roc_curve(y_true_roc, y_scores_roc)
     auc_val = auc(fpr_roc, tpr_roc)
-    
     prob_scores = 1 / (1 + np.exp(-y_scores_roc + separation/2))
     log_loss = -np.mean(y_true_roc * np.log(prob_scores + 1e-15) + (1 - y_true_roc) * np.log(1 - prob_scores + 1e-15))
 
     # --- PLOTTING ---
     # Plot 1: Professional Confusion Matrix
-    fig_cm = go.Figure(data=go.Heatmap(
-        z=[[fn, tp], [tn, fp]],
-        x=['Actual Diseased', 'Actual Healthy'],
-        y=['Predicted Negative', 'Predicted Positive'],
-        colorscale=[[0, '#e3f2fd'], [1, '#0d47a1']],
-        showscale=False
-    ))
-    annotations = []
-    z_values = [[f'<b>FN</b><br>(False Negative)<br>{fn}', f'<b>TP</b><br>(True Positive)<br>{tp}'],
-                [f'<b>TN</b><br>(True Negative)<br>{tn}', f'<b>FP</b><br>(False Positive)<br>{fp}']]
+    fig_cm = go.Figure(data=go.Heatmap(z=[[fn, tp], [tn, fp]], x=['Actual Diseased', 'Actual Healthy'], y=['Predicted Negative', 'Predicted Positive'],
+                                       colorscale=[[0, '#e3f2fd'], [1, '#0d47a1']], showscale=False, textfont={"size":16}))
+    z_values = [[f'<b>FN</b><br>{fn}', f'<b>TP</b><br>{tp}'], [f'<b>TN</b><br>{tn}', f'<b>FP</b><br>{fp}']]
     for i, row in enumerate(z_values):
-        for j, val_text in enumerate(row):
-            font_color = 'white' if [[fn, tp], [tn, fp]][i][j] > n_total / 3 else 'black'
-            annotations.append(dict(x=j, y=i, text=val_text, font=dict(color=font_color, size=14), showarrow=False))
-    
-    fig_cm.update_layout(title="<b>1. Confusion Matrix</b>", annotations=annotations, xaxis_title="Actual Condition", yaxis_title="Predicted Outcome")
+        for j, val in enumerate(row):
+            fig_cm.add_annotation(x=j, y=i, text=val, showarrow=False, font=dict(color='white' if [[fn, tp], [tn, fp]][i][j] > n_total/3 else 'black'))
+    fig_cm.add_annotation(x=0, y=1.15, text=f"Sensitivity (TPR)<br><b>{tpr:.1%}</b>", showarrow=False, yshift=30)
+    fig_cm.add_annotation(x=1, y=-0.15, text=f"Specificity (TNR)<br><b>{tnr:.1%}</b>", showarrow=False, yshift=-30)
+    fig_cm.add_annotation(x=-0.2, y=1, text=f"PPV<br><b>{ppv:.1%}</b>", showarrow=False, xshift=-30)
+    fig_cm.add_annotation(x=-0.2, y=0, text=f"NPV<br><b>{npv:.1%}</b>", showarrow=False, xshift=-30)
+    fig_cm.update_layout(title="<b>1. Confusion Matrix & Key Rates</b>", xaxis_title="Actual Condition", yaxis_title="Predicted Outcome", margin=dict(t=50, l=50, r=10, b=50))
 
     # Plot 2: Professional ROC Curve
     fig_roc = go.Figure()
@@ -877,7 +857,7 @@ def plot_diagnostic_dashboard(sensitivity, specificity, prevalence, n_total=1000
     youden_idx = np.argmax(tpr_roc - fpr_roc)
     fig_roc.add_trace(go.Scatter(x=[fpr_roc[youden_idx]], y=[tpr_roc[youden_idx]], mode='markers', name="Optimal (Youden's J)", marker=dict(color='#FFBF00', size=12, symbol='diamond')))
     fig_roc.update_layout(title="<b>2. Receiver Operating Characteristic (ROC)</b>", xaxis_title="False Positive Rate (1 - Specificity)", yaxis_title="True Positive Rate (Sensitivity)", legend=dict(x=0.01, y=0.01, yanchor='bottom'))
-    
+
     # Plot 3: Predictive Values vs. Prevalence
     prevalence_range = np.linspace(0.001, 1, 100)
     ppv_curve = (sensitivity * prevalence_range) / (sensitivity * prevalence_range + (1 - specificity) * (1 - prevalence_range))
@@ -886,14 +866,12 @@ def plot_diagnostic_dashboard(sensitivity, specificity, prevalence, n_total=1000
     fig_pv.add_trace(go.Scatter(x=prevalence_range, y=ppv_curve, mode='lines', name='PPV (Precision)', line=dict(color='red', width=3)))
     fig_pv.add_trace(go.Scatter(x=prevalence_range, y=npv_curve, mode='lines', name='NPV', line=dict(color='blue', width=3)))
     fig_pv.add_vline(x=prevalence, line=dict(color='black', dash='dash'), annotation_text=f"Current Prevalence ({prevalence:.1%})")
-    fig_pv.add_annotation(x=0.5, y=0.6, text="PPV is highly sensitive to prevalence", showarrow=False, bgcolor='rgba(255,0,0,0.1)')
-    fig_pv.add_annotation(x=0.5, y=0.9, text="NPV is more robust at low prevalence", showarrow=False, bgcolor='rgba(0,0,255,0.1)')
-    fig_pv.update_layout(title="<b>3. The Prevalence Effect on Predictive Values</b>", xaxis_title="Disease Prevalence in Population", yaxis_title="Predictive Value", xaxis_tickformat=".0%", yaxis_tickformat=".0%")
+    fig_pv.update_layout(title="<b>3. The Prevalence Effect on Predictive Values</b>", xaxis_title="Disease Prevalence in Population", yaxis_title="Predictive Value", xaxis_tickformat=".0%", yaxis_tickformat=".0%", legend=dict(x=0.01, y=0.01, yanchor='bottom'))
     
     metrics = {
         "True Positive (TP)": tp, "True Negative (TN)": tn, "False Positive (FP)": fp, "False Negative (FN)": fn,
-        "Prevalence": prevalence, "Sensitivity (TPR / Recall / Power)": tpr, "Specificity (TNR)": tnr,
-        "False Positive Rate (α / Type I Error)": fpr, "False Negative Rate (β / Type II Error)": fnr,
+        "Prevalence": prevalence, "Sensitivity (TPR / Power)": tpr, "Specificity (TNR)": tnr,
+        "False Positive Rate (α)": fpr, "False Negative Rate (β)": fnr,
         "PPV (Precision)": ppv, "NPV": npv, "False Discovery Rate (FDR)": fdr, "False Omission Rate (FOR)": for_val,
         "Accuracy": accuracy, "F1 Score": f1_score, "Youden's Index (J)": youdens_j,
         "Matthews Correlation Coefficient (MCC)": mcc, "Cohen’s Kappa (κ)": kappa,
@@ -4478,41 +4456,39 @@ def render_diagnostic_validation_suite():
     with st.expander("Click to view all 24 calculated and conceptual metrics", expanded=True):
         st.markdown("##### Foundational Metrics (The Building Blocks)")
         c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("True Positives (TP)", metrics["True Positive (TP)"])
-        c2.metric("True Negatives (TN)", metrics["True Negative (TN)"])
-        c3.metric("False Positives (FP)", metrics["False Positive (FP)"])
-        c4.metric("False Negatives (FN)", metrics["False Negative (FN)"])
-        c5.metric("Prevalence", f"{metrics['Prevalence']:.1%}")
+        c1.metric("True Positives (TP)", metrics["True Positive (TP)"], help="Correctly identified as diseased.")
+        c2.metric("True Negatives (TN)", metrics["True Negative (TN)"], help="Correctly identified as healthy.")
+        c3.metric("False Positives (FP)", metrics["False Positive (FP)"], help="Healthy individuals incorrectly identified as diseased.")
+        c4.metric("False Negatives (FN)", metrics["False Negative (FN)"], help="Diseased individuals incorrectly identified as healthy.")
+        c5.metric("Prevalence", f"{metrics['Prevalence']:.1%}", help="The proportion of the population that truly has the disease.")
 
         st.markdown("##### Core Rates & Error Types (Intrinsic Test Quality)")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Sensitivity (TPR / Power)", f"{metrics['Sensitivity (TPR / Recall / Power)']:.2%}")
-        c2.metric("Specificity (TNR)", f"{metrics['Specificity (TNR)']:.2%}")
-        c3.metric("False Positive Rate (α)", f"{metrics['False Positive Rate (α / Type I Error)']:.2%}")
-        c4.metric("False Negative Rate (β)", f"{metrics['False Negative Rate (β / Type II Error)']:.2%}")
+        c1.metric("Sensitivity (TPR / Power)", f"{metrics['Sensitivity (TPR / Power)']:.2%}", help="TPR = TP / (TP + FN). The ability to detect the disease when present. Also called Recall or Power.")
+        c2.metric("Specificity (TNR)", f"{metrics['Specificity (TNR)']:.2%}", help="TNR = TN / (TN + FP). The ability to correctly clear healthy individuals.")
+        c3.metric("False Positive Rate (α)", f"{metrics['False Positive Rate (α)']:.2%}", help="FPR = FP / (TN + FP) = 1 - Specificity. The probability of a false alarm. Also called Type I Error.")
+        c4.metric("False Negative Rate (β)", f"{metrics['False Negative Rate (β)']:.2%}", help="FNR = FN / (TP + FN) = 1 - Sensitivity. The probability of missing a true case. Also called Type II Error.")
 
         st.markdown("##### Predictive Values (Real-World Performance in this Population)")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("PPV (Precision)", f"{metrics['PPV (Precision)']:.2%}")
-        c2.metric("NPV", f"{metrics['NPV']:.2%}")
-        c3.metric("False Discovery Rate (FDR)", f"{metrics['False Discovery Rate (FDR)']:.2%}")
-        c4.metric("False Omission Rate (FOR)", f"{metrics['False Omission Rate (FOR)']:.2%}")
+        c1.metric("PPV (Precision)", f"{metrics['PPV (Precision)']:.2%}", help="PPV = TP / (TP + FP). If a patient tests positive, what is the probability they are truly diseased?")
+        c2.metric("NPV", f"{metrics['NPV']:.2%}", help="NPV = TN / (TN + FN). If a patient tests negative, what is the probability they are truly healthy?")
+        c3.metric("False Discovery Rate (FDR)", f"{metrics['False Discovery Rate (FDR)']:.2%}", help="FDR = FP / (TP + FP) = 1 - PPV. The proportion of positive results that are false positives.")
+        c4.metric("False Omission Rate (FOR)", f"{metrics['False Omission Rate (FOR)']:.2%}", help="FOR = FN / (TN + FN) = 1 - NPV. The proportion of negative results that are false negatives.")
 
         st.markdown("##### Overall Performance & Agreement Scores (Single-Number Summaries)")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Accuracy", f"{metrics['Accuracy']:.2%}")
-        c2.metric("F1 Score", f"{metrics['F1 Score']:.3f}")
-        c3.metric("MCC", f"{metrics['Matthews Correlation Coefficient (MCC)']:.3f}")
-        c4.metric("Cohen's Kappa (κ)", f"{metrics['Cohen’s Kappa (κ)']:.3f}")
+        c1.metric("Accuracy", f"{metrics['Accuracy']:.2%}", help="ACC = (TP + TN) / Total. Overall correctness. Can be misleading with imbalanced data.")
+        c2.metric("F1 Score", f"{metrics['F1 Score']:.3f}", help="The harmonic mean of Precision (PPV) and Recall (Sensitivity). Best when you need a balance between them.")
+        c3.metric("MCC", f"{metrics['Matthews Correlation Coefficient (MCC)']:.3f}", help="A robust correlation coefficient between -1 and +1. +1 is a perfect prediction, 0 is random, -1 is perfectly wrong. Excellent for imbalanced data.")
+        c4.metric("Cohen's Kappa (κ)", f"{metrics['Cohen’s Kappa (κ)']:.3f}", help="Measures agreement between the prediction and reality, corrected for agreement that could happen by chance. Similar to MCC.")
 
         st.markdown("##### Advanced & Model-Based Metrics")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("AUC", f"{metrics['Area Under Curve (AUC)']:.3f}")
-        youdens_value = metrics["Youden's Index (J)"]
-        # Then use the variable in the f-string, which is always safe
-        c2.metric("Youden's Index (J)", f"{youdens_value:.3f}")
-        c3.metric("Positive LR (+)", f"{metrics['Positive Likelihood Ratio (LR+)']:.2f}")
-        c4.metric("Log-Loss", f"{metrics['Log-Loss (Cross-Entropy)']:.3f}")
+        c1.metric("AUC", f"{metrics['Area Under Curve (AUC)']:.3f}", help="Area Under the ROC Curve. The probability a random diseased individual has a higher score than a random healthy one. A measure of overall test separability.")
+        c2.metric("Youden's Index (J)", f"{metrics['Youden\'s Index (J)']:.3f}", help="J = Sensitivity + Specificity - 1. The maximum vertical distance between the ROC curve and the diagonal line. Finds a single 'optimal' cutoff.")
+        c3.metric("Positive LR (+)", f"{metrics['Positive Likelihood Ratio (LR+)']:.2f}", help="LR+ = Sens / (1 - Spec). How much more likely a positive test is to be seen in a diseased person vs. a healthy one. >10 is considered strong evidence.")
+        c4.metric("Log-Loss", f"{metrics['Log-Loss (Cross-Entropy)']:.3f}", help="A measure of a probabilistic model's accuracy. It heavily penalizes being confidently wrong. Lower is better.")
         
         st.markdown("---")
         st.markdown("##### Conceptual Terms")
@@ -4522,7 +4498,6 @@ def render_diagnostic_validation_suite():
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    
     with tabs[0]:
         st.markdown("""
         **The Prevalence Effect: The Most Important Insight**

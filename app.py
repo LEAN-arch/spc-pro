@@ -795,10 +795,11 @@ def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, in
 
     return fig1, fig2, fig3
 
+@st.cache_data
 def plot_diagnostic_dashboard(sensitivity, specificity, prevalence, n_total=10000):
     """
     Generates a comprehensive, multi-plot dashboard for diagnostic test validation,
-    and calculates a full suite of performance metrics.
+    and calculates a full suite of 24 performance metrics.
     """
     # 1. --- Calculate the Confusion Matrix values from inputs ---
     n_diseased = int(n_total * prevalence)
@@ -810,102 +811,103 @@ def plot_diagnostic_dashboard(sensitivity, specificity, prevalence, n_total=1000
     tn = int(n_healthy * specificity)
     fp = n_healthy - tn
     
-    # 2. --- Calculate ALL derived metrics ---
+    # 2. --- Calculate ALL 24 derived metrics systematically ---
     # Core Rates
-    tpr = sensitivity  # Same as Recall
-    tnr = specificity
+    tpr = tp / (tp + fn) if (tp + fn) > 0 else 0
+    tnr = tn / (tn + fp) if (tn + fp) > 0 else 0
     fpr = 1 - tnr  # Alpha, Type I Error Rate
     fnr = 1 - tpr  # Beta, Type II Error Rate
-    power = tpr  # Same as Sensitivity
     
     # Predictive Values
-    ppv = tp / (tp + fp) if (tp + fp) > 0 else 0 # Precision
+    ppv = tp / (tp + fp) if (tp + fp) > 0 else 0
     npv = tn / (tn + fn) if (tn + fn) > 0 else 0
-    fdr = fp / (tp + fp) if (tp + fp) > 0 else 0
-    for_val = fn / (tn + fn) if (tn + fn) > 0 else 0
+    fdr = 1 - ppv # False Discovery Rate
+    for_val = 1 - npv # False Omission Rate
     
-    # Overall Performance
+    # Overall Performance & Agreement
     accuracy = (tp + tn) / n_total
     f1_score = 2 * (ppv * tpr) / (ppv + tpr) if (ppv + tpr) > 0 else 0
-    
-    # Advanced Metrics
-    lr_plus = tpr / fpr if fpr > 0 else float('inf')
-    lr_minus = fnr / tnr if tnr > 0 else float('inf')
     youdens_j = tpr + tnr - 1
-    
-    # Cohen's Kappa
     p_obs = accuracy
     p_exp = ((tp + fp) / n_total) * ((tp + fn) / n_total) + ((fn + tn) / n_total) * ((fp + tn) / n_total)
-    kappa = (p_obs - p_exp) / (1 - p_exp) if (1 - p_exp) > 0 else 0
-    
-    # Matthews Correlation Coefficient (MCC)
+    kappa = (p_obs - p_exp) / (1 - p_exp) if (1 - p_exp) != 0 else 0
     mcc_denom = np.sqrt(float(tp + fp) * float(tp + fn) * float(tn + fp) * float(tn + fn))
     mcc = (tp * tn - fp * fn) / mcc_denom if mcc_denom > 0 else 0
     
-    # For ROC and Log-Loss, we need to simulate underlying scores
+    # Advanced Metrics
+    lr_plus = tpr / fpr if fpr > 0 else float('inf')
+    lr_minus = fnr / tnr if tnr > 0 else 0
+    
+    # For ROC and Log-Loss, we simulate scores that match the Sens/Spec
     separation = norm.ppf(sensitivity) + norm.ppf(specificity)
-    scores_diseased = np.random.normal(separation, 1, n_diseased)
-    scores_healthy = np.random.normal(0, 1, n_healthy)
-    y_true = np.concatenate([np.ones(n_diseased), np.zeros(n_healthy)])
-    y_scores = np.concatenate([scores_diseased, scores_healthy])
-    fpr_roc, tpr_roc, _ = roc_curve(y_true, y_scores)
+    scores_diseased = np.random.normal(separation, 1, 5000)
+    scores_healthy = np.random.normal(0, 1, 5000)
+    y_true_roc = np.concatenate([np.ones(5000), np.zeros(5000)])
+    y_scores_roc = np.concatenate([scores_diseased, scores_healthy])
+    fpr_roc, tpr_roc, _ = roc_curve(y_true_roc, y_scores_roc)
     auc_val = auc(fpr_roc, tpr_roc)
     
-    # Log-Loss Calculation
-    # We need predicted probabilities. Let's assume a simple logistic model fit on the scores.
-    # For demonstration, we'll map scores to probs via a sigmoid.
-    prob_scores = 1 / (1 + np.exp(-y_scores + separation/2))
-    log_loss = -np.mean(y_true * np.log(prob_scores + 1e-15) + (1 - y_true) * np.log(1 - prob_scores + 1e-15))
-    
-    # --- PLOTTING ---
-    fig = make_subplots(
-        rows=2, cols=2,
-        specs=[[{"rowspan": 2}, {}], [None, {}]],
-        column_widths=[0.6, 0.4],
-        row_heights=[0.5, 0.5],
-        subplot_titles=("<b>1. Interactive Confusion Matrix</b>", "<b>2. ROC Curve & Youden's Index</b>", "<b>3. Score Distributions & Log-Loss</b>")
-    )
-    
-    # Plot 1: Confusion Matrix Heatmap
-    z = [[tn, fp], [fn, tp]]
-    x = ['Predicted Healthy', 'Predicted Diseased']
-    y = ['Actual Healthy', 'Actual Diseased']
-    z_text = [[f'TN<br>{tn}', f'FP<br>{fp}'], [f'FN<br>{fn}', f'TP<br>{tp}']]
-    fig.add_trace(go.Heatmap(z=z, x=x, y=y, text=z_text, texttemplate="%{text}", colorscale='Blues', showscale=False), row=1, col=1)
-    
-    # Plot 2: ROC Curve
-    fig.add_trace(go.Scatter(x=fpr_roc, y=tpr_roc, mode='lines', name=f'AUC = {auc_val:.3f}', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=2)
-    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Random Chance', line=dict(color='grey', width=2, dash='dash')), row=1, col=2)
-    fig.add_trace(go.Scatter(x=[fpr], y=[tpr], mode='markers', name="Current Threshold",
-                             marker=dict(color=SUCCESS_GREEN, size=15, symbol='star', line=dict(width=2, color='black'))))
-    # Youden's Index visualization
-    youden_idx = np.argmax(tpr_roc - fpr_roc)
-    fig.add_shape(type="line", x0=fpr_roc[youden_idx], y0=fpr_roc[youden_idx], x1=fpr_roc[youden_idx], y1=tpr_roc[youden_idx],
-                  line=dict(color="grey", width=2, dash="dot"), row=1, col=2)
-    fig.add_annotation(x=fpr_roc[youden_idx], y=(tpr_roc[youden_idx]+fpr_roc[youden_idx])/2, text=f"Max Youden's J = {youdens_j:.2f}", row=1, col=2)
-    
-    # Plot 3: Score Distributions and Log-Loss
-    fig.add_trace(go.Histogram(x=prob_scores[y_true==0], name='Healthy Probs', marker_color='blue', opacity=0.6), row=2, col=2)
-    fig.add_trace(go.Histogram(x=prob_scores[y_true==1], name='Diseased Probs', marker_color='red', opacity=0.6), row=2, col=2)
-    fig.add_vline(x=0.5, line=dict(color='black', dash='dash'), row=2, col=2, annotation_text="Cutoff")
-    fig.update_layout(barmode='overlay')
+    prob_scores = 1 / (1 + np.exp(-y_scores_roc + separation/2))
+    log_loss = -np.mean(y_true_roc * np.log(prob_scores + 1e-15) + (1 - y_true_roc) * np.log(1 - prob_scores + 1e-15))
 
-    fig.update_layout(height=600, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    fig.update_xaxes(title_text="Predicted Outcome", row=1, col=1); fig.update_yaxes(title_text="Actual Condition", row=1, col=1)
-    fig.update_xaxes(title_text="False Positive Rate (1 - Specificity)", row=1, col=2); fig.update_yaxes(title_text="True Positive Rate (Sensitivity)", row=1, col=2)
-    fig.update_xaxes(title_text="Predicted Probability of Disease", row=2, col=2); fig.update_yaxes(title_text="Count", row=2, col=2)
+    # --- PLOTTING ---
+    # Plot 1: Professional Confusion Matrix
+    fig_cm = go.Figure(data=go.Heatmap(
+        z=[[fn, tp], [tn, fp]],
+        x=['Actual Diseased', 'Actual Healthy'],
+        y=['Predicted Negative', 'Predicted Positive'],
+        colorscale=[[0, '#e3f2fd'], [1, '#0d47a1']],
+        showscale=False
+    ))
+    annotations = []
+    z_values = [[f'<b>FN</b><br>(False Negative)<br>{fn}', f'<b>TP</b><br>(True Positive)<br>{tp}'],
+                [f'<b>TN</b><br>(True Negative)<br>{tn}', f'<b>FP</b><br>(False Positive)<br>{fp}']]
+    for i, row in enumerate(z_values):
+        for j, val_text in enumerate(row):
+            font_color = 'white' if [[fn, tp], [tn, fp]][i][j] > n_total / 3 else 'black'
+            annotations.append(dict(x=j, y=i, text=val_text, font=dict(color=font_color, size=14), showarrow=False))
     
-    # Bundle all calculated metrics into a dictionary for easy return
+    fig_cm.update_layout(title="<b>1. Confusion Matrix</b>", annotations=annotations, xaxis_title="Actual Condition", yaxis_title="Predicted Outcome")
+
+    # Plot 2: Professional ROC Curve
+    fig_roc = go.Figure()
+    fig_roc.add_trace(go.Scatter(x=fpr_roc, y=tpr_roc, mode='lines', name=f'AUC = {auc_val:.3f}', line=dict(color=PRIMARY_COLOR, width=3)))
+    fig_roc.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Random Chance', line=dict(color='grey', width=2, dash='dash')))
+    fig_roc.add_trace(go.Scatter(x=[fpr], y=[tpr], mode='markers', name="Current Threshold", marker=dict(color=SUCCESS_GREEN, size=15, symbol='star', line=dict(width=2, color='black'))))
+    youden_idx = np.argmax(tpr_roc - fpr_roc)
+    fig_roc.add_trace(go.Scatter(x=[fpr_roc[youden_idx]], y=[tpr_roc[youden_idx]], mode='markers', name="Optimal (Youden's J)", marker=dict(color='#FFBF00', size=12, symbol='diamond')))
+    fig_roc.update_layout(title="<b>2. Receiver Operating Characteristic (ROC)</b>", xaxis_title="False Positive Rate (1 - Specificity)", yaxis_title="True Positive Rate (Sensitivity)", legend=dict(x=0.01, y=0.01, yanchor='bottom'))
+    
+    # Plot 3: Predictive Values vs. Prevalence
+    prevalence_range = np.linspace(0.001, 1, 100)
+    ppv_curve = (sensitivity * prevalence_range) / (sensitivity * prevalence_range + (1 - specificity) * (1 - prevalence_range))
+    npv_curve = (specificity * (1 - prevalence_range)) / (specificity * (1 - prevalence_range) + (1 - sensitivity) * prevalence_range)
+    fig_pv = go.Figure()
+    fig_pv.add_trace(go.Scatter(x=prevalence_range, y=ppv_curve, mode='lines', name='PPV (Precision)', line=dict(color='red', width=3)))
+    fig_pv.add_trace(go.Scatter(x=prevalence_range, y=npv_curve, mode='lines', name='NPV', line=dict(color='blue', width=3)))
+    fig_pv.add_vline(x=prevalence, line=dict(color='black', dash='dash'), annotation_text=f"Current Prevalence ({prevalence:.1%})")
+    fig_pv.add_annotation(x=0.5, y=0.6, text="PPV is highly sensitive to prevalence", showarrow=False, bgcolor='rgba(255,0,0,0.1)')
+    fig_pv.add_annotation(x=0.5, y=0.9, text="NPV is more robust at low prevalence", showarrow=False, bgcolor='rgba(0,0,255,0.1)')
+    fig_pv.update_layout(title="<b>3. The Prevalence Effect on Predictive Values</b>", xaxis_title="Disease Prevalence in Population", yaxis_title="Predictive Value", xaxis_tickformat=".0%", yaxis_tickformat=".0%")
+    
     metrics = {
-        "Accuracy": accuracy, "Sensitivity (TPR)": tpr, "Specificity (TNR)": tnr, "Prevalence": prevalence,
-        "False Positive Rate (α)": fpr, "False Negative Rate (β)": fnr, "Power": power,
+        "True Positive (TP)": tp, "True Negative (TN)": tn, "False Positive (FP)": fp, "False Negative (FN)": fn,
+        "Prevalence": prevalence, "Sensitivity (TPR / Recall / Power)": tpr, "Specificity (TNR)": tnr,
+        "False Positive Rate (α / Type I Error)": fpr, "False Negative Rate (β / Type II Error)": fnr,
         "PPV (Precision)": ppv, "NPV": npv, "False Discovery Rate (FDR)": fdr, "False Omission Rate (FOR)": for_val,
+        "Accuracy": accuracy, "F1 Score": f1_score, "Youden's Index (J)": youdens_j,
+        "Matthews Correlation Coefficient (MCC)": mcc, "Cohen’s Kappa (κ)": kappa,
         "Positive Likelihood Ratio (LR+)": lr_plus, "Negative Likelihood Ratio (LR-)": lr_minus,
-        "F1 Score": f1_score, "Youden's Index": youdens_j,
-        "Matthews Correlation Coefficient (MCC)": mcc, "Cohen’s Kappa": kappa,
-        "AUC": auc_val, "Log-Loss": log_loss
+        "Area Under Curve (AUC)": auc_val, "Log-Loss (Cross-Entropy)": log_loss
     }
-    return fig, metrics
+    other_concepts = {
+        "Bias": "Systematic deviation from a true value. In diagnostics, this could be a technology that consistently over- or under-estimates a biomarker value.",
+        "Error": "The difference between a measured value and the true value. Comprises both random error (imprecision) and systematic error (bias).",
+        "Precision": "The closeness of repeated measurements to each other. Poor precision widens the score distributions, reducing the separation between healthy and diseased populations.",
+        "Prevalence Threshold": "A policy decision, not a calculation. It's the prevalence at which you decide the PPV is too low for the test to be useful as a screening tool."
+    }
+    
+    return fig_cm, fig_roc, fig_pv, metrics, other_concepts
 
 @st.cache_data    
 def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75, interaction_sd=0.5):
@@ -4445,35 +4447,75 @@ def render_diagnostic_validation_suite():
     st.info("""
     **Interactive Demo:** Use the three main sliders in the sidebar to simulate any diagnostic scenario.
     - **Sensitivity & Specificity:** Control the *intrinsic quality* of your assay.
-    - **Prevalence:** Control the *population* in which the test is used. Watch how the **PPV and NPV** change dramatically with prevalence, even when sensitivity and specificity are fixed!
+    - **Prevalence:** Control the *population* in which the test is used. Observe the powerful "Prevalence Effect" in Plot 3, and see how the predictive values in the KPI panel change.
     """)
 
     with st.sidebar:
         st.subheader("Diagnostic Test Controls")
-        sensitivity_slider = st.slider("🎯 Sensitivity (True Positive Rate)", 0.80, 1.00, 0.98, 0.005, format="%.3f")
-        specificity_slider = st.slider("🛡️ Specificity (True Negative Rate)", 0.80, 1.00, 0.95, 0.005, format="%.3f")
-        prevalence_slider = st.slider("📈 Disease Prevalence (%)", 0.1, 50.0, 5.0, 0.1, format="%.1f%%")
+        sensitivity_slider = st.slider("🎯 Sensitivity (True Positive Rate)", 0.80, 1.00, 0.98, 0.005, format="%.3f",
+            help="The intrinsic ability of the test to correctly identify true positives. A value of 0.98 means it will correctly detect 98 out of every 100 diseased individuals.")
+        specificity_slider = st.slider("🛡️ Specificity (True Negative Rate)", 0.80, 1.00, 0.95, 0.005, format="%.3f",
+            help="The intrinsic ability of the test to correctly identify true negatives. A value of 0.95 means it will correctly clear 95 out of every 100 healthy individuals.")
+        prevalence_slider = st.slider("📈 Disease Prevalence (%)", 0.1, 50.0, 5.0, 0.1, format="%.1f%%",
+            help="The percentage of the target population that actually has the disease. This is a property of the population, not the test itself, but it has a massive impact on the test's real-world predictive power.")
 
-    fig, metrics = plot_diagnostic_dashboard(
+    fig_cm, fig_roc, fig_pv, metrics, other_concepts = plot_diagnostic_dashboard(
         sensitivity=sensitivity_slider,
         specificity=specificity_slider,
         prevalence=prevalence_slider/100.0
     )
     
-    col_plots, col_kpis = st.columns([0.65, 0.35])
+    st.header("Diagnostic Performance Dashboard")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig_cm, use_container_width=True)
+    with col2:
+        st.plotly_chart(fig_roc, use_container_width=True)
     
-    with col_plots:
-        st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig_pv, use_container_width=True)
+    
+    st.subheader("Comprehensive Metrics Panel")
+    with st.expander("Click to view all 24 calculated and conceptual metrics", expanded=True):
+        st.markdown("##### Foundational Metrics (The Building Blocks)")
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("True Positives (TP)", metrics["True Positive (TP)"])
+        c2.metric("True Negatives (TN)", metrics["True Negative (TN)"])
+        c3.metric("False Positives (FP)", metrics["False Positive (FP)"])
+        c4.metric("False Negatives (FN)", metrics["False Negative (FN)"])
+        c5.metric("Prevalence", f"{metrics['Prevalence']:.1%}")
 
-    with col_kpis:
-        st.subheader("Performance Metrics")
-        st.metric("🎯 Sensitivity (TPR)", f"{metrics['Sensitivity (TPR)']:.2%}")
-        st.metric("🛡️ Specificity (TNR)", f"{metrics['Specificity (TNR)']:.2%}")
-        st.metric("✅ Positive Predictive Value (PPV)", f"{metrics['PPV (Precision)']:.2%}", help="If a patient tests positive, what is the probability they are truly diseased?")
-        st.metric("❌ Negative Predictive Value (NPV)", f"{metrics['NPV']:.2%}", help="If a patient tests negative, what is the probability they are truly healthy?")
+        st.markdown("##### Core Rates & Error Types (Intrinsic Test Quality)")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Sensitivity (TPR / Power)", f"{metrics['Sensitivity (TPR / Recall / Power)']:.2%}")
+        c2.metric("Specificity (TNR)", f"{metrics['Specificity (TNR)']:.2%}")
+        c3.metric("False Positive Rate (α)", f"{metrics['False Positive Rate (α / Type I Error)']:.2%}")
+        c4.metric("False Negative Rate (β)", f"{metrics['False Negative Rate (β / Type II Error)']:.2%}")
+
+        st.markdown("##### Predictive Values (Real-World Performance in this Population)")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("PPV (Precision)", f"{metrics['PPV (Precision)']:.2%}")
+        c2.metric("NPV", f"{metrics['NPV']:.2%}")
+        c3.metric("False Discovery Rate (FDR)", f"{metrics['False Discovery Rate (FDR)']:.2%}")
+        c4.metric("False Omission Rate (FOR)", f"{metrics['False Omission Rate (FOR)']:.2%}")
+
+        st.markdown("##### Overall Performance & Agreement Scores (Single-Number Summaries)")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Accuracy", f"{metrics['Accuracy']:.2%}")
+        c2.metric("F1 Score", f"{metrics['F1 Score']:.3f}")
+        c3.metric("MCC", f"{metrics['Matthews Correlation Coefficient (MCC)']:.3f}")
+        c4.metric("Cohen's Kappa (κ)", f"{metrics['Cohen’s Kappa (κ)']:.3f}")
+
+        st.markdown("##### Advanced & Model-Based Metrics")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("AUC", f"{metrics['Area Under Curve (AUC)']:.3f}")
+        c2.metric("Youden's Index (J)", f"{metrics['Youden\'s Index (J)']:.3f}")
+        c3.metric("Positive LR (+)", f"{metrics['Positive Likelihood Ratio (LR+)']:.2f}")
+        c4.metric("Log-Loss", f"{metrics['Log-Loss (Cross-Entropy)']:.3f}")
         
-        with st.expander("Show All Performance Metrics..."):
-            st.json(metrics)
+        st.markdown("---")
+        st.markdown("##### Conceptual Terms")
+        for term, definition in other_concepts.items():
+            st.markdown(f"**{term}:** {definition}")
 
     st.divider()
     st.subheader("Deeper Dive")
@@ -4482,13 +4524,15 @@ def render_diagnostic_validation_suite():
     with tabs[0]:
         st.markdown("""
         **The Prevalence Effect: The Most Important Insight**
-        The most critical takeaway from this dashboard is the relationship between a test's intrinsic quality and its real-world performance.
+        The most critical takeaway from this dashboard is the relationship between a test's intrinsic quality and its real-world performance, visualized in **Plot 3**.
         - **Sensitivity & Specificity** are properties of the *test itself*. They do not change based on who you test.
         - **Positive Predictive Value (PPV)** and **Negative Predictive Value (NPV)** are properties of the *test result in a specific population*. They are highly dependent on **Prevalence**.
         
-        **Try this:** Set Sensitivity and Specificity to high values (e.g., 99%). Now, move the **Prevalence** slider from 50% down to 1%. Watch the PPV collapse. Even a highly accurate test can produce a majority of false positives when used to screen a low-prevalence population. This is known as the **false positive paradox**.
+        **Try this:** Set Sensitivity and Specificity to high values (e.g., 99%). Now, in the sidebar, move the **Prevalence** slider from 50% down to 1%. Watch how the PPV curve (red line in Plot 3) collapses at low prevalence. This demonstrates the **false positive paradox**: even a highly accurate test can produce a majority of false positives when used to screen a low-prevalence population.
         
-        **Log-Loss Explained:** The bottom-right plot shows the distribution of the model's predicted probabilities. A perfect model would have all "Healthy" probabilities at 0 and all "Diseased" at 1. **Log-Loss** heavily penalizes the model for being confidently wrong (e.g., giving a diseased patient a probability of 0.01). It is a much more nuanced measure of a model's calibration than simple accuracy.
+        **Advanced Metrics Explained:**
+        - **Likelihood Ratios (LR+ / LR-):** How much does a positive/negative result increase/decrease the odds of having the disease? They are powerful because, unlike PPV/NPV, they are independent of prevalence.
+        - **MCC & Kappa:** These are advanced accuracy metrics that are robust to imbalanced data (unlike simple Accuracy). A score of +1 is perfect, 0 is random, and -1 is perfectly wrong. **MCC** is generally considered one of the most robust and informative single-number scores for a classifier.
         """)
         
     with tabs[1]:
@@ -4506,20 +4550,20 @@ A robust diagnostic validation always considers the clinical context.
         st.markdown("""
         #### Historical Context: A Multi-Disciplinary Synthesis
         The metrics on this dashboard were not developed at once, but represent a synthesis of ideas from epidemiology, statistics, computer science, and psychology over the 20th century.
-        - **Epidemiology (1940s-50s):** The concepts of **Sensitivity, Specificity, and Prevalence** were formalized during and after WWII to understand the performance of screening programs for diseases like tuberculosis.
-        - **Signal Detection Theory (1950s):** The **ROC Curve** was developed to distinguish radar signals from noise, and was later adopted by psychologists to model perception.
-        - **Bayesian Statistics (1763, revived 1990s):** **Bayes' Theorem** is the mathematical engine that links prevalence (prior probability) to PPV/NPV (posterior probability). Its importance grew with the rise of evidence-based medicine.
+        - **Epidemiology (1940s-50s):** The concepts of **Sensitivity, Specificity, and Prevalence** were formalized to understand the performance of disease screening programs.
+        - **Signal Detection Theory (1950s):** The **ROC Curve** was developed to distinguish radar signals from noise, and was later adopted by psychologists. **Youden's Index** was proposed in 1950 as a simple way to summarize a test's performance in a single number.
+        - **Bayesian Statistics (1763, revived 1990s):** **Bayes' Theorem** is the mathematical engine that links prevalence (prior probability) to **PPV/NPV** (posterior probability). **Likelihood Ratios** are a direct application of this theorem.
         - **Psychology (1960s):** **Cohen's Kappa** was developed by Jacob Cohen to measure inter-rater reliability, correcting for the probability that two raters might agree simply by chance.
-        - **Machine Learning (1990s-2000s):** As classifiers became common, metrics were needed to handle imbalanced datasets where accuracy was misleading. The **F1 Score** emerged from information retrieval, while the **Matthews Correlation Coefficient (MCC)** was developed in bioinformatics. **Log-Loss** became a standard for evaluating probabilistic forecasts.
+        - **Machine Learning (1990s-2000s):** As classifiers became common, metrics were needed to handle imbalanced datasets. The **F1 Score** emerged from information retrieval, while the **Matthews Correlation Coefficient (MCC)** was developed in bioinformatics (1980). **Log-Loss** became a standard for evaluating probabilistic forecasts.
         """)
 
     with tabs[3]:
         st.markdown("""
         Demonstrating the performance of a diagnostic test is a primary focus of global medical device and IVD regulations.
         - **FDA 21 CFR 820.30 (Design Controls for Medical Devices):** Requires **design validation** to ensure devices conform to defined user needs and intended uses. For an IVD, this is proven through clinical performance studies that establish the metrics on this dashboard.
-        - **EU IVDR (In Vitro Diagnostic Regulation 2017/746):** Requires a comprehensive **Performance Evaluation Report (PER)**. This report must contain detailed data and analysis of the test's **analytical performance** (e.g., precision) and **clinical performance** (sensitivity, specificity, PPV, NPV, LR+).
+        - **EU IVDR (In Vitro Diagnostic Regulation 2017/746):** Requires a comprehensive **Performance Evaluation Report (PER)**. This report must contain detailed data and analysis of the test's **analytical performance** (e.g., precision) and **clinical performance** (sensitivity, specificity, PPV, NPV, LR+). All of these metrics are explicitly mentioned.
         - **CLSI Guidelines (Clinical & Laboratory Standards Institute):** Documents like **EP12-A2** provide detailed protocols for user-based evaluation of qualitative test performance, including the calculation of sensitivity, specificity, and predictive values.
-        - **GAMP 5:** While for software, its principles apply. If the test's result is generated by software (e.g., an algorithm that analyzes an image), that software must be validated (CSV) to ensure its calculations are correct and reliable.
+        - **GAMP 5:** If the test's result is generated by software (e.g., an algorithm that analyzes an image), that software must be validated (CSV) to ensure its calculations are correct and reliable.
         """)
             
 def render_gage_rr():

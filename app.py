@@ -5486,7 +5486,7 @@ A compliant and statistically sound sampling plan is always derived from pre-def
         #### Mathematical Basis
         This calculation is rooted in probability theory. The choice of model depends on the nature of the population being sampled.
         ---
-        ##### 1. Binomial Model (Large Lot / Continuous Process)
+        #### 1. Binomial Model (Large Lot / Continuous Process)
         **Assumption:** The population is effectively **infinite**. Each sample is independent, and the act of sampling does not change the underlying defect rate of the process.
         **Formula:** We solve for `n` in the inequality `R^n <= 1 - C`, which gives:
         """)

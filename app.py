@@ -1425,15 +1425,13 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
 
     return fig_contour, fig_3d, fig_pareto, anova_summary, opt_ph_real, opt_temp_real, max_response
 
-def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_quad_effect, temp_quad_effect, asymmetry_effect, noise_sd, yield_threshold, gd_learning_rate, gd_steps):
+def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_quad_effect, temp_quad_effect, asymmetry_effect, noise_sd, yield_threshold):
     """
-    Generates a full suite of professional-grade plots comparing DOE/RSM with advanced ML visualization and optimization.
+    Generates a full suite of professional-grade plots: Pareto, 3D RSM, 2D RSM Map, and 2D ML PDP.
     """
     np.random.seed(42)
     # 1. Simulate a realistic, asymmetric process
-    alpha = 1.414
-    design_coded = {'pH_coded': [-1, 1, -1, 1, -alpha, alpha, 0, 0, 0, 0, 0],
-                    'Temp_coded': [-1, -1, 1, 1, 0, 0, -alpha, alpha, 0, 0, 0]}
+    design_coded = {'pH_coded': [-1, 1, -1, 1, -1.414, 1.414, 0, 0, 0, 0, 0], 'Temp_coded': [-1, -1, 1, 1, 0, 0, -1.414, 1.414, 0, 0, 0]}
     df = pd.DataFrame(design_coded)
     df['pH_real'] = df['pH_coded'] * 0.5 + 7.2
     df['Temp_real'] = df['Temp_coded'] * 5 + 37
@@ -1441,13 +1439,13 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
                     ph_quad_effect*(df['pH_coded']**2) + temp_quad_effect*(df['Temp_coded']**2) + asymmetry_effect*(df['pH_coded']**3)
     df['Response'] = true_response + np.random.normal(0, noise_sd, len(df))
 
-    # 2. Fit TWO models: a simple RSM and a powerful ML model
+    # 2. Fit both RSM and ML models
     X = df[['pH_coded', 'Temp_coded']]
     y = df['Response']
     rsm_model = ols('Response ~ pH_coded + Temp_coded + I(pH_coded**2) + I(Temp_coded**2) + pH_coded:Temp_coded', data=df).fit()
     ml_model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100, random_state=42).fit(X, y)
 
-    # 3. Create prediction grids for both models
+    # 3. Create prediction grids
     x_range_coded = np.linspace(-2, 2, 100); y_range_coded = np.linspace(-2, 2, 100)
     xx_c, yy_c = np.meshgrid(x_range_coded, y_range_coded)
     grid = pd.DataFrame({'pH_coded': xx_c.ravel(), 'Temp_coded': yy_c.ravel()})
@@ -1455,48 +1453,59 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
     pred_ml = ml_model.predict(grid).reshape(xx_c.shape)
     x_range_real = x_range_coded * 0.5 + 7.2; y_range_real = y_range_coded * 5 + 37
 
-    # 4. Generate RSM Plots (3D and 2D)
-    fig_rsm_3d = go.Figure(data=[go.Surface(z=pred_rsm, x=y_range_real, y=x_range_real, colorscale='Plasma', cmin=80, cmax=100)])
-    fig_rsm_3d.update_layout(title='<b>1a. RSM Model (3D Surface)</b>', scene=dict(xaxis_title='Temp', yaxis_title='pH', zaxis_title='Yield'), margin=dict(l=0,r=0,b=0,t=40))
-    fig_rsm_2d = go.Figure(data=[go.Contour(z=pred_rsm, x=y_range_real, y=x_range_real, contours_coloring='fill', colorscale='Plasma')])
-    fig_rsm_2d.update_layout(title='<b>1b. RSM Model (2D Contour)</b>', xaxis_title='Temperature (°C)', yaxis_title='pH', margin=dict(l=0,r=0,b=0,t=40))
+    # 4. Find optimum and define NOR
+    max_idx = np.unravel_index(np.argmax(pred_rsm), pred_rsm.shape)
+    opt_temp_real, opt_ph_real = y_range_real[max_idx[1]], x_range_real[max_idx[0]]
+    max_response = np.max(pred_rsm)
+    nor = {'x0': opt_temp_real - 1, 'y0': opt_ph_real - 0.1, 'x1': opt_temp_real + 1, 'y1': opt_ph_real + 0.1}
 
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # 5. Generate ML PDP Plot (now correctly requesting two 1D plots)
-    fig_pdp, ax_pdp = plt.subplots(figsize=(8, 6))
-    feature_names_for_pdp = ['pH (coded)', 'Temp (coded)']
-    # The 'features' argument is now a list of the column indices [0, 1]
-    PartialDependenceDisplay.from_estimator(
-        estimator=ml_model, X=X, features=[0, 1],
-        feature_names=feature_names_for_pdp,
-        kind="average", n_cols=2, ax=ax_pdp
-    )
-    fig_pdp.suptitle("2. Partial Dependence Plots from ML Model", fontsize=16)
-    fig_pdp.tight_layout(rect=[0, 0, 1, 0.95]) # Adjust layout to make space for suptitle
-    pdp_ice_buffer = io.BytesIO()
-    fig_pdp.savefig(pdp_ice_buffer, format='png', bbox_inches='tight')
-    plt.close(fig_pdp)
-    pdp_ice_buffer.seek(0)
-    # --- END OF CORRECTION ---
+    # 5. Generate Pareto Plot
+    anova_table = sm.stats.anova_lm(rsm_model, typ=2).reset_index()
+    effects = rsm_model.params[1:]; std_errs = rsm_model.bse[1:]
+    t_values = np.abs(effects / std_errs)
+    p_values_map = anova_table.set_index('index')['PR(>F)']
+    effect_names = ['pH', 'Temp', 'pH²', 'Temp²', 'pH:Temp']
+    effects_df = pd.DataFrame({'Effect': effect_names, 't-value': t_values, 'p-value': p_values_map}).sort_values('t-value', ascending=False)
+    fig_pareto = px.bar(effects_df, x='Effect', y='t-value', title='<b>1. Pareto Plot of Effects</b>',
+                        color=effects_df['p-value'] < 0.05,
+                        color_discrete_map={True: SUCCESS_GREEN, False: PRIMARY_COLOR}, template='plotly_white')
+    t_crit = stats.t.ppf(1 - 0.05 / 2, df=rsm_model.df_resid)
+    fig_pareto.add_hline(y=t_crit, line_dash="dash", line_color="red", annotation_text="Significance (p=0.05)")
+    fig_pareto.update_layout(showlegend=False)
+
+    # 6. Generate Professional 3D Surface Plot
+    fig_rsm_3d = go.Figure(data=[go.Surface(z=pred_rsm, x=y_range_real, y=x_range_real, colorscale='Plasma', cmin=80, cmax=100, opacity=0.9, colorbar_title='Yield')])
+    fig_rsm_3d.add_trace(go.Scatter3d(x=df['Temp_real'], y=df['pH_real'], z=df['Response'], mode='markers', 
+                                    marker=dict(color='red', size=5, line=dict(width=2, color='black')), name='DOE Runs'))
+    fig_rsm_3d.update_layout(title='<b>2a. RSM Model (3D Surface)</b>', scene=dict(xaxis_title='Temp', yaxis_title='pH', zaxis_title='Yield'), margin=dict(l=0,r=0,b=0,t=40))
+
+    # 7. Generate Professional 2D Topographic Map
+    fig_rsm_2d = go.Figure()
+    fig_rsm_2d.add_trace(go.Contour(z=pred_rsm, x=y_range_real, y=x_range_real, colorscale='Geyser', contours_coloring='fill', showscale=False))
+    fig_rsm_2d.add_trace(go.Contour(z=(pred_rsm >= yield_threshold).astype(int), x=y_range_real, y=x_range_real,
+                                    contours_coloring='fill', showscale=False,
+                                    colorscale=[[0, 'rgba(239, 83, 80, 0.4)'], [1, 'rgba(44, 160, 44, 0.4)']],
+                                    line_width=0))
+    fig_rsm_2d.add_shape(type="rect", x0=nor['x0'], y0=nor['y0'], x1=nor['x1'], y1=nor['y1'], line=dict(color='white', width=3, dash='dash'))
+    fig_rsm_2d.add_trace(go.Scatter(x=[opt_temp_real], y=[opt_ph_real], mode='markers', marker=dict(color='white', size=18, symbol='star', line=dict(width=2, color='black'))))
+    fig_rsm_2d.add_trace(go.Scatter(x=df['Temp_real'], y=df['pH_real'], mode='markers', marker=dict(color='red', size=8, line=dict(width=1, color='black'))))
+    fig_rsm_2d.add_annotation(x=np.mean([nor['x0'], nor['x1']]), y=np.mean([nor['y0'], nor['y1']]), text="<b>NOR</b>", showarrow=False, font=dict(color='white', size=16))
+    fig_rsm_2d.update_layout(title='<b>2b. RSM Topographic Map (PAR & NOR)</b>', xaxis_title='Temperature (°C)', yaxis_title='pH', margin=dict(l=0,r=0,b=0,t=40), showlegend=False)
     
-    # 6. Visualize Gradient Descent on the ML surface
-    fig_gd_2d = go.Figure(data=[go.Contour(z=pred_ml, x=y_range_real, y=x_range_real, contours_coloring='fill', colorscale='Viridis')])
-    start_point = np.array([34.0, 7.5])
-    path = [start_point]
-    grad_y, grad_x = np.gradient(pred_ml, y_range_real, x_range_real)
-    for _ in range(gd_steps):
-        current_x, current_y = path[-1]
-        ix = np.argmin(np.abs(y_range_real - current_x))
-        iy = np.argmin(np.abs(x_range_real - current_y))
-        g_x, g_y = grad_x[iy, ix], grad_y[iy, ix]
-        new_point = path[-1] + gd_learning_rate * np.array([g_x, g_y])
-        path.append(new_point)
-    path = np.array(path)
-    fig_gd_2d.add_trace(go.Scatter(x=path[:,0], y=path[:,1], mode='lines+markers',
-                                  line=dict(color='red', width=3), marker=dict(color='white', size=8, symbol='circle')))
-    fig_gd_2d.update_layout(title='<b>3. Gradient Descent Optimization</b>', xaxis_title='Temperature (°C)', yaxis_title='pH', margin=dict(l=0,r=0,b=0,t=40))
+    # 8. Generate 2D PDP Heatmap from ML Model
+    fig_pdp, ax_pdp = plt.subplots(figsize=(8, 6))
+    display = PartialDependenceDisplay.from_estimator(
+        estimator=ml_model, X=X, features=[(0, 1)],
+        feature_names=['pH (coded)', 'Temp (coded)'], kind="average",
+        ax=ax_pdp, contour_kw={"cmap": "viridis"}
+    )
+    ax_pdp.set_title("3. ML Model (2D Partial Dependence)", fontsize=16)
+    pdp_buffer = io.BytesIO()
+    fig_pdp.savefig(pdp_buffer, format='png', bbox_inches='tight')
+    plt.close(fig_pdp)
+    pdp_buffer.seek(0)
 
-    return fig_rsm_3d, fig_rsm_2d, pdp_ice_buffer, fig_gd_2d
+    return fig_pareto, fig_rsm_3d, fig_rsm_2d, pdp_buffer, anova_table, opt_ph_real, opt_temp_real, max_response
     
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Split-Plot) - SME ENHANCED
@@ -4988,16 +4997,17 @@ def render_process_optimization_suite():
     """Renders the comprehensive, interactive module for the full optimization workflow."""
     st.markdown("""
     #### Purpose & Application: The Complete Optimization Workflow
-    **Purpose:** To demonstrate the end-to-end modern workflow for process optimization, from initial characterization with **DOE/RSM**, to deeper analysis with **Machine Learning**, and finally to automated optimization with **Gradient Descent**.
+    **Purpose:** To demonstrate the end-to-end modern workflow for process optimization, from initial characterization with **DOE/RSM**, to deeper analysis with **Machine Learning**.
     
-    **Strategic Application:** This dashboard integrates three powerful techniques to tell a complete story.
-    1.  **DOE/RSM:** Provides a simple, causal model and an initial map of the process landscape.
-    2.  **ML & PDP:** Uncovers more complex, non-linear relationships from data that the simple RSM model might miss.
-    3.  **Gradient Descent:** Shows how we can use the AI model as a "GPS" to automatically find the path to the optimal process conditions.
+    **Strategic Application:** This dashboard integrates two powerful techniques to tell a complete story.
+    1.  **DOE/RSM:** Provides a simple, causal, and interpretable model that serves as the basis for a regulatory Design Space filing.
+    2.  **ML & PDP:** Uncovers more complex, non-linear relationships from the data, providing a more accurate "digital twin" of the process for deeper understanding and internal optimization.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sidebar controls to define the "true" physics of your process. The dashboard follows a real-world workflow: check the **statistical model results** first, then review the **visual process maps** to understand the findings.
+    **Interactive Demo:** Use the sidebar controls to define the "true" physics of your process. The dashboard follows a real-world workflow:
+    1.  Check the **Statistical Results** to see which factors drive the process.
+    2.  Compare the **Process Maps**: the simple, smooth RSM map vs. the complex, more accurate ML map.
     """)
     
     with st.sidebar:
@@ -5011,49 +5021,56 @@ def render_process_optimization_suite():
         asymmetry_slider = st.slider("⛰️ Process Asymmetry", -5.0, 5.0, -3.0, 0.5)
         noise_slider = st.slider("🎲 Experimental Noise (SD)", 0.1, 5.0, 1.0, 0.1)
         st.markdown("---")
-        st.markdown("**Optimization Controls**")
+        st.markdown("**Quality Requirement**")
         yield_threshold_slider = st.slider("Acceptable Yield Threshold (%)", 85, 99, 95, 1)
-        gd_lr_slider = st.slider("Gradient Descent Learning Rate", 0.01, 0.5, 0.1, 0.01,
-            help="How large of a step the optimizer takes. Too large and it overshoots; too small and it's slow.")
-        gd_steps_slider = st.slider("Gradient Descent Steps", 5, 50, 20, 1,
-            help="How many steps the optimizer takes to find the peak.")
 
-    fig_rsm_3d, fig_rsm_2d, pdp_ice_buffer, fig_gd_2d = plot_doe_optimization_suite(
+    fig_pareto, fig_rsm_3d, fig_rsm_2d, pdp_buffer, anova_table, opt_ph, opt_temp, max_resp = plot_doe_optimization_suite(
         ph_effect=ph_slider, temp_effect=temp_slider, interaction_effect=interaction_slider,
         ph_quad_effect=ph_quad_slider, temp_quad_effect=temp_quad_slider,
         asymmetry_effect=asymmetry_slider, noise_sd=noise_slider,
-        yield_threshold=yield_threshold_slider,
-        gd_learning_rate=gd_lr_slider, gd_steps=gd_steps_slider
+        yield_threshold=yield_threshold_slider
     )
 
-    st.header("Part 1: Statistical Modeling (DOE/RSM)")
-    st.markdown("We begin by fitting a simple, interpretable quadratic model to the experimental data to get our initial understanding of the process.")
-    col1, col2 = st.columns(2)
+    st.header("Statistical Results & Predicted Optimum")
+    col1, col2 = st.columns([0.55, 0.45])
     with col1:
-        st.plotly_chart(fig_rsm_3d, use_container_width=True)
+        st.plotly_chart(fig_pareto, use_container_width=True)
     with col2:
-        st.plotly_chart(fig_rsm_2d, use_container_width=True)
+        st.subheader("Predicted Optimum & KPIs (from RSM Model)")
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Optimal pH", f"{opt_ph:.2f}")
+        m2.metric("Optimal Temp (°C)", f"{opt_temp:.2f}")
+        m3.metric("Max Predicted Yield", f"{max_resp:.1f}%")
+        st.markdown("---")
+        st.markdown("##### Statistical Model Summary (ANOVA)")
+        st.dataframe(anova_table.style.format({'p-value': '{:.4f}'}).applymap(
+            lambda p: 'background-color: #C8E6C9' if p < 0.05 else '', subset=['p-value']),
+            use_container_width=True, height=240)
 
-    st.header("Part 2: Advanced Machine Learning & Optimization")
-    st.markdown("Next, we fit a more powerful ML model (XGBoost) to the data and use it to gain deeper insights and automate the search for the optimum.")
+    st.header("Process Visualizations: RSM vs. Machine Learning")
     col3, col4 = st.columns(2)
     with col3:
-        st.image(pdp_ice_buffer)
+        st.plotly_chart(fig_rsm_3d, use_container_width=True)
+        st.plotly_chart(fig_rsm_2d, use_container_width=True)
     with col4:
-        st.plotly_chart(fig_gd_2d, use_container_width=True)
+        st.image(pdp_buffer)
+        st.markdown("""
+        **Comparing the Maps:**
+        - The **RSM plots (left)** show a smooth, symmetrical, and easily interpretable model of the process. This is ideal for regulatory submissions.
+        - The **ML plot (right)** reveals the more complex "ground truth" learned from the data, including the asymmetric cliff created by the simulation. This is superior for deep process understanding and internal optimization.
+        """)
 
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-
     with tabs[0]:
         st.markdown("""
-        **The Four-Step Workflow:**
-        1.  **RSM Plots:** The top plots show the simplified, quadratic view of the world. This is our baseline causal model from the planned experiment. It's easy to interpret but may not be perfectly accurate.
-        2.  **PDP Plots:** The bottom-left plot reveals the more complex, nuanced relationships learned by the advanced ML model. Notice how the pH plot captures the asymmetric "cliff" that the simple RSM model misses. This is a more accurate, but correlational, view.
-        3.  **Gradient Descent:** The bottom-right plot shows an AI agent "climbing the hill" on the ML model's more accurate map to find the peak. The red path shows its journey from a suboptimal starting point to the best predicted conditions.
+        **A Realistic Workflow:**
+        1.  **Start with the Pareto Plot:** This is your primary diagnostic from the simple RSM model. It tells you which factors are the main causal drivers of the process.
+        2.  **Build the Regulatory Map (RSM):** The 2D topographic map (bottom-left) is your official process map. The green shaded area is your validated **Design Space (PAR)**, and the white-dashed box is your **NOR**.
+        3.  **Build the High-Fidelity Map (ML):** The 2D heatmap (right) is your more accurate "digital twin." Notice how it captures the sharp "cliff" on the low-pH side that the smoother RSM model can only approximate. This map is better for finding the true optimum and understanding process risks.
         
-        **Core Insight:** The workflow demonstrates a powerful modern paradigm: **Use DOE to build a simple, causal foundation. Then, use ML on larger historical datasets to refine that understanding and create a high-fidelity "digital twin" of your process that can be used for automated optimization.**
+        **Core Insight:** The simple RSM model is for **validation and communication**. The complex ML model is for **accuracy and deep understanding**. A mature QbD program uses both in tandem. The workflow demonstrates a powerful modern paradigm: **Use DOE to build a simple, causal foundation. Then, use ML on larger historical datasets to refine that understanding and create a high-fidelity "digital twin" of your process that can be used for automated optimization.**
         """)
         
     with tabs[1]:

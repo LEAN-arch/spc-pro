@@ -6503,7 +6503,7 @@ The control chart is not just a statistical tool; it's an economic asset. The tu
             -   `ARL₁`: The average time to detect a real shift of size `δ`, which also depends on `λ` and `L`. We want this to be low.
             The RL agent explores the trade-off between these two competing objectives to find the (`λ`, `L`) combination that minimizes the total long-run cost.
             """)
-            """)
+        
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 5)
 # ==============================================================================

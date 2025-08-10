@@ -3884,7 +3884,7 @@ def render_v_model_single():
     fig = plot_v_model()
     st.plotly_chart(fig, use_container_width=True)
     
-    # --- Renders the summary table separately below the diagram ---
+    # Renders the summary table separately below the diagram
     st.markdown("---")
     st.markdown("### V-Model Activities by Context")
     st.markdown("The table below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different biotech contexts.")

@@ -145,7 +145,8 @@ def plot_v_model():
     )
     
     return fig
-
+    
+@st.cache_data
 def create_v_model_summary_table():
     """
     Creates a pandas DataFrame summarizing the V-Model contexts for display as a table.
@@ -220,6 +221,7 @@ def create_v_model_summary_table():
     
     return df
 
+@st.cache_data
 def create_styled_v_model_table(df):
     """
     Transforms the V-Model summary DataFrame into a styled Plotly Table.
@@ -589,7 +591,6 @@ def create_toolkit_conceptual_map():
     )
     return fig
 
-
 @st.cache_data
 def plot_ci_concept(n=30):
     """
@@ -693,7 +694,7 @@ def plot_ci_concept(n=30):
     
     return fig1, fig2, capture_count, n_sims, avg_width
 
-
+@st.cache_data
 def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, interference_effect=8.0):
     """
     Generates enhanced, more realistic dynamic plots for the core validation module.
@@ -794,8 +795,7 @@ def plot_core_validation_params(bias_pct=1.5, repeat_cv=1.5, intermed_cv=2.5, in
 
     return fig1, fig2, fig3
 
-    return fig1, fig2, fig3
-    
+@st.cache_data    
 def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75, interaction_sd=0.5):
     """
     Generates dynamic and more realistic plots for the Gage R&R module,
@@ -901,6 +901,7 @@ def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75, interactio
     
     return fig, pct_rr, ndc
 
+@st.cache_data
 def plot_lod_loq(slope=0.02, baseline_sd=0.01):
     """
     Generates enhanced, more realistic dynamic plots for the LOD & LOQ module.
@@ -994,6 +995,7 @@ def plot_lod_loq(slope=0.02, baseline_sd=0.01):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Linearity) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_linearity(curvature=-1.0, random_error=1.0, proportional_error=2.0, use_wls=False):
     """
     Generates enhanced, more realistic dynamic plots for the Linearity module,
@@ -1075,6 +1077,7 @@ def plot_linearity(curvature=-1.0, random_error=1.0, proportional_error=2.0, use
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (4PL) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_4pl_regression(a_true=1.5, b_true=1.2, c_true=10.0, d_true=0.05, noise_sd=0.05, proportional_noise=1.0, use_irls=True):
     """
     Generates enhanced, more realistic dynamic plots for the 4PL regression module,
@@ -1156,6 +1159,7 @@ def plot_4pl_regression(a_true=1.5, b_true=1.2, c_true=10.0, d_true=0.05, noise_
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (ROC Curve) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_roc_curve(diseased_mean=65, population_sd=10, cutoff=55):
     """
     Generates enhanced, more realistic, and interactive plots for the ROC curve module,
@@ -1231,7 +1235,8 @@ def plot_roc_curve(diseased_mean=65, population_sd=10, cutoff=55):
     fig.update_yaxes(title_text="True Positive Rate (Sensitivity)", range=[-0.05, 1.05], row=2, col=1)
     
     return fig, auc_value, sensitivity, specificity, ppv, npv
-
+    
+@st.cache_data
 def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     """
     Generates an enhanced, 3-plot dashboard for the TOST module that visually
@@ -1424,6 +1429,7 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
     fig_pareto.update_layout(showlegend=False)
 
     return fig_contour, fig_3d, fig_pareto, anova_summary, opt_ph_real, opt_temp_real, max_response
+
 @st.cache_data
 def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_quad_effect, temp_quad_effect, asymmetry_effect, noise_sd, yield_threshold):
     """
@@ -1510,6 +1516,7 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Split-Plot) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_split_plot_doe(lot_variation_sd=0.5, interaction_effect=0.0):
     """
     Generates enhanced, more realistic dynamic plots for a Split-Plot DOE,
@@ -1587,6 +1594,7 @@ def plot_split_plot_doe(lot_variation_sd=0.5, interaction_effect=0.0):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Causal Inference) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_causal_inference(confounding_strength=5.0):
     """
     Generates enhanced, more realistic dynamic plots for the Causal Inference module,
@@ -1691,6 +1699,7 @@ def plot_causal_inference(confounding_strength=5.0):
 ##==========================================================================================================================================================================================
 ##=============================================================================================END ACT I ===================================================================================
 ##==========================================================================================================================================================================================
+@st.cache_data
 def plot_sample_size_curves(confidence_level, reliability, lot_size, calc_method, required_n):
     """
     Generates a plot showing the trade-off between sample size and achievable reliability.
@@ -1760,7 +1769,8 @@ def plot_sample_size_curves(confidence_level, reliability, lot_size, calc_method
     )
 
     return fig
-    
+
+@st.cache_data
 def plot_spc_charts(scenario='Stable'):
     """
     Generates dynamic SPC charts based on a selected process scenario.
@@ -1955,6 +1965,7 @@ def plot_capability(scenario='Ideal'):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Tolerance Intervals) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_tolerance_intervals(n=30, coverage_pct=99.0):
     """
     Generates enhanced, more realistic, and illustrative dynamic plots for the
@@ -2041,6 +2052,7 @@ def plot_tolerance_intervals(n=30, coverage_pct=99.0):
     
     return fig, ci, ti
 
+@st.cache_data
 def plot_method_comparison(constant_bias=2.0, proportional_bias=3.0, random_error_sd=3.0):
     """
     Generates an enhanced, more realistic, and integrated dashboard for method comparison,
@@ -2206,7 +2218,7 @@ def plot_bayesian(prior_type, n_qc=20, k_qc=18, spec_limit=0.90):
 ##=================================================================================================================================================================================================
 ##=======================================================================================END ACT II ===============================================================================================
 ##=================================================================================================================================================================================================
-
+@st.cache_data
 def plot_westgard_scenario(scenario='Stable'):
     """
     Generates an enhanced, more realistic dynamic Westgard chart, including
@@ -2318,6 +2330,7 @@ def plot_westgard_scenario(scenario='Stable'):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Multivariate SPC) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=30, random_seed=42):
     """
     Generates enhanced, more realistic MSPC analysis and plots, including
@@ -2443,10 +2456,10 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=30, random_s
 
     return fig_scatter, fig_charts, fig_contrib, not t2_ooc_points.empty, not spe_ooc_points.empty, error_type_str
     
-
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Small Shift) - SME ENHANCED & CORRECTED
 # ==============================================================================
+@st.cache_data
 def plot_ewma_cusum_comparison(shift_size=0.75, scenario='Sudden Shift'):
     """
     Generates enhanced, more realistic dynamic I, EWMA, and CUSUM charts,
@@ -2545,6 +2558,7 @@ def plot_ewma_cusum_comparison(shift_size=0.75, scenario='Sudden Shift'):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Time Series) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strength=0.0):
     """
     Generates an enhanced, more realistic time series dashboard, including a changepoint
@@ -2639,10 +2653,10 @@ def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strengt
                       
     return fig, mae_arima, mae_prophet
 
-
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Stability Analysis) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_stability_analysis(degradation_rate=-0.4, noise_sd=0.5, batch_to_batch_sd=0.1):
     """
     Generates enhanced, more realistic dynamic plots for stability analysis,
@@ -2740,6 +2754,7 @@ def plot_stability_analysis(degradation_rate=-0.4, noise_sd=0.5, batch_to_batch_
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Survival Analysis) - SME ENHANCED & CORRECTED
 # ==============================================================================
+@st.cache_data
 def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
     """
     Generates an enhanced, more realistic survival analysis dashboard, including
@@ -2834,6 +2849,7 @@ def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (MVA/PLS) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_mva_pls(signal_strength=2.0, noise_sd=0.2):
     """
     Generates an enhanced, more realistic MVA dashboard with more realistic spectral data,
@@ -2945,6 +2961,7 @@ def plot_mva_pls(signal_strength=2.0, noise_sd=0.2):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Clustering) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_clustering(separation=15, spread=2.5, n_true_clusters=3):
     """
     Generates an enhanced, more realistic clustering dashboard, including a variable
@@ -3030,6 +3047,7 @@ def plot_clustering(separation=15, spread=2.5, n_true_clusters=3):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Predictive QC) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_classification_models(boundary_radius=12):
     """
     Generates an enhanced, more realistic classification dashboard, including
@@ -3128,6 +3146,7 @@ def wilson_score_interval(p_hat, n, z=1.96):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Anomaly Detection) - SME ENHANCED
 # ==============================================================================
+@st.cache_data
 def plot_isolation_forest(contamination_rate=0.1):
     """
     Generates an enhanced, more realistic anomaly detection dashboard, including a

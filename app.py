@@ -3999,6 +3999,30 @@ def render_v_model_single():
         # Convert DataFrame to HTML to render the bold index
         st.markdown(summary_df.to_html(escape=False), unsafe_allow_html=True)
 
+ef render_v_model_single():
+    """Renders a dedicated, interactive page for the V-Model plot with a summary diagram."""
+    st.markdown("### The V&V Model: A Strategic Framework")
+    st.markdown("""
+    This plot illustrates the standard V-Model for system validation and technology transfer. It visually connects the initial user requirements and design specifications (the left side, **Verification**) to the final system qualification and user acceptance testing (the right side, **Validation**).
+    """)
+    
+    context_choice = st.selectbox(
+        "Select a V&V Context to see specific examples:",
+        options=['Assay Method', 'Instrument', 'Software System', 'Manufacturing Process'],
+        index=0
+    )
+    
+    st.info("Hover over any stage to see its guiding question and tools relevant to the selected context.")
+    
+    fig = plot_v_model(context=context_choice)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # --- SME ENHANCEMENT: Add the summary diagram in an expander ---
+    st.markdown("---")
+    with st.expander("Show/Hide V-Model Activities Summary Diagram"):
+        st.markdown("The diagram below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different contexts.")
+        summary_fig = plot_v_model_summary_diagram()
+        st.plotly_chart(summary_fig, use_container_width=True)
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================

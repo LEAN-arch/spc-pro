@@ -205,6 +205,53 @@ def create_v_model_summary_table():
     df.index.name = "V-Model Stage"
     
     return df
+
+def create_styled_v_model_table(df):
+    """
+    Transforms the V-Model summary DataFrame into a styled Plotly Table.
+    """
+    # Define a professional color scheme for each application/column
+    app_colors = {
+        'Assay Method': {'header': '#0068C9', 'cell': 'rgba(0, 104, 201, 0.1)'},
+        'Instrument': {'header': '#008080', 'cell': 'rgba(0, 128, 128, 0.1)'},
+        'Software System': {'header': '#636EFA', 'cell': 'rgba(99, 110, 250, 0.1)'},
+        'Manufacturing Process': {'header': '#FF7F0E', 'cell': 'rgba(255, 127, 14, 0.1)'}
+    }
+    
+    # Prepare header values and colors
+    header_values = [f"<b>{df.index.name}</b>"] + [f"<b>{col}</b>" for col in df.columns]
+    header_fill_colors = ['#F0F2F6'] + [app_colors[col]['header'] for col in df.columns]
+    header_font_colors = ['black'] + ['white'] * len(df.columns)
+    
+    # Prepare cell values and colors, transposing the dataframe
+    cell_values = [df.index.tolist()] + [df[col].tolist() for col in df.columns]
+    cell_fill_colors = [['#F8F9FA'] * len(df)] + [[app_colors[col]['cell']] * len(df) for col in df.columns]
+
+    fig = go.Figure(data=[go.Table(
+        header=dict(
+            values=header_values,
+            fill_color=header_fill_colors,
+            font=dict(color=header_font_colors, size=14),
+            align=['left', 'center'],
+            height=40,
+            line_color='darkslategray'
+        ),
+        cells=dict(
+            values=cell_values,
+            fill_color=cell_fill_colors,
+            align=['left', 'left'],
+            font_size=12,
+            height=30,
+            line_color='darkslategray'
+        ))
+    ])
+
+    fig.update_layout(
+        margin=dict(l=10, r=10, t=10, b=10),
+        height=450 # Set a fixed height to make it look clean
+    )
+    
+    return fig
 # --- RESTORED PLOTTING FUNCTION 2 ---
 @st.cache_data
 def plot_act_grouped_timeline():
@@ -3856,10 +3903,12 @@ def render_introduction_content():
     fig_v_model = plot_v_model()
     st.plotly_chart(fig_v_model, use_container_width=True)
 
-    # ADDITION: The summary table is now displayed here.
     st.markdown("The table below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different biotech contexts.")
+    
+    # THIS IS THE KEY CHANGE: We now call the new styling function
     summary_df = create_v_model_summary_table()
-    st.dataframe(summary_df, use_container_width=True)
+    fig_table = create_styled_v_model_table(summary_df)
+    st.plotly_chart(fig_table, use_container_width=True)
     
     st.divider()
     

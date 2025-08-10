@@ -5047,8 +5047,9 @@ def render_doe_design_space():
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
-        with tabs[0]:
-            st.markdown("""
+    # --- FIX: INDENTATION CORRECTED FOR ALL TABS ---
+    with tabs[0]:
+        st.markdown("""
         **A Realistic Workflow:**
         1.  **Start with the Pareto Plot:** This is your primary diagnostic. It instantly shows which factors are the main drivers. Green bars (significant effects) are the ones that build your predictive model. If there are no significant curvature effects, you cannot define an optimum peak.
         2.  **Check the KPIs:** Once you have a valid model, the KPIs tell you the "answer"—the predicted best operating point to maximize yield.
@@ -5057,47 +5058,47 @@ def render_doe_design_space():
         **Core Insight:** The power of this method is building a **predictive model**. The plots are not just pictures; they are a graphical representation of a mathematical equation `Yield = f(Temp, pH)`. This equation allows you to predict the outcome at any point in the space, which is the foundation of Quality by Design.
         """)
     
-        with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: One-Factor-at-a-Time (OFAT)**
+    with tabs[1]:
+        st.error("""🔴 **THE INCORRECT APPROACH: One-Factor-at-a-Time (OFAT)**
 An engineer optimizes Temperature, locks it in, then optimizes pH.
 **The Flaw:** This method is guaranteed to miss the true optimum if any interaction exists. It results in a process that is fragile and operates on a sub-optimal 'ridge' rather than at the true peak.""")
-            st.success("""🟢 **THE GOLDEN RULE: Map the Space, Own the Process**
+        st.success("""🟢 **THE GOLDEN RULE: Map the Space, Own the Process**
 The Quality by Design (QbD) approach is superior.
 1.  **Map the Entire Space:** Use a eficient DOE (like a Central Composite Design) to explore the full multidimensional space at once.
 2.  **Model the Relationship:** Build a predictive statistical model (RSM) from the DOE data.
 3.  **Define the Space:** Use the model to define and justify the Design Space based on a desired quality attribute. This provides maximum flexibility and process understanding.""")
             
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: From Screening to Optimization
-            **The Problem:** In the 1920s, **Sir Ronald A. Fisher**'s Design of Experiments was brilliant for *screening*—efficiently figuring out *which* factors were important. However, the post-war chemical industry needed to *optimize*—not just know *what* mattered, but *where the best settings were*. A simple factorial design can't model curvature and therefore can't find a peak.
+    with tabs[2]:
+        st.markdown("""
+        #### Historical Context: From Screening to Optimization
+        **The Problem:** In the 1920s, **Sir Ronald A. Fisher**'s Design of Experiments was brilliant for *screening*—efficiently figuring out *which* factors were important. However, the post-war chemical industry needed to *optimize*—not just know *what* mattered, but *where the best settings were*. A simple factorial design can't model curvature and therefore can't find a peak.
 
-            **The 'Aha!' Moment:** In 1951, **George Box** and K.B. Wilson developed **Response Surface Methodology (RSM)**. They created efficient new designs (like the Central Composite Design) that cleverly add "axial" (star) and center points to a factorial design. These extra points allow for the fitting of a **quadratic model**, which is the key to modeling curvature and finding the "peak of the mountain."
-            
-            **The Impact:** This moved DOE from simple screening to true, powerful optimization. It became the statistical foundation of modern process development and the engine for the **Quality by Design (QbD)** movement, championed by pharmaceutical regulators in the early 2000s.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("RSM fits a second-order (quadratic) model: `Yield = β₀ + β₁(Temp) + β₂(pH) + β₁₂(Temp*pH) + β₁₁(Temp²) + β₂₂(pH²)`. The Design Space is the set of `(Temp, pH)` combinations for which the model predicts `Yield ≥ Threshold`.")
+        **The 'Aha!' Moment:** In 1951, **George Box** and K.B. Wilson developed **Response Surface Methodology (RSM)**. They created efficient new designs (like the Central Composite Design) that cleverly add "axial" (star) and center points to a factorial design. These extra points allow for the fitting of a **quadratic model**, which is the key to modeling curvature and finding the "peak of the mountain."
+        
+        **The Impact:** This moved DOE from simple screening to true, powerful optimization. It became the statistical foundation of modern process development and the engine for the **Quality by Design (QbD)** movement, championed by pharmaceutical regulators in the early 2000s.
+        """)
+        st.markdown("#### Mathematical Basis")
+        st.markdown("RSM fits a second-order (quadratic) model: `Yield = β₀ + β₁(Temp) + β₂(pH) + β₁₂(Temp*pH) + β₁₁(Temp²) + β₂₂(pH²)`. The Design Space is the set of `(Temp, pH)` combinations for which the model predicts `Yield ≥ Threshold`.")
 
-        with tabs[3]:
-            st.markdown("""
-            This tool directly implements the core principles of the **ICH Q8(R2) Pharmaceutical Development** guideline, which is the foundational document for Quality by Design (QbD).
-            
-            ---
-            ##### Key ICH Q8(R2) Definitions:
-            - **Design Space (DSp):** "The multidimensional combination and interaction of input variables (e.g., material attributes) and process parameters that have been demonstrated to provide assurance of quality."
-              - **Your Action:** The area inside the orange boundary on the 2D plot is your experimentally derived Design Space.
+    with tabs[3]:
+        st.markdown("""
+        This tool directly implements the core principles of the **ICH Q8(R2) Pharmaceutical Development** guideline, which is the foundational document for Quality by Design (QbD).
+        
+        ---
+        ##### Key ICH Q8(R2) Definitions:
+        - **Design Space (DSp):** "The multidimensional combination and interaction of input variables (e.g., material attributes) and process parameters that have been demonstrated to provide assurance of quality."
+          - **Your Action:** The area inside the orange boundary on the 2D plot is your experimentally derived Design Space.
 
-            - **Proven Acceptable Range (PAR):** "A characterized range of a process parameter for which operation within this range, while keeping other parameters constant, will result in producing a material meeting relevant quality criteria."
-              - **Your Action:** In practice, the Design Space and PAR are often used interchangeably. The PAR represents the validated "edges of failure" for your process.
-            
-            - **Normal Operating Range (NOR):** "The range of a process parameter that is typically used during routine manufacturing."
-              - **Your Action:** The NOR (green box) is a tighter range set well within the PAR. It provides a buffer and serves as the target for routine operations. An excursion within the PAR but outside the NOR triggers an investigation but is not necessarily a deviation.
-              
-            ---
-            **The Regulatory Advantage:**
-            The guideline explicitly states: **"Working within the design space is not considered as a change. Movement out of the design space is considered to be a change and would normally initiate a regulatory post-approval change process."** This provides enormous operational and regulatory flexibility, which is the primary business driver for adopting a QbD approach.
-            """)
+        - **Proven Acceptable Range (PAR):** "A characterized range of a process parameter for which operation within this range, while keeping other parameters constant, will result in producing a material meeting relevant quality criteria."
+          - **Your Action:** In practice, the Design Space and PAR are often used interchangeably. The PAR represents the validated "edges of failure" for your process.
+        
+        - **Normal Operating Range (NOR):** "The range of a process parameter that is typically used during routine manufacturing."
+          - **Your Action:** The NOR (green box) is a tighter range set well within the PAR. It provides a buffer and serves as the target for routine operations. An excursion within the PAR but outside the NOR triggers an investigation but is not necessarily a deviation.
+          
+        ---
+        **The Regulatory Advantage:**
+        The guideline explicitly states: **"Working within the design space is not considered as a change. Movement out of the design space is considered to be a change and would normally initiate a regulatory post-approval change process."** This provides enormous operational and regulatory flexibility, which is the primary business driver for adopting a QbD approach.
+        """)
             
 def render_split_plot():
     """Renders the module for Split-Plot Designs."""

@@ -75,32 +75,126 @@ st.markdown("""
 # ALL HELPER & PLOTTING FUNCTIONS
 # ==============================================================================
 
-# --- RESTORED PLOTTING FUNCTION 1 ---
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (V-Model) - INTERACTIVE DASHBOARD VERSION
+# ==============================================================================
 @st.cache_data
-def plot_v_model():
+def plot_v_model(context='Assay Method'):
+    """
+    Generates a substantially enhanced, interactive V-Model dashboard where the
+    content of each stage dynamically updates based on the selected V&V context.
+    """
     fig = go.Figure()
-    v_model_stages = {
-        'URS': {'name': 'User Requirements', 'x': 0, 'y': 5, 'question': 'What does the business/patient/process need?', 'tools': 'Business Case, User Needs Document'},
-        'FS': {'name': 'Functional Specs', 'x': 1, 'y': 4, 'question': 'What must the system *do*?', 'tools': 'Assay: Linearity, LOD/LOQ. Instrument: Throughput. Software: User Roles.'},
-        'DS': {'name': 'Design Specs', 'x': 2, 'y': 3, 'question': 'How will the system be built/configured?', 'tools': 'Assay: Robustness (DOE). Instrument: Component selection. Software: Architecture.'},
-        'BUILD': {'name': 'Implementation', 'x': 3, 'y': 2, 'question': 'Build, code, configure, write SOPs, train.', 'tools': 'N/A (Physical/Code Transfer)'},
-        'IQOQ': {'name': 'Installation/Operational Qualification (IQ/OQ)', 'x': 4, 'y': 3, 'question': 'Is the system installed correctly and does it operate as designed?', 'tools': 'Instrument Calibration, Software Unit/Integration Tests.'},
-        'PQ': {'name': 'Performance Qualification (PQ)', 'x': 5, 'y': 4, 'question': 'Does the functioning system perform reliably in its environment?', 'tools': 'Gage R&R, Method Comp, Stability, Process Capability (Cpk).'},
-        'UAT': {'name': 'User Acceptance / Validation', 'x': 6, 'y': 5, 'question': 'Does the validated system meet the original user need?', 'tools': 'Pass/Fail Analysis, Bayesian Confirmation, Final Report.'}
+
+    # --- SME Enhancement: Domain-specific content for different contexts ---
+    all_contexts = {
+        'Assay Method': {
+            'URS': {'tools': 'Target Product Profile (TPP), Required sensitivity/specificity'},
+            'FS':  {'tools': 'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals'},
+            'DS':  {'tools': 'Reagent selection, SOP drafting, Robustness DOE plan'},
+            'BUILD': {'tools': 'Method development experiments, SOP finalization, Analyst training'},
+            'IQOQ':{'tools': 'Reagent qualification, Instrument calibration for this assay'},
+            'PQ':  {'tools': 'Intermediate Precision, Gage R&R, Method Comparison'},
+            'VAL': {'tools': 'Final Validation Report, Control charting plan'}
+        },
+        'Instrument': {
+            'URS': {'tools': 'Required throughput, Sample types, User skill level'},
+            'FS':  {'tools': 'Automation level, Data output format (LIMS), Footprint'},
+            'DS':  {'tools': 'Vendor selection, Site prep requirements, Service contract'},
+            'BUILD': {'tools': 'Purchase, Delivery, Physical installation'},
+            'IQOQ':{'tools': 'Utility connections check (IQ), Factory tests run (OQ)'},
+            'PQ':  {'tools': 'Performance on representative samples, Throughput testing'},
+            'VAL': {'tools': 'System meets all URS criteria, Final release for GMP use'}
+        },
+        'Software System': {
+            'URS': {'tools': 'Business process map, 21 CFR Part 11 requirements'},
+            'FS':  {'tools': 'User roles, Required calculations, Audit trail specifications'},
+            'DS':  {'tools': 'System architecture, Database schema, UI mockups'},
+            'BUILD': {'tools': 'Coding, Configuration of COTS system, Writing user manuals'},
+            'IQOQ':{'tools': 'Server setup validation (IQ), Unit & Integration testing (OQ)'},
+            'PQ':  {'tools': 'User Acceptance Testing (UAT) with real-world scenarios'},
+            'VAL': {'tools': 'System Validation Report, Release notes, Go-live approval'}
+        },
+        'Manufacturing Process': {
+            'URS': {'tools': 'Target yield, Critical Quality Attributes (CQAs), Cost of goods'},
+            'FS':  {'tools': 'Unit operations (e.g., cell culture, purification), In-Process Controls (IPCs)'},
+            'DS':  {'tools': 'Process parameters (CPPs), Bill of Materials, Scale-down model design'},
+            'BUILD': {'tools': 'Engineering runs, Master Batch Record (MBR) authoring'},
+            'IQOQ':{'tools': 'Facility/utility qualification, Equipment commissioning'},
+            'PQ':  {'tools': 'Process Performance Qualification (PPQ) runs, Cpk analysis'},
+            'VAL': {'tools': 'Final PPQ report, Submission to regulatory agency'}
+        }
     }
-    verification_color, validation_color = 'rgba(0, 128, 128, 0.9)', 'rgba(0, 104, 201, 0.9)'
-    path_keys = ['URS', 'FS', 'DS', 'BUILD', 'IQOQ', 'PQ', 'UAT']
-    path_x, path_y = [v_model_stages[p]['x'] for p in path_keys], [v_model_stages[p]['y'] for p in path_keys]
-    fig.add_trace(go.Scatter(x=path_x, y=path_y, mode='lines', line=dict(color='darkgrey', width=4), hoverinfo='none'))
-    for i, (key, stage) in enumerate(v_model_stages.items()):
-        color = verification_color if i < 3 else validation_color if i > 3 else 'grey'
-        fig.add_shape(type="rect", x0=stage['x']-0.45, y0=stage['y']-0.3, x1=stage['x']+0.45, y1=stage['y']+0.3, line=dict(color="black", width=2), fillcolor=color)
-        fig.add_annotation(x=stage['x'], y=stage['y'], text=f"<b>{stage['name']}</b>", showarrow=False, font=dict(color='white', size=11, family="Arial"))
-        fig.add_trace(go.Scatter(x=[stage['x']], y=[stage['y']], mode='markers', marker=dict(color='rgba(0,0,0,0)', size=70), hoverlabel=dict(bgcolor="white", font_size=14, font_family="Arial"), hoverinfo='text', text=f"<b>{stage['name']}</b><br><br><i>{stage['question']}</i><br><b>Examples / Tools:</b> {stage['tools']}"))
+    
+    # Base structure (unchanged)
+    v_model_stages = {
+        'URS': {'name': 'User Requirements', 'icon': '🎯', 'x': 0, 'y': 5, 'question': 'What does the user/business need?'},
+        'FS':  {'name': 'Functional Specs', 'icon': '⚙️', 'x': 1, 'y': 4, 'question': 'What must the system *do*?'},
+        'DS':  {'name': 'Design Specs', 'icon': '✍️', 'x': 2, 'y': 3, 'question': 'How will it be built/configured?'},
+        'BUILD': {'name': 'Implementation', 'icon': '🛠️', 'x': 3, 'y': 2, 'question': 'Build, Code, Write SOPs, Train'},
+        'IQOQ':{'name': 'IQ / OQ', 'icon': '🔌', 'x': 4, 'y': 3, 'question': 'Is it installed and operating correctly?'},
+        'PQ':  {'name': 'Performance Qualification', 'icon': '📈', 'x': 5, 'y': 4, 'question': 'Does it perform reliably in its environment?'},
+        'VAL': {'name': 'Final Validation', 'icon': '✅', 'x': 6, 'y': 5, 'question': 'Does it meet the original user need?'}
+    }
+    
+    # Merge the context-specific content into the base structure
+    context_data = all_contexts[context]
+    for key, value in context_data.items():
+        v_model_stages[key].update(value)
+
+    verification_color = '#008080' # Teal
+    validation_color = '#0068C9' # Blue
+    path_keys = ['URS', 'FS', 'DS', 'BUILD', 'IQOQ', 'PQ', 'VAL']
+    path_x = [v_model_stages[p]['x'] for p in path_keys]
+    path_y = [v_model_stages[p]['y'] for p in path_keys]
+    
+    fig.add_trace(go.Scatter(x=path_x, y=path_y, mode='lines',
+                             line=dict(color='lightgrey', width=5), hoverinfo='none'))
+
     for i in range(3):
         start_key, end_key = path_keys[i], path_keys[-(i+1)]
-        fig.add_shape(type="line", x0=v_model_stages[start_key]['x'], y0=v_model_stages[start_key]['y'], x1=v_model_stages[end_key]['x'], y1=v_model_stages[end_key]['y'], line=dict(color="rgba(0,0,0,0.5)", width=2, dash="dot"))
-    fig.update_layout(title_text='<b>The V&V Model for Technology Transfer (Hover for Details)</b>', title_x=0.5, showlegend=False, xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.6, 6.6]), yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[1.4, 5.8]), height=600, margin=dict(l=20, r=20, t=60, b=20), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        fig.add_shape(type="line", x0=v_model_stages[start_key]['x'], y0=v_model_stages[start_key]['y'],
+                      x1=v_model_stages[end_key]['x'], y1=v_model_stages[end_key]['y'],
+                      line=dict(color="darkgrey", width=2, dash="dot"))
+
+    for i, (key, stage) in enumerate(v_model_stages.items()):
+        color = verification_color if i < 3 else validation_color if i > 3 else '#636EFA'
+        fig.add_shape(type="rect", x0=stage['x']-0.5, y0=stage['y']-0.4,
+                      x1=stage['x']+0.5, y1=stage['y']+0.4,
+                      line=dict(color="black", width=2), fillcolor=color,
+                      layer='above')
+        fig.add_annotation(x=stage['x'], y=stage['y']+0.15,
+                           text=f"{stage['icon']} <b>{stage['name']}</b>",
+                           showarrow=False, font=dict(color='white', size=12),
+                           align='center')
+        hover_text = (f"<b>{stage['icon']} {stage['name']}</b><br><br>"
+                      f"<i>{stage['question']}</i><br><br>"
+                      f"<b>Examples for an {context}:</b><br>{stage['tools']}")
+        fig.add_trace(go.Scatter(
+            x=[stage['x']], y=[stage['y']],
+            mode='markers',
+            marker=dict(color='rgba(0,0,0,0)', size=100),
+            hoverinfo='text', text=hover_text,
+            hoverlabel=dict(bgcolor="white", font_size=14, font_family="Arial", bordercolor="black")
+        ))
+        
+    fig.add_annotation(x=1, y=5.2, text="<span style='color:#008080; font-size: 20px;'><b>VERIFICATION</b></span><br><span style='font-size: 12px;'>(Are we building the system right?)</span>",
+                       showarrow=False, align='center')
+    fig.add_annotation(x=5, y=5.2, text="<span style='color:#0068C9; font-size: 20px;'><b>VALIDATION</b></span><br><span style='font-size: 12px;'>(Are we building the right system?)</span>",
+                       showarrow=False, align='center')
+
+    fig.update_layout(
+        title_text=f"<b>The V-Model for an {context}</b> (Hover on a Stage for Details)",
+        title_x=0.5,
+        showlegend=False,
+        xaxis=dict(visible=False, range=[-0.7, 6.7]),
+        yaxis=dict(visible=False, range=[1.5, 6.0]),
+        height=650,
+        margin=dict(l=20, r=20, t=80, b=20),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
+    
     return fig
 
 

@@ -836,7 +836,9 @@ def plot_diagnostic_dashboard(sensitivity, specificity, prevalence, n_total=1000
     mcc = (tp * tn - fp * fn) / mcc_denom if mcc_denom > 0 else 0
     lr_plus, lr_minus = (tpr / fpr if fpr > 0 else float('inf')), (fnr / tnr if tnr > 0 else 0)
     
-    separation = norm.ppf(sensitivity) + norm.ppf(specificity)
+    sens_clipped = np.clip(sensitivity, 0.00001, 0.99999)
+    spec_clipped = np.clip(specificity, 0.00001, 0.99999)
+    separation = norm.ppf(sens_clipped) + norm.ppf(spec_clipped)
     scores_diseased = np.random.normal(separation, 1, 5000)
     scores_healthy = np.random.normal(0, 1, 5000)
     y_true_roc, y_scores_roc = np.concatenate([np.ones(5000), np.zeros(5000)]), np.concatenate([scores_diseased, scores_healthy])

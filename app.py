@@ -7909,8 +7909,8 @@ with st.sidebar:
     # Replace the old all_tools dictionary with this one.
     all_tools = {
         "ACT I: FOUNDATION & CHARACTERIZATION": [
-            "Confidence Interval Concept", "Core Validation Parameters", "Comprehensive Diagnostic Validation", "Gage R&R / VCA", 
-            "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", 
+            "Confidence Interval Concept", "Core Validation Parameters", "Comprehensive Diagnostic Validation",
+            "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", 
             "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Process Optimization: From DOE to AI",
             "Split-Plot Designs", "Causal Inference"
         ],

@@ -185,11 +185,7 @@ def create_v_model_summary_table():
     
     df_data = {}
     for context, stages in all_contexts.items():
-        # --- THIS IS THE CRITICAL FIX ---
-        # The original code was {stage: data}, which assigned a dictionary to the cell.
-        # This corrected version {stage: data['tools']} extracts the string value.
         df_data[context] = {stage: data['tools'] for stage, data in stages.items()}
-        # --- END OF FIX ---
 
     df = pd.DataFrame(df_data)
     
@@ -201,7 +197,12 @@ def create_v_model_summary_table():
     }
     
     df = df.reindex(stage_order)
-    df.index = df.index.map(lambda key: f"{stage_names[key]}")
+    
+    # --- THIS IS THE ONLY LINE THAT HAS CHANGED ---
+    # The lambda function now combines the full name from the dictionary with the original key (the abbreviation).
+    df.index = df.index.map(lambda key: f"{stage_names[key]} ({key})")
+    # --- END OF CHANGE ---
+    
     df.index.name = "V-Model Stage"
     
     return df

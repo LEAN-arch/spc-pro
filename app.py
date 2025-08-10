@@ -144,8 +144,9 @@ def create_v_model_summary_table():
     """
     Creates a pandas DataFrame summarizing the V-Model contexts for display as a table.
     """
+    # UPDATED: Added IVD and Pharma, and made other column names more specific.
     all_contexts = {
-        'Assay Method': {
+        'R&D Assay Method': {
             'URS': {'tools': 'Target Product Profile (TPP), Required sensitivity/specificity'},
             'FS':  {'tools': 'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals'},
             'DS':  {'tools': 'Reagent selection, SOP drafting, Robustness DOE plan'},
@@ -172,10 +173,19 @@ def create_v_model_summary_table():
             'PQ':  {'tools': 'User Acceptance Testing (UAT) with real-world scenarios'},
             'VAL': {'tools': 'System Validation Report, Release notes, Go-live approval'}
         },
-        'Manufacturing Process': {
-            'URS': {'tools': 'Target yield, Critical Quality Attributes (CQAs), Cost of goods'},
-            'FS':  {'tools': 'Unit operations (e.g., cell culture, purification), In-Process Controls (IPCs)'},
-            'DS':  {'tools': 'Process parameters (CPPs), Bill of Materials, Scale-down model design'},
+        'IVD Development': {
+            'URS': {'tools': 'Diagnostic claim, Clinical sensitivity/specificity reqs, Sample matrix'},
+            'FS':  {'tools': 'Assay principle (e.g., PCR), Analytical performance goals (LOD, precision)'},
+            'DS':  {'tools': 'Antibody/reagent selection, Protocol optimization, Verification/Validation plan'},
+            'BUILD': {'tools': 'Prototype kit assembly, Reagent formulation, SOP drafting'},
+            'IQOQ':{'tools': 'Manufacturing equipment qualification, QC test method validation'},
+            'PQ':  {'tools': 'Clinical performance studies, Stability (shelf-life), Shipping validation'},
+            'VAL': {'tools': '510(k)/PMA submission to FDA, Design History File (DHF) finalization'}
+        },
+        'Pharma Process': {
+            'URS': {'tools': 'Target Product Profile (TPP), Critical Quality Attributes (CQAs), Cost of goods'},
+            'FS':  {'tools': 'Unit operations (e.g., cell culture), In-Process Controls (IPCs)'},
+            'DS':  {'tools': 'Critical Process Parameters (CPPs), Bill of Materials, Scale-down model design'},
             'BUILD': {'tools': 'Engineering runs, Master Batch Record (MBR) authoring'},
             'IQOQ':{'tools': 'Facility/utility qualification, Equipment commissioning'},
             'PQ':  {'tools': 'Process Performance Qualification (PPQ) runs, Cpk analysis'},
@@ -187,7 +197,9 @@ def create_v_model_summary_table():
     for context, stages in all_contexts.items():
         df_data[context] = {stage: data['tools'] for stage, data in stages.items()}
 
-    df = pd.DataFrame(df_data)
+    # Ensure a consistent column order
+    column_order = ['R&D Assay Method', 'Instrument', 'Software System', 'IVD Development', 'Pharma Process']
+    df = pd.DataFrame(df_data)[column_order]
     
     stage_order = ['URS', 'FS', 'DS', 'BUILD', 'IQOQ', 'PQ', 'VAL']
     stage_names = {
@@ -197,12 +209,7 @@ def create_v_model_summary_table():
     }
     
     df = df.reindex(stage_order)
-    
-    # --- THIS IS THE ONLY LINE THAT HAS CHANGED ---
-    # The lambda function now combines the full name from the dictionary with the original key (the abbreviation).
     df.index = df.index.map(lambda key: f"{stage_names[key]} ({key})")
-    # --- END OF CHANGE ---
-    
     df.index.name = "V-Model Stage"
     
     return df
@@ -211,12 +218,13 @@ def create_styled_v_model_table(df):
     """
     Transforms the V-Model summary DataFrame into a styled Plotly Table.
     """
-    # Define a professional color scheme for each application/column
+    # UPDATED: Added colors for IVD and Pharma, and renamed other keys to match the new DataFrame.
     app_colors = {
-        'Assay Method': {'header': '#0068C9', 'cell': 'rgba(0, 104, 201, 0.1)'},
+        'R&D Assay Method': {'header': '#0068C9', 'cell': 'rgba(0, 104, 201, 0.1)'},
         'Instrument': {'header': '#008080', 'cell': 'rgba(0, 128, 128, 0.1)'},
         'Software System': {'header': '#636EFA', 'cell': 'rgba(99, 110, 250, 0.1)'},
-        'Manufacturing Process': {'header': '#FF7F0E', 'cell': 'rgba(255, 127, 14, 0.1)'}
+        'IVD Development': {'header': '#2ca02c', 'cell': 'rgba(44, 160, 44, 0.1)'}, # New color for IVD
+        'Pharma Process': {'header': '#FF7F0E', 'cell': 'rgba(255, 127, 14, 0.1)'}
     }
     
     # Prepare header values and colors
@@ -229,6 +237,8 @@ def create_styled_v_model_table(df):
     cell_fill_colors = [['#F8F9FA'] * len(df)] + [[app_colors[col]['cell']] * len(df) for col in df.columns]
 
     fig = go.Figure(data=[go.Table(
+        # Increase column widths to better accommodate the new content
+        columnwidth = [120] + [200]*len(df.columns),
         header=dict(
             values=header_values,
             fill_color=header_fill_colors,
@@ -249,10 +259,12 @@ def create_styled_v_model_table(df):
 
     fig.update_layout(
         margin=dict(l=10, r=10, t=10, b=10),
-        height=450 # Set a fixed height to make it look clean
+        # Increase height slightly for better viewing
+        height=500
     )
     
     return fig
+    
 # --- RESTORED PLOTTING FUNCTION 2 ---
 @st.cache_data
 def plot_act_grouped_timeline():

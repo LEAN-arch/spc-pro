@@ -1460,12 +1460,20 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
     nor = {'x0': opt_temp_real - 1, 'y0': opt_ph_real - 0.1, 'x1': opt_temp_real + 1, 'y1': opt_ph_real + 0.1}
 
     # 5. Generate Pareto Plot
-    anova_table = sm.stats.anova_lm(rsm_model, typ=2).reset_index()
+    anova_table = sm.stats.anova_lm(rsm_model, typ=2)
+    # --- THIS IS THE KEY FIX ---
+    # Filter out the 'Residual' row from the anova_table before creating the p-value map
+    anova_filtered = anova_table.drop('Residual', errors='ignore')
+    p_values_map = anova_filtered['PR(>F)']
+    # --- END OF FIX ---
+    
     effects = rsm_model.params[1:]; std_errs = rsm_model.bse[1:]
     t_values = np.abs(effects / std_errs)
-    p_values_map = anova_table.set_index('index')['PR(>F)']
     effect_names = ['pH', 'Temp', 'pH²', 'Temp²', 'pH:Temp']
-    effects_df = pd.DataFrame({'Effect': effect_names, 't-value': t_values, 'p-value': p_values_map}).sort_values('t-value', ascending=False)
+    
+    # Now p_values_map and t_values both have 5 elements, so this will work
+    effects_df = pd.DataFrame({'Effect': effect_names, 't-value': t_values.values, 'p-value': p_values_map.values}).sort_values('t-value', ascending=False)
+    
     fig_pareto = px.bar(effects_df, x='Effect', y='t-value', title='<b>1. Pareto Plot of Effects</b>',
                         color=effects_df['p-value'] < 0.05,
                         color_discrete_map={True: SUCCESS_GREEN, False: PRIMARY_COLOR}, template='plotly_white')
@@ -1505,7 +1513,8 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
     plt.close(fig_pdp)
     pdp_buffer.seek(0)
 
-    return fig_pareto, fig_rsm_3d, fig_rsm_2d, pdp_buffer, anova_table, opt_ph_real, opt_temp_real, max_response
+    # We need to return the full anova_table for display, not the filtered one.
+    return fig_pareto, fig_rsm_3d, fig_rsm_2d, pdp_buffer, anova_table.reset_index(), opt_ph_real, opt_temp_real, max_response
     
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Split-Plot) - SME ENHANCED

@@ -3853,9 +3853,13 @@ def render_introduction_content():
 
     st.header("🚀 The V&V Model: A Strategic Framework")
     st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
-    # This now calls the simple, static plotting function
     fig_v_model = plot_v_model()
     st.plotly_chart(fig_v_model, use_container_width=True)
+
+    # ADDITION: The summary table is now displayed here.
+    st.markdown("The table below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different biotech contexts.")
+    summary_df = create_v_model_summary_table()
+    st.dataframe(summary_df, use_container_width=True)
     
     st.divider()
     
@@ -3870,28 +3874,6 @@ def render_introduction_content():
     st.header("🗺️ Conceptual Map of Tools")
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
-
-
-def render_v_model_plot_only():
-    """Renders only the V-Model plot."""
-    st.markdown("### The V&V Model: A Strategic Framework")
-    st.markdown("""
-    This plot illustrates the standard V-Model for system validation and technology transfer. It visually connects the initial user requirements and design specifications (the left side, **Verification**) to the final system qualification and user acceptance testing (the right side, **Validation**).
-    """)
-    st.info("Hover over any stage in the diagram for a brief description and generic examples.")
-    
-    # Render the static V-Model diagram
-    fig = plot_v_model()
-    st.plotly_chart(fig, use_container_width=True)
-
-def render_v_model_summary_table():
-    """Renders only the V-Model summary table."""
-    st.markdown("### V-Model Activities by Context")
-    st.markdown("The table below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different biotech contexts.")
-    summary_df = create_v_model_summary_table()
-    
-    # Use st.dataframe for a well-formatted, scrollable table
-    st.dataframe(summary_df, use_container_width=True)
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================
@@ -6919,13 +6901,6 @@ with st.sidebar:
     # FIX: The all_tools dictionary is updated to treat the diagram and table as separate items.
     # Replace the old all_tools dictionary with this one.
     all_tools = {
-        "FRAMEWORK VISUALIZATIONS": [
-            "The V-Model Diagram",         # Changed from "The V&V Model"
-            "V-Model Summary Table",       # New entry
-            "Project Workflow Timeline",
-            "Historical Timeline",
-            "Conceptual Toolkit Map"
-        ],
         "ACT I: FOUNDATION & CHARACTERIZATION": [
             "Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", 
             "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", 
@@ -6969,15 +6944,6 @@ else:
     # FIX: The PAGE_DISPATCHER is updated to point to the new, separated functions.
     # Replace the old PAGE_DISPATCHER dictionary with this one.
     PAGE_DISPATCHER = {
-        # Framework Visualizations
-        "The V-Model Diagram": render_v_model_plot_only, # Points to the new plot function
-        "V-Model Summary Table": render_v_model_summary_table, # Points to the new table function
-        # NOTE: The render_act_grouped_timeline_single, etc. functions were not in the provided code,
-        # so they are removed here for clarity. The logic should be adapted if those functions exist.
-        "Project Workflow Timeline": lambda: st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True),
-        "Historical Timeline": lambda: st.plotly_chart(plot_chronological_timeline(), use_container_width=True),
-        "Conceptual Toolkit Map": lambda: st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True),
-        
         # Act I
         "Confidence Interval Concept": render_ci_concept,
         "Core Validation Parameters": render_core_validation_params,

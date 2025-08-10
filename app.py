@@ -3413,9 +3413,7 @@ def plot_kalman_nn_residual(measurement_noise=1.0, shock_magnitude=10.0, process
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Method 4) - SME ENHANCED & CORRECTED
 # ==============================================================================
-# ==============================================================================
-# HELPER & PLOTTING FUNCTION (Method 4) - SME ENHANCED & DEFINITIVE FIX
-# ==============================================================================
+
 @st.cache_data
 def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
     """
@@ -3504,32 +3502,41 @@ def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
     
     return fig_3d, fig_2d, optimal_lambda, optimal_L, min_cost
 
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Method 5) - SME ENHANCED
+# ==============================================================================
 @st.cache_data
-def plot_tcn_cusum(drift_magnitude=0.05, seasonality_strength=5.0):
+def plot_tcn_cusum(drift_magnitude=0.05, daily_cycle_strength=1.0):
     """
-    Simulates a TCN forecasting a complex time series, with a CUSUM chart on the forecast residuals.
+    Generates an enhanced, more realistic TCN-CUSUM dashboard with bioprocess-like data,
+    receptive field visualization, and residual diagnostics.
     """
     np.random.seed(42)
     n_points = 200
-    
-    # 1. --- Simulate a Complex Time Series with Drift ---
     time = np.arange(n_points)
-    seasonality = seasonality_strength * (np.sin(time * 2 * np.pi / 50) + np.sin(time * 2 * np.pi / 20))
+    
+    # --- 1. SME Enhancement: Simulate more realistic bioprocess data ---
+    # Logistic growth curve (S-shape)
+    growth = 100 / (1 + np.exp(-0.05 * (time - 100)))
+    # Diurnal (daily) cycles
+    daily_cycle = daily_cycle_strength * np.sin(time * 2 * np.pi / 24) # 24-hour cycle
+    # Gradual process drift
     drift = np.linspace(0, drift_magnitude * n_points, n_points)
-    noise = np.random.normal(0, 1.5, n_points)
-    data = 100 + seasonality + drift + noise
+    # Measurement noise
+    noise = np.random.normal(0, 0.5, n_points)
     
-    # 2. --- Simulate a TCN Forecast ---
-    # A real TCN is complex. We simulate its key property: it perfectly learns the
-    # predictable components (seasonality, but not the slow drift).
-    tcn_forecast = 100 + seasonality 
+    data = growth + daily_cycle + drift + noise
     
-    # 3. --- Calculate Residuals and Apply CUSUM ---
+    # --- 2. Simulate a TCN Forecast ---
+    # A real TCN is complex. We simulate its key property: it learns the predictable
+    # non-linear components (growth and cycles), but is blind to the unexpected linear drift.
+    tcn_forecast = growth + daily_cycle
+    
+    # --- 3. Calculate Residuals and Apply CUSUM ---
     residuals = data - tcn_forecast
     
-    # CUSUM parameters (tuned to detect small shifts)
     target = np.mean(residuals[:50]) # Target is the mean of the initial stable residuals
-    k = 0.5 * np.std(residuals[:50]) # Slack parameter (half a standard deviation)
+    k = 0.5 * np.std(residuals[:50]) # Slack parameter
     h = 5 * np.std(residuals[:50]) # Control limit
     
     sh, sl = np.zeros(n_points), np.zeros(n_points)
@@ -3540,25 +3547,48 @@ def plot_tcn_cusum(drift_magnitude=0.05, seasonality_strength=5.0):
     ooc_points = np.where(sh > h)[0]
     first_ooc = ooc_points[0] if len(ooc_points) > 0 else None
     
-    # 4. --- Plotting ---
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=("TCN Forecast vs. Actual Data", "TCN Forecast Residuals", "CUSUM Chart on Residuals"))
+    # --- 4. Plotting Dashboard ---
+    fig = make_subplots(
+        rows=2, cols=2,
+        column_widths=[0.7, 0.3],
+        row_heights=[0.6, 0.4],
+        subplot_titles=("<b>1. TCN Forecast on Bioprocess Data</b>", "<b>3. Residual Diagnostics</b>",
+                        "<b>2. CUSUM Chart on Residuals (Drift Detector)</b>"),
+        vertical_spacing=0.15
+    )
     
-    fig.add_trace(go.Scatter(y=data, mode='lines', name='Actual Data'), row=1, col=1)
-    fig.add_trace(go.Scatter(y=tcn_forecast, mode='lines', name='TCN Forecast', line=dict(dash='dash')), row=1, col=1)
-    
-    fig.add_trace(go.Scatter(y=residuals, mode='lines', name='Residuals'), row=2, col=1)
-    fig.add_hline(y=0, line_dash='dot', row=2, col=1)
+    # Plot 1: Main Forecast
+    fig.add_trace(go.Scatter(x=time, y=data, mode='lines', name='Actual Data', line=dict(color='black')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=time, y=tcn_forecast, mode='lines', name='TCN Forecast', line=dict(dash='dash', color='red')), row=1, col=1)
+    # SME Enhancement: Visualize the TCN's receptive field
+    receptive_field_size = 32
+    fig.add_vrect(x0=150 - receptive_field_size, x1=150, fillcolor="rgba(255,150,0,0.2)", line_width=0,
+                  annotation_text="TCN Receptive Field", annotation_position="bottom left", row=1, col=1)
 
-    fig.add_trace(go.Scatter(y=sh, mode='lines', name='CUSUM High'), row=3, col=1)
-    fig.add_trace(go.Scatter(y=sl, mode='lines', name='CUSUM Low'), row=3, col=1)
-    fig.add_hline(y=h, line_color='red', row=3, col=1)
+    # Plot 2: CUSUM on Residuals
+    fig.add_trace(go.Scatter(x=time, y=sh, mode='lines', name='CUSUM High', line_color='purple'), row=2, col=1)
+    fig.add_hline(y=h, line_color='red', row=2, col=1)
     if first_ooc:
-        fig.add_trace(go.Scatter(x=[first_ooc], y=[sh[first_ooc]], mode='markers',
-                                 marker=dict(color='red', size=12, symbol='x'), name='Alarm'), row=3, col=1)
+        fig.add_trace(go.Scatter(x=[first_ooc], y=[sh[first_ooc]], mode='markers', name='Alarm',
+                                 marker=dict(color='red', size=12, symbol='x')), row=2, col=1)
 
-    fig.update_layout(height=800, title_text="<b>TCN-CUSUM: Hybrid Model for Complex Drift Detection</b>")
-    fig.update_xaxes(title_text="Time", row=3, col=1)
+    # Plot 3: Residual Diagnostics
+    # Histogram
+    fig.add_trace(go.Histogram(x=residuals, name='Residuals Hist', histnorm='probability density', marker_color='grey'), row=1, col=2)
+    # Q-Q Plot
+    qq_data = stats.probplot(residuals, dist="norm")
+    fig.add_trace(go.Scatter(x=qq_data[0][0], y=qq_data[0][1], mode='markers', name='QQ Points'), row=2, col=2)
+    fig.add_trace(go.Scatter(x=qq_data[0][0], y=qq_data[1][0] * qq_data[0][0] + qq_data[1][1], mode='lines', name='QQ Fit', line_color='red'), row=2, col=2)
+    
+    fig.update_layout(height=800, title_text="<b>TCN-CUSUM: Hybrid Model for Complex Drift Detection</b>", showlegend=False)
+    fig.update_yaxes(title_text="Biomass Conc.", row=1, col=1)
+    fig.update_xaxes(title_text="Time (Hours)", row=2, col=1)
+    fig.update_yaxes(title_text="CUSUM Value", row=2, col=1)
+    fig.update_xaxes(title_text="Residual Value", row=1, col=2)
+    fig.update_yaxes(title_text="Density", row=1, col=2)
+    fig.update_xaxes(title_text="Theoretical Quantiles", row=2, col=2)
+    fig.update_yaxes(title_text="Sample Quantiles", row=2, col=2)
+
     return fig, first_ooc
 
 # ==============================================================================
@@ -6508,24 +6538,24 @@ def render_tcn_cusum():
     """Renders the TCN + CUSUM module."""
     st.markdown("""
     #### Purpose & Application: The AI Signal Processor
-    **Purpose:** To create a powerful, hybrid system for detecting tiny, gradual drifts hidden within complex, seasonal time series data. A **Temporal Convolutional Network (TCN)** first learns and "subtracts" the complex but predictable patterns. Then, a **CUSUM chart** is applied to the remaining signal (the residuals) to detect any subtle, underlying drift.
+    **Purpose:** To create a powerful, hybrid system for detecting tiny, gradual drifts hidden within complex, non-linear, and seasonal time series data. A **Temporal Convolutional Network (TCN)** first learns and "subtracts" the complex but predictable patterns. Then, a **CUSUM chart** is applied to the remaining signal (the residuals) to detect any subtle, underlying drift.
     
-    **Strategic Application:** This is for monitoring processes with strong, complex seasonality that would overwhelm traditional SPC charts.
-    - **Bioreactor Monitoring:** A bioreactor has daily (diurnal) and weekly (feeding) cycles. The TCN can learn these complex rhythms. The CUSUM on the residuals can then detect if the underlying cell growth rate is slowly starting to decline.
-    - **Utility Systems:** Monitoring water or power consumption, which has strong daily and weekly patterns. This system can detect a slow, developing leak or equipment inefficiency.
+    **Strategic Application:** This is for monitoring complex, dynamic processes like bioreactors or utility systems, where normal behavior is non-linear and cyclical.
+    - **Bioreactor Monitoring:** A TCN can learn the complex S-shaped growth curve and daily cycles. The CUSUM on the residuals can then detect if the underlying cell growth rate is slowly starting to decline, signaling a problem with the media or culture health.
     """)
     st.info("""
-    **Interactive Demo:** Use the sliders to control the simulated process.
-    - **`Drift Magnitude`**: Controls how quickly the hidden, linear drift pulls the process away from its normal baseline.
-    - **`Seasonality Strength`**: Controls the amplitude of the predictable, cyclical patterns. Notice that even with very strong seasonality, the CUSUM chart on the residuals effectively detects the hidden drift.
+    **Interactive Demo:** Use the sliders to control the simulated bioprocess.
+    - **`Gradual Drift`**: Controls how quickly the hidden drift pulls the process away from its normal baseline.
+    - **`Daily Cycle Strength`**: Controls the amplitude of the predictable, daily fluctuations. Notice that even with very strong cycles, the CUSUM chart on the TCN's residuals effectively detects the hidden drift.
     """)
-    st.sidebar.subheader("TCN-CUSUM Controls")
-    drift_slider = st.sidebar.slider("Drift Magnitude (per step)", 0.0, 0.2, 0.05, 0.01,
-        help="The slope of the hidden linear trend added to the data. This is the subtle signal the CUSUM chart must find.")
-    seasonality_slider = st.sidebar.slider("Seasonality Strength", 0.0, 10.0, 5.0, 1.0,
-        help="Controls the amplitude of the complex, cyclical patterns in the data. The TCN's job is to learn and remove this 'noise'.")
+    with st.sidebar:
+        st.sidebar.subheader("TCN-CUSUM Controls")
+        drift_slider = st.sidebar.slider("Gradual Drift Magnitude", 0.0, 0.2, 0.05, 0.01,
+            help="The slope of the hidden linear trend added to the data. This is the subtle signal the CUSUM chart must find.")
+        seasonality_slider = st.sidebar.slider("Daily Cycle Strength", 0.0, 5.0, 1.0, 0.5,
+            help="Controls the amplitude of the cyclical patterns in the data. The TCN's job is to learn and remove this 'noise'.")
 
-    fig, alarm_time = plot_tcn_cusum(drift_magnitude=drift_slider, seasonality_strength=seasonality_slider)
+    fig, alarm_time = plot_tcn_cusum(drift_magnitude=drift_slider, daily_cycle_strength=seasonality_slider)
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -6536,26 +6566,27 @@ def render_tcn_cusum():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric("Detection Time", f"Time #{alarm_time}" if alarm_time else "N/A", help="The time the CUSUM chart first signaled a significant deviation.")
+            st.metric("Drift Detection Time", f"Hour #{alarm_time}" if alarm_time else "Not Detected",
+                      help="The time the CUSUM chart first signaled a significant deviation in the residuals.")
             st.markdown("""
-            **Reading the Plots:**
-            1.  **Forecast vs. Actual (Top):** The TCN (dashed line) has perfectly learned the complex seasonal pattern, but it is unaware of the slow underlying drift. The actual data (solid line) slowly pulls away from the forecast.
-            2.  **Residuals (Middle):** This plot shows the difference (Actual - Forecast). The TCN has effectively "de-seasonalized" the data, revealing the hidden linear drift that was invisible in the top plot.
-            3.  **CUSUM Chart (Bottom):** The CUSUM chart is a "bloodhound" applied to the residuals. It sees the persistent positive trend in the residuals and accumulates this evidence until it crosses the red control limit, firing a clear alarm.
+            **Reading the Dashboard:**
+            - **1. TCN Forecast:** The TCN (red dashed line) has learned the complex non-linear growth and daily cycles, but is blind to the unexpected gradual drift. The orange shaded area shows the "receptive field" - how much past data the model uses for each prediction.
+            - **2. CUSUM on Residuals:** The CUSUM chart acts on the TCN's forecast errors. It ignores the random noise but accumulates the persistent signal from the drift until it crosses the red control limit, firing a clear alarm (red 'X').
+            - **3. Residual Diagnostics:** For a good model, the residuals should be random noise. The histogram should look roughly normal, and the Q-Q plot points should fall along the red line.
             """)
 
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: Charting the Raw Data**
-Applying a CUSUM chart directly to the raw data would be a disaster. The massive swings from the seasonality would cause constant false alarms, making the chart useless. The true, tiny drift signal would be completely buried.""")
+Applying a CUSUM chart directly to the raw bioprocess data would be a disaster. The massive swings from the growth curve and daily cycles would cause constant false alarms, making the chart useless. The true, tiny drift signal would be completely buried.""")
             st.success("""🟢 **THE GOLDEN RULE: Separate the Predictable from the Unpredictable**
 This is a fundamental principle of modern process monitoring.
-1. Use a sophisticated forecasting model (like a TCN or LSTM) to learn and remove the complex, known patterns from your data.
-2. Apply a sensitive change detection algorithm (like CUSUM or EWMA) to the model's residuals. This focuses your monitoring on the part of the signal that is truly changing, maximizing sensitivity while minimizing false alarms.""")
+1. Use a sophisticated forecasting model (like a TCN) to learn and remove the complex, **known patterns** from your data.
+2. Apply a sensitive change detection algorithm (like CUSUM) to the model's **residuals** (the forecast errors). This focuses your monitoring on the part of the signal that is truly changing and unpredictable.""")
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context: The Evolution of Sequence Modeling
-            **The Problem:** For years, Recurrent Neural Networks (RNNs) and their advanced variant, LSTMs, were the undisputed kings of sequence modeling. However, their inherently sequential nature—having to process time step `t` before moving to `t+1`—made them slow to train on very long sequences and difficult to parallelize on modern GPUs.
+            **The Problem:** For years, Recurrent Neural Networks (RNNs) and their advanced variant, LSTMs, were the undisputed kings of sequence modeling. However, their inherently sequential nature-having to process time step `t` before moving to `t+1`-made them slow to train on very long sequences and difficult to parallelize on modern GPUs.
 
             **The 'Aha!' Moment:** In 2018, a paper by Bai, Kolter, and Koltun, "An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling," showed that a different architecture could outperform LSTMs on many standard sequence tasks while being much faster. They systematized the **Temporal Convolutional Network (TCN)**. The key insight was to adapt techniques from computer vision (Convolutional Neural Networks) for time-series data. By using **causal convolutions** (to prevent seeing the future) and **dilated convolutions** (which exponentially increase the field of view), TCNs could learn very long-range patterns in parallel.
 

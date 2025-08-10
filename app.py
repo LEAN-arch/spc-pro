@@ -2906,13 +2906,13 @@ def plot_isolation_forest(contamination_rate=0.1):
     return fig, (y_pred == -1).sum()
     
 # ==============================================================================
-# HELPER & PLOTTING FUNCTION (XAI/SHAP) - SME ENHANCED & CORRECTED
+# HELPER & PLOTTING FUNCTION (XAI/SHAP) - SME ENHANCED & PDP FIX
 # ==============================================================================
 @st.cache_data
 def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator Experience (Months)'):
     """
-    Trains a more powerful XGBoost model on more realistic, complex assay data, and
-    generates a richer set of SHAP plots for interpretation.
+    Trains an XGBoost model and generates a robust set of SHAP and PDP/ICE plots
+    for comprehensive model explanation.
     """
     plt.style.use('default')
     
@@ -2925,11 +2925,8 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     reagent_age_days = np.random.randint(5, 90, n_runs)
     instrument_id = np.random.choice(['Inst_A', 'Inst_B', 'Inst_C'], n_runs, p=[0.5, 0.3, 0.2])
     
-    prob_failure = 1 / (1 + np.exp(-(-2.0
-                                     - 0.18 * operator_experience
-                                     + (reagent_age_days / 20)**1.5
-                                     - (cal_slope - 1.0) * 25
-                                     + (qc1_value < 48) * 0.5
+    prob_failure = 1 / (1 + np.exp(-(-2.0 - 0.18 * operator_experience + (reagent_age_days / 20)**1.5
+                                     - (cal_slope - 1.0) * 25 + (qc1_value < 48) * 0.5
                                      + (instrument_id == 'Inst_C') * 1.5)))
     run_failed = np.random.binomial(1, prob_failure)
 
@@ -2948,7 +2945,7 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     # Use XGBoost for better performance
     model = xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='logloss').fit(X, y)
     explainer = shap.Explainer(model, X)
-    shap_values = explainer(X) # For XGBoost, this is already a 2D explanation object for the positive class
+    shap_values = explainer(X)
 
     # Find the instance index for the local explanation
     failure_probabilities = model.predict_proba(X)[:, 1]
@@ -2959,9 +2956,6 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     else: # "most_ambiguous"
         instance_index = np.argmin(np.abs(failure_probabilities - 0.5))
 
-    # --- THIS BLOCK IS NO LONGER NEEDED AND HAS BEEN REMOVED ---
-    # The `shap_values` object is already in the correct format for the plots.
-    
     # 3. Generate Global Summary Plot (Beeswarm)
     fig_summary, ax_summary = plt.subplots()
     shap.summary_plot(shap_values, X, show=False)
@@ -2978,23 +2972,37 @@ def plot_xai_shap(case_to_explain="highest_risk", dependence_feature='Operator E
     plt.close(fig_waterfall)
     buf_waterfall.seek(0)
     
-    # 5. Generate Interactive Dependence Plot
-    fig_dependence, ax_dependence = plt.subplots()
+    # --- 5. SME ENHANCEMENT: Generate a robust PDP/ICE Plot instead of SHAP Dependence Plot ---
+    fig_pdp, ax_pdp = plt.subplots(figsize=(8, 6))
     
+    # The feature name might be different after one-hot encoding
     plot_feature = dependence_feature
     if dependence_feature == 'Instrument ID':
         inst_cols = [col for col in X.columns if 'Instrument ID_' in col]
         plot_feature = inst_cols[0] if inst_cols else 'Operator Experience (Months)'
-        
-    shap.dependence_plot(plot_feature, shap_values.values, X, interaction_index="auto", show=False)
-    buf_dependence = io.BytesIO()
-    fig_dependence.savefig(buf_dependence, format='png', bbox_inches='tight')
-    plt.close(fig_dependence)
-    buf_dependence.seek(0)
+    
+    PartialDependenceDisplay.from_estimator(
+        estimator=model,
+        X=X,
+        features=[plot_feature],
+        kind="both",  # Show both PDP and ICE lines
+        ice_lines_kw={"color": "lightblue", "alpha": 0.3, "linewidth": 0.5},
+        pd_line_kw={"color": "red", "linewidth": 4, "linestyle": "--"},
+        ax=ax_pdp
+    )
+    ax_pdp.set_title(f"Partial Dependence & ICE Plot for\n'{plot_feature}'", fontsize=14)
+    ax_pdp.set_ylabel("Predicted Probability of Failure", fontsize=12)
+    ax_pdp.set_xlabel(plot_feature, fontsize=12)
+    
+    buf_pdp = io.BytesIO()
+    fig_pdp.savefig(buf_pdp, format='png', bbox_inches='tight')
+    plt.close(fig_pdp)
+    buf_pdp.seek(0)
     
     actual_outcome = "Failed" if y.iloc[instance_index] == 1 else "Passed"
     
-    return buf_summary, buf_waterfall, buf_dependence, X_display.iloc[instance_index:instance_index+1], actual_outcome, instance_index
+    # Return the new PDP buffer instead of the old dependence buffer
+    return buf_summary, buf_waterfall, buf_pdp, X_display.iloc[instance_index:instance_index+1], actual_outcome, instance_index
     
 @st.cache_data
 def plot_advanced_ai_concepts(concept, p1=0, p2=0, p3=0):
@@ -5977,18 +5985,17 @@ def render_xai_shap():
     **Purpose:** To deploy an **AI Investigator** that forces a complex "black box" model to confess exactly *why* it predicted a specific assay run would fail. **Explainable AI (XAI)** cracks open the black box to reveal the model's reasoning.
     
     **Strategic Application:** This is a crucial tool for validating and deploying predictive models in a regulated GxP environment. Instead of just getting a pass/fail prediction, you get a full root cause analysis for every run.
-    - **🔬 Model Validation:** Confirm that the model is flagging runs for scientifically valid reasons (e.g., a low calibrator slope) and not due to spurious correlations.
-    - **🎯 Proactive Troubleshooting:** If the model predicts a high risk of failure, SHAP immediately points to the most likely reasons, allowing for proactive intervention.
+    - **Model Validation:** Confirm that the model is flagging runs for scientifically valid reasons (e.g., a low calibrator slope) and not due to spurious correlations.
+    - **Proactive Troubleshooting:** If the model predicts a high risk of failure, SHAP immediately points to the most likely reasons, allowing for proactive intervention.
     """)
 
     st.info("""
     **Interactive Demo:** This dashboard shows a full XAI workflow.
     1.  **Global Explanations:** See the model's overall strategy in the Beeswarm plot.
     2.  **Local Explanations:** Select a specific case to investigate and see its root cause analysis in the Waterfall plot.
-    3.  **Feature Deep Dive:** Use the Dependence Plot to explore how the model uses a single feature and its interactions.
+    3.  **Feature Deep Dive:** Use the PDP/ICE Plot to explore how the model uses a single feature across all samples.
     """)
 
-    # --- Redesigned Controls ---
     with st.sidebar:
         st.sidebar.subheader("XAI Investigation Controls")
         case_choice = st.sidebar.radio(
@@ -6000,19 +6007,19 @@ def render_xai_shap():
                 'most_ambiguous': "Most Ambiguous (50/50)"
             }[key]
         )
-        # Dummy DF for feature names
-        feature_names = ['Operator Experience (Months)', 'Reagent Age (Days)', 'Calibrator Slope', 'QC Level 1 Value']
+        
+        # We need the original feature names for the user to select from
+        feature_names = ['Operator Experience (Months)', 'Reagent Age (Days)', 'Calibrator Slope', 'QC Level 1 Value', 'Instrument ID']
         dependence_feature_choice = st.sidebar.selectbox(
-            "Select Feature for Dependence Plot:",
+            "Select Feature for Deep Dive Plot:",
             options=feature_names
         )
     
-    summary_buf, waterfall_buf, dependence_buf, instance_df, outcome, idx = plot_xai_shap(
+    summary_buf, waterfall_buf, pdp_buf, instance_df, outcome, idx = plot_xai_shap(
         case_to_explain=case_choice,
         dependence_feature=dependence_feature_choice
     )
     
-    # --- Redesigned Layout with Tabs ---
     tab1, tab2, tab3, tab4 = st.tabs(["Global Explanations", "Local Explanation", "Feature Deep Dive", "🔬 SME Analysis"])
 
     with tab1:
@@ -6029,11 +6036,14 @@ def render_xai_shap():
 
     with tab3:
         st.subheader(f"Feature Deep Dive: '{dependence_feature_choice}'")
-        st.markdown("The **Dependence Plot** shows how a single feature's value impacts the model's prediction across all data points. The vertical color shows the strongest interaction effect.")
-        st.image(dependence_buf)
+        st.markdown("""
+        The **Partial Dependence Plot (PDP)** with **Individual Conditional Expectation (ICE)** lines shows how a feature affects predictions.
+        - **The Red Dashed Line (PDP):** Shows the *average* effect on the predicted probability of failure as the feature value changes.
+        - **The Light Blue Lines (ICE):** Each line represents a *single run*. This shows if the feature's effect is consistent across the dataset or if there are interactions.
+        """)
+        st.image(pdp_buf)
 
     with tab4:
-        # Content for SME Analysis tab remains the same as previously provided.
         st.markdown("""
         #### SME Analysis: From Raw Data to Actionable Intelligence
         As a Subject Matter Expert (SME) in process validation and tech transfer, this tool isn't just a data science curiosity; it's a powerful diagnostic and risk-management engine. Here’s how we would use this in a real-world GxP environment.
@@ -6051,7 +6061,7 @@ def render_xai_shap():
         The true power here is moving from "what happened" to "why it happened."
         -   **Global Plot (Beeswarm):** This is our first validation checkpoint for the model itself. If I saw that a scientifically irrelevant factor was the most important, I would reject the model. The fact that `Operator Experience` and `Calibrator Slope` are top drivers gives me confidence that the AI's "thinking" aligns with scientific reality.
         -   **Local Plot (Waterfall):** This is our **automated root cause investigation tool**. For the "Highest Risk" case, the plot instantly shows the root cause narrative: e.g., an inexperienced operator combined with old reagents created a high-risk situation.
-        -   **Dependence Plot:** This helps us define our **Design Space or Normal Operating Range**. For example, by plotting `Reagent Age`, we can see the exact point where its SHAP value starts to sharply increase, allowing us to set an internal expiry date (e.g., "do not use reagents older than 60 days") based on data, not just a guess.
+        -   **Feature Deep Dive (PDP/ICE):** This helps us define our **Design Space or Normal Operating Range**. For example, by plotting `Reagent Age`, we can see the exact point where the red line (average risk) starts to sharply increase, allowing us to set an internal expiry date (e.g., "do not use reagents older than 60 days") based on data, not just a guess.
         
         ---
 

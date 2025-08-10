@@ -3845,9 +3845,25 @@ def render_introduction_content():
     
     st.divider()
 
-    st.header("🚀 The V&V Model: A Strategic Framework")
-    st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
-    st.plotly_chart(plot_v_model(), use_container_width=True)
+def render_v_model_single():
+    """Renders a dedicated, interactive page for the V-Model plot."""
+    st.markdown("### The V&V Model: A Strategic Framework")
+    st.markdown("""
+    This plot illustrates the standard V-Model for system validation and technology transfer. It visually connects the initial user requirements and design specifications (the left side, **Verification**) to the final system qualification and user acceptance testing (the right side, **Validation**).
+    """)
+    
+    # --- SME ENHANCEMENT: Interactive Context Selector ---
+    context_choice = st.selectbox(
+        "Select a V&V Context to see specific examples:",
+        options=['Assay Method', 'Instrument', 'Software System', 'Manufacturing Process'],
+        index=0
+    )
+    
+    st.info("Hover over any stage to see its guiding question and tools relevant to the selected context.")
+    
+    # This new version passes the user's choice to the plot function, making it dynamic.
+    fig = plot_v_model(context=context_choice)
+    st.plotly_chart(fig, use_container_width=True)
     
     st.divider()
     

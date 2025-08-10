@@ -196,6 +196,71 @@ def plot_v_model(context='Assay Method'):
     
     return fig
 
+def create_v_model_summary_table():
+    """
+    Creates a pandas DataFrame summarizing the V-Model contexts for display as a table.
+    """
+    # This dictionary is the same as the one inside plot_v_model
+    all_contexts = {
+        'Assay Method': {
+            'URS': 'Target Product Profile (TPP), Required sensitivity/specificity',
+            'FS':  'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals',
+            'DS':  'Reagent selection, SOP drafting, Robustness DOE plan',
+            'BUILD': 'Method development experiments, SOP finalization, Analyst training',
+            'IQOQ':'Reagent qualification, Instrument calibration for this assay',
+            'PQ':  'Intermediate Precision, Gage R&R, Method Comparison',
+            'VAL': 'Final Validation Report, Control charting plan'
+        },
+        'Instrument': {
+            'URS': 'Required throughput, Sample types, User skill level',
+            'FS':  'Automation level, Data output format (LIMS), Footprint',
+            'DS':  'Vendor selection, Site prep requirements, Service contract',
+            'BUILD': 'Purchase, Delivery, Physical installation',
+            'IQOQ':'Utility connections check (IQ), Factory tests run (OQ)',
+            'PQ':  'Performance on representative samples, Throughput testing',
+            'VAL': 'System meets all URS criteria, Final release for GMP use'
+        },
+        'Software System': {
+            'URS': 'Business process map, 21 CFR Part 11 requirements',
+            'FS':  'User roles, Required calculations, Audit trail specifications',
+            'DS':  'System architecture, Database schema, UI mockups',
+            'BUILD': 'Coding, Configuration of COTS system, Writing user manuals',
+            'IQOQ':'Server setup validation (IQ), Unit & Integration testing (OQ)',
+            'PQ':  'User Acceptance Testing (UAT) with real-world scenarios',
+            'VAL': 'System Validation Report, Release notes, Go-live approval'
+        },
+        'Manufacturing Process': {
+            'URS': 'Target yield, Critical Quality Attributes (CQAs), Cost of goods',
+            'FS':  'Unit operations (e.g., cell culture, purification), In-Process Controls (IPCs)',
+            'DS':  'Process parameters (CPPs), Bill of Materials, Scale-down model design',
+            'BUILD': 'Engineering runs, Master Batch Record (MBR) authoring',
+            'IQOQ':'Facility/utility qualification, Equipment commissioning',
+            'PQ':  'Process Performance Qualification (PPQ) runs, Cpk analysis',
+            'VAL': 'Final PPQ report, Submission to regulatory agency'
+        }
+    }
+    
+    # Reformat the dictionary for easy DataFrame creation
+    # I've simplified the dictionary structure to make it cleaner
+    df_data = {}
+    for context, stages in all_contexts.items():
+        df_data[context] = stages
+        
+    df = pd.DataFrame(df_data)
+    
+    # Define the correct order of V-Model stages for the table index
+    stage_order = ['URS', 'FS', 'DS', 'BUILD', 'IQOQ', 'PQ', 'VAL']
+    stage_names = {
+        'URS': 'User Requirements', 'FS': 'Functional Specs', 'DS': 'Design Specs',
+        'BUILD': 'Implementation', 'IQOQ': 'IQ / OQ', 'PQ': 'Performance Qualification',
+        'VAL': 'Final Validation'
+    }
+    
+    df = df.reindex(stage_order)
+    df.index = df.index.map(lambda key: f"<b>{stage_names[key]}</b>")
+    
+    return df
+
 # --- RESTORED PLOTTING FUNCTION 2 ---
 @st.cache_data
 def plot_act_grouped_timeline():
@@ -3864,13 +3929,12 @@ def render_introduction_content():
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
 
 def render_v_model_single():
-    """Renders a dedicated, interactive page for the V-Model plot."""
+    """Renders a dedicated, interactive page for the V-Model plot with a summary table."""
     st.markdown("### The V&V Model: A Strategic Framework")
     st.markdown("""
     This plot illustrates the standard V-Model for system validation and technology transfer. It visually connects the initial user requirements and design specifications (the left side, **Verification**) to the final system qualification and user acceptance testing (the right side, **Validation**).
     """)
     
-    # --- SME ENHANCEMENT: Interactive Context Selector ---
     context_choice = st.selectbox(
         "Select a V&V Context to see specific examples:",
         options=['Assay Method', 'Instrument', 'Software System', 'Manufacturing Process'],
@@ -3879,9 +3943,17 @@ def render_v_model_single():
     
     st.info("Hover over any stage to see its guiding question and tools relevant to the selected context.")
     
-    # This function now correctly calls the plot function and displays ONLY the V-Model.
     fig = plot_v_model(context=context_choice)
     st.plotly_chart(fig, use_container_width=True)
+    
+    # --- SME ENHANCEMENT: Add the summary table in an expander ---
+    st.markdown("---")
+    with st.expander("Show/Hide V-Model Activities Summary Table"):
+        st.markdown("The table below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different contexts.")
+        summary_df = create_v_model_summary_table()
+        
+        # Convert DataFrame to HTML to render the bold index
+        st.markdown(summary_df.to_html(escape=False), unsafe_allow_html=True)
 
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)

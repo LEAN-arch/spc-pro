@@ -3454,22 +3454,24 @@ def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
     min_cost = total_cost_grid[min_idx]
     
     # --- 3. Plotting Dashboard ---
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # The subplot type at position (2, 1) has been changed from "contour" to "xy".
     fig = make_subplots(
         rows=2, cols=2,
         specs=[[{"type": "surface"}, {"type": "contour"}],
-               [{"type": "xy"}, {"type": "contour"}]], # Corrected from "contour" to "xy"
+               [{"type": "xy"}, {"type": "contour"}]],
         subplot_titles=("<b>1. Economic Cost Surface</b>", "<b>2. ARL₀ (Time to False Alarm)</b>",
                         "<b>3. Optimal EWMA Chart</b>", "<b>4. ARL₁ (Time to Detect)</b>"),
         vertical_spacing=0.15, horizontal_spacing=0.1
     )
-    # --- END OF CORRECTION ---
 
     # Plot 1: 3D Cost Surface
     fig.add_trace(go.Surface(x=lambdas, y=Ls, z=total_cost_grid, colorscale='Viridis', showscale=False), row=1, col=1)
+    
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # Add the Scatter3d trace WITHOUT row/col arguments. Plotly will automatically
+    # add it to the existing 3D scene defined by the "surface" subplot type.
     fig.add_trace(go.Scatter3d(x=[optimal_lambda], y=[optimal_L], z=[min_cost], mode='markers',
-                              marker=dict(color='red', size=8, symbol='x')), row=1, col=1)
+                              marker=dict(color='red', size=8, symbol='x'), name="Optimal Point"))
+    # --- END OF CORRECTION ---
 
     # Plot 2: ARL0 Contour
     fig.add_trace(go.Contour(x=lambdas, y=Ls, z=np.log10(arl0_grid), colorscale='Blues',
@@ -3477,7 +3479,7 @@ def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
     fig.add_trace(go.Scatter(x=[optimal_lambda], y=[optimal_L], mode='markers',
                              marker=dict(color='red', size=12, symbol='x')), row=1, col=2)
     
-    # Plot 3: Resulting Optimal EWMA chart (now at row=2, col=1)
+    # Plot 3: Resulting Optimal EWMA chart (at row=2, col=1)
     np.random.seed(42)
     n_points_chart = 50
     data = np.random.normal(0, 1, n_points_chart)
@@ -3490,7 +3492,7 @@ def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
     fig.add_hline(y=-ucl, line_color='red', row=2, col=1)
     fig.add_vline(x=25, line_dash='dash', line_color='red', row=2, col=1)
     
-    # Plot 4: ARL1 Contour (now at row=2, col=2)
+    # Plot 4: ARL1 Contour (at row=2, col=2)
     fig.add_trace(go.Contour(x=lambdas, y=Ls, z=arl1_grid, colorscale='Reds',
                              contours=dict(showlabels=True), name="ARL₁"), row=2, col=2)
     fig.add_trace(go.Scatter(x=[optimal_lambda], y=[optimal_L], mode='markers',
@@ -3498,7 +3500,7 @@ def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
                              
     # Layout and Axis Titles
     fig.update_layout(height=800, title_text=f"<b>EWMA Economic Design Dashboard (Target Shift: {shift_size}σ)</b>", title_x=0.5, showlegend=False)
-    fig.update_scenes(xaxis_title_text='Lambda (λ)', yaxis_title_text='Limit Width (L)', zaxis_title_text='Total Cost', row=1, col=1)
+    fig.update_scenes(xaxis_title_text='Lambda (λ)', yaxis_title_text='Limit Width (L)', zaxis_title_text='Total Cost') # Removed row/col
     fig.update_xaxes(title_text='Lambda (λ)', row=1, col=2); fig.update_yaxes(title_text='Limit Width (L)', row=1, col=2)
     fig.update_xaxes(title_text='Observation Number', row=2, col=1); fig.update_yaxes(title_text='EWMA Value', row=2, col=1)
     fig.update_xaxes(title_text='Lambda (λ)', row=2, col=2); fig.update_yaxes(title_text='Limit Width (L)', row=2, col=2)

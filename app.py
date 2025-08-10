@@ -1427,27 +1427,26 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
 
 def plot_doe_design_space(ph_effect, temp_effect, interaction_effect, ph_quad_effect, temp_quad_effect, asymmetry_effect, noise_sd, yield_threshold):
     """
-    Generates enhanced, realistic DOE/RSM plots with a focus on topographic realism for the design space.
+    Generates a full suite of professional-grade DOE/RSM plots: Pareto, 3D Surface, and 2D Topographic Map.
     """
     np.random.seed(42)
-    # 1. Simulate a more realistic, asymmetric process
+    # 1. Simulate a realistic, asymmetric process
     alpha = 1.414
     design_coded = {'pH_coded': [-1, 1, -1, 1, -alpha, alpha, 0, 0, 0, 0, 0],
                     'Temp_coded': [-1, -1, 1, 1, 0, 0, -alpha, alpha, 0, 0, 0]}
     df = pd.DataFrame(design_coded)
     df['pH'] = df['pH_coded'] * 0.5 + 7.2
     df['Temp'] = df['Temp_coded'] * 5 + 37
-    # ADDED ASYMMETRY: A cubic term makes the response surface more realistic and less symmetrical
     true_response = 100 + ph_effect*df['pH_coded'] + temp_effect*df['Temp_coded'] + interaction_effect*df['pH_coded']*df['Temp_coded'] + \
                     ph_quad_effect*(df['pH_coded']**2) + temp_quad_effect*(df['Temp_coded']**2) + asymmetry_effect*(df['pH_coded']**3)
     df['Response'] = true_response + np.random.normal(0, noise_sd, len(df))
 
-    # 2. Analyze with a standard quadratic model (realistically, we approximate the complex truth)
+    # 2. Analyze with a quadratic model
     model = ols('Response ~ pH_coded + Temp_coded + I(pH_coded**2) + I(Temp_coded**2) + pH_coded:Temp_coded', data=df).fit()
     anova_table = sm.stats.anova_lm(model, typ=2).reset_index()
     anova_table.columns = ['Term', 'Sum of Squares', 'df', 'F-value', 'p-value']
     
-    # 3. Create prediction grid for plotting
+    # 3. Create prediction grid
     x_range_coded = np.linspace(-2, 2, 100); y_range_coded = np.linspace(-2, 2, 100)
     xx, yy = np.meshgrid(x_range_coded, y_range_coded)
     grid = pd.DataFrame({'pH_coded': xx.ravel(), 'Temp_coded': yy.ravel()})
@@ -1460,7 +1459,7 @@ def plot_doe_design_space(ph_effect, temp_effect, interaction_effect, ph_quad_ef
     max_response = np.max(pred)
     nor = {'x0': opt_temp_real - 1, 'y0': opt_ph_real - 0.1, 'x1': opt_temp_real + 1, 'y1': opt_ph_real + 0.1}
 
-    # 5. Generate Pareto Plot (same as before, remains excellent)
+    # 5. Generate Pareto Plot
     effects = model.params[1:]; std_errs = model.bse[1:]
     t_values = np.abs(effects / std_errs)
     p_values_map = anova_table.set_index('Term')['p-value']
@@ -1475,54 +1474,51 @@ def plot_doe_design_space(ph_effect, temp_effect, interaction_effect, ph_quad_ef
     fig_pareto.add_hline(y=t_crit, line_dash="dash", line_color="red", annotation_text="Significance (p=0.05)")
     fig_pareto.update_layout(showlegend=False)
 
-    # 6. Generate Realistic 2D Topographic Map
+    # 6. Generate Professional 3D Surface Plot
+    fig_3d = go.Figure(data=[go.Surface(
+        z=pred, x=y_range_real, y=x_range_real, colorscale='Viridis',
+        cmin=80, cmax=100, opacity=0.9, colorbar_title='Yield'
+    )])
+    fig_3d.add_trace(go.Scatter3d(
+        x=df['Temp'], y=df['pH'], z=df['Response'], mode='markers', 
+        marker=dict(color='red', size=5, line=dict(width=2, color='black')), name='DOE Runs'
+    ))
+    fig_3d.update_layout(
+        title='<b>2. Response Surface (3D View)</b>', 
+        scene=dict(xaxis_title='Temperature (°C)', yaxis_title='pH', zaxis_title='Yield (%)'), 
+        margin=dict(l=0, r=0, b=0, t=40)
+    )
+
+    # 7. Generate Professional 2D Topographic Map
     fig_2d = go.Figure()
-    # Layer 1: Base topographic filled contour
     fig_2d.add_trace(go.Contour(
         z=pred, x=y_range_real, y=x_range_real, colorscale='Geyser',
-        contours_coloring='fill', showscale=True, colorbar_title='Yield (%)'
+        contours_coloring='fill', showscale=False
     ))
-    # Layer 2: Thin contour lines for topographic effect
-    fig_2d.add_trace(go.Contour(
-        z=pred, x=y_range_real, y=x_range_real, colorscale=[[0, 'black'], [1, 'black']],
-        contours_coloring='lines', showscale=False, line_width=0.5
-    ))
-    # Layer 3: Shaded "Unsafe" region
-    fig_2d.add_trace(go.Contour(
-        z=(pred < yield_threshold).astype(int), x=y_range_real, y=x_range_real,
-        contours_coloring='fill', showscale=False,
-        colorscale=[[0, 'rgba(0,0,0,0)'], [1, 'rgba(239, 83, 80, 0.3)']] # Transparent to Red
-    ))
-    # Layer 4: Shaded "Safe" Design Space (PAR)
     fig_2d.add_trace(go.Contour(
         z=(pred >= yield_threshold).astype(int), x=y_range_real, y=x_range_real,
         contours_coloring='fill', showscale=False,
-        colorscale=[[0, 'rgba(0,0,0,0)'], [1, 'rgba(44, 160, 44, 0.3)']] # Transparent to Green
+        colorscale=[[0, 'rgba(239, 83, 80, 0.3)'], [1, 'rgba(44, 160, 44, 0.3)']]
     ))
-    # Layer 5: Add NOR box and Optimum Star
     fig_2d.add_shape(type="rect", x0=nor['x0'], y0=nor['y0'], x1=nor['x1'], y1=nor['y1'],
                      line=dict(color='white', width=3, dash='dash'))
     fig_2d.add_trace(go.Scatter(x=[opt_temp_real], y=[opt_ph_real], mode='markers',
-                               marker=dict(color='white', size=18, symbol='star', line=dict(width=2, color='black')),
-                               name='Predicted Optimum'))
+                               marker=dict(color='white', size=18, symbol='star', line=dict(width=2, color='black'))))
     fig_2d.add_trace(go.Scatter(x=df['Temp'], y=df['pH'], mode='markers', 
-                               marker=dict(color='red', size=8, line=dict(width=1, color='black')), name='DOE Runs'))
-    
-    # Layer 6: Add clear annotations
+                               marker=dict(color='red', size=8, line=dict(width=1, color='black'))))
     fig_2d.add_annotation(x=np.mean([nor['x0'], nor['x1']]), y=np.mean([nor['y0'], nor['y1']]),
                           text="<b>NOR</b>", showarrow=False, font=dict(color='white', size=16))
-    fig_2d.add_annotation(x=opt_temp_real, y=opt_ph_real + 0.3, text="<b>Design Space (PAR)</b><br>(Proven Acceptable Range)",
+    fig_2d.add_annotation(x=opt_temp_real, y=opt_ph_real + 0.3, text="<b>Design Space (PAR)</b>",
                           showarrow=True, arrowhead=2, arrowcolor='white', font=dict(color='white'), bgcolor='rgba(0,0,0,0.5)',
                           ax=opt_temp_real + 1, ay=opt_ph_real + 0.4)
-    fig_2d.add_annotation(x=y_range_real.min()+1, y=x_range_real.max()-0.05, text="<b>Unsafe Region</b>",
-                          showarrow=True, arrowhead=2, font=dict(color='white'), bgcolor='rgba(0,0,0,0.5)',
-                          ax=y_range_real.min()+3, ay=x_range_real.max()-0.2)
     
-    fig_2d.update_layout(title='<b>2. Process Topography Map & Operating Ranges</b>',
-                         xaxis_title='Temperature (°C)', yaxis_title='pH',
-                         margin=dict(l=0, r=0, b=0, t=40), showlegend=False)
+    fig_2d.update_layout(
+        title='<b>3. Process Map (2D View)</b>',
+        xaxis_title='Temperature (°C)', yaxis_title='pH',
+        margin=dict(l=0, r=0, b=0, t=40), showlegend=False
+    )
     
-    return fig_pareto, fig_2d, anova_table, opt_ph_real, opt_temp_real, max_response
+    return fig_pareto, fig_3d, fig_2d, anova_table, opt_ph_real, opt_temp_real, max_response
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Split-Plot) - SME ENHANCED
 # ==============================================================================
@@ -5021,9 +5017,7 @@ def render_doe_design_space():
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sidebar controls to define the "true" physics of your process.
-    - The **Pareto Plot** instantly shows which factors the model found to be significant drivers.
-    - The **Process Map** is a realistic topographic visualization. The green shaded area is your validated **Design Space (PAR)** where quality is assured.
+    **Interactive Demo:** Use the sidebar controls to define the "true" physics of your process. The dashboard follows a real-world workflow: check the **statistical results** first, then review the **visual process maps** side-by-side.
     """)
 
     with st.sidebar:
@@ -5034,7 +5028,6 @@ def render_doe_design_space():
         interaction_slider = st.slider("🔄 pH x Temp Interaction Effect", -10.0, 10.0, -3.0, 1.0)
         temp_quad_slider = st.slider("🌡️ Temperature Curvature", -10.0, 0.0, -5.0, 1.0, help="A negative value creates a 'peak'.")
         ph_quad_slider = st.slider("🧬 pH Curvature", -10.0, 0.0, -8.0, 1.0, help="A negative value creates a 'peak'.")
-        # --- NEW SLIDER FOR REALISM ---
         asymmetry_slider = st.slider("⛰️ Process Asymmetry (Cubic Effect)", -5.0, 5.0, -3.0, 0.5,
             help="Adds a cubic term to the pH effect, creating a more realistic, asymmetric 'cliff' on one side of the process peak.")
         noise_slider = st.slider("🎲 Experimental Noise (SD)", 0.1, 5.0, 1.0, 0.1)
@@ -5043,16 +5036,16 @@ def render_doe_design_space():
         yield_threshold_slider = st.slider("Acceptable Yield Threshold (%)", 85, 99, 95, 1,
             help="This defines the boundary of your Design Space / PAR.")
 
-    fig_pareto, fig_2d, anova_table, opt_ph, opt_temp, max_resp = plot_doe_design_space(
+    fig_pareto, fig_3d, fig_2d, anova_table, opt_ph, opt_temp, max_resp = plot_doe_design_space(
         ph_effect=ph_slider, temp_effect=temp_slider, interaction_effect=interaction_slider,
         ph_quad_effect=ph_quad_slider, temp_quad_effect=temp_quad_slider,
-        asymmetry_effect=asymmetry_slider, # Pass the new parameter
+        asymmetry_effect=asymmetry_slider,
         noise_sd=noise_slider,
         yield_threshold=yield_threshold_slider
     )
 
-    # --- NEW, IMPROVED LAYOUT ---
-    st.header("Results Dashboard")
+    # --- NEW, PROFESSIONAL LAYOUT ---
+    st.header("Statistical Results & Predicted Optimum")
     col1, col2 = st.columns([0.55, 0.45])
     with col1:
         st.plotly_chart(fig_pareto, use_container_width=True)
@@ -5068,7 +5061,12 @@ def render_doe_design_space():
             lambda p: 'background-color: #C8E6C9' if p < 0.05 else '', subset=['p-value']),
             use_container_width=True, height=240)
 
-    st.plotly_chart(fig_2d, use_container_width=True)
+    st.header("Process Visualizations")
+    col3, col4 = st.columns(2)
+    with col3:
+        st.plotly_chart(fig_3d, use_container_width=True)
+    with col4:
+        st.plotly_chart(fig_2d, use_container_width=True)
     
     st.divider()
     st.subheader("Deeper Dive")
@@ -5077,11 +5075,10 @@ def render_doe_design_space():
     with tabs[0]:
         st.markdown("""
         **A Realistic Workflow:**
-        1.  **Start with the Pareto Plot:** This is your primary diagnostic. It instantly shows which factors the model found to be the main drivers of the process.
-        2.  **Check the KPIs:** The metrics provide the model's prediction for the single "best" operating point to maximize yield.
-        3.  **Consult the Process Map:** The 2D plot is your operational guide. The green shaded area is your validated **Design Space (PAR)**. Any point within this space is a valid operating condition. The white-dashed **Normal Operating Range (NOR)** is the tighter target for routine production.
-
-        **Core Insight:** Real processes are rarely perfectly symmetrical. The **asymmetry** slider introduces a more realistic "cliff" effect, where performance drops off much faster on one side of the peak than the other. Notice that the quadratic statistical model can only approximate this complex reality, which is why visual confirmation via the process map is so crucial.
+        1.  **Start with the Pareto Plot:** This is your primary diagnostic. It instantly shows which factors are the main drivers. Green bars (significant effects) are the ones that build your predictive model.
+        2.  **Consult the Process Maps:** The **3D plot** gives you an intuitive feel for the "shape" of your process landscape. The **2D plot** is your operational guide, visualizing the green "safe zone" (**Design Space/PAR**) and the tighter white-dashed box for routine production (**NOR**).
+        
+        **Core Insight:** Real processes are rarely symmetrical. The **asymmetry** slider introduces a realistic "cliff" effect, where performance drops off faster on one side of the peak. This is why visually mapping the space is so crucial—a simple numerical optimum doesn't tell the whole story about process risk.
         """)
     
     with tabs[1]:

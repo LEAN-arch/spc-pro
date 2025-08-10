@@ -3109,7 +3109,6 @@ def plot_advanced_ai_concepts(concept, p1=0, p2=0, p3=0):
                           yaxis=dict(visible=False, showgrid=False, range=[0, 7]))
                       
     return fig
-
 #================================================================================================================================================================================================
 #=========================================================================NEW HYBRID METHODS ==================================================================================================
 #===========================================================================================================================================================================================
@@ -6035,6 +6034,7 @@ def render_advanced_ai_concepts():
     with col2:
         tabs = st.tabs(["💡 Application Insight", "✅ The Golden Rule", "📖 Theory & History"])
         
+        # This content remains largely the same, but is now driven by a single concept_key
         with tabs[0]:
             if concept_key == "Transformers":
                 st.metric(label="🧠 Core Concept", value="Self-Attention")

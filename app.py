@@ -3872,8 +3872,8 @@ def render_introduction_content():
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
 
 
-def render_v_model_single():
-    """Renders a dedicated page for the V-Model plot and its summary table."""
+def render_v_model_plot_only():
+    """Renders only the V-Model plot."""
     st.markdown("### The V&V Model: A Strategic Framework")
     st.markdown("""
     This plot illustrates the standard V-Model for system validation and technology transfer. It visually connects the initial user requirements and design specifications (the left side, **Verification**) to the final system qualification and user acceptance testing (the right side, **Validation**).
@@ -3883,15 +3883,15 @@ def render_v_model_single():
     # Render the static V-Model diagram
     fig = plot_v_model()
     st.plotly_chart(fig, use_container_width=True)
-    
-    # Renders the summary table separately below the diagram
-    st.markdown("---")
+
+def render_v_model_summary_table():
+    """Renders only the V-Model summary table."""
     st.markdown("### V-Model Activities by Context")
     st.markdown("The table below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different biotech contexts.")
     summary_df = create_v_model_summary_table()
     
     # Use st.dataframe for a well-formatted, scrollable table
-    st.dataframe(summary_df)
+    st.dataframe(summary_df, use_container_width=True)
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================
@@ -6916,11 +6916,12 @@ with st.sidebar:
 
     st.divider()
 
-    # --- THIS DICTIONARY NOW CONTAINS ALL NAVIGABLE ITEMS ---
+    # FIX: The all_tools dictionary is updated to treat the diagram and table as separate items.
+    # Replace the old all_tools dictionary with this one.
     all_tools = {
         "FRAMEWORK VISUALIZATIONS": [
-            "The V&V Model",
-            "V-Model Summary Table",
+            "The V-Model Diagram",         # Changed from "The V&V Model"
+            "V-Model Summary Table",       # New entry
             "Project Workflow Timeline",
             "Historical Timeline",
             "Conceptual Toolkit Map"
@@ -6965,14 +6966,17 @@ else:
     # Render the selected tool
     st.header(f"🔧 {view}")
 
-    # --- THIS DICTIONARY NOW CONTAINS ALL RENDER FUNCTIONS ---
+    # FIX: The PAGE_DISPATCHER is updated to point to the new, separated functions.
+    # Replace the old PAGE_DISPATCHER dictionary with this one.
     PAGE_DISPATCHER = {
         # Framework Visualizations
-        "The V&V Model": render_v_model_single,
-        "V-Model Summary Table": render_v_model_summary_table,
-        "Project Workflow Timeline": render_act_grouped_timeline_single,
-        "Historical Timeline": render_chronological_timeline_single,
-        "Conceptual Toolkit Map": render_conceptual_map_single,
+        "The V-Model Diagram": render_v_model_plot_only, # Points to the new plot function
+        "V-Model Summary Table": render_v_model_summary_table, # Points to the new table function
+        # NOTE: The render_act_grouped_timeline_single, etc. functions were not in the provided code,
+        # so they are removed here for clarity. The logic should be adapted if those functions exist.
+        "Project Workflow Timeline": lambda: st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True),
+        "Historical Timeline": lambda: st.plotly_chart(plot_chronological_timeline(), use_container_width=True),
+        "Conceptual Toolkit Map": lambda: st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True),
         
         # Act I
         "Confidence Interval Concept": render_ci_concept,
@@ -6997,7 +7001,7 @@ else:
         # Act III
         "Run Validation (Westgard)": render_multi_rule,
         "Multivariate SPC": render_multivariate_spc,
-        "Small Shift Detection": render_ewma_cusum,
+        "Small Shift Detection": render_ewma_cumum,
         "Time Series Analysis": render_time_series_analysis,
         "Stability Analysis (Shelf-Life)": render_stability_analysis,
         "Reliability / Survival Analysis": render_survival_analysis,

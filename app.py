@@ -1242,7 +1242,7 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     
     # Handle cases where n_samples is too small to calculate variance
     if n_samples <= 1:
-        return go.Figure(), 1.0, False, 0, 0, 0, 0
+        return go.Figure(), 1.0, False, 0, 0, 0, 0, 0
 
     std_err_diff = np.sqrt(var_A/n_samples + var_B/n_samples)
     df_welch = (std_err_diff**4) / ( ((var_A/n_samples)**2 / (n_samples-1)) + ((var_B/n_samples)**2 / (n_samples-1)) )
@@ -1279,7 +1279,6 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     ci_lower = diff_mean - ci_margin
     ci_upper = diff_mean + ci_margin
     
-    # SME Enhancement: Dynamic color for the CI bar
     ci_color = '#00CC96' if is_equivalent else '#EF553B' # Green for pass, Red for fail
     
     fig.add_trace(go.Scatter(
@@ -1301,7 +1300,8 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     fig.update_xaxes(title_text="Difference in Means (Method B - Method A)", row=2, col=1)
     fig.update_yaxes(showticklabels=False, row=2, col=1, range=[-1, 1])
     
-    return fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B
+    # --- THIS IS THE ONLY LINE THAT HAS CHANGED ---
+    return fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B, diff_mean
 
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (DOE/RSM) - SME ENHANCED
@@ -4632,7 +4632,8 @@ def render_tost():
             help="The number of samples per group. Higher sample size narrows the confidence interval, increasing your power to prove equivalence."
         )
     
-    fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B = plot_tost(
+    # --- THIS LINE IS UPDATED to unpack the new value ---
+    fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B, diff_mean = plot_tost(
         delta=delta_slider,
         true_diff=diff_slider,
         std_dev=sd_slider,
@@ -4656,6 +4657,22 @@ def render_tost():
 
             st.metric(label="p-value (TOST)", value=f"{p_tost:.4f}", help="If p < 0.05, we conclude equivalence.")
             st.metric(label="📊 Observed 90% CI for Difference", value=f"[{ci_lower:.2f}, {ci_upper:.2f}]")
+            
+            # --- THIS SECTION IS NEW AND IMPROVED ---
+            st.markdown("---")
+            st.metric(
+                label="📈 Observed Difference (from sample)",
+                value=f"{diff_mean:.2f}",
+                help="The difference calculated from this specific random sample. The CI in the plot is centered on this value."
+            )
+            st.metric(
+                label="⚙️ Underlying 'True' Difference",
+                value=f"{diff_slider:.2f}",
+                help="The value you set with the slider. Due to random sampling, the observed difference will not be exactly equal to this."
+            )
+            st.markdown("---")
+            # --- END OF IMPROVED SECTION ---
+
             st.metric(label="⚖️ Pre-defined Equivalence Margin", value=f"± {delta_slider:.1f} units")
             
             st.markdown("""
@@ -4665,7 +4682,7 @@ def render_tost():
             - **Observe a small difference**: If the true difference is small, the CI will be centered near zero.
             - **Widen the `Equivalence Margin`**: If scientifically justified, wider goalposts are easier to meet.
             """)
-
+        
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The Fallacy of the Non-Significant P-Value**
 - A scientist runs a standard t-test and gets a p-value of 0.25. They exclaim, *"Great, p > 0.05, so the methods are the same!"*
@@ -4693,6 +4710,7 @@ The TOST procedure forces a more rigorous scientific approach.
             
             A mathematically equivalent shortcut is to calculate the **90% confidence interval** for the difference. If this entire interval falls within `[-Δ, +Δ]`, you can conclude equivalence at the 5% significance level.
             """)
+            
         with tabs[3]:
             st.markdown("""
             TOST is the required statistical method for demonstrating similarity or equivalence in various regulated contexts.

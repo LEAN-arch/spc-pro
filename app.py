@@ -6748,14 +6748,14 @@ An alarm sounds. Engineers frantically check every individual parameter chart, t
         **The Modern Fusion:** This is where the AI revolution provided the missing piece. **XGBoost** (2014) offered a way to build highly accurate models to predict an alarm state, and **SHAP** (2017) provided the key to unlock that model's "black box." By fusing the robust statistical detection of MEWMA with the powerful, explainable diagnostics of XGBoost and SHAP, we finally solved the diagnostic bottleneck, creating a true "detect and diagnose" system.
         """)
     with tabs[2]:
-    st.markdown("""
-    These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-    - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
-    - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-    - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-    - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-    - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-    """)
+        st.markdown("""
+        These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+        - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
+        - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+        - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+        - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+        """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 2)
 # ==============================================================================

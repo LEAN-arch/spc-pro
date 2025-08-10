@@ -4486,7 +4486,12 @@ def render_diagnostic_validation_suite():
         st.markdown("##### Advanced & Model-Based Metrics")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("AUC", f"{metrics['Area Under Curve (AUC)']:.3f}", help="Area Under the ROC Curve. The probability a random diseased individual has a higher score than a random healthy one. A measure of overall test separability.")
-        c2.metric("Youden's Index (J)", f"{metrics['Youden\'s Index (J)']:.3f}", help="J = Sensitivity + Specificity - 1. The maximum vertical distance between the ROC curve and the diagonal line. Finds a single 'optimal' cutoff.")
+        # --- THIS IS THE DEFINITIVE FIX ---
+        # Get the value from the dictionary first
+        youdens_value = metrics["Youden's Index (J)"]
+        # Then use the variable in the f-string, which is always safe
+        c2.metric("Youden's Index (J)", f"{youdens_value:.3f}", help="J = Sensitivity + Specificity - 1. The maximum vertical distance between the ROC curve and the diagonal line. Finds a single 'optimal' cutoff.")
+        # --- END OF DEFINITIVE FIX ---
         c3.metric("Positive LR (+)", f"{metrics['Positive Likelihood Ratio (LR+)']:.2f}", help="LR+ = Sens / (1 - Spec). How much more likely a positive test is to be seen in a diseased person vs. a healthy one. >10 is considered strong evidence.")
         c4.metric("Log-Loss", f"{metrics['Log-Loss (Cross-Entropy)']:.3f}", help="A measure of a probabilistic model's accuracy. It heavily penalizes being confidently wrong. Lower is better.")
         

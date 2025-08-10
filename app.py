@@ -140,62 +140,59 @@ def plot_v_model():
     
     return fig
 
-def render_v_model_summary_table():
+def create_v_model_summary_table():
     """
-    Creates and renders a styled DataFrame summarizing the V-Model contexts.
-    This is a self-contained component.
+    Creates a pandas DataFrame summarizing the V-Model contexts for display as a table.
     """
-    st.markdown("### V-Model Activities by Context")
-    st.markdown("The table below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different biotech contexts.")
-    
-    # Data is defined directly inside the rendering function for simplicity and robustness
-    all_contexts_data = {
+    all_contexts = {
         'Assay Method': {
-            'URS': 'Target Product Profile (TPP), Required sensitivity/specificity',
-            'FS':  'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals',
-            'DS':  'Reagent selection, SOP drafting, Robustness DOE plan',
-            'BUILD': 'Method development experiments, SOP finalization, Analyst training',
-            'IQOQ':'Reagent qualification, Instrument calibration for this assay',
-            'PQ':  'Intermediate Precision, Gage R&R, Method Comparison',
-            'VAL': 'Final Validation Report, Control charting plan'
+            'URS': {'tools': 'Target Product Profile (TPP), Required sensitivity/specificity'},
+            'FS':  {'tools': 'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals'},
+            'DS':  {'tools': 'Reagent selection, SOP drafting, Robustness DOE plan'},
+            'BUILD': {'tools': 'Method development experiments, SOP finalization, Analyst training'},
+            'IQOQ':{'tools': 'Reagent qualification, Instrument calibration for this assay'},
+            'PQ':  {'tools': 'Intermediate Precision, Gage R&R, Method Comparison'},
+            'VAL': {'tools': 'Final Validation Report, Control charting plan'}
         },
         'Instrument': {
-            'URS': 'Required throughput, Sample types, User skill level',
-            'FS':  'Automation level, Data output format (LIMS), Footprint',
-            'DS':  'Vendor selection, Site prep requirements, Service contract',
-            'BUILD': 'Purchase, Delivery, Physical installation',
-            'IQOQ':'Utility connections check (IQ), Factory tests run (OQ)',
-            'PQ':  'Performance on representative samples, Throughput testing',
-            'VAL': 'System meets all URS criteria, Final release for GMP use'
+            'URS': {'tools': 'Required throughput, Sample types, User skill level'},
+            'FS':  {'tools': 'Automation level, Data output format (LIMS), Footprint'},
+            'DS':  {'tools': 'Vendor selection, Site prep requirements, Service contract'},
+            'BUILD': {'tools': 'Purchase, Delivery, Physical installation'},
+            'IQOQ':{'tools': 'Utility connections check (IQ), Factory tests run (OQ)'},
+            'PQ':  {'tools': 'Performance on representative samples, Throughput testing'},
+            'VAL': {'tools': 'System meets all URS criteria, Final release for GMP use'}
         },
         'Software System': {
-            'URS': 'Business process map, 21 CFR Part 11 requirements',
-            'FS':  'User roles, Required calculations, Audit trail specifications',
-            'DS':  'System architecture, Database schema, UI mockups',
-            'BUILD': 'Coding, Configuration of COTS system, Writing user manuals',
-            'IQOQ':'Server setup validation (IQ), Unit & Integration testing (OQ)',
-            'PQ':  'User Acceptance Testing (UAT) with real-world scenarios',
-            'VAL': 'System Validation Report, Release notes, Go-live approval'
+            'URS': {'tools': 'Business process map, 21 CFR Part 11 requirements'},
+            'FS':  {'tools': 'User roles, Required calculations, Audit trail specifications'},
+            'DS':  {'tools': 'System architecture, Database schema, UI mockups'},
+            'BUILD': {'tools': 'Coding, Configuration of COTS system, Writing user manuals'},
+            'IQOQ':{'tools': 'Server setup validation (IQ), Unit & Integration testing (OQ)'},
+            'PQ':  {'tools': 'User Acceptance Testing (UAT) with real-world scenarios'},
+            'VAL': {'tools': 'System Validation Report, Release notes, Go-live approval'}
         },
         'Manufacturing Process': {
-            'URS': 'Target yield, Critical Quality Attributes (CQAs), Cost of goods',
-            'FS':  'Unit operations (e.g., cell culture, purification), In-Process Controls (IPCs)',
-            'DS':  'Process parameters (CPPs), Bill of Materials, Scale-down model design',
-            'BUILD': 'Engineering runs, Master Batch Record (MBR) authoring',
-            'IQOQ':'Facility/utility qualification, Equipment commissioning',
-            'PQ':  'Process Performance Qualification (PPQ) runs, Cpk analysis',
-            'VAL': 'Final PPQ report, Submission to regulatory agency'
+            'URS': {'tools': 'Target yield, Critical Quality Attributes (CQAs), Cost of goods'},
+            'FS':  {'tools': 'Unit operations (e.g., cell culture, purification), In-Process Controls (IPCs)'},
+            'DS':  {'tools': 'Process parameters (CPPs), Bill of Materials, Scale-down model design'},
+            'BUILD': {'tools': 'Engineering runs, Master Batch Record (MBR) authoring'},
+            'IQOQ':{'tools': 'Facility/utility qualification, Equipment commissioning'},
+            'PQ':  {'tools': 'Process Performance Qualification (PPQ) runs, Cpk analysis'},
+            'VAL': {'tools': 'Final PPQ report, Submission to regulatory agency'}
         }
     }
     
-    # Correctly flatten the dictionary for DataFrame creation
     df_data = {}
-    for context, stages in all_contexts_data.items():
-        df_data[context] = {stage: data for stage, data in stages.items()}
+    for context, stages in all_contexts.items():
+        # --- THIS IS THE CRITICAL FIX ---
+        # The original code was {stage: data}, which assigned a dictionary to the cell.
+        # This corrected version {stage: data['tools']} extracts the string value.
+        df_data[context] = {stage: data['tools'] for stage, data in stages.items()}
+        # --- END OF FIX ---
 
-    summary_df = pd.DataFrame(df_data)
+    df = pd.DataFrame(df_data)
     
-    # Define the correct order and names for the index
     stage_order = ['URS', 'FS', 'DS', 'BUILD', 'IQOQ', 'PQ', 'VAL']
     stage_names = {
         'URS': 'User Requirements', 'FS': 'Functional Specs', 'DS': 'Design Specs',
@@ -203,13 +200,11 @@ def render_v_model_summary_table():
         'VAL': 'Final Validation'
     }
     
-    summary_df = summary_df.reindex(stage_order)
-    summary_df.index = summary_df.index.map(lambda key: f"{stage_names[key]}")
-    summary_df.index.name = "V-Model Stage"
+    df = df.reindex(stage_order)
+    df.index = df.index.map(lambda key: f"{stage_names[key]}")
+    df.index.name = "V-Model Stage"
     
-    # Use st.dataframe for robust, well-formatted rendering
-    st.dataframe(summary_df, use_container_width=True)
-
+    return df
 # --- RESTORED PLOTTING FUNCTION 2 ---
 @st.cache_data
 def plot_act_grouped_timeline():

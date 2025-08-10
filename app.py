@@ -6903,7 +6903,6 @@ Different types of process failures leave different signatures in the data. A ro
 # ==============================================================================
 
 # --- Initialize Session State ---
-# The default view will now be 'Introduction'.
 if 'current_view' not in st.session_state:
     st.session_state.current_view = 'Introduction'
 
@@ -6911,19 +6910,41 @@ if 'current_view' not in st.session_state:
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")
     
-    # FIX: A single, dedicated button for the introduction/framework page.
     if st.sidebar.button("🚀 Project Framework", use_container_width=True):
         st.session_state.current_view = 'Introduction'
-        # We can add a rerun for immediate feedback if needed, but often not necessary.
         st.rerun()
 
     st.divider()
 
-    # The dictionary now ONLY contains the tools, grouped by Act.
+    # --- THIS DICTIONARY NOW CONTAINS ALL NAVIGABLE ITEMS ---
     all_tools = {
-        "ACT I: FOUNDATION & CHARACTERIZATION": ["Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Split-Plot Designs", "Causal Inference"],
-        "ACT II: TRANSFER & STABILITY": ["Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", "Method Comparison", "Bayesian Inference"],
-        "ACT III: LIFECYCLE & PREDICTIVE MGMT": ["Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", "Time Series Analysis", "Stability Analysis (Shelf-Life)", "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", "Clustering (Unsupervised)", "Predictive QC (Classification)", "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts", "MEWMA + XGBoost Diagnostics", "BOCPD + ML Features", "Kalman Filter + Residual Chart", "RL for Chart Tuning", "TCN + CUSUM", "LSTM Autoencoder + Hybrid Monitoring"]
+        "FRAMEWORK VISUALIZATIONS": [
+            "The V&V Model",
+            "V-Model Summary Table",
+            "Project Workflow Timeline",
+            "Historical Timeline",
+            "Conceptual Toolkit Map"
+        ],
+        "ACT I: FOUNDATION & CHARACTERIZATION": [
+            "Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", 
+            "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", 
+            "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", 
+            "Split-Plot Designs", "Causal Inference"
+        ],
+        "ACT II: TRANSFER & STABILITY": [
+            "Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", 
+            "Method Comparison", "Bayesian Inference"
+        ],
+        "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
+            "Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", 
+            "Time Series Analysis", "Stability Analysis (Shelf-Life)", 
+            "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", 
+            "Clustering (Unsupervised)", "Predictive QC (Classification)", 
+            "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts", 
+            "MEWMA + XGBoost Diagnostics", "BOCPD + ML Features", 
+            "Kalman Filter + Residual Chart", "RL for Chart Tuning", 
+            "TCN + CUSUM", "LSTM Autoencoder + Hybrid Monitoring"
+        ]
     }
 
     # The loop for creating tool buttons remains the same.
@@ -6937,14 +6958,23 @@ with st.sidebar:
 # --- Main Content Area Dispatcher ---
 view = st.session_state.current_view
 
-# FIX: The logic is now much simpler.
+# The logic is now much simpler.
 if view == 'Introduction':
     render_introduction_content()
 else:
     # Render the selected tool
     st.header(f"🔧 {view}")
 
+    # --- THIS DICTIONARY NOW CONTAINS ALL RENDER FUNCTIONS ---
     PAGE_DISPATCHER = {
+        # Framework Visualizations
+        "The V&V Model": render_v_model_single,
+        "V-Model Summary Table": render_v_model_summary_table,
+        "Project Workflow Timeline": render_act_grouped_timeline_single,
+        "Historical Timeline": render_chronological_timeline_single,
+        "Conceptual Toolkit Map": render_conceptual_map_single,
+        
+        # Act I
         "Confidence Interval Concept": render_ci_concept,
         "Core Validation Parameters": render_core_validation_params,
         "Gage R&R / VCA": render_gage_rr,
@@ -6956,14 +6986,18 @@ else:
         "Assay Robustness (DOE)": render_assay_robustness_doe,
         "Split-Plot Designs": render_split_plot,
         "Causal Inference": render_causal_inference,
+        
+        # Act II
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,
         "Tolerance Intervals": render_tolerance_intervals,
         "Method Comparison": render_method_comparison,
         "Bayesian Inference": render_bayesian,
+        
+        # Act III
         "Run Validation (Westgard)": render_multi_rule,
         "Multivariate SPC": render_multivariate_spc,
-        "Small Shift Detection": render_ewma_cusum, # FIX: Added the new function here
+        "Small Shift Detection": render_ewma_cusum,
         "Time Series Analysis": render_time_series_analysis,
         "Stability Analysis (Shelf-Life)": render_stability_analysis,
         "Reliability / Survival Analysis": render_survival_analysis,

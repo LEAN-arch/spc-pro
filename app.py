@@ -3304,19 +3304,20 @@ def plot_bocpd_ml_features(autocorr_shift=0.4, noise_increase=2.0):
     return fig, prob_rl_zero[change_point]
 
 @st.cache_data
-def plot_kalman_nn_residual(process_drift=0.1, measurement_noise=1.0, shock_magnitude=10.0):
+def plot_kalman_nn_residual(measurement_noise=1.0, shock_magnitude=10.0, process_noise_q=0.01):
     """
-    Simulates a Kalman Filter tracking a process, with a control chart on the residuals.
+    Generates an enhanced, more realistic Kalman Filter dashboard, simulating a non-linear
+    process and visualizing the filter's uncertainty.
     """
     np.random.seed(123)
     n_points = 100
     
-    # 1. --- Simulate a Dynamic Process with a Shock ---
-    true_state = np.zeros(n_points)
-    for i in range(1, n_points):
-        true_state[i] = true_state[i-1] + process_drift
+    # --- 1. SME Enhancement: Simulate a more realistic non-linear dynamic process ---
+    # A damped sine wave, representing a process settling to a steady state.
+    time = np.arange(n_points)
+    true_state = 100 + 20 * np.exp(-time / 50) * np.sin(time / 5)
     
-    # Add a sudden, unexpected shock
+    # Add a sudden, unexpected shock (fault)
     shock_point = 70
     true_state[shock_point:] += shock_magnitude
     
@@ -3324,9 +3325,12 @@ def plot_kalman_nn_residual(process_drift=0.1, measurement_noise=1.0, shock_magn
     measurements = true_state + np.random.normal(0, measurement_noise, n_points)
     
     # 2. --- Kalman Filter Implementation ---
-    # Model assumes a simple, constant velocity (drift)
-    q_val = 0.01 # Process noise (model uncertainty)
-    r_val = measurement_noise**2 # Measurement noise (known from sensor)
+    # The filter's internal model is a simple linear approximation of the true non-linear process
+    # This mismatch is what a Neural Network would be used to correct in a real application.
+    F = 1 # State transition matrix (assumes random walk)
+    H = 1 # Measurement matrix
+    Q = process_noise_q # Process noise (model uncertainty) - NOW A SLIDER
+    R = measurement_noise**2 # Measurement noise (known from sensor)
     
     x_est = np.zeros(n_points) # Estimated state
     p_est = np.zeros(n_points) # Estimated error covariance
@@ -3337,44 +3341,63 @@ def plot_kalman_nn_residual(process_drift=0.1, measurement_noise=1.0, shock_magn
     
     for k in range(1, n_points):
         # Predict
-        x_pred = x_est[k-1] + process_drift
-        p_pred = p_est[k-1] + q_val
+        x_pred = F * x_est[k-1]
+        p_pred = F * p_est[k-1] * F + Q
         
         # Update
-        kalman_gain = p_pred / (p_pred + r_val)
-        residuals[k] = measurements[k] - x_pred
-        x_est[k] = x_pred + kalman_gain * residuals[k]
-        p_est[k] = (1 - kalman_gain) * p_pred
+        residual = measurements[k] - H * x_pred
+        S = H * p_pred * H + R
+        K = p_pred * H / S # Kalman Gain
+        
+        x_est[k] = x_pred + K * residual
+        p_est[k] = (1 - K * H) * p_pred
+        residuals[k] = residual
 
     # 3. --- Control Chart on Residuals ---
-    # Use first 60 stable points to establish limits
-    res_mean = np.mean(residuals[:60])
-    res_std = np.std(residuals[:60])
-    ucl, lcl = res_mean + 3 * res_std, res_mean - 3 * res_std
+    limit_data = residuals[:shock_point-1]
+    res_std = np.std(limit_data)
+    ucl, lcl = 3 * res_std, -3 * res_std
     
-    ooc_points = np.where((residuals > ucl) | (residuals < lcl))[0]
-    first_ooc = ooc_points[0] if len(ooc_points) > 0 else None
+    ooc_indices = np.where((residuals > ucl) | (residuals < lcl))[0]
+    first_ooc = ooc_indices[0] if len(ooc_indices) > 0 else None
     
-    # 4. --- Plotting ---
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=("Kalman Filter State Estimation", "Kalman Filter Residuals (Innovations)",
-                                        "Control Chart on Residuals"))
+    # --- 4. Plotting Dashboard ---
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=("<b>1. State Estimation: Tracking a Noisy Process</b>",
+                                        "<b>2. Fault Detection: Control Chart on Residuals</b>"))
 
-    fig.add_trace(go.Scatter(y=measurements, mode='markers', name='Measurements', marker=dict(opacity=0.6)), row=1, col=1)
-    fig.add_trace(go.Scatter(y=true_state, mode='lines', name='True State', line=dict(dash='dash', color='black')), row=1, col=1)
-    fig.add_trace(go.Scatter(y=x_est, mode='lines', name='Kalman Estimate', line=dict(color='red')), row=1, col=1)
+    # Plot 1: State Estimation
+    fig.add_trace(go.Scatter(x=time, y=measurements, mode='markers', name='Noisy Measurements',
+                             marker=dict(color='grey', opacity=0.7)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=time, y=true_state, mode='lines', name='True Hidden State',
+                             line=dict(dash='dash', color='black', width=3)), row=1, col=1)
+    # SME Enhancement: Show filter's uncertainty bounds
+    upper_bound = x_est + np.sqrt(p_est)
+    lower_bound = x_est - np.sqrt(p_est)
+    fig.add_trace(go.Scatter(x=time, y=upper_bound, mode='lines', line=dict(width=0), showlegend=False), row=1, col=1)
+    fig.add_trace(go.Scatter(x=time, y=lower_bound, mode='lines', line=dict(width=0), fill='tonexty',
+                             fillcolor='rgba(255,0,0,0.2)', name='Kalman Uncertainty (±1σ)'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=time, y=x_est, mode='lines', name='Kalman Estimate',
+                             line=dict(color='red', width=3)), row=1, col=1)
 
-    fig.add_trace(go.Scatter(y=residuals, mode='lines+markers', name='Residuals'), row=2, col=1)
-    
-    fig.add_trace(go.Scatter(y=residuals, mode='lines+markers', name='Residuals', showlegend=False), row=3, col=1)
-    fig.add_hline(y=ucl, line_color='red', row=3, col=1)
-    fig.add_hline(y=lcl, line_color='red', row=3, col=1)
+    # Plot 2: Residuals Control Chart
+    fig.add_trace(go.Scatter(x=time, y=residuals, mode='lines+markers', name='Residuals',
+                             line=dict(color='#636EFA')), row=2, col=1)
     if first_ooc:
-        fig.add_trace(go.Scatter(x=[first_ooc], y=[residuals[first_ooc]], mode='markers',
-                                 marker=dict(color='red', size=12, symbol='x'), name='Alarm'), row=3, col=1)
-    fig.add_vline(x=shock_point, line_dash='dash', line_color='red', annotation_text='Process Shock', row='all', col=1)
-    fig.update_layout(height=800, title_text="<b>Kalman Filter with Residual Control Chart</b>")
-    fig.update_xaxes(title_text="Time", row=3, col=1)
+        fig.add_trace(go.Scatter(x=[first_ooc], y=[residuals[first_ooc]], mode='markers', name='Alarm',
+                                 marker=dict(color='red', size=12, symbol='x')), row=2, col=1)
+    fig.add_hline(y=ucl, line_color='red', row=2, col=1)
+    fig.add_hline(y=lcl, line_color='red', row=2, col=1)
+    fig.add_hline(y=0, line_color='black', line_dash='dash', row=2, col=1)
+    
+    fig.add_vline(x=shock_point, line_dash='dot', line_color='red',
+                  annotation_text='Process Shock', annotation_position='top', row='all', col=1)
+    
+    fig.update_layout(height=800, title_text="<b>Kalman Filter for State Estimation & Fault Detection</b>",
+                      legend=dict(yanchor="top", y=0.98, xanchor="left", x=0.01))
+    fig.update_yaxes(title_text="Value", row=1, col=1)
+    fig.update_yaxes(title_text="Residual (Surprise)", row=2, col=1)
+    fig.update_xaxes(title_text="Time", row=2, col=1)
     
     return fig, first_ooc
 

@@ -7511,7 +7511,7 @@ else:
         "Causal Inference": render_causal_inference,
         
         # Act II
-        "Sample Size for Qualification": render_render_sample_size_calculator,
+        "Sample Size for Qualification": render_sample_size_calculator,
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,
         "Tolerance Intervals": render_tolerance_intervals,

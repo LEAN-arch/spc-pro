@@ -4738,13 +4738,11 @@ def render_assay_robustness_doe():
     
     st.header("Results Dashboard")
     
-    # --- Redesigned Layout ---
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Statistical Analysis")
         st.markdown("The Pareto plot identifies the vital few factors, while the ANOVA table provides the statistical proof.")
         
-        # Display Pareto plot and ANOVA table in tabs
         tab1, tab2 = st.tabs(["Pareto Plot of Effects", "ANOVA Table"])
         with tab1:
             st.plotly_chart(fig_pareto, use_container_width=True)
@@ -4761,7 +4759,6 @@ def render_assay_robustness_doe():
         m2.metric("Optimal Temp (°C)", f"{opt_temp:.2f}")
         m3.metric("Max Response", f"{max_resp:.1f}")
         
-        # Explanation of the plots below
         st.markdown("""
         **Interpreting the Visuals:**
         - **Contour Plot:** A 2D topographical map. The "bullseye" of concentric circles (if present) marks the optimal region. The gold star shows the model's predicted peak.
@@ -4776,10 +4773,13 @@ def render_assay_robustness_doe():
     with col4:
         st.plotly_chart(fig_3d, use_container_width=True)
         
-    # Keep the original tabs for theory and context
     st.divider()
     st.subheader("Deeper Dive")
+    
+    # --- THIS IS THE LINE THAT WAS FIXED ---
     tabs_deep = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    # --- END OF FIX ---
+    
     with tabs_deep[0]:
         st.markdown("""
         - **Pareto Plot is Key:** This is your primary diagnostic. It instantly shows you which factors (linear, interaction, quadratic) are the main drivers of the process. Green bars are statistically significant (p < 0.05).
@@ -4801,11 +4801,8 @@ By testing factors in combination using a dedicated design (like a Central Compo
         st.markdown("""
         #### Historical Context: From Screening to Optimization
         **The Problem (The Genesis):** In the 1920s, **Sir Ronald A. Fisher** invented Design of Experiments to solve agricultural problems. His factorial designs were brilliant for *screening*—efficiently figuring out *which* factors (e.g., fertilizer type, seed variety) were important.
-
         **The New Problem (Optimization):** The post-war chemical industry boom created a new need: not just to know *which* factors mattered, but *how to find their optimal settings*. A simple factorial design, which only tests the corners of the design space, can't model curvature and therefore can't find a peak.
-
         **The 'Aha!' Moment (RSM):** In 1951, **George Box** and K.B. Wilson developed **Response Surface Methodology (RSM)** to solve this. They created efficient new designs, like the **Central Composite Design (CCD)** shown here, which cleverly adds "axial" (star) points and center points to a factorial design. 
-        
         **The Impact:** These extra points allow for the fitting of a **quadratic model**, which is the key to modeling curvature and finding the "peak of the mountain." This moved DOE from simple screening to true, powerful optimization, becoming the statistical foundation of modern process development and Quality by Design (QbD).
         """)
         st.markdown("#### Mathematical Basis")
@@ -4819,14 +4816,14 @@ By testing factors in combination using a dedicated design (like a Central Compo
         - `ϵ`: The random experimental error.
         To get stable estimates of these coefficients, the analysis is performed on **coded variables**, where the high and low levels of each factor are scaled to be +1 and -1, respectively.
         """)
-    with tabs[3]:
+        
+    with tabs_deep[3]:
         st.markdown("""
         DOE and RSM are core methodologies for fulfilling the principles of Quality by Design (QbD), which is strongly encouraged by regulators.
         - **ICH Q8(R2) - Pharmaceutical Development:** This guideline introduces the concept of the **Design Space**, which is defined as "the multidimensional combination and interaction of input variables... that has been demonstrated to provide assurance of quality." RSM is the primary statistical tool used to establish a Design Space.
         - **ICH Q2(R1) - Validation of Analytical Procedures:** Requires the assessment of **Robustness**, which is typically evaluated through a DOE by making small, deliberate variations in method parameters.
         - **FDA Guidance on Process Validation:** Emphasizes a lifecycle approach and process understanding, which are best achieved through the systematic study of process parameters using DOE.
         """)
-
 
 def render_split_plot():
     """Renders the module for Split-Plot Designs."""

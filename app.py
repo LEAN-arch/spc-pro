@@ -4508,7 +4508,9 @@ def render_diagnostic_validation_suite():
         st.markdown("##### Advanced & Model-Based Metrics")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("AUC", f"{metrics['Area Under Curve (AUC)']:.3f}")
-        c2.metric("Youden's Index (J)", f'{metrics["Youden\'s Index (J)"]:.3f}')
+        youdens_value = metrics["Youden's Index (J)"]
+        # Then use the variable in the f-string, which is always safe
+        c2.metric("Youden's Index (J)", f"{youdens_value:.3f}")
         c3.metric("Positive LR (+)", f"{metrics['Positive Likelihood Ratio (LR+)']:.2f}")
         c4.metric("Log-Loss", f"{metrics['Log-Loss (Cross-Entropy)']:.3f}")
         

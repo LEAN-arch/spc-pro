@@ -3411,7 +3411,7 @@ def plot_kalman_nn_residual(measurement_noise=1.0, shock_magnitude=10.0, process
     return fig, first_ooc
 
 # ==============================================================================
-# HELPER & PLOTTING FUNCTION (Method 4) - SME ENHANCED
+# HELPER & PLOTTING FUNCTION (Method 4) - SME ENHANCED & CORRECTED
 # ==============================================================================
 @st.cache_data
 def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
@@ -3423,47 +3423,48 @@ def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
     lambdas = np.linspace(0.05, 0.5, 20)
     Ls = np.linspace(2.5, 3.5, 20) # Control limit widths
     
-    # --- Pre-calculate Performance (ARL) over the grid ---
-    # ARL0 = average time to a false alarm. ARL1 = average time to detect a true shift.
+    # Pre-calculate Performance (ARL) over the grid
     arl0_grid = np.zeros((len(Ls), len(lambdas)))
     arl1_grid = np.zeros((len(Ls), len(lambdas)))
     
     for i, L in enumerate(Ls):
         for j, lam in enumerate(lambdas):
-            # These are well-known approximations for EWMA ARL
-            # Using stable approximations to avoid numerical issues
             delta = shift_size * np.sqrt(lam / (2 - lam))
             L_eff = L
             
             # ARL for an in-control process (time to false alarm)
-            arl0_grid[i, j] = (np.exp(-2*L_eff*delta) * (1 + 2*L_eff*delta) + np.exp(2*L_eff*delta) * (1 - 2*L_eff*delta)) / (2*delta**2)
-            if delta == 0: arl0_grid[i, j] = 2 * (np.exp(L_eff**2) / (L_eff * np.sqrt(2*np.pi))) # simplified for shift=0
-            
+            arl0_grid[i, j] = (np.exp(-2*L_eff*delta) * (1 + 2*L_eff*delta) + np.exp(2*L_eff*delta) * (1 - 2*L_eff*delta)) / (2*delta**2) if delta != 0 else np.inf
+            if arl0_grid[i,j] == np.inf or arl0_grid[i,j] < 1:
+                arl0_grid[i, j] = 1e9 # Use a large number for stability
+
             # ARL for an out-of-control process (time to detection)
-            arl1_grid[i, j] = (np.exp(-2*(L_eff-delta)*delta) + 2*(L_eff-delta)*delta - 1) / (2*delta**2)
-            if delta == L_eff: arl1_grid[i,j] = 1 # handle case where denominator is 0
-            if arl1_grid[i, j] <= 0: arl1_grid[i,j] = 1e-6 # floor at a small value
+            arl1_grid[i, j] = (np.exp(-2*(L_eff-delta)*delta) + 2*(L_eff-delta)*delta - 1) / (2*delta**2) if delta != 0 else np.inf
+            if arl1_grid[i, j] <= 0 or arl1_grid[i, j] == np.inf:
+                arl1_grid[i, j] = 1 # Minimum detection time is 1
 
     # 2. --- Calculate Economic Cost over the grid ---
     cost_fa = cost_false_alarm / arl0_grid
     cost_delay = cost_delay_unit * arl1_grid
     total_cost_grid = cost_fa + cost_delay
     
-    # Find the optimal parameters that the RL agent would have chosen
+    # Find the optimal parameters
     min_idx = np.unravel_index(np.argmin(total_cost_grid), total_cost_grid.shape)
     optimal_L = Ls[min_idx[0]]
     optimal_lambda = lambdas[min_idx[1]]
     min_cost = total_cost_grid[min_idx]
     
-    # 3. --- Plotting Dashboard ---
+    # --- 3. Plotting Dashboard ---
+    # --- THIS IS THE CORRECTED BLOCK ---
+    # The subplot type at position (2, 1) has been changed from "contour" to "xy".
     fig = make_subplots(
         rows=2, cols=2,
         specs=[[{"type": "surface"}, {"type": "contour"}],
-               [{"type": "contour"}, {"type": "xy"}]],
+               [{"type": "xy"}, {"type": "contour"}]], # Corrected from "contour" to "xy"
         subplot_titles=("<b>1. Economic Cost Surface</b>", "<b>2. ARL₀ (Time to False Alarm)</b>",
-                        "<b>3. ARL₁ (Time to Detect)</b>", f"<b>4. Optimal EWMA Chart</b>"),
+                        "<b>3. Optimal EWMA Chart</b>", "<b>4. ARL₁ (Time to Detect)</b>"),
         vertical_spacing=0.15, horizontal_spacing=0.1
     )
+    # --- END OF CORRECTION ---
 
     # Plot 1: 3D Cost Surface
     fig.add_trace(go.Surface(x=lambdas, y=Ls, z=total_cost_grid, colorscale='Viridis', showscale=False), row=1, col=1)
@@ -3476,13 +3477,7 @@ def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
     fig.add_trace(go.Scatter(x=[optimal_lambda], y=[optimal_L], mode='markers',
                              marker=dict(color='red', size=12, symbol='x')), row=1, col=2)
     
-    # Plot 3: ARL1 Contour
-    fig.add_trace(go.Contour(x=lambdas, y=Ls, z=arl1_grid, colorscale='Reds',
-                             contours=dict(showlabels=True), name="ARL₁"), row=2, col=2)
-    fig.add_trace(go.Scatter(x=[optimal_lambda], y=[optimal_L], mode='markers',
-                             marker=dict(color='black', size=12, symbol='x')), row=2, col=2)
-                             
-    # Plot 4: Resulting Optimal EWMA chart
+    # Plot 3: Resulting Optimal EWMA chart (now at row=2, col=1)
     np.random.seed(42)
     n_points_chart = 50
     data = np.random.normal(0, 1, n_points_chart)
@@ -3495,12 +3490,18 @@ def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
     fig.add_hline(y=-ucl, line_color='red', row=2, col=1)
     fig.add_vline(x=25, line_dash='dash', line_color='red', row=2, col=1)
     
+    # Plot 4: ARL1 Contour (now at row=2, col=2)
+    fig.add_trace(go.Contour(x=lambdas, y=Ls, z=arl1_grid, colorscale='Reds',
+                             contours=dict(showlabels=True), name="ARL₁"), row=2, col=2)
+    fig.add_trace(go.Scatter(x=[optimal_lambda], y=[optimal_L], mode='markers',
+                             marker=dict(color='black', size=12, symbol='x')), row=2, col=2)
+                             
     # Layout and Axis Titles
     fig.update_layout(height=800, title_text=f"<b>EWMA Economic Design Dashboard (Target Shift: {shift_size}σ)</b>", title_x=0.5, showlegend=False)
     fig.update_scenes(xaxis_title_text='Lambda (λ)', yaxis_title_text='Limit Width (L)', zaxis_title_text='Total Cost', row=1, col=1)
     fig.update_xaxes(title_text='Lambda (λ)', row=1, col=2); fig.update_yaxes(title_text='Limit Width (L)', row=1, col=2)
-    fig.update_xaxes(title_text='Lambda (λ)', row=2, col=2); fig.update_yaxes(title_text='Limit Width (L)', row=2, col=2)
     fig.update_xaxes(title_text='Observation Number', row=2, col=1); fig.update_yaxes(title_text='EWMA Value', row=2, col=1)
+    fig.update_xaxes(title_text='Lambda (λ)', row=2, col=2); fig.update_yaxes(title_text='Limit Width (L)', row=2, col=2)
 
     return fig, optimal_lambda, optimal_L, min_cost
 

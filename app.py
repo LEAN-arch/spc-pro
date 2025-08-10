@@ -6298,79 +6298,103 @@ For complex, dynamic processes, the most sensitive way to detect a change is to:
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 3)
 # ==============================================================================
-def render_kalman_nn_residual():
-    """Renders the Kalman Filter + Residual Chart module."""
-    st.markdown("""
-    #### Purpose & Application: The AI Navigator
-    **Purpose:** To track and predict the state of a dynamic process in real-time, even with noisy sensor data. The **Kalman Filter** acts as an optimal "navigator," constantly predicting the process's next move and then correcting its course based on the latest measurement. The key output is the **residual**—the degree of "surprise" at each measurement.
+@st.cache_data
+def plot_kalman_nn_residual(measurement_noise=1.0, shock_magnitude=10.0, process_noise_q=0.01):
+    """
+    Generates an enhanced, more realistic Kalman Filter dashboard, simulating a non-linear
+    process and visualizing the filter's uncertainty.
+    """
+    np.random.seed(123)
+    n_points = 100
     
-    **Strategic Application:** This is fundamental for state estimation in any time-varying system (e.g., cell growth, degradation kinetics).
-    - **Intelligent Filtering:** Provides a smooth, real-time estimate of a process's true state, filtering out sensor noise.
-    - **Early Fault Detection:** By placing a control chart on the residuals, we create a highly sensitive alarm system. If the process behaves in a way the Kalman Filter didn't predict, the residuals will jump out of their normal range, signaling a fault long before the raw data looks abnormal.
-    - **Foundation for Control:** The state estimate from a Kalman Filter is the essential input for advanced process control systems.
-    """)
-    st.info("""
-    **Interactive Demo:** Use the sliders to change the process dynamics. At time #70, a sudden shock is introduced.
-    - **`Process Drift`**: A higher drift makes the underlying trend steeper.
-    - **`Shock Magnitude`**: Controls how large the unexpected event is. Watch how the residual chart (middle) spikes at the moment of the shock.
-    - **`Measurement Noise`**: Simulates a noisier sensor. Notice how the Kalman estimate (red line) becomes smoother relative to the noisy measurements.
-    """)
-    st.sidebar.subheader("Kalman Filter Controls")
-    drift_slider = st.sidebar.slider("Process Drift Rate", 0.0, 0.5, 0.1, 0.05,
-        help="The true, underlying rate of change of the process state at each time step. Simulates a slow, consistent drift.")
-    noise_slider = st.sidebar.slider("Measurement Noise (SD)", 0.5, 5.0, 1.0, 0.5,
-        help="The standard deviation of the sensor noise. Higher values make the blue 'Measurement' points more scattered.")
-    shock_slider = st.sidebar.slider("Process Shock Magnitude", 1.0, 20.0, 10.0, 1.0,
-        help="The magnitude of the sudden, unexpected event that occurs at time #70. This tests the residual chart's ability to detect faults.")
-
-    fig, alarm_time = plot_kalman_nn_residual(process_drift=drift_slider, measurement_noise=noise_slider, shock_magnitude=shock_slider)
+    # --- 1. SME Enhancement: Simulate a more realistic non-linear dynamic process ---
+    # A damped sine wave, representing a process settling to a steady state.
+    time = np.arange(n_points)
+    true_state = 100 + 20 * np.exp(-time / 50) * np.sin(time / 5)
     
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
+    # Add a sudden, unexpected shock (fault)
+    shock_point = 70
+    true_state[shock_point:] += shock_magnitude
+    
+    # Create noisy measurements
+    measurements = true_state + np.random.normal(0, measurement_noise, n_points)
+    
+    # 2. --- Kalman Filter Implementation ---
+    # The filter's internal model is a simple linear approximation of the true non-linear process
+    # This mismatch is what a Neural Network would be used to correct in a real application.
+    F = 1 # State transition matrix (assumes random walk)
+    H = 1 # Measurement matrix
+    Q = process_noise_q # Process noise (model uncertainty) - NOW A SLIDER
+    R = measurement_noise**2 # Measurement noise (known from sensor)
+    
+    x_est = np.zeros(n_points) # Estimated state
+    p_est = np.zeros(n_points) # Estimated error covariance
+    residuals = np.zeros(n_points)
+    
+    x_est[0] = measurements[0]
+    p_est[0] = 1.0
+    
+    for k in range(1, n_points):
+        # Predict
+        x_pred = F * x_est[k-1]
+        p_pred = F * p_est[k-1] * F + Q
         
-        with tabs[0]:
-            st.metric("Process Shock Event", "Time #70")
-            st.metric("Alarm on Residuals", f"Time #{alarm_time}" if alarm_time else "N/A", help="The time the residual chart first detected the shock.")
-            st.markdown("""
-            **Reading the Plots:**
-            1.  **State Estimation (Top):** The black line is the true, hidden state of the process. The blue dots are what your noisy sensor sees. The red line is the Kalman Filter's "best guess" of the true state, a brilliant fusion of its internal model and the noisy data.
-            2.  **Residuals (Middle):** This is the "surprise" at each step. Notice the huge spike at time #70 when the process shock occurs—the measurement was far from what the filter predicted.
-            3.  **Control Chart (Bottom):** This formalizes the alarm. The residuals are stable and near zero, then spike far outside the control limits at the moment of the shock, providing an unambiguous alarm.
-            """)
+        # Update
+        residual = measurements[k] - H * x_pred
+        S = H * p_pred * H + R
+        K = p_pred * H / S # Kalman Gain
+        
+        x_est[k] = x_pred + K * residual
+        p_est[k] = (1 - K * H) * p_pred
+        residuals[k] = residual
 
-        with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: Monitoring Raw, Noisy Data**
-A chart on the raw measurements (blue dots) would be wide and insensitive. The process shock might not even trigger an alarm if it's small relative to the measurement noise. You are blind to subtle deviations from the expected *behavior*.""")
-            st.success("""🟢 **THE GOLDEN RULE: Model the Expected, Monitor the Unexpected**
-1.  Use a dynamic model (like a Kalman Filter) to capture the known, predictable behavior of your process (e.g., its drift, its noise characteristics).
-2.  This model separates the signal into two streams: the predictable part (the state estimate) and the unpredictable part (the residuals).
-3.  Place your high-sensitivity control chart on the **residuals**. This is monitoring the "unexplained" portion of the data, which is where novel faults will always appear first.""")
+    # 3. --- Control Chart on Residuals ---
+    limit_data = residuals[:shock_point-1]
+    res_std = np.std(limit_data)
+    ucl, lcl = 3 * res_std, -3 * res_std
+    
+    ooc_indices = np.where((residuals > ucl) | (residuals < lcl))[0]
+    first_ooc = ooc_indices[0] if len(ooc_indices) > 0 else None
+    
+    # --- 4. Plotting Dashboard ---
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=("<b>1. State Estimation: Tracking a Noisy Process</b>",
+                                        "<b>2. Fault Detection: Control Chart on Residuals</b>"))
 
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: From Space Race to Bioreactor
-            **The Problem:** During the height of the Cold War and the Space Race, a fundamental challenge was navigation. How could you guide a missile, or more inspiringly, a spacecraft to the Moon, using only a stream of noisy, imperfect sensor readings? You needed a way to fuse the predictions from a physical model (orbital mechanics) with the incoming data to get the best possible estimate of your true position and velocity.
+    # Plot 1: State Estimation
+    fig.add_trace(go.Scatter(x=time, y=measurements, mode='markers', name='Noisy Measurements',
+                             marker=dict(color='grey', opacity=0.7)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=time, y=true_state, mode='lines', name='True Hidden State',
+                             line=dict(dash='dash', color='black', width=3)), row=1, col=1)
+    # SME Enhancement: Show filter's uncertainty bounds
+    upper_bound = x_est + np.sqrt(p_est)
+    lower_bound = x_est - np.sqrt(p_est)
+    fig.add_trace(go.Scatter(x=time, y=upper_bound, mode='lines', line=dict(width=0), showlegend=False), row=1, col=1)
+    fig.add_trace(go.Scatter(x=time, y=lower_bound, mode='lines', line=dict(width=0), fill='tonexty',
+                             fillcolor='rgba(255,0,0,0.2)', name='Kalman Uncertainty (±1σ)'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=time, y=x_est, mode='lines', name='Kalman Estimate',
+                             line=dict(color='red', width=3)), row=1, col=1)
 
-            **The 'Aha!' Moment:** In 1960, **Rudolf E. Kálmán** published his landmark paper describing a recursive algorithm that provided the optimal solution to this problem. The **Kalman Filter** was born. Its elegant two-step "predict-update" cycle was computationally efficient enough to run on the primitive computers of the era.
-            
-            **The Impact:** The filter was almost immediately adopted by the aerospace industry and was a critical, mission-enabling component of the **NASA Apollo program**. Without the Kalman Filter to provide reliable real-time state estimation, the lunar landings would not have been possible. Its applications have since exploded into countless fields, from economics to weather forecasting.
-            
-            **The Neural Network Connection:** The classic Kalman Filter assumes you have a good *linear* model of your system. But what about a complex, non-linear bioprocess? The modern approach is to replace the linear model with a **Recurrent Neural Network (RNN)**. The RNN *learns* the complex non-linear dynamics from data, and the Kalman Filter framework provides the mathematically optimal way to blend the RNN's predictions with new sensor measurements. This creates a powerful hybrid system for monitoring the unmonitorable.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The Kalman Filter operates in a two-step cycle at each time point `k`:")
-            st.markdown("**1. Predict Step:** The filter predicts the next state and its uncertainty based on the internal model.")
-            st.latex(r"\hat{x}_{k|k-1} = F \hat{x}_{k-1|k-1} \quad (\text{State Prediction})")
-            st.latex(r"P_{k|k-1} = F P_{k-1|k-1} F^T + Q \quad (\text{Uncertainty Prediction})")
-            st.markdown("**2. Update Step:** The filter uses the new measurement `z_k` to correct the prediction.")
-            st.latex(r"K_k = P_{k|k-1} H^T (H P_{k|k-1} H^T + R)^{-1} \quad (\text{Kalman Gain})")
-            st.latex(r"\hat{x}_{k|k} = \hat{x}_{k|k-1} + K_k (z_k - H \hat{x}_{k|k-1}) \quad (\text{State Update})")
-            st.markdown("The term `(z_k - H \hat{x}_{k|k-1})` is the **residual** or **innovation**, which is the signal we monitor for faults.")
+    # Plot 2: Residuals Control Chart
+    fig.add_trace(go.Scatter(x=time, y=residuals, mode='lines+markers', name='Residuals',
+                             line=dict(color='#636EFA')), row=2, col=1)
+    if first_ooc:
+        fig.add_trace(go.Scatter(x=[first_ooc], y=[residuals[first_ooc]], mode='markers', name='Alarm',
+                                 marker=dict(color='red', size=12, symbol='x')), row=2, col=1)
+    fig.add_hline(y=ucl, line_color='red', row=2, col=1)
+    fig.add_hline(y=lcl, line_color='red', row=2, col=1)
+    fig.add_hline(y=0, line_color='black', line_dash='dash', row=2, col=1)
+    
+    fig.add_vline(x=shock_point, line_dash='dot', line_color='red',
+                  annotation_text='Process Shock', annotation_position='top', row='all', col=1)
+    
+    fig.update_layout(height=800, title_text="<b>Kalman Filter for State Estimation & Fault Detection</b>",
+                      legend=dict(yanchor="top", y=0.98, xanchor="left", x=0.01))
+    fig.update_yaxes(title_text="Value", row=1, col=1)
+    fig.update_yaxes(title_text="Residual (Surprise)", row=2, col=1)
+    fig.update_xaxes(title_text="Time", row=2, col=1)
+    
+    return fig, first_ooc
 
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 4)

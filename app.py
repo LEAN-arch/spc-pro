@@ -3410,66 +3410,99 @@ def plot_kalman_nn_residual(measurement_noise=1.0, shock_magnitude=10.0, process
     
     return fig, first_ooc
 
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Method 4) - SME ENHANCED
+# ==============================================================================
 @st.cache_data
-def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0):
+def plot_rl_tuning(cost_false_alarm=1.0, cost_delay_unit=5.0, shift_size=1.0):
     """
-    Simulates the outcome of an RL agent tuning an EWMA chart's lambda parameter
-    to minimize a combined economic cost function.
+    Generates an enhanced, more realistic RL dashboard for the economic design of an EWMA chart,
+    optimizing over both lambda and control limit width (L).
     """
-    # 1. --- Pre-calculate Performance (ARL) ---
-    # Average Run Length (ARL) is the key metric for chart performance.
-    # ARL0 = average time to a false alarm. ARL1 = average time to detect a true shift.
+    # 1. --- Create a grid of parameters to search ---
     lambdas = np.linspace(0.05, 0.5, 20)
-    # These are well-known approximations for EWMA ARL
-    L = 3.0 # Control limit width
-    arl0 = np.exp(0.832 * L**2 / lambdas) / 2 # Simplified ARL0 approximation
+    Ls = np.linspace(2.5, 3.5, 20) # Control limit widths
     
-    shift_size = 1.0 # We are tuning for a 1-sigma shift
-    arl1 = (1/ (2 * stats.norm.cdf(-L*np.sqrt(lambdas/(2-lambdas)) + shift_size*np.sqrt(lambdas/(2-lambdas))) ) )
+    # --- Pre-calculate Performance (ARL) over the grid ---
+    # ARL0 = average time to a false alarm. ARL1 = average time to detect a true shift.
+    arl0_grid = np.zeros((len(Ls), len(lambdas)))
+    arl1_grid = np.zeros((len(Ls), len(lambdas)))
     
-    # 2. --- Calculate Economic Cost ---
-    # Cost = Cost of False Alarms + Cost of Detection Delay
-    cost_fa = cost_false_alarm / arl0
-    cost_delay = cost_delay_unit * arl1
-    total_cost = cost_fa + cost_delay
-    
-    # Find the optimal lambda that the RL agent would have chosen
-    optimal_idx = np.argmin(total_cost)
-    optimal_lambda = lambdas[optimal_idx]
-    min_cost = total_cost[optimal_idx]
-    
-    # 3. --- Simulate an EWMA chart with the OPTIMAL lambda ---
-    np.random.seed(42)
-    n_points = 50
-    data = np.random.normal(0, 1, n_points)
-    data[25:] += shift_size # Introduce the 1-sigma shift
-    
-    ewma_opt = np.zeros(n_points); ewma_opt[0] = 0
-    for i in range(1, n_points):
-        ewma_opt[i] = (1 - optimal_lambda) * ewma_opt[i-1] + optimal_lambda * data[i]
-        
-    ucl = L * np.sqrt(optimal_lambda / (2 - optimal_lambda))
-    
-    # 4. --- Plotting ---
-    fig = make_subplots(rows=2, cols=1, vertical_spacing=0.15,
-                        subplot_titles=("RL Cost Optimization Surface for EWMA Tuning",
-                                        f"Resulting EWMA Chart with Optimal λ = {optimal_lambda:.2f}"))
+    for i, L in enumerate(Ls):
+        for j, lam in enumerate(lambdas):
+            # These are well-known approximations for EWMA ARL
+            # Using stable approximations to avoid numerical issues
+            delta = shift_size * np.sqrt(lam / (2 - lam))
+            L_eff = L
+            
+            # ARL for an in-control process (time to false alarm)
+            arl0_grid[i, j] = (np.exp(-2*L_eff*delta) * (1 + 2*L_eff*delta) + np.exp(2*L_eff*delta) * (1 - 2*L_eff*delta)) / (2*delta**2)
+            if delta == 0: arl0_grid[i, j] = 2 * (np.exp(L_eff**2) / (L_eff * np.sqrt(2*np.pi))) # simplified for shift=0
+            
+            # ARL for an out-of-control process (time to detection)
+            arl1_grid[i, j] = (np.exp(-2*(L_eff-delta)*delta) + 2*(L_eff-delta)*delta - 1) / (2*delta**2)
+            if delta == L_eff: arl1_grid[i,j] = 1 # handle case where denominator is 0
+            if arl1_grid[i, j] <= 0: arl1_grid[i,j] = 1e-6 # floor at a small value
 
-    fig.add_trace(go.Scatter(x=lambdas, y=total_cost, mode='lines', name='Total Cost'), row=1, col=1)
-    fig.add_annotation(x=optimal_lambda, y=min_cost, text=f"Optimal λ", showarrow=True, arrowhead=2, row=1, col=1)
+    # 2. --- Calculate Economic Cost over the grid ---
+    cost_fa = cost_false_alarm / arl0_grid
+    cost_delay = cost_delay_unit * arl1_grid
+    total_cost_grid = cost_fa + cost_delay
     
-    fig.add_trace(go.Scatter(y=data, mode='lines+markers', name='Data'), row=2, col=1)
+    # Find the optimal parameters that the RL agent would have chosen
+    min_idx = np.unravel_index(np.argmin(total_cost_grid), total_cost_grid.shape)
+    optimal_L = Ls[min_idx[0]]
+    optimal_lambda = lambdas[min_idx[1]]
+    min_cost = total_cost_grid[min_idx]
+    
+    # 3. --- Plotting Dashboard ---
+    fig = make_subplots(
+        rows=2, cols=2,
+        specs=[[{"type": "surface"}, {"type": "contour"}],
+               [{"type": "contour"}, {"type": "xy"}]],
+        subplot_titles=("<b>1. Economic Cost Surface</b>", "<b>2. ARL₀ (Time to False Alarm)</b>",
+                        "<b>3. ARL₁ (Time to Detect)</b>", f"<b>4. Optimal EWMA Chart</b>"),
+        vertical_spacing=0.15, horizontal_spacing=0.1
+    )
+
+    # Plot 1: 3D Cost Surface
+    fig.add_trace(go.Surface(x=lambdas, y=Ls, z=total_cost_grid, colorscale='Viridis', showscale=False), row=1, col=1)
+    fig.add_trace(go.Scatter3d(x=[optimal_lambda], y=[optimal_L], z=[min_cost], mode='markers',
+                              marker=dict(color='red', size=8, symbol='x')), row=1, col=1)
+
+    # Plot 2: ARL0 Contour
+    fig.add_trace(go.Contour(x=lambdas, y=Ls, z=np.log10(arl0_grid), colorscale='Blues',
+                             contours=dict(showlabels=True), name="log10(ARL₀)"), row=1, col=2)
+    fig.add_trace(go.Scatter(x=[optimal_lambda], y=[optimal_L], mode='markers',
+                             marker=dict(color='red', size=12, symbol='x')), row=1, col=2)
+    
+    # Plot 3: ARL1 Contour
+    fig.add_trace(go.Contour(x=lambdas, y=Ls, z=arl1_grid, colorscale='Reds',
+                             contours=dict(showlabels=True), name="ARL₁"), row=2, col=2)
+    fig.add_trace(go.Scatter(x=[optimal_lambda], y=[optimal_L], mode='markers',
+                             marker=dict(color='black', size=12, symbol='x')), row=2, col=2)
+                             
+    # Plot 4: Resulting Optimal EWMA chart
+    np.random.seed(42)
+    n_points_chart = 50
+    data = np.random.normal(0, 1, n_points_chart)
+    data[25:] += shift_size
+    ewma_opt = pd.Series(data).ewm(alpha=optimal_lambda, adjust=False).mean().values
+    ucl = optimal_L * np.sqrt(optimal_lambda / (2 - optimal_lambda))
+    
     fig.add_trace(go.Scatter(y=ewma_opt, mode='lines+markers', name='Optimal EWMA'), row=2, col=1)
     fig.add_hline(y=ucl, line_color='red', row=2, col=1)
     fig.add_hline(y=-ucl, line_color='red', row=2, col=1)
     fig.add_vline(x=25, line_dash='dash', line_color='red', row=2, col=1)
-
-    fig.update_layout(height=700, title_text="<b>Reinforcement Learning for Economic Control Chart Design</b>")
-    fig.update_xaxes(title_text="EWMA Lambda (λ)", row=1, col=1)
-    fig.update_yaxes(title_text="Total Economic Cost", row=1, col=1)
-    fig.update_xaxes(title_text="Observation Number", row=2, col=1)
     
-    return fig, optimal_lambda, min_cost
+    # Layout and Axis Titles
+    fig.update_layout(height=800, title_text=f"<b>EWMA Economic Design Dashboard (Target Shift: {shift_size}σ)</b>", title_x=0.5, showlegend=False)
+    fig.update_scenes(xaxis_title_text='Lambda (λ)', yaxis_title_text='Limit Width (L)', zaxis_title_text='Total Cost', row=1, col=1)
+    fig.update_xaxes(title_text='Lambda (λ)', row=1, col=2); fig.update_yaxes(title_text='Limit Width (L)', row=1, col=2)
+    fig.update_xaxes(title_text='Lambda (λ)', row=2, col=2); fig.update_yaxes(title_text='Limit Width (L)', row=2, col=2)
+    fig.update_xaxes(title_text='Observation Number', row=2, col=1); fig.update_yaxes(title_text='EWMA Value', row=2, col=1)
+
+    return fig, optimal_lambda, optimal_L, min_cost
 
 @st.cache_data
 def plot_tcn_cusum(drift_magnitude=0.05, seasonality_strength=5.0):
@@ -6393,25 +6426,32 @@ def render_rl_tuning():
     """Renders the Reinforcement Learning for Chart Tuning module."""
     st.markdown("""
     #### Purpose & Application: The AI Economist
-    **Purpose:** To use **Reinforcement Learning (RL)** to automatically tune the parameters of a control chart (like EWMA's λ) to achieve the best possible **economic performance**. It finds the optimal balance in the fundamental trade-off between reacting too quickly (costly false alarms) and reacting too slowly (costly missed signals).
+    **Purpose:** To use **Reinforcement Learning (RL)** to automatically tune the parameters of a control chart (e.g., EWMA's `λ` and `L`) to achieve the best possible **economic performance**. It finds the optimal balance in the fundamental trade-off between reacting too quickly (costly false alarms) and reacting too slowly (costly missed signals).
     
     **Strategic Application:** This moves SPC from a purely statistical exercise to a business optimization problem.
-    - **Customized Monitoring:** Instead of using one-size-fits-all parameters, the RL agent designs a chart specifically tuned to your process's unique failure modes and your business's specific cost structure.
-    - **Risk-Based Control:** For a high-value final drug product, the cost of a missed signal is enormous, so the agent will design a highly sensitive chart. For a low-cost intermediate, it may design a less sensitive chart to avoid nuisance alarms.
-    - **Automated Re-tuning:** As a process evolves, an RL agent can continuously re-tune the charts to maintain optimal performance.
+    - **Customized Monitoring:** The RL agent designs a chart specifically tuned to your process's unique failure modes and your business's specific cost structure.
+    - **Risk-Based Control:** For a high-value product, the cost of a missed signal is enormous, so the agent will design a highly sensitive chart. For a low-cost intermediate, it may design a less sensitive chart to avoid nuisance alarms.
     """)
     st.info("""
-    **Interactive Demo:** You are the business manager. Use the sliders to define the economic reality of your process. The plots show the cost landscape the RL agent explores and the final, economically optimal EWMA chart it designed.
-    - **`Cost of a False Alarm`**: The cost of stopping the process, investigating, and finding nothing wrong.
-    - **`Cost of Detection Delay`**: The cost incurred for *every minute* a true process failure goes undetected (e.g., cost of producing scrap).
+    **Interactive Demo:** You are the business manager. Use the sliders to define the economic reality and target failure mode for your process. The dashboard shows the full optimization landscape the RL agent explores to find the best solution.
+    - **The 3D Surface (Top-Left):** Shows the total economic cost for every combination of `λ` and `L`. The agent's goal is to find the lowest point (red 'X').
+    - **The Contour Plots:** Show the trade-off. To get a high "Time to False Alarm" (blue plot), you need a low "Time to Detect" (red plot), and vice-versa.
+    - **The Final Chart:** The EWMA chart built with the optimal parameters found by the agent.
     """)
-    st.sidebar.subheader("RL Economic Controls")
-    cost_fa_slider = st.sidebar.slider("Cost of a False Alarm ($)", 1, 10, 1, 1,
-        help="The economic cost ($) of a single false alarm (stopping the process to investigate a non-existent problem).")
-    cost_delay_slider = st.sidebar.slider("Cost of Detection Delay ($/unit time)", 1, 10, 5, 1,
-        help="The economic cost ($) incurred for *each time unit* that a real process shift goes undetected.")
+    with st.sidebar:
+        st.sidebar.subheader("RL Economic & Process Controls")
+        cost_fa_slider = st.sidebar.slider("Cost of a False Alarm ($)", 1, 20, 1, 1,
+            help="The economic cost ($) of a single false alarm (stopping the process to investigate a non-existent problem).")
+        cost_delay_slider = st.sidebar.slider("Cost of Detection Delay ($/unit time)", 1, 20, 5, 1,
+            help="The economic cost ($) incurred for *each time unit* that a real process shift goes undetected.")
+        shift_size_slider = st.sidebar.slider("Target Shift Size to Detect (σ)", 0.5, 3.0, 1.0, 0.25,
+            help="The magnitude of the critical process shift you want to detect as quickly as possible.")
 
-    fig, opt_lambda, min_cost = plot_rl_tuning(cost_false_alarm=cost_fa_slider, cost_delay_unit=cost_delay_slider)
+    fig, opt_lambda, opt_L, min_cost = plot_rl_tuning(
+        cost_false_alarm=cost_fa_slider,
+        cost_delay_unit=cost_delay_slider,
+        shift_size=shift_size_slider
+    )
     
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
@@ -6422,41 +6462,47 @@ def render_rl_tuning():
         tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
         
         with tabs[0]:
-            st.metric("Optimal λ Found by RL", f"{opt_lambda:.3f}", help="The EWMA memory parameter that minimizes total cost for your economic scenario.")
-            st.metric("Minimum Achievable Cost", f"${min_cost:.2f}", help="The best possible economic performance for this chart.")
+            st.metric("Optimal λ Found by RL", f"{opt_lambda:.3f}",
+                      help="The optimal EWMA memory parameter.")
+            st.metric("Optimal Limit Width (L) Found by RL", f"{opt_L:.2f}σ",
+                      help="The optimal control limit width in multiples of sigma.")
+            st.metric("Minimum Achievable Cost", f"${min_cost:.3f}",
+                      help="The best possible economic performance for this chart.")
             
             st.markdown("""
             **The RL Agent's Solution:**
-            1.  **Cost Surface (Top):** This plot shows the total cost for every possible value of λ. The RL agent's job is to find the lowest point on this curve.
-                - When `Cost of Delay` is high, the agent chooses a **small λ** (long memory) to create a very sensitive chart.
-                - When `Cost of a False Alarm` is high, the agent chooses a **large λ** (short memory) to create a less sensitive chart that avoids nuisance alarms.
-            2.  **Optimal Chart (Bottom):** This is the EWMA chart built using the optimal λ. It is, by definition, the most profitable control chart for your specific business case.
+            The agent balances two competing goals shown in the contour plots:
+            1.  **Maximize ARL₀ (Blues):** It wants to make the time between false alarms as long as possible. This is achieved in the top-right of the plot.
+            2.  **Minimize ARL₁ (Reds):** It wants to detect a real shift as quickly as possible. This is achieved in the bottom-left of the plot.
+            
+            The **3D Cost Surface** shows the combined economic result of this trade-off. The agent finds the `(λ, L)` combination at the bottom of this "cost valley" to design the most profitable control chart.
             """)
 
         with tabs[1]:
             st.error("""🔴 **THE INCORRECT APPROACH: The 'Cookbook' Method**
-A scientist reads a textbook that says 'use λ=0.2 for EWMA charts.' They apply this default value to every process, regardless of the process stability or the economic consequences of an error.""")
+A scientist reads a textbook that says 'use λ=0.2 and L=3 for EWMA charts.' They apply these default values to every process, regardless of the process stability or the economic consequences of an error.""")
             st.success("""🟢 **THE GOLDEN RULE: Design the Chart to Match the Risk**
 The control chart is not just a statistical tool; it's an economic asset. The tuning parameters should be deliberately chosen to minimize the total expected cost of quality. An RL framework provides a powerful, data-driven way to formalize this optimization problem and find the provably best solution.""")
 
         with tabs[2]:
             st.markdown("""
             #### Historical Context: The Unfulfilled Promise
-            **The Problem:** The idea of designing control charts based on economics is surprisingly old, dating back to the work of Acheson Duncan in the 1950s. He recognized that the choice of chart parameters (sample size, control limits) was an economic trade-off. However, the mathematics required to find the optimal solution were incredibly complex and relied on many assumptions about the process that were difficult to verify in practice. For decades, "Economic Design of Control Charts" remained an academically interesting but practically ignored field.
+            **The Problem:** The idea of designing control charts based on economics is surprisingly old, dating back to the work of Acheson Duncan in the 1950s. He recognized that the choice of chart parameters was an economic trade-off. However, the mathematics required to find the optimal solution were incredibly complex and relied on many assumptions that were difficult to verify. For decades, "Economic Design of Control Charts" remained an academically interesting but practically ignored field.
 
             **The 'Aha!' Moment (Simulation):** The modern solution came not from better math, but from more computing power. **Reinforcement Learning (RL)**, a field that exploded in the 2010s with successes like AlphaGo, provided a new paradigm. Instead of solving complex equations, an RL agent could learn the optimal strategy through millions of trial-and-error experiments in a fast, simulated "digital twin" of the manufacturing process.
 
             **The Impact:** The rise of RL and high-fidelity process simulation has finally made the promise of economic design a practical reality. It allows engineers to move beyond statistical "rules of thumb" and design monitoring strategies that are provably optimized for their specific business and risk environment.
             """)
             st.markdown("#### Mathematical Basis")
-            st.markdown("The RL agent's goal is to find the chart parameter (e.g., `λ`) that minimizes an economic Loss Function `L`:")
-            st.latex(r"L(\lambda) = \frac{C_{FA}}{ARL_0(\lambda)} + C_{Delay} \cdot ARL_1(\lambda)")
+            st.markdown("The RL agent's goal is to find the chart parameters (e.g., `λ, L`) that minimize an economic Loss Function `L`:")
+            st.latex(r"L(\lambda, L) = \frac{C_{FA}}{ARL_0(\lambda, L)} + C_{Delay} \cdot ARL_1(\lambda, L, \delta)")
             st.markdown("""
             -   `C_FA`: The cost of a single False Alarm.
             -   `C_Delay`: The cost per unit of time for a detection delay.
-            -   `ARL_0(λ)`: The average time until a false alarm (in-control), which depends on `λ`. We want this to be high.
-            -   `ARL_1(λ)`: The average time to detect a real shift (out-of-control), which also depends on `λ`. We want this to be low.
-            The RL agent explores the trade-off between these two competing objectives to find the `λ` that minimizes the total long-run cost.
+            -   `ARL₀`: The average time until a false alarm, which depends on `λ` and `L`. We want this to be high.
+            -   `ARL₁`: The average time to detect a real shift of size `δ`, which also depends on `λ` and `L`. We want this to be low.
+            The RL agent explores the trade-off between these two competing objectives to find the (`λ`, `L`) combination that minimizes the total long-run cost.
+            """)
             """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 5)

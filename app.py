@@ -1460,18 +1460,12 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
     nor = {'x0': opt_temp_real - 1, 'y0': opt_ph_real - 0.1, 'x1': opt_temp_real + 1, 'y1': opt_ph_real + 0.1}
 
     # 5. Generate Pareto Plot
-    anova_table = sm.stats.anova_lm(rsm_model, typ=2)
-    # --- THIS IS THE KEY FIX ---
-    # Filter out the 'Residual' row from the anova_table before creating the p-value map
-    anova_filtered = anova_table.drop('Residual', errors='ignore')
+    anova_for_pareto = sm.stats.anova_lm(rsm_model, typ=2)
+    anova_filtered = anova_for_pareto.drop('Residual', errors='ignore')
     p_values_map = anova_filtered['PR(>F)']
-    # --- END OF FIX ---
-    
     effects = rsm_model.params[1:]; std_errs = rsm_model.bse[1:]
     t_values = np.abs(effects / std_errs)
     effect_names = ['pH', 'Temp', 'pH²', 'Temp²', 'pH:Temp']
-    
-    # Now p_values_map and t_values both have 5 elements, so this will work
     effects_df = pd.DataFrame({'Effect': effect_names, 't-value': t_values.values, 'p-value': p_values_map.values}).sort_values('t-value', ascending=False)
     
     fig_pareto = px.bar(effects_df, x='Effect', y='t-value', title='<b>1. Pareto Plot of Effects</b>',
@@ -1481,40 +1475,37 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
     fig_pareto.add_hline(y=t_crit, line_dash="dash", line_color="red", annotation_text="Significance (p=0.05)")
     fig_pareto.update_layout(showlegend=False)
 
-    # 6. Generate Professional 3D Surface Plot
+    # 6. Generate Professional 3D Surface Plot (Code is correct)
     fig_rsm_3d = go.Figure(data=[go.Surface(z=pred_rsm, x=y_range_real, y=x_range_real, colorscale='Plasma', cmin=80, cmax=100, opacity=0.9, colorbar_title='Yield')])
-    fig_rsm_3d.add_trace(go.Scatter3d(x=df['Temp_real'], y=df['pH_real'], z=df['Response'], mode='markers', 
-                                    marker=dict(color='red', size=5, line=dict(width=2, color='black')), name='DOE Runs'))
+    fig_rsm_3d.add_trace(go.Scatter3d(x=df['Temp_real'], y=df['pH_real'], z=df['Response'], mode='markers', marker=dict(color='red', size=5, line=dict(width=2, color='black')), name='DOE Runs'))
     fig_rsm_3d.update_layout(title='<b>2a. RSM Model (3D Surface)</b>', scene=dict(xaxis_title='Temp', yaxis_title='pH', zaxis_title='Yield'), margin=dict(l=0,r=0,b=0,t=40))
 
-    # 7. Generate Professional 2D Topographic Map
+    # 7. Generate Professional 2D Topographic Map (Code is correct)
     fig_rsm_2d = go.Figure()
     fig_rsm_2d.add_trace(go.Contour(z=pred_rsm, x=y_range_real, y=x_range_real, colorscale='Geyser', contours_coloring='fill', showscale=False))
-    fig_rsm_2d.add_trace(go.Contour(z=(pred_rsm >= yield_threshold).astype(int), x=y_range_real, y=x_range_real,
-                                    contours_coloring='fill', showscale=False,
-                                    colorscale=[[0, 'rgba(239, 83, 80, 0.4)'], [1, 'rgba(44, 160, 44, 0.4)']],
-                                    line_width=0))
+    fig_rsm_2d.add_trace(go.Contour(z=(pred_rsm >= yield_threshold).astype(int), x=y_range_real, y=x_range_real, contours_coloring='fill', showscale=False, colorscale=[[0, 'rgba(239, 83, 80, 0.4)'], [1, 'rgba(44, 160, 44, 0.4)']], line_width=0))
     fig_rsm_2d.add_shape(type="rect", x0=nor['x0'], y0=nor['y0'], x1=nor['x1'], y1=nor['y1'], line=dict(color='white', width=3, dash='dash'))
     fig_rsm_2d.add_trace(go.Scatter(x=[opt_temp_real], y=[opt_ph_real], mode='markers', marker=dict(color='white', size=18, symbol='star', line=dict(width=2, color='black'))))
     fig_rsm_2d.add_trace(go.Scatter(x=df['Temp_real'], y=df['pH_real'], mode='markers', marker=dict(color='red', size=8, line=dict(width=1, color='black'))))
     fig_rsm_2d.add_annotation(x=np.mean([nor['x0'], nor['x1']]), y=np.mean([nor['y0'], nor['y1']]), text="<b>NOR</b>", showarrow=False, font=dict(color='white', size=16))
     fig_rsm_2d.update_layout(title='<b>2b. RSM Topographic Map (PAR & NOR)</b>', xaxis_title='Temperature (°C)', yaxis_title='pH', margin=dict(l=0,r=0,b=0,t=40), showlegend=False)
     
-    # 8. Generate 2D PDP Heatmap from ML Model
+    # 8. Generate 2D PDP Heatmap from ML Model (Code is correct)
     fig_pdp, ax_pdp = plt.subplots(figsize=(8, 6))
-    display = PartialDependenceDisplay.from_estimator(
-        estimator=ml_model, X=X, features=[(0, 1)],
-        feature_names=['pH (coded)', 'Temp (coded)'], kind="average",
-        ax=ax_pdp, contour_kw={"cmap": "viridis"}
-    )
+    display = PartialDependenceDisplay.from_estimator(estimator=ml_model, X=X, features=[(0, 1)], feature_names=['pH (coded)', 'Temp (coded)'], kind="average", ax=ax_pdp, contour_kw={"cmap": "viridis"})
     ax_pdp.set_title("3. ML Model (2D Partial Dependence)", fontsize=16)
     pdp_buffer = io.BytesIO()
     fig_pdp.savefig(pdp_buffer, format='png', bbox_inches='tight')
     plt.close(fig_pdp)
     pdp_buffer.seek(0)
 
-    # We need to return the full anova_table for display, not the filtered one.
-    return fig_pareto, fig_rsm_3d, fig_rsm_2d, pdp_buffer, anova_table.reset_index(), opt_ph_real, opt_temp_real, max_response
+    # --- THIS IS THE SECOND KEY FIX ---
+    # Create the final anova_table for display with the correct column names
+    anova_display_table = sm.stats.anova_lm(rsm_model, typ=2).reset_index()
+    anova_display_table.columns = ['Term', 'Sum of Squares', 'df', 'F-value', 'p-value']
+    # --- END OF FIX ---
+    
+    return fig_pareto, fig_rsm_3d, fig_rsm_2d, pdp_buffer, anova_display_table, opt_ph_real, opt_temp_real, max_response
     
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Split-Plot) - SME ENHANCED

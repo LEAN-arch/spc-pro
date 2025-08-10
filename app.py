@@ -588,75 +588,7 @@ def create_toolkit_conceptual_map():
         paper_bgcolor='#f0f2f6'
     )
     return fig
-def plot_sample_size_curves(confidence_level, reliability, lot_size, calc_method, required_n):
-    """
-    Generates a plot showing the trade-off between sample size and achievable reliability.
-    """
-    c = confidence_level / 100
-    r_req = reliability / 100
-    
-    # Define the range of sample sizes to plot
-    max_n = 3 * required_n if isinstance(required_n, int) and required_n > 50 else 300
-    n_range = np.arange(1, max_n)
 
-    # --- Calculate Achievable Reliability for each model ---
-    # Binomial Calculation (inverse of the main formula)
-    r_binomial = (1 - c)**(1 / n_range)
-
-    # Hypergeometric Calculation (iterative solve for R at each n)
-    @st.cache_data
-    def solve_hypergeometric_r(n, M, C):
-        log_alpha = math.log(1 - C)
-        # Iterate backwards from the max possible defects to find the highest D that works
-        for D in range(int(0.5 * M), -1, -1):
-            if n > M - D: continue # Cannot sample more than the number of good items
-            log_prob_zero_defect = (
-                math.lgamma(M - D + 1) - math.lgamma(n + 1) - math.lgamma(M - D - n + 1)
-            ) - (
-                math.lgamma(M + 1) - math.lgamma(n + 1) - math.lgamma(M - n + 1)
-            )
-            if log_prob_zero_defect <= log_alpha:
-                return (M - D) / M
-        return 0.5 # Return a baseline if no solution found
-    
-    r_hypergeometric = [solve_hypergeometric_r(n, lot_size, c) for n in n_range] if lot_size else None
-
-    # --- Create the Plot ---
-    fig = go.Figure()
-
-    # Add Binomial Curve
-    fig.add_trace(go.Scatter(
-        x=n_range, y=r_binomial, mode='lines', name='Binomial Model (Infinite Lot)',
-        line=dict(color=PRIMARY_COLOR, width=3)
-    ))
-
-    # Add Hypergeometric Curve if applicable
-    if r_hypergeometric and "Hypergeometric" in calc_method:
-        fig.add_trace(go.Scatter(
-            x=n_range, y=r_hypergeometric, mode='lines', name=f'Hypergeometric (Lot Size={lot_size})',
-            line=dict(color='#FF7F0E', width=3, dash='dash')
-        ))
-        
-    # Add the user's requirement point and lines
-    if isinstance(required_n, int):
-        fig.add_trace(go.Scatter(
-            x=[required_n], y=[r_req], mode='markers', name='Your Requirement',
-            marker=dict(color=SUCCESS_GREEN, size=15, symbol='star', line=dict(width=2, color='black'))
-        ))
-        # Add dashed lines to the axes
-        fig.add_shape(type="line", x0=0, y0=r_req, x1=required_n, y1=r_req, line=dict(color="grey", width=2, dash="dash"))
-        fig.add_shape(type="line", x0=required_n, y0=0, x1=required_n, y1=r_req, line=dict(color="grey", width=2, dash="dash"))
-
-    fig.update_layout(
-        title="<b>Sample Size vs. Achievable Reliability</b>",
-        xaxis_title="Sample Size (n) with Zero Failures",
-        yaxis_title=f"Achievable Reliability at {confidence_level:.1f}% Confidence",
-        yaxis=dict(tickformat=".2%", range=[min(r_binomial) - 0.01, 1.01]),
-        xaxis=dict(range=[0, max_n]),
-        legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99)
-    )
-
-    return fig
 
 @st.cache_data
 def plot_ci_concept(n=30):
@@ -1528,7 +1460,9 @@ def plot_doe_design_space(ph_effect, temp_effect, interaction_effect, ph_quad_ef
     
     # 5. Generate Plots
     # 3D Surface Plot
-    fig_3d = go.Figure(data=[go.Surface(z=pred, x=y_range_real, y=x_range_real, colorscale='viridis', cmin=80, cmax=100)])
+    # --- FIX 1 IS HERE ---
+    fig_3d = go.Figure(data=[go.Surface(z=pred, x=y_range_real, y=x_range_real, colorscale='viridis', zmin=80, zmax=100)])
+    # --- END OF FIX 1 ---
     fig_3d.add_trace(go.Scatter3d(x=df['Temp'], y=df['pH'], z=df['Response'], mode='markers', 
                                  marker=dict(color='red', size=5, line=dict(width=2, color='black')), name='DOE Runs'))
     fig_3d.update_layout(title='<b>DOE Response Surface (3D View)</b>', 
@@ -1536,9 +1470,11 @@ def plot_doe_design_space(ph_effect, temp_effect, interaction_effect, ph_quad_ef
                          margin=dict(l=0, r=0, b=0, t=40))
 
     # 2D Contour Plot (Design Space View)
+    # --- FIX 2 IS HERE ---
     fig_2d = go.Figure(data=go.Contour(z=pred, x=y_range_real, y=x_range_real, colorscale='viridis',
                                        contours=dict(coloring='lines', showlabels=True, labelfont=dict(color='white')),
-                                       cmin=80, cmax=100))
+                                       zmin=80, zmax=100))
+    # --- END OF FIX 2 ---
     # Add Design Space (PAR) boundary
     fig_2d.add_trace(go.Contour(z=pred, x=y_range_real, y=x_range_real,
                                contours_coloring='lines',
@@ -1745,6 +1681,75 @@ def plot_causal_inference(confounding_strength=5.0):
 ##==========================================================================================================================================================================================
 ##=============================================================================================END ACT I ===================================================================================
 ##==========================================================================================================================================================================================
+def plot_sample_size_curves(confidence_level, reliability, lot_size, calc_method, required_n):
+    """
+    Generates a plot showing the trade-off between sample size and achievable reliability.
+    """
+    c = confidence_level / 100
+    r_req = reliability / 100
+    
+    # Define the range of sample sizes to plot
+    max_n = 3 * required_n if isinstance(required_n, int) and required_n > 50 else 300
+    n_range = np.arange(1, max_n)
+
+    # --- Calculate Achievable Reliability for each model ---
+    # Binomial Calculation (inverse of the main formula)
+    r_binomial = (1 - c)**(1 / n_range)
+
+    # Hypergeometric Calculation (iterative solve for R at each n)
+    @st.cache_data
+    def solve_hypergeometric_r(n, M, C):
+        log_alpha = math.log(1 - C)
+        # Iterate backwards from the max possible defects to find the highest D that works
+        for D in range(int(0.5 * M), -1, -1):
+            if n > M - D: continue # Cannot sample more than the number of good items
+            log_prob_zero_defect = (
+                math.lgamma(M - D + 1) - math.lgamma(n + 1) - math.lgamma(M - D - n + 1)
+            ) - (
+                math.lgamma(M + 1) - math.lgamma(n + 1) - math.lgamma(M - n + 1)
+            )
+            if log_prob_zero_defect <= log_alpha:
+                return (M - D) / M
+        return 0.5 # Return a baseline if no solution found
+    
+    r_hypergeometric = [solve_hypergeometric_r(n, lot_size, c) for n in n_range] if lot_size else None
+
+    # --- Create the Plot ---
+    fig = go.Figure()
+
+    # Add Binomial Curve
+    fig.add_trace(go.Scatter(
+        x=n_range, y=r_binomial, mode='lines', name='Binomial Model (Infinite Lot)',
+        line=dict(color=PRIMARY_COLOR, width=3)
+    ))
+
+    # Add Hypergeometric Curve if applicable
+    if r_hypergeometric and "Hypergeometric" in calc_method:
+        fig.add_trace(go.Scatter(
+            x=n_range, y=r_hypergeometric, mode='lines', name=f'Hypergeometric (Lot Size={lot_size})',
+            line=dict(color='#FF7F0E', width=3, dash='dash')
+        ))
+        
+    # Add the user's requirement point and lines
+    if isinstance(required_n, int):
+        fig.add_trace(go.Scatter(
+            x=[required_n], y=[r_req], mode='markers', name='Your Requirement',
+            marker=dict(color=SUCCESS_GREEN, size=15, symbol='star', line=dict(width=2, color='black'))
+        ))
+        # Add dashed lines to the axes
+        fig.add_shape(type="line", x0=0, y0=r_req, x1=required_n, y1=r_req, line=dict(color="grey", width=2, dash="dash"))
+        fig.add_shape(type="line", x0=required_n, y0=0, x1=required_n, y1=r_req, line=dict(color="grey", width=2, dash="dash"))
+
+    fig.update_layout(
+        title="<b>Sample Size vs. Achievable Reliability</b>",
+        xaxis_title="Sample Size (n) with Zero Failures",
+        yaxis_title=f"Achievable Reliability at {confidence_level:.1f}% Confidence",
+        yaxis=dict(tickformat=".2%", range=[min(r_binomial) - 0.01, 1.01]),
+        xaxis=dict(range=[0, max_n]),
+        legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99)
+    )
+
+    return fig
     
 def plot_spc_charts(scenario='Stable'):
     """
@@ -4088,184 +4093,6 @@ def render_introduction_content():
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================
-def render_sample_size_calculator():
-    """Renders the comprehensive, interactive module for calculating sample size for qualification."""
-    st.markdown("""
-    #### Purpose & Application: The Auditor's Question
-    **Purpose:** To provide a statistically valid, audit-proof justification for a sampling plan. This tool answers the fundamental question asked in every process validation: **"How did you decide that testing 'n' samples was enough?"**
-    
-    **Strategic Application:** This is a critical step in writing any Validation Plan (VP) for a Performance Qualification (PQ) or for defining a lot acceptance sampling plan.
-    - **Demonstrates Statistical Rigor:** Moves beyond arbitrary or "tribal knowledge" sample sizes (e.g., "we've always used n=30") to a defensible, risk-based approach.
-    - **Optimizes Resources:** Using the correct statistical model (e.g., Hypergeometric for finite lots) can often reduce the required sample size compared to overly conservative methods, saving significant time and cost.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the controls in the sidebar to define your statistical requirements (Confidence & Reliability) and process type.
-    - The **KPI** on the left shows the calculated sample size needed.
-    - The **Plot** on the right visualizes the trade-off. Your specific requirement is marked by the green star. Notice how increasing reliability or confidence demands a larger sample size.
-    """)
-    
-    with st.sidebar:
-        st.subheader("Sample Size Controls")
-        calc_method = st.radio(
-            "Select the statistical model:",
-            ["Binomial (Continuous Process / Large Lot)", "Hypergeometric (Finite Lot)"],
-            help="Choose Binomial for ongoing processes or very large batches. Choose Hypergeometric for discrete, smaller batches to get a more accurate (and often smaller) sample size."
-        )
-        confidence_level = st.slider("Confidence Level (C)", 80.0, 99.9, 95.0, 0.1, format="%.1f%%")
-        reliability = st.slider("Required Reliability (R)", 90.0, 99.9, 99.0, 0.1, format="%.1f%%")
-
-        lot_size = None
-        if "Hypergeometric" in calc_method:
-            lot_size = st.number_input(
-                "Enter the total Lot Size (M)", 
-                min_value=10, max_value=100000, value=1000, step=10,
-                help="The total number of units in the discrete batch you are sampling from."
-            )
-            
-    # --- Calculation Logic (moved up for clarity) ---
-    c = confidence_level / 100
-    r = reliability / 100
-    sample_size, model_used = "N/A", ""
-
-    if "Binomial" in calc_method:
-        model_used = "Binomial"
-        sample_size = int(np.ceil(np.log(1 - c) / np.log(r))) if r < 1.0 else "Infinite"
-    elif lot_size:
-        model_used = "Hypergeometric"
-        D = math.floor((1 - r) * lot_size)
-        @st.cache_data
-        def find_hypergeometric_n(M, D, C):
-            if M <= D: return 1
-            log_alpha = math.log(1 - C)
-            for n in range(1, M - D + 2):
-                if n > M - D: return M - D
-                log_p0 = (math.lgamma(M-D+1) - math.lgamma(n+1) - math.lgamma(M-D-n+1)) - \
-                         (math.lgamma(M+1) - math.lgamma(n+1) - math.lgamma(M-n+1))
-                if log_p0 <= log_alpha: return n
-            return M - D
-        sample_size = find_hypergeometric_n(lot_size, D, c)
-
-    # --- Dashboard Layout ---
-    col1, col2 = st.columns([0.6, 0.4])
-    with col1:
-        fig = plot_sample_size_curves(confidence_level, reliability, lot_size, calc_method, sample_size)
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-
-        with tabs[0]:
-            st.metric(
-                label=f"Required Sample Size (n) via {model_used}",
-                value=f"{sample_size} units",
-                help="Minimum units to test with zero failures to meet your claim."
-            )
-            st.success(f"""
-            **Actionable Conclusion:**
-            
-            To demonstrate with **{confidence_level:.1f}% confidence** that your process is at least **{reliability:.1f}% reliable**, you must test **{sample_size} units** and find **zero failures**.
-            """)
-            st.markdown("""
-            **Reading the Plot:**
-            - The curves show the **best possible reliability** you can claim for a given sample size (with zero failures).
-            - As `n` increases, your statistical power increases, allowing you to claim higher reliability.
-            - Notice the **Hypergeometric curve (orange dash)** is always above the Binomial curve. This shows that for a finite lot, you need a slightly smaller sample size to make the same statistical claim, as each good part you draw slightly increases the chance the next one is good.
-            """)
-        
-        with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "Square Root of N Plus One" Fallacy**
-An engineer is asked for a sampling plan and defaults to an arbitrary, non-statistical rule of thumb they learned years ago, like `n = sqrt(Lot Size) + 1`.
-- **The Flaw:** This plan is completely disconnected from risk. It cannot answer the question: "What level of confidence and reliability does this plan provide?" It is indefensible during a regulatory audit.""")
-            st.success("""🟢 **THE GOLDEN RULE: State Your Risk, Then Calculate Your Sample**
-A compliant and statistically sound sampling plan is always derived from pre-defined risk criteria.
-1.  **First, Define the Claim:** Before touching a calculator, stakeholders (Quality, Regulatory, Clinical) must agree on the required claim. "We need to be **95% confident** that the batch is **99% compliant**."
-2.  **Then, Justify the Model:** Choose the correct statistical model for the situation (Binomial for a continuous process, Hypergeometric for a finite lot).
-3.  **Finally, Calculate `n`:** The required sample size is the direct mathematical output of the first two steps. This creates a clear, traceable, and audit-proof justification for your validation plan.""")
-            
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: From Gosset's Brewery to Modern Industry
-            **The Problem:** At the turn of the 20th century, William Sealy Gosset, a chemist at the Guinness brewery in Dublin, faced a problem central to industrial quality control: how to make reliable conclusions from very small samples. The classical statistical theory of the time required large samples, but Gosset could only afford to take a few measurements from each batch of beer. This practical constraint forced a revolution in statistics.
-            
-            **The 'Aha!' Moment:** Gosset, writing under the pseudonym "Student," developed what we now know as the **Student's t-distribution** (1908). This was the first "small-sample" statistical method. It mathematically demonstrated that with very few data points, our uncertainty is much higher than previously thought. The convention of using `n=3` is a direct, practical consequence of this insight: it represents the smallest possible sample size where you can calculate a meaningful standard deviation and thus begin to characterize the uncertainty Gosset was trying to tame.
-            
-            **The Military-Industrial Complex:** Decades later, during World War II, the need for robust sampling exploded. Statisticians like Harold Dodge, Harry Romig, and Abraham Wald developed modern **acceptance sampling** for the military. Their work, codified in standards like **MIL-STD-105**, provided the rigorous mathematical framework (using Binomial and Hypergeometric distributions) to link sample size to specific, contractual quality levels (AQL).
-            
-            **The Modern Synthesis:** Today's practices blend both legacies. Gosset's "small-sample" thinking justifies using triplicates for preliminary repeatability checks, while the military's acceptance sampling framework provides the high-assurance models needed for final product release and process qualification.
-            """)
-        
-        with tabs[3]:
-            st.markdown("""
-            A statistically justified sampling plan is a fundamental expectation in any GxP-regulated environment. It provides the **objective evidence** required to support validation claims and batch disposition decisions.
-            
-            ---
-            ##### FDA - Process Validation & CFR
-            - **Process Validation Guidance (2011):** This calculator is most directly applicable to **Stage 2: Process Performance Qualification (PPQ)**. The guidance states that the number of samples should be "sufficient to provide statistical confidence of quality both within a batch and between batches." This tool provides the statistical rationale for "sufficient."
-            - **21 CFR 211.165(d):** Requires that "acceptance criteria for the sampling and testing conducted... shall be adequate to assure that batches of drug products meet **appropriate statistical quality control criteria**." This calculator is a method for defining such criteria.
-            - **21 CFR 211.110(b):** Requires written procedures for in-process controls and tests, including "Control procedures shall include... scientifically sound and appropriate sampling plans."
-            
-            ---
-            ##### Medical Devices - ISO 13485 & 21 CFR 820
-            - **ISO 13485:2016 (Section 7.5.6):** This global standard for medical device quality management requires that process validation activities ensure the process can "consistently produce product which meets specifications."
-            - **21 CFR 820.250 (Statistical Techniques):** States that "Where appropriate, each manufacturer shall establish and maintain procedures for identifying valid statistical techniques required for establishing, controlling, and verifying the acceptability of process capability and product characteristics." This calculator is a prime example of such a technique.
-            
-            ---
-            ##### ICH Guidelines - A Global Perspective
-            - **ICH Q9 (Quality Risk Management):** The selection of a confidence and reliability level is a direct input from the Quality Risk Management process. A high-risk product or process parameter would demand higher confidence and reliability, leading to a larger sample size. This tool provides the direct link between the risk assessment and the validation sampling plan.
-            
-            **The Golden Thread:** Across all regulations, the expectation is the same. The choice of a sample size cannot be arbitrary. It must be **pre-defined, justified, and linked to the level of quality and assurance** required for the product. This calculator provides that traceable, scientific justification.
-            """)
-
-    with st.expander("🔎 Special Topic: The Role of Triplicates (n=3) in Experimental Design"):
-        st.markdown("""
-        While the calculator above determines sample size for lot acceptance (a `go/no-go` decision), a common question in experimental design is: **"Why do we so often test in triplicates?"** While `n=3` is rarely sufficient for a full PQ, it is a common and justifiable choice for smaller-scale experiments for several reasons.
-        
-        #### Why triplicates are often used
-        *   **Statistical estimate of variability:** With only one measurement, you have no way to know if the result is representative. With two, you can see if results differ, but you can’t estimate variance reliably. With three, you can calculate a mean, standard deviation, and %RSD, giving you a basic measure of repeatability.
-        *   **Outlier detection:** If one result deviates significantly from the other two, you can identify possible anomalies due to instrument noise, handling error, or environmental changes.
-        *   **Compliance with common scientific practice:** In many biological, chemical, and engineering fields, `n=3` is a de facto minimum for demonstrating reproducibility without making the experiment prohibitively costly or time-consuming.
-
-        #### Mathematical Basis: The Power of `n-1`
-        The ability to estimate variance from a sample is based on the concept of **degrees of freedom (df)**. The formula for sample standard deviation is:
-        """)
-        st.latex(r"s = \sqrt{\frac{\sum_{i=1}^{n}(x_i - \bar{x})^2}{n-1}}")
-        st.markdown("""
-        -   For `n=1`, the denominator is `1-1=0`. The standard deviation is undefined. You have zero degrees of freedom to estimate variability.
-        -   For `n=2`, the denominator is `2-1=1`. You have one degree of freedom. You can calculate a standard deviation, but it's a very unstable "point estimate" of the true process variability.
-        -   For `n=3`, the denominator is `3-1=2`. You have two degrees of freedom. This is the smallest sample size where the estimate of variability begins to gain some (though still limited) stability. It is the absolute minimum for a meaningful statistical characterization of repeatability.
-
-        #### When triplicates alone are NOT sufficient
-        For formal method validation (especially in regulated environments like FDA, ISO 17025, CLSI, ICH Q2), triplicates in a single run are almost never enough. Regulators expect a more comprehensive demonstration of robustness, usually including:
-        *   Multiple runs across different days.
-        *   Multiple analysts/operators.
-        *   Multiple instruments (if applicable).
-        *   Larger datasets for key performance parameters (e.g., accuracy, linearity, robustness).
-        
-        > ✅ **Bottom line:** Triplicates are the statistical minimum for assessing within-run repeatability. For formal validation, they are just one piece of the puzzle—not the whole picture.
-        """)
-    
-    with st.expander("View Detailed Statistical Methodology for Lot Acceptance"):
-        st.markdown(f"""
-        #### Mathematical Basis
-        This calculation is rooted in probability theory. The choice of model depends on the nature of the population being sampled.
-        ---
-        ##### 1. Binomial Model (Large Lot / Continuous Process)
-        **Assumption:** The population is effectively **infinite**. Each sample is independent, and the act of sampling does not change the underlying defect rate of the process.
-        **Formula:** We solve for `n` in the inequality `R^n <= 1 - C`, which gives:
-        """)
-        st.latex(r''' n \ge \frac{\ln(1 - C)}{\ln(R)} ''')
-        st.markdown("---")
-        st.markdown("""
-        ##### 2. Hypergeometric Model (Finite Lot)
-        **Assumption:** Sampling is done **without replacement** from a discrete lot of a known, finite size `M`.
-        **Formula:** We iterate to find the smallest integer `n` that satisfies:
-        """)
-        st.latex(r''' P(X=0) = \frac{\binom{M-D}{n}}{\binom{M}{n}} \le 1 - C ''')
-        st.markdown("""
-        Where `M` is Lot Size, `D` is max allowable defects (`floor((1-R) * M)`), and `n` is Sample Size.
-        """)
         
 def render_ci_concept():
     """Renders the interactive module for Confidence Intervals."""
@@ -5440,7 +5267,185 @@ A robust causal analysis follows a disciplined process.
 ##=========================================================================================================================================================================================================
 ##===============================================================================END ACT I UI Render ========================================================================================================================================
 ##=========================================================================================================================================================================================================
+def render_sample_size_calculator():
+    """Renders the comprehensive, interactive module for calculating sample size for qualification."""
+    st.markdown("""
+    #### Purpose & Application: The Auditor's Question
+    **Purpose:** To provide a statistically valid, audit-proof justification for a sampling plan. This tool answers the fundamental question asked in every process validation: **"How did you decide that testing 'n' samples was enough?"**
+    
+    **Strategic Application:** This is a critical step in writing any Validation Plan (VP) for a Performance Qualification (PQ) or for defining a lot acceptance sampling plan.
+    - **Demonstrates Statistical Rigor:** Moves beyond arbitrary or "tribal knowledge" sample sizes (e.g., "we've always used n=30") to a defensible, risk-based approach.
+    - **Optimizes Resources:** Using the correct statistical model (e.g., Hypergeometric for finite lots) can often reduce the required sample size compared to overly conservative methods, saving significant time and cost.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the controls in the sidebar to define your statistical requirements (Confidence & Reliability) and process type.
+    - The **KPI** on the left shows the calculated sample size needed.
+    - The **Plot** on the right visualizes the trade-off. Your specific requirement is marked by the green star. Notice how increasing reliability or confidence demands a larger sample size.
+    """)
+    
+    with st.sidebar:
+        st.subheader("Sample Size Controls")
+        calc_method = st.radio(
+            "Select the statistical model:",
+            ["Binomial (Continuous Process / Large Lot)", "Hypergeometric (Finite Lot)"],
+            help="Choose Binomial for ongoing processes or very large batches. Choose Hypergeometric for discrete, smaller batches to get a more accurate (and often smaller) sample size."
+        )
+        confidence_level = st.slider("Confidence Level (C)", 80.0, 99.9, 95.0, 0.1, format="%.1f%%")
+        reliability = st.slider("Required Reliability (R)", 90.0, 99.9, 99.0, 0.1, format="%.1f%%")
 
+        lot_size = None
+        if "Hypergeometric" in calc_method:
+            lot_size = st.number_input(
+                "Enter the total Lot Size (M)", 
+                min_value=10, max_value=100000, value=1000, step=10,
+                help="The total number of units in the discrete batch you are sampling from."
+            )
+            
+    # --- Calculation Logic (moved up for clarity) ---
+    c = confidence_level / 100
+    r = reliability / 100
+    sample_size, model_used = "N/A", ""
+
+    if "Binomial" in calc_method:
+        model_used = "Binomial"
+        sample_size = int(np.ceil(np.log(1 - c) / np.log(r))) if r < 1.0 else "Infinite"
+    elif lot_size:
+        model_used = "Hypergeometric"
+        D = math.floor((1 - r) * lot_size)
+        @st.cache_data
+        def find_hypergeometric_n(M, D, C):
+            if M <= D: return 1
+            log_alpha = math.log(1 - C)
+            for n in range(1, M - D + 2):
+                if n > M - D: return M - D
+                log_p0 = (math.lgamma(M-D+1) - math.lgamma(n+1) - math.lgamma(M-D-n+1)) - \
+                         (math.lgamma(M+1) - math.lgamma(n+1) - math.lgamma(M-n+1))
+                if log_p0 <= log_alpha: return n
+            return M - D
+        sample_size = find_hypergeometric_n(lot_size, D, c)
+
+    # --- Dashboard Layout ---
+    col1, col2 = st.columns([0.6, 0.4])
+    with col1:
+        fig = plot_sample_size_curves(confidence_level, reliability, lot_size, calc_method, sample_size)
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+
+        with tabs[0]:
+            st.metric(
+                label=f"Required Sample Size (n) via {model_used}",
+                value=f"{sample_size} units",
+                help="Minimum units to test with zero failures to meet your claim."
+            )
+            st.success(f"""
+            **Actionable Conclusion:**
+            
+            To demonstrate with **{confidence_level:.1f}% confidence** that your process is at least **{reliability:.1f}% reliable**, you must test **{sample_size} units** and find **zero failures**.
+            """)
+            st.markdown("""
+            **Reading the Plot:**
+            - The curves show the **best possible reliability** you can claim for a given sample size (with zero failures).
+            - As `n` increases, your statistical power increases, allowing you to claim higher reliability.
+            - Notice the **Hypergeometric curve (orange dash)** is always above the Binomial curve. This shows that for a finite lot, you need a slightly smaller sample size to make the same statistical claim, as each good part you draw slightly increases the chance the next one is good.
+            """)
+        
+        with tabs[1]:
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Square Root of N Plus One" Fallacy**
+An engineer is asked for a sampling plan and defaults to an arbitrary, non-statistical rule of thumb they learned years ago, like `n = sqrt(Lot Size) + 1`.
+- **The Flaw:** This plan is completely disconnected from risk. It cannot answer the question: "What level of confidence and reliability does this plan provide?" It is indefensible during a regulatory audit.""")
+            st.success("""🟢 **THE GOLDEN RULE: State Your Risk, Then Calculate Your Sample**
+A compliant and statistically sound sampling plan is always derived from pre-defined risk criteria.
+1.  **First, Define the Claim:** Before touching a calculator, stakeholders (Quality, Regulatory, Clinical) must agree on the required claim. "We need to be **95% confident** that the batch is **99% compliant**."
+2.  **Then, Justify the Model:** Choose the correct statistical model for the situation (Binomial for a continuous process, Hypergeometric for a finite lot).
+3.  **Finally, Calculate `n`:** The required sample size is the direct mathematical output of the first two steps. This creates a clear, traceable, and audit-proof justification for your validation plan.""")
+            
+        with tabs[2]:
+            st.markdown("""
+            #### Historical Context: From Gosset's Brewery to Modern Industry
+            **The Problem:** At the turn of the 20th century, William Sealy Gosset, a chemist at the Guinness brewery in Dublin, faced a problem central to industrial quality control: how to make reliable conclusions from very small samples. The classical statistical theory of the time required large samples, but Gosset could only afford to take a few measurements from each batch of beer. This practical constraint forced a revolution in statistics.
+            
+            **The 'Aha!' Moment:** Gosset, writing under the pseudonym "Student," developed what we now know as the **Student's t-distribution** (1908). This was the first "small-sample" statistical method. It mathematically demonstrated that with very few data points, our uncertainty is much higher than previously thought. The convention of using `n=3` is a direct, practical consequence of this insight: it represents the smallest possible sample size where you can calculate a meaningful standard deviation and thus begin to characterize the uncertainty Gosset was trying to tame.
+            
+            **The Military-Industrial Complex:** Decades later, during World War II, the need for robust sampling exploded. Statisticians like Harold Dodge, Harry Romig, and Abraham Wald developed modern **acceptance sampling** for the military. Their work, codified in standards like **MIL-STD-105**, provided the rigorous mathematical framework (using Binomial and Hypergeometric distributions) to link sample size to specific, contractual quality levels (AQL).
+            
+            **The Modern Synthesis:** Today's practices blend both legacies. Gosset's "small-sample" thinking justifies using triplicates for preliminary repeatability checks, while the military's acceptance sampling framework provides the high-assurance models needed for final product release and process qualification.
+            """)
+        
+        with tabs[3]:
+            st.markdown("""
+            A statistically justified sampling plan is a fundamental expectation in any GxP-regulated environment. It provides the **objective evidence** required to support validation claims and batch disposition decisions.
+            
+            ---
+            ##### FDA - Process Validation & CFR
+            - **Process Validation Guidance (2011):** This calculator is most directly applicable to **Stage 2: Process Performance Qualification (PPQ)**. The guidance states that the number of samples should be "sufficient to provide statistical confidence of quality both within a batch and between batches." This tool provides the statistical rationale for "sufficient."
+            - **21 CFR 211.165(d):** Requires that "acceptance criteria for the sampling and testing conducted... shall be adequate to assure that batches of drug products meet **appropriate statistical quality control criteria**." This calculator is a method for defining such criteria.
+            - **21 CFR 211.110(b):** Requires written procedures for in-process controls and tests, including "Control procedures shall include... scientifically sound and appropriate sampling plans."
+            
+            ---
+            ##### Medical Devices - ISO 13485 & 21 CFR 820
+            - **ISO 13485:2016 (Section 7.5.6):** This global standard for medical device quality management requires that process validation activities ensure the process can "consistently produce product which meets specifications."
+            - **21 CFR 820.250 (Statistical Techniques):** States that "Where appropriate, each manufacturer shall establish and maintain procedures for identifying valid statistical techniques required for establishing, controlling, and verifying the acceptability of process capability and product characteristics." This calculator is a prime example of such a technique.
+            
+            ---
+            ##### ICH Guidelines - A Global Perspective
+            - **ICH Q9 (Quality Risk Management):** The selection of a confidence and reliability level is a direct input from the Quality Risk Management process. A high-risk product or process parameter would demand higher confidence and reliability, leading to a larger sample size. This tool provides the direct link between the risk assessment and the validation sampling plan.
+            
+            **The Golden Thread:** Across all regulations, the expectation is the same. The choice of a sample size cannot be arbitrary. It must be **pre-defined, justified, and linked to the level of quality and assurance** required for the product. This calculator provides that traceable, scientific justification.
+            """)
+
+    with st.expander("🔎 Special Topic: The Role of Triplicates (n=3) in Experimental Design"):
+        st.markdown("""
+        While the calculator above determines sample size for lot acceptance (a `go/no-go` decision), a common question in experimental design is: **"Why do we so often test in triplicates?"** While `n=3` is rarely sufficient for a full PQ, it is a common and justifiable choice for smaller-scale experiments for several reasons.
+        
+        #### Why triplicates are often used
+        *   **Statistical estimate of variability:** With only one measurement, you have no way to know if the result is representative. With two, you can see if results differ, but you can’t estimate variance reliably. With three, you can calculate a mean, standard deviation, and %RSD, giving you a basic measure of repeatability.
+        *   **Outlier detection:** If one result deviates significantly from the other two, you can identify possible anomalies due to instrument noise, handling error, or environmental changes.
+        *   **Compliance with common scientific practice:** In many biological, chemical, and engineering fields, `n=3` is a de facto minimum for demonstrating reproducibility without making the experiment prohibitively costly or time-consuming.
+
+        #### Mathematical Basis: The Power of `n-1`
+        The ability to estimate variance from a sample is based on the concept of **degrees of freedom (df)**. The formula for sample standard deviation is:
+        """)
+        st.latex(r"s = \sqrt{\frac{\sum_{i=1}^{n}(x_i - \bar{x})^2}{n-1}}")
+        st.markdown("""
+        -   For `n=1`, the denominator is `1-1=0`. The standard deviation is undefined. You have zero degrees of freedom to estimate variability.
+        -   For `n=2`, the denominator is `2-1=1`. You have one degree of freedom. You can calculate a standard deviation, but it's a very unstable "point estimate" of the true process variability.
+        -   For `n=3`, the denominator is `3-1=2`. You have two degrees of freedom. This is the smallest sample size where the estimate of variability begins to gain some (though still limited) stability. It is the absolute minimum for a meaningful statistical characterization of repeatability.
+
+        #### When triplicates alone are NOT sufficient
+        For formal method validation (especially in regulated environments like FDA, ISO 17025, CLSI, ICH Q2), triplicates in a single run are almost never enough. Regulators expect a more comprehensive demonstration of robustness, usually including:
+        *   Multiple runs across different days.
+        *   Multiple analysts/operators.
+        *   Multiple instruments (if applicable).
+        *   Larger datasets for key performance parameters (e.g., accuracy, linearity, robustness).
+        
+        > ✅ **Bottom line:** Triplicates are the statistical minimum for assessing within-run repeatability. For formal validation, they are just one piece of the puzzle—not the whole picture.
+        """)
+    
+    with st.expander("View Detailed Statistical Methodology for Lot Acceptance"):
+        st.markdown(f"""
+        #### Mathematical Basis
+        This calculation is rooted in probability theory. The choice of model depends on the nature of the population being sampled.
+        ---
+        ##### 1. Binomial Model (Large Lot / Continuous Process)
+        **Assumption:** The population is effectively **infinite**. Each sample is independent, and the act of sampling does not change the underlying defect rate of the process.
+        **Formula:** We solve for `n` in the inequality `R^n <= 1 - C`, which gives:
+        """)
+        st.latex(r''' n \ge \frac{\ln(1 - C)}{\ln(R)} ''')
+        st.markdown("---")
+        st.markdown("""
+        ##### 2. Hypergeometric Model (Finite Lot)
+        **Assumption:** Sampling is done **without replacement** from a discrete lot of a known, finite size `M`.
+        **Formula:** We iterate to find the smallest integer `n` that satisfies:
+        """)
+        st.latex(r''' P(X=0) = \frac{\binom{M-D}{n}}{\binom{M}{n}} \le 1 - C ''')
+        st.markdown("""
+        Where `M` is Lot Size, `D` is max allowable defects (`floor((1-R) * M)`), and `n` is Sample Size.
+        """)
+        
 def render_spc_charts():
     """Renders the INTERACTIVE module for Statistical Process Control (SPC) charts."""
     st.markdown("""
@@ -7645,13 +7650,13 @@ with st.sidebar:
     # Replace the old all_tools dictionary with this one.
     all_tools = {
         "ACT I: FOUNDATION & CHARACTERIZATION": [
-            "Sample Size for Qualification", "Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", 
+            "Confidence Interval Concept", "Core Validation Parameters", "Gage R&R / VCA", 
             "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", 
             "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "DOE & Design Space",
             "Split-Plot Designs", "Causal Inference"
         ],
         "ACT II: TRANSFER & STABILITY": [
-            "Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", 
+            "Sample Size for Qualification", "Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", 
             "Method Comparison", "Bayesian Inference"
         ],
         "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
@@ -7687,7 +7692,6 @@ else:
     # --- THIS DICTIONARY NOW CONTAINS ALL RENDER FUNCTIONS ---
     PAGE_DISPATCHER = {
         # Act I
-        "Sample Size for Qualification": render_sample_size_calculator,
         "Confidence Interval Concept": render_ci_concept,
         "Core Validation Parameters": render_core_validation_params,
         "Gage R&R / VCA": render_gage_rr,
@@ -7702,6 +7706,7 @@ else:
         "Causal Inference": render_causal_inference,
         
         # Act II
+        "Sample Size for Qualification": render_sample_size_calculator,
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,
         "Tolerance Intervals": render_tolerance_intervals,

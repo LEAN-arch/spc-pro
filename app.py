@@ -1424,7 +1424,7 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
     fig_pareto.update_layout(showlegend=False)
 
     return fig_contour, fig_3d, fig_pareto, anova_summary, opt_ph_real, opt_temp_real, max_response
-
+@st.cache_data
 def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_quad_effect, temp_quad_effect, asymmetry_effect, noise_sd, yield_threshold):
     """
     Generates a full suite of professional-grade plots: Pareto, 3D RSM, 2D RSM Map, and 2D ML PDP.

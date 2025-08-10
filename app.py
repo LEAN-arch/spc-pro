@@ -3113,84 +3113,107 @@ def plot_advanced_ai_concepts(concept, p1=0, p2=0, p3=0):
 #=========================================================================NEW HYBRID METHODS ==================================================================================================
 #===========================================================================================================================================================================================
 @st.cache_data
-def plot_mewma_xgboost(shift_magnitude=0.75, lambda_mewma=0.2):
+def plot_mewma_xgboost(drift_magnitude=0.03, lambda_mewma=0.2):
     """
-    Generates data for a Multivariate EWMA (MEWMA) chart and uses an XGBoost model
-    with SHAP for root cause diagnostics of an alarm.
+    Generates an enhanced, more realistic MEWMA dashboard, including autocorrelated data,
+    a gradual drift failure mode, and a clearer waterfall plot for diagnostics.
     """
     np.random.seed(42)
-    n_train, n_monitor = 100, 50
+    n_train, n_monitor = 100, 80
     n_total = n_train + n_monitor
+    drift_start_point = n_train
 
-    # 1. --- Simulate Correlated Process Data ---
-    mean_vec = np.array([10, 50, 100])
-    cov_matrix = np.array([[2.0, 1.5, 0.5], [1.5, 3.0, 1.0], [0.5, 1.0, 4.0]])
-    data = np.random.multivariate_normal(mean_vec, cov_matrix, n_total)
+    # --- 1. SME Enhancement: Simulate more realistic, autocorrelated process data ---
+    mean_vec = np.array([7.0, 50.0, 100.0])
+    cov_matrix = np.array([[0.04, 0.5, 0.8], [0.5, 16.0, 25.0], [0.8, 25.0, 64.0]])
     
-    # Inject a subtle shift in Temp and Pressure during monitoring phase
-    shift_vec = np.array([0, shift_magnitude, shift_magnitude * 1.5])
-    data[n_train:] += shift_vec
-    df = pd.DataFrame(data, columns=['pH', 'Temp', 'Pressure'])
+    # Generate underlying random shocks
+    innovations = np.random.multivariate_normal(np.zeros(3), cov_matrix, n_total)
+    
+    # Create autocorrelated noise (AR(1) process)
+    phi = 0.6 # Autocorrelation coefficient
+    noise = np.zeros_like(innovations)
+    for i in range(1, n_total):
+        noise[i, :] = phi * noise[i-1, :] + innovations[i, :]
+        
+    data = mean_vec + noise
+    
+    # SME Enhancement: Inject a subtle, GRADUAL drift in Temp and Pressure
+    drift_duration = n_total - drift_start_point
+    drift_vector = np.zeros_like(data)
+    temp_drift = np.linspace(0, drift_magnitude * np.sqrt(cov_matrix[1,1]) * drift_duration, drift_duration)
+    pressure_drift = np.linspace(0, drift_magnitude * np.sqrt(cov_matrix[2,2]) * drift_duration, drift_duration)
+    drift_vector[drift_start_point:, 1] = temp_drift
+    drift_vector[drift_start_point:, 2] = pressure_drift
+    
+    data += drift_vector
+    df = pd.DataFrame(data, columns=['pH', 'Temperature', 'Pressure'])
 
-    # 2. --- MEWMA Calculation ---
-    S_inv = np.linalg.inv(cov_matrix)
+    # 2. --- MEWMA Calculation (using Phase 1 data for covariance) ---
+    train_cov = df.iloc[:n_train].cov().values
+    S_inv = np.linalg.inv(train_cov)
+    train_mean = df.iloc[:n_train].mean().values
+    
     Z = np.zeros_like(data)
     t_squared_mewma = np.zeros(n_total)
-    for i in range(n_total):
-        if i == 0:
-            Z[i, :] = (1 - lambda_mewma) * mean_vec + lambda_mewma * data[i, :]
-        else:
-            Z[i, :] = (1 - lambda_mewma) * Z[i-1, :] + lambda_mewma * data[i, :]
-        
-        diff = Z[i, :] - mean_vec
-        # Simplified T-squared calculation for MEWMA
+    Z[0, :] = train_mean
+    for i in range(1, n_total):
+        Z[i, :] = (1 - lambda_mewma) * Z[i-1, :] + lambda_mewma * data[i, :]
+        diff = Z[i, :] - train_mean
         t_squared_mewma[i] = diff.T @ S_inv @ diff
 
     # 3. --- Control Limit (Asymptotic) ---
-    p = data.shape[1] # number of variables
-    # This is a common heuristic for MEWMA chart limits
-    ucl = (p * (lambda_mewma / (2 - lambda_mewma))) * f.ppf(0.99, p, 1000) # Using large df for chi2 approx
+    p = data.shape[1]
+    ucl = (p * lambda_mewma / (2 - lambda_mewma)) * f.ppf(0.9973, p, 1000) # 3-sigma equivalent
     
-    ooc_points = np.where(t_squared_mewma[n_train:] > ucl)[0]
-    first_ooc_index = ooc_points[0] + n_train if len(ooc_points) > 0 else None
+    ooc_points_mask = t_squared_mewma[n_train:] > ucl
+    first_ooc_index = np.argmax(ooc_points_mask) + n_train if np.any(ooc_points_mask) else None
     
     # 4. --- XGBoost Diagnostic Model ---
-    fig_diag = None
+    buf_waterfall = None
     if first_ooc_index:
-        # Create labels: 0 for in-control, 1 for out-of-control
-        y = np.zeros(n_total)
-        y[n_train:] = 1 
-        
-        model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
-        model.fit(df, y)
-        
-        explainer = shap.Explainer(model)
+        y = np.array([0] * n_train + [1] * n_monitor)
+        model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42).fit(df, y)
+        explainer = shap.Explainer(model, df)
         shap_values = explainer(df)
         
-        # Create a force plot for the first detected out-of-control point
-        force_plot = shap.force_plot(
-            explainer.expected_value, 
-            shap_values.values[first_ooc_index,:], 
-            df.iloc[first_ooc_index,:],
-            show=False
-        )
-        fig_diag = f"<html><head>{shap.initjs()}</head><body>{force_plot.html()}</body></html>"
+        # SME Enhancement: Use a clearer Waterfall plot
+        fig_waterfall, ax_waterfall = plt.subplots()
+        shap.waterfall_plot(shap_values[first_ooc_index], show=False)
+        buf_waterfall = io.BytesIO()
+        fig_waterfall.savefig(buf_waterfall, format='png', bbox_inches='tight')
+        plt.close(fig_waterfall)
+        buf_waterfall.seek(0)
 
-    # 5. --- Main Plotting ---
-    fig_mewma = go.Figure()
-    fig_mewma.add_trace(go.Scatter(y=t_squared_mewma, mode='lines+markers', name='MEWMA Statistic'))
-    fig_mewma.add_hline(y=ucl, line=dict(color='red', dash='dash'), name='UCL')
-    fig_mewma.add_vrect(x0=n_train - 0.5, x1=n_total - 0.5, fillcolor="rgba(255,150,0,0.1)", line_width=0, annotation_text="Monitoring Phase")
+    # 5. --- Plotting Dashboard ---
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=("<b>1. Raw Process Data (The 'Stealth' Drift)</b>",
+                                        "<b>2. MEWMA Chart (The Detector)</b>"))
+
+    # Plot 1: Raw Data
+    for col in df.columns:
+        fig.add_trace(go.Scatter(y=df[col], name=col, mode='lines'), row=1, col=1)
     
+    # Plot 2: MEWMA Chart
+    fig.add_trace(go.Scatter(y=t_squared_mewma, name='MEWMA T²', mode='lines+markers', line_color='#636EFA'), row=2, col=1)
+    fig.add_hline(y=ucl, line=dict(color='red', dash='dash'), row=2, col=1)
+
+    # Add annotations to both plots
+    for r in [1, 2]:
+        fig.add_vrect(x0=0, x1=n_train, fillcolor="rgba(0,204,150,0.1)", line_width=0,
+                      annotation_text="Phase 1: Training", annotation_position="top left", row=r, col=1)
+        fig.add_vrect(x0=n_train, x1=n_total, fillcolor="rgba(255,150,0,0.1)", line_width=0,
+                      annotation_text="Phase 2: Monitoring", annotation_position="top right", row=r, col=1)
     if first_ooc_index:
-        fig_mewma.add_trace(go.Scatter(x=[first_ooc_index], y=[t_squared_mewma[first_ooc_index]],
-                                     mode='markers', marker=dict(color='red', size=12, symbol='x'), name='First Alarm'))
-    
-    fig_mewma.update_layout(title="<b>Multivariate EWMA (MEWMA) Control Chart</b>",
-                          xaxis_title="Observation Number", yaxis_title="MEWMA T² Statistic")
+        fig.add_vline(x=first_ooc_index, line=dict(color='red', width=2),
+                      annotation_text="First Alarm", annotation_position='top', row='all', col=1)
 
-    return fig_mewma, fig_diag, first_ooc_index
+    fig.update_layout(height=600, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig.update_yaxes(title_text="Value", row=1, col=1)
+    fig.update_yaxes(title_text="MEWMA T²", row=2, col=1)
+    fig.update_xaxes(title_text="Observation Number", row=2, col=1)
 
+    return fig, buf_waterfall, first_ooc_index
 
 @st.cache_data
 def plot_bocpd_ml_features(mean_shift=3.0, noise_increase=2.0):
@@ -6081,80 +6104,70 @@ def render_mewma_xgboost():
     """Renders the MEWMA + XGBoost Diagnostics module."""
     st.markdown("""
     #### Purpose & Application: The AI First Responder
-    **Purpose:** To create a two-stage "Detect and Diagnose" system. A **Multivariate EWMA (MEWMA)** chart acts as a highly sensitive alarm for small, coordinated drifts in a process. When it alarms, a pre-trained **XGBoost + SHAP model** instantly performs an automated root cause analysis, identifying the variables that contributed most to the alarm.
+    **Purpose:** To create a two-stage "Detect and Diagnose" system. A **Multivariate EWMA (MEWMA)** chart acts as a highly sensitive alarm for small, coordinated drifts in a process. When it alarms, a pre-trained **XGBoost + SHAP model** instantly performs an automated root cause analysis.
     
-    **Strategic Application:** This represents the state-of-the-art in intelligent process monitoring. It's for mature, complex processes where simple alarms are insufficient.
-    - **Detect:** The MEWMA chart excels at finding subtle "stealth shifts" that individual EWMA charts would miss, because it understands the process's normal correlation structure.
-    - **Diagnose:** Instead of technicians guessing at the cause of an alarm, the SHAP plot provides an immediate, data-driven "Top Suspects" list, dramatically accelerating troubleshooting and corrective actions (CAPA).
+    **Strategic Application:** This represents the state-of-the-art in intelligent process monitoring.
+    - **Detect:** The MEWMA chart excels at finding subtle "stealth shifts" that individual charts would miss, because it understands the process's normal correlation structure.
+    - **Diagnose:** Instead of technicians guessing the cause of an alarm, the SHAP plot provides an immediate, data-driven "Top Suspects" list, dramatically accelerating troubleshooting.
     """)
 
     st.info("""
-    **Interactive Demo:** Use the sliders in the sidebar to control the simulated process.
-    - **`Shift Magnitude`**: Controls how large the drift is in the Temp and Pressure parameters during the monitoring phase. A smaller shift is harder to detect.
-    - **`MEWMA Lambda (λ)`**: Controls the "memory" of the chart. A smaller lambda gives it a longer memory, making it more sensitive to tiny, persistent shifts.
+    **Interactive Demo:** Use the sliders to control the simulated process.
+    - **`Gradual Drift Magnitude`**: Controls how quickly the Temp and Pressure variables drift away from baseline during the monitoring phase.
+    - **`MEWMA Lambda (λ)`**: Controls the "memory" of the chart. A smaller lambda gives it a longer memory, making it more sensitive to tiny, persistent drifts.
     """)
 
-    st.sidebar.subheader("MEWMA + XGBoost Controls")
-    shift_slider = st.sidebar.slider("Shift Magnitude (in units of σ)", 0.25, 2.0, 0.75, 0.25,
-        help="Controls the size of the subtle, coordinated drift introduced into the Temp and Pressure variables during the monitoring phase.")
-    lambda_slider = st.sidebar.slider("MEWMA Lambda (λ)", 0.05, 0.5, 0.2, 0.05,
-        help="Controls the 'memory' of the MEWMA chart. Smaller values give longer memory, increasing sensitivity to small, persistent shifts.")
+    with st.sidebar:
+        st.sidebar.subheader("MEWMA + XGBoost Controls")
+        drift_slider = st.sidebar.slider("Gradual Drift Magnitude", 0.0, 0.1, 0.03, 0.01,
+            help="Controls the rate of the slow, creeping drift introduced into Temp & Pressure. A smaller value is harder to detect.")
+        lambda_slider = st.sidebar.slider("MEWMA Lambda (λ)", 0.05, 0.5, 0.2, 0.05,
+            help="Controls the 'memory' of the MEWMA chart. Smaller values give longer memory, increasing sensitivity.")
 
-    fig_mewma, fig_diag, alarm_time = plot_mewma_xgboost(shift_magnitude=shift_slider, lambda_mewma=lambda_slider)
+    fig_dashboard, buf_waterfall, alarm_time = plot_mewma_xgboost(drift_magnitude=drift_slider, lambda_mewma=lambda_slider)
 
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig_mewma, use_container_width=True)
-        if fig_diag:
-            st.subheader("Automated Root Cause Diagnosis for First Alarm")
-            st.components.v1.html(fig_diag, height=150)
-        else:
-            st.success("No alarm detected in the monitoring phase.")
-
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History"])
-        
-        with tabs[0]:
-            st.metric("Detection Time", f"Observation #{alarm_time}" if alarm_time else "N/A", help="The first data point in the monitoring phase to trigger an alarm.")
-            st.metric("Shift Magnitude", f"{shift_slider} σ")
-            st.metric("MEWMA Memory (λ)", f"{lambda_slider}")
-
+    st.plotly_chart(fig_dashboard, use_container_width=True)
+    
+    st.subheader("Diagnostic Analysis")
+    if alarm_time:
+        col1, col2 = st.columns([0.4, 0.6])
+        with col1:
+            st.metric("Alarm Status", "🚨 OUT-OF-CONTROL")
+            st.metric("First Detection Time", f"Observation #{alarm_time}",
+                      help="The first data point in the monitoring phase to trigger an alarm.")
             st.markdown("""
-            **The Detective Story:**
-            1.  **The MEWMA Chart:** This plot shows the overall health of the multivariate process. After the monitoring phase begins (orange region), the statistic starts to drift upwards as it accumulates evidence of the small, coordinated shift in Temp and Pressure. Eventually, it crosses the red UCL, triggering an alarm.
-            2.  **The SHAP Plot:** This plot automatically appears upon alarm and explains the AI's reasoning.
-                - **Red Forces:** The variables pushing the prediction towards "Out-of-Control." Notice that `Temp` and `Pressure` are the primary red drivers.
-                - **Blue Forces:** Variables pushing towards "In-Control." `pH` is blue because it remained stable.
-            This gives the operator an immediate, actionable insight.
+            **Interpretation:**
+            - **Top Plot:** Notice how the gradual drift in Temperature and Pressure is almost invisible to the naked eye, hidden within the normal process noise.
+            - **Bottom Plot:** The MEWMA chart, with its memory, successfully accumulates the evidence of this subtle, coordinated drift until it crosses the control limit, sounding a clear alarm.
             """)
+        with col2:
+            st.markdown("##### Automated Root Cause Diagnosis (SHAP Waterfall)")
+            st.image(buf_waterfall)
+            st.markdown("The waterfall plot explains the alarm. Red bars (`Temp`, `Pressure`) are the features that pushed the risk of failure higher. The blue bar (`pH`) helped keep the risk lower.")
 
-        with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The 'Whack-a-Mole' Investigation**
+    else:
+        st.success("✅ IN-CONTROL: No alarm detected in the monitoring phase.")
+
+    st.markdown("---")
+    tabs = st.tabs(["✅ The Golden Rule", "📖 Theory & History"])
+    with tabs[0]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The 'Whack-a-Mole' Investigation**
 An alarm sounds. Engineers frantically check every individual parameter chart, trying to find a clear signal. They might chase a noisy pH sensor, ignoring the subtle, combined drift in Temp and Pressure that is the real root cause.""")
-            st.success("""🟢 **THE GOLDEN RULE: Detect Multivariately, Diagnose with Explainability**
+        st.success("""🟢 **THE GOLDEN RULE: Detect Multivariately, Diagnose with Explainability**
 1. Trust the multivariate alarm. It sees the process holistically.
 2. Use the explainable AI diagnostic (SHAP) as your first investigative tool. It instantly narrows the search space from all possible causes to the most probable ones.
 3. This turns a slow, manual investigation into a rapid, data-driven confirmation.""")
+    with tabs[1]:
+        st.markdown("""
+        #### Historical Context: The Diagnostic Bottleneck
+        **The Problem:** By the 1980s, engineers had powerful multivariate detection tools like Hotelling's T² chart. However, these charts were slow to detect small, persistent drifts. The invention of the univariate EWMA chart was a major step forward, but the multivariate world was still waiting for its "high-sensitivity" detector.
 
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: The Diagnostic Bottleneck
-            **The Problem:** By the 1980s, engineers had powerful multivariate detection tools like Hotelling's T² chart. However, these charts had the same limitation as their univariate counterparts: they were slow to detect small, persistent drifts. The invention of the univariate EWMA chart in 1959 was a major step forward, but the multivariate world was still waiting for its "high-sensitivity" detector.
+        **The First Solution (MEWMA):** In 1992, Lowry et al. published their paper on the Multivariate EWMA (MEWMA) chart. The insight was a direct generalization: apply the "memory" and "weighting" concepts of EWMA to the vector of process variables. This created a chart that was exceptionally good at detecting small, coordinated shifts that T² would miss.
 
-            **The First Solution (MEWMA):** In 1992, Lowry et al. published their paper on the Multivariate EWMA (MEWMA) chart. The insight was a direct and brilliant generalization: what if we apply the "memory" and "weighting" concepts of EWMA to the vector of process variables instead of a single variable? This created a chart that was exceptionally good at detecting small, coordinated shifts that T² would miss, solving the multivariate sensitivity problem.
+        **The New Problem (The Diagnostic Bottleneck):** But MEWMA created a new challenge. An alarm from a MEWMA chart is just a single number crossing a line. It tells you *that* the system has drifted, but gives no information about *which* variables are the cause.
 
-            **The New Problem (The Diagnostic Bottleneck):** But MEWMA created a new, critical challenge. An alarm from a MEWMA chart is just a single number crossing a line. It tells you *that* the system has drifted, but gives you absolutely no information about *which* of your dozens of process parameters are the cause. This left engineers with a powerful alarm but no diagnostic tools, leading to long, frustrating investigations.
-
-            **The Modern Fusion:** This is where the AI revolution provided the missing piece. **XGBoost** (2014) offered a way to build highly accurate models to predict an alarm state, and **SHAP** (2017) provided the key to unlock that model's "black box." By fusing the robust statistical detection of MEWMA with the powerful, explainable diagnostics of XGBoost and SHAP, we finally solved the diagnostic bottleneck, creating a true "detect and diagnose" system.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The MEWMA extends the univariate EWMA by replacing scalars with vectors. At each time `t`, a vector of observations `X_t` is used to update the MEWMA vector `Z_t`:")
-            st.latex(r"Z_t = \lambda X_t + (1 - \lambda) Z_{t-1}")
-            st.markdown("The charted statistic is a Hotelling's T²-like value that measures the distance of `Z_t` from the process target `μ_0`, accounting for the process covariance `Σ`:")
-            st.latex(r"T^2_t = (Z_t - \mu_0)' \Sigma^{-1} (Z_t - \mu_0)")
-            st.markdown("This single `T²` value summarizes the deviation across all variables, making it a powerful holistic health score.")
-
+        **The Modern Fusion:** This is where the AI revolution provided the missing piece. **XGBoost** (2014) offered a way to build highly accurate models to predict an alarm state, and **SHAP** (2017) provided the key to unlock that model's "black box." By fusing the robust statistical detection of MEWMA with the powerful, explainable diagnostics of XGBoost and SHAP, we finally solved the diagnostic bottleneck, creating a true "detect and diagnose" system.
+        """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 2)
 # ==============================================================================

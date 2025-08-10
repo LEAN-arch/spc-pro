@@ -1253,6 +1253,10 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     ci_margin = t.ppf(0.95, df_welch) * std_err_diff
     ci_lower, ci_upper = diff_mean - ci_margin, diff_mean + ci_margin
     
+    # --- THIS LINE WAS MOVED HERE ---
+    ci_color = '#00CC96' if is_equivalent else '#EF553B' # Green for pass, Red for fail
+    # --- END OF MOVE ---
+    
     # --- PLOTTING ---
     fig = make_subplots(
         rows=3, cols=1,

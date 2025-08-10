@@ -1460,9 +1460,9 @@ def plot_doe_design_space(ph_effect, temp_effect, interaction_effect, ph_quad_ef
     
     # 5. Generate Plots
     # 3D Surface Plot
-    # --- FIX 1 IS HERE ---
+    # --- THIS IS THE CORRECTED LINE 1 ---
     fig_3d = go.Figure(data=[go.Surface(z=pred, x=y_range_real, y=x_range_real, colorscale='viridis', zmin=80, zmax=100)])
-    # --- END OF FIX 1 ---
+    # --- END OF CORRECTION 1 ---
     fig_3d.add_trace(go.Scatter3d(x=df['Temp'], y=df['pH'], z=df['Response'], mode='markers', 
                                  marker=dict(color='red', size=5, line=dict(width=2, color='black')), name='DOE Runs'))
     fig_3d.update_layout(title='<b>DOE Response Surface (3D View)</b>', 
@@ -1470,11 +1470,11 @@ def plot_doe_design_space(ph_effect, temp_effect, interaction_effect, ph_quad_ef
                          margin=dict(l=0, r=0, b=0, t=40))
 
     # 2D Contour Plot (Design Space View)
-    # --- FIX 2 IS HERE ---
+    # --- THIS IS THE CORRECTED LINE 2 ---
     fig_2d = go.Figure(data=go.Contour(z=pred, x=y_range_real, y=x_range_real, colorscale='viridis',
                                        contours=dict(coloring='lines', showlabels=True, labelfont=dict(color='white')),
                                        zmin=80, zmax=100))
-    # --- END OF FIX 2 ---
+    # --- END OF CORRECTION 2 ---
     # Add Design Space (PAR) boundary
     fig_2d.add_trace(go.Contour(z=pred, x=y_range_real, y=x_range_real,
                                contours_coloring='lines',

@@ -6993,47 +6993,47 @@ else:
 
     # FIX: The PAGE_DISPATCHER is updated to point to the new, separated functions.
     # Replace the old PAGE_DISPATCHER dictionary with this one.
-    PAGE_DISPATCHER = {
-        # Act I
-        "Confidence Interval Concept": render_ci_concept,
-        "Core Validation Parameters": render_core_validation_params,
-        "Gage R&R / VCA": render_gage_rr,
-        "LOD & LOQ": render_lod_loq,
-        "Linearity & Range": render_linearity,
-        "Non-Linear Regression (4PL/5PL)": render_4pl_regression,
-        "ROC Curve Analysis": render_roc_curve,
-        "Equivalence Testing (TOST)": render_tost,
-        "Assay Robustness (DOE)": render_assay_robustness_doe,
-        "Split-Plot Designs": render_split_plot,
-        "Causal Inference": render_causal_inference,
-        
-        # Act II
-        "Process Stability (SPC)": render_spc_charts,
-        "Process Capability (Cpk)": render_capability,
-        "Tolerance Intervals": render_tolerance_intervals,
-        "Method Comparison": render_method_comparison,
-        "Bayesian Inference": render_bayesian,
-        
-        # Act III
-        "Run Validation (Westgard)": render_multi_rule,
-        "Multivariate SPC": render_multivariate_spc,
-        "Small Shift Detection": render_ewma_cumum,
-        "Time Series Analysis": render_time_series_analysis,
-        "Stability Analysis (Shelf-Life)": render_stability_analysis,
-        "Reliability / Survival Analysis": render_survival_analysis,
-        "Multivariate Analysis (MVA)": render_mva_pls,
-        "Clustering (Unsupervised)": render_clustering,
-        "Predictive QC (Classification)": render_classification_models,
-        "Anomaly Detection": render_anomaly_detection,
-        "Explainable AI (XAI)": render_xai_shap,
-        "Advanced AI Concepts": render_advanced_ai_concepts,
-        "MEWMA + XGBoost Diagnostics": render_mewma_xgboost,
-        "BOCPD + ML Features": render_bocpd_ml_features,
-        "Kalman Filter + Residual Chart": render_kalman_nn_residual,
-        "RL for Chart Tuning": render_rl_tuning,
-        "TCN + CUSUM": render_tcn_cusum,
-        "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
-    }
+PAGE_DISPATCHER = {
+    # Act I
+    "Confidence Interval Concept": render_ci_concept,
+    "Core Validation Parameters": render_core_validation_params,
+    "Gage R&R / VCA": render_gage_rr,
+    "LOD & LOQ": render_lod_loq,
+    "Linearity & Range": render_linearity,
+    "Non-Linear Regression (4PL/5PL)": render_4pl_regression,
+    "ROC Curve Analysis": render_roc_curve,
+    "Equivalence Testing (TOST)": render_tost,
+    "Assay Robustness (DOE)": render_assay_robustness_doe,
+    "Split-Plot Designs": render_split_plot,
+    "Causal Inference": render_causal_inference,
+    
+    # Act II
+    "Process Stability (SPC)": render_spc_charts,
+    "Process Capability (Cpk)": render_capability,
+    "Tolerance Intervals": render_tolerance_intervals,
+    "Method Comparison": render_method_comparison,
+    "Bayesian Inference": render_bayesian,
+    
+    # Act III
+    "Run Validation (Westgard)": render_multi_rule,
+    "Multivariate SPC": render_multivariate_spc,
+    "Small Shift Detection": render_ewma_cusum,  # <--- THIS LINE IS NOW CORRECT
+    "Time Series Analysis": render_time_series_analysis,
+    "Stability Analysis (Shelf-Life)": render_stability_analysis,
+    "Reliability / Survival Analysis": render_survival_analysis,
+    "Multivariate Analysis (MVA)": render_mva_pls,
+    "Clustering (Unsupervised)": render_clustering,
+    "Predictive QC (Classification)": render_classification_models,
+    "Anomaly Detection": render_anomaly_detection,
+    "Explainable AI (XAI)": render_xai_shap,
+    "Advanced AI Concepts": render_advanced_ai_concepts,
+    "MEWMA + XGBoost Diagnostics": render_mewma_xgboost,
+    "BOCPD + ML Features": render_bocpd_ml_features,
+    "Kalman Filter + Residual Chart": render_kalman_nn_residual,
+    "RL for Chart Tuning": render_rl_tuning,
+    "TCN + CUSUM": render_tcn_cusum,
+    "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
+}
 
     if view in PAGE_DISPATCHER:
         PAGE_DISPATCHER[view]()

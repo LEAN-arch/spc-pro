@@ -74,81 +74,30 @@ st.markdown("""
 # ==============================================================================
 # ALL HELPER & PLOTTING FUNCTIONS
 # ==============================================================================
-
-# ==============================================================================
-# HELPER & PLOTTING FUNCTION (V-Model) - INTERACTIVE DASHBOARD VERSION
-# ==============================================================================
-def plot_v_model(context='Assay Method'):
+@st.cache_data
+def plot_v_model():
     """
-    Generates a substantially enhanced, interactive V-Model dashboard where the
-    content of each stage dynamically updates based on the selected V&V context.
+    Generates a high-quality, static V-Model diagram with generic biotech examples.
     """
     fig = go.Figure()
-
-    # --- SME Enhancement: Domain-specific content for different contexts ---
-    all_contexts = {
-        'Assay Method': {
-            'URS': {'tools': 'Target Product Profile (TPP), Required sensitivity/specificity'},
-            'FS':  {'tools': 'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals'},
-            'DS':  {'tools': 'Reagent selection, SOP drafting, Robustness DOE plan'},
-            'BUILD': {'tools': 'Method development experiments, SOP finalization, Analyst training'},
-            'IQOQ':{'tools': 'Reagent qualification, Instrument calibration for this assay'},
-            'PQ':  {'tools': 'Intermediate Precision, Gage R&R, Method Comparison'},
-            'VAL': {'tools': 'Final Validation Report, Control charting plan'}
-        },
-        'Instrument': {
-            'URS': {'tools': 'Required throughput, Sample types, User skill level'},
-            'FS':  {'tools': 'Automation level, Data output format (LIMS), Footprint'},
-            'DS':  {'tools': 'Vendor selection, Site prep requirements, Service contract'},
-            'BUILD': {'tools': 'Purchase, Delivery, Physical installation'},
-            'IQOQ':{'tools': 'Utility connections check (IQ), Factory tests run (OQ)'},
-            'PQ':  {'tools': 'Performance on representative samples, Throughput testing'},
-            'VAL': {'tools': 'System meets all URS criteria, Final release for GMP use'}
-        },
-        'Software System': {
-            'URS': {'tools': 'Business process map, 21 CFR Part 11 requirements'},
-            'FS':  {'tools': 'User roles, Required calculations, Audit trail specifications'},
-            'DS':  {'tools': 'System architecture, Database schema, UI mockups'},
-            'BUILD': {'tools': 'Coding, Configuration of COTS system, Writing user manuals'},
-            'IQOQ':{'tools': 'Server setup validation (IQ), Unit & Integration testing (OQ)'},
-            'PQ':  {'tools': 'User Acceptance Testing (UAT) with real-world scenarios'},
-            'VAL': {'tools': 'System Validation Report, Release notes, Go-live approval'}
-        },
-        'Manufacturing Process': {
-            'URS': {'tools': 'Target yield, Critical Quality Attributes (CQAs), Cost of goods'},
-            'FS':  {'tools': 'Unit operations (e.g., cell culture, purification), In-Process Controls (IPCs)'},
-            'DS':  {'tools': 'Process parameters (CPPs), Bill of Materials, Scale-down model design'},
-            'BUILD': {'tools': 'Engineering runs, Master Batch Record (MBR) authoring'},
-            'IQOQ':{'tools': 'Facility/utility qualification, Equipment commissioning'},
-            'PQ':  {'tools': 'Process Performance Qualification (PPQ) runs, Cpk analysis'},
-            'VAL': {'tools': 'Final PPQ report, Submission to regulatory agency'}
-        }
-    }
     
-    # Base structure (unchanged)
     v_model_stages = {
-        'URS': {'name': 'User Requirements', 'icon': '🎯', 'x': 0, 'y': 5, 'question': 'What does the user/business need?'},
-        'FS':  {'name': 'Functional Specs', 'icon': '⚙️', 'x': 1, 'y': 4, 'question': 'What must the system *do*?'},
-        'DS':  {'name': 'Design Specs', 'icon': '✍️', 'x': 2, 'y': 3, 'question': 'How will it be built/configured?'},
-        'BUILD': {'name': 'Implementation', 'icon': '🛠️', 'x': 3, 'y': 2, 'question': 'Build, Code, Write SOPs, Train'},
-        'IQOQ':{'name': 'IQ / OQ', 'icon': '🔌', 'x': 4, 'y': 3, 'question': 'Is it installed and operating correctly?'},
-        'PQ':  {'name': 'Performance Qualification', 'icon': '📈', 'x': 5, 'y': 4, 'question': 'Does it perform reliably in its environment?'},
-        'VAL': {'name': 'Final Validation', 'icon': '✅', 'x': 6, 'y': 5, 'question': 'Does it meet the original user need?'}
+        'URS': {'name': 'User Requirements', 'icon': '🎯', 'x': 0, 'y': 5, 'question': 'What does the user/business need?', 'tools': 'Business Case, Target Product Profile'},
+        'FS':  {'name': 'Functional Specs', 'icon': '⚙️', 'x': 1, 'y': 4, 'question': 'What must the system *do*?', 'tools': 'Assay Specs, Throughput Goals, User Roles'},
+        'DS':  {'name': 'Design Specs', 'icon': '✍️', 'x': 2, 'y': 3, 'question': 'How will it be built/configured?', 'tools': 'DOE, Component Selection, Architecture'},
+        'BUILD': {'name': 'Implementation', 'icon': '🛠️', 'x': 3, 'y': 2, 'question': 'Build, Code, Write SOPs, Train', 'tools': 'Physical Transfer, Coding, Training'},
+        'IQOQ':{'name': 'IQ / OQ', 'icon': '🔌', 'x': 4, 'y': 3, 'question': 'Is it installed and operating correctly?', 'tools': 'Calibration, Unit & Integration Tests'},
+        'PQ':  {'name': 'Performance Qualification', 'icon': '📈', 'x': 5, 'y': 4, 'question': 'Does it perform reliably in its environment?', 'tools': 'Gage R&R, Method Comp, PPQ Runs'},
+        'VAL': {'name': 'Final Validation', 'icon': '✅', 'x': 6, 'y': 5, 'question': 'Does it meet the original user need?', 'tools': 'Validation Report, UAT, Final Release'}
     }
     
-    # Merge the context-specific content into the base structure
-    context_data = all_contexts[context]
-    for key, value in context_data.items():
-        v_model_stages[key].update(value)
-
-    verification_color = '#008080' # Teal
-    validation_color = '#0068C9' # Blue
+    verification_color = '#008080'
+    validation_color = '#0068C9'
     path_keys = ['URS', 'FS', 'DS', 'BUILD', 'IQOQ', 'PQ', 'VAL']
     path_x = [v_model_stages[p]['x'] for p in path_keys]
     path_y = [v_model_stages[p]['y'] for p in path_keys]
     
-    fig.add_trace(go.Scatter(x=path_x, y=path_y, mode='lines',
-                             line=dict(color='lightgrey', width=5), hoverinfo='none'))
+    fig.add_trace(go.Scatter(x=path_x, y=path_y, mode='lines', line=dict(color='lightgrey', width=5), hoverinfo='none'))
 
     for i in range(3):
         start_key, end_key = path_keys[i], path_keys[-(i+1)]
@@ -160,18 +109,14 @@ def plot_v_model(context='Assay Method'):
         color = verification_color if i < 3 else validation_color if i > 3 else '#636EFA'
         fig.add_shape(type="rect", x0=stage['x']-0.5, y0=stage['y']-0.4,
                       x1=stage['x']+0.5, y1=stage['y']+0.4,
-                      line=dict(color="black", width=2), fillcolor=color,
-                      layer='above')
-        fig.add_annotation(x=stage['x'], y=stage['y']+0.15,
-                           text=f"{stage['icon']} <b>{stage['name']}</b>",
-                           showarrow=False, font=dict(color='white', size=12),
-                           align='center')
+                      line=dict(color="black", width=2), fillcolor=color, layer='above')
+        fig.add_annotation(x=stage['x'], y=stage['y']+0.15, text=f"{stage['icon']} <b>{stage['name']}</b>",
+                           showarrow=False, font=dict(color='white', size=12), align='center')
         hover_text = (f"<b>{stage['icon']} {stage['name']}</b><br><br>"
                       f"<i>{stage['question']}</i><br><br>"
-                      f"<b>Examples for an {context}:</b><br>{stage['tools']}")
+                      f"<b>Generic Examples:</b><br>{stage.get('tools', 'N/A')}")
         fig.add_trace(go.Scatter(
-            x=[stage['x']], y=[stage['y']],
-            mode='markers',
+            x=[stage['x']], y=[stage['y']], mode='markers',
             marker=dict(color='rgba(0,0,0,0)', size=100),
             hoverinfo='text', text=hover_text,
             hoverlabel=dict(bgcolor="white", font_size=14, font_family="Arial", bordercolor="black")
@@ -183,127 +128,77 @@ def plot_v_model(context='Assay Method'):
                        showarrow=False, align='center')
 
     fig.update_layout(
-        title_text=f"<b>The V-Model for an {context}</b> (Hover on a Stage for Details)",
-        title_x=0.5,
-        showlegend=False,
-        xaxis=dict(visible=False, range=[-0.7, 6.7]),
-        yaxis=dict(visible=False, range=[1.5, 6.0]),
-        height=650,
-        margin=dict(l=20, r=20, t=80, b=20),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
+        title_text="<b>The V-Model for Technology Transfer (Hover for Details)</b>",
+        title_x=0.5, showlegend=False,
+        xaxis=dict(visible=False, range=[-0.7, 6.7]), yaxis=dict(visible=False, range=[1.5, 6.0]),
+        height=650, margin=dict(l=20, r=20, t=80, b=20),
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
     )
     
     return fig
 
-# ==============================================================================
-# NEW HELPER FUNCTION FOR V-MODEL SUMMARY DIAGRAM
-# ==============================================================================
-@st.cache_data
-def plot_v_model_summary_diagram():
+def create_v_model_summary_table():
     """
-    Generates a high-quality, color-coded summary diagram of V-Model activities
-    across different biotech contexts.
+    Creates a pandas DataFrame summarizing the V-Model contexts for display as a table.
     """
-    contexts = {
-        'Assay Method': {'color': '#636EFA'},
-        'Instrument': {'color': '#00CC96'},
-        'Software System': {'color': '#EF553B'},
-        'Manufacturing Process': {'color': '#FECB52'}
+    all_contexts = {
+        'Assay Method': {
+            'URS': 'Target Product Profile (TPP), Required sensitivity/specificity',
+            'FS':  'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals',
+            'DS':  'Reagent selection, SOP drafting, Robustness DOE plan',
+            'BUILD': 'Method development experiments, SOP finalization, Analyst training',
+            'IQOQ':'Reagent qualification, Instrument calibration for this assay',
+            'PQ':  'Intermediate Precision, Gage R&R, Method Comparison',
+            'VAL': 'Final Validation Report, Control charting plan'
+        },
+        'Instrument': {
+            'URS': 'Required throughput, Sample types, User skill level',
+            'FS':  'Automation level, Data output format (LIMS), Footprint',
+            'DS':  'Vendor selection, Site prep requirements, Service contract',
+            'BUILD': 'Purchase, Delivery, Physical installation',
+            'IQOQ':'Utility connections check (IQ), Factory tests run (OQ)',
+            'PQ':  'Performance on representative samples, Throughput testing',
+            'VAL': 'System meets all URS criteria, Final release for GMP use'
+        },
+        'Software System': {
+            'URS': 'Business process map, 21 CFR Part 11 requirements',
+            'FS':  'User roles, Required calculations, Audit trail specifications',
+            'DS':  'System architecture, Database schema, UI mockups',
+            'BUILD': 'Coding, Configuration of COTS system, Writing user manuals',
+            'IQOQ':'Server setup validation (IQ), Unit & Integration testing (OQ)',
+            'PQ':  'User Acceptance Testing (UAT) with real-world scenarios',
+            'VAL': 'System Validation Report, Release notes, Go-live approval'
+        },
+        'Manufacturing Process': {
+            'URS': 'Target yield, Critical Quality Attributes (CQAs), Cost of goods',
+            'FS':  'Unit operations (e.g., cell culture, purification), In-Process Controls (IPCs)',
+            'DS':  'Process parameters (CPPs), Bill of Materials, Scale-down model design',
+            'BUILD': 'Engineering runs, Master Batch Record (MBR) authoring',
+            'IQOQ':'Facility/utility qualification, Equipment commissioning',
+            'PQ':  'Process Performance Qualification (PPQ) runs, Cpk analysis',
+            'VAL': 'Final PPQ report, Submission to regulatory agency'
+        }
     }
     
-    stages = {
-        'URS': '🎯 User Requirements', 'FS': '⚙️ Functional Specs', 'DS': '✍️ Design Specs',
-        'BUILD': '🛠️ Implementation', 'IQOQ': '🔌 IQ / OQ', 'PQ': '📈 Performance Qualification',
-        'VAL': '✅ Final Validation'
-    }
-    
-    all_content = {
-        'Assay Method': [
-            'Target Product Profile (TPP), Required sensitivity/specificity',
-            'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals',
-            'Reagent selection, SOP drafting, Robustness DOE plan',
-            'Method development experiments, SOP finalization, Analyst training',
-            'Reagent qualification, Instrument calibration for this assay',
-            'Intermediate Precision, Gage R&R, Method Comparison',
-            'Final Validation Report, Control charting plan'
-        ],
-        'Instrument': [
-            'Required throughput, Sample types, User skill level',
-            'Automation level, Data output format (LIMS), Footprint',
-            'Vendor selection, Site prep requirements, Service contract',
-            'Purchase, Delivery, Physical installation',
-            'Utility connections check (IQ), Factory tests run (OQ)',
-            'Performance on representative samples, Throughput testing',
-            'System meets all URS criteria, Final release for GMP use'
-        ],
-        'Software System': [
-            'Business process map, 21 CFR Part 11 requirements',
-            'User roles, Required calculations, Audit trail specifications',
-            'System architecture, Database schema, UI mockups',
-            'Coding, Configuration of COTS system, Writing user manuals',
-            'Server setup validation (IQ), Unit & Integration testing (OQ)',
-            'User Acceptance Testing (UAT) with real-world scenarios',
-            'System Validation Report, Release notes, Go-live approval'
-        ],
-        'Manufacturing Process': [
-            'Target yield, Critical Quality Attributes (CQAs), Cost of goods',
-            'Unit operations (e.g., cell culture), In-Process Controls (IPCs)',
-            'Process parameters (CPPs), Bill of Materials, Scale-down model design',
-            'Engineering runs, Master Batch Record (MBR) authoring',
-            'Facility/utility qualification, Equipment commissioning',
-            'Process Performance Qualification (PPQ) runs, Cpk analysis',
-            'Final PPQ report, Submission to regulatory agency'
-        ]
-    }
-    
-    fig = go.Figure()
-    
-    num_stages = len(stages)
-    num_contexts = len(contexts)
-    
-    y_positions = np.linspace(num_stages * 10, 10, num_stages)
-    x_positions = np.linspace(15, 100 - 15, num_contexts)
-    
-    # Add column headers (Contexts)
-    for i, (context, props) in enumerate(contexts.items()):
-        fig.add_annotation(x=x_positions[i], y=y_positions[0] + 10,
-                           text=f"<b>{context}</b>", showarrow=False,
-                           font=dict(size=16, color=props['color']))
+    df_data = {}
+    for context, stages in all_contexts.items():
+        # The dictionary needs to be flattened for the DataFrame
+        df_data[context] = {stage: data for stage, data in stages.items()}
 
-    # Add row headers (Stages)
-    for i, stage_name in enumerate(stages.values()):
-        fig.add_annotation(x=0, y=y_positions[i],
-                           text=f"<b>{stage_name}</b>", showarrow=False,
-                           font=dict(size=14), align='left', xanchor='left')
+    df = pd.DataFrame(df_data)
     
-    # Add the content cells
-    for i, (context, props) in enumerate(contexts.items()):
-        for j, content in enumerate(all_content[context]):
-            # Wrap text for better display
-            wrapped_text = '<br>'.join(content[k:k+40] for k in range(0, len(content), 40))
-            
-            fig.add_shape(type="rect",
-                          x0=x_positions[i] - 12, y0=y_positions[j] - 4,
-                          x1=x_positions[i] + 12, y1=y_positions[j] + 4,
-                          line=dict(color="lightgrey", width=1),
-                          fillcolor=f'rgba({",".join(str(c) for c in px.colors.hex_to_rgb(props["color"]))}, 0.1)')
-                          
-            fig.add_annotation(x=x_positions[i], y=y_positions[j],
-                               text=wrapped_text, showarrow=False,
-                               font=dict(size=11), align='center')
-
-    fig.update_layout(
-        title_text='<b>V-Model Activities: A Side-by-Side Comparison</b>',
-        title_x=0.5,
-        height=700,
-        xaxis=dict(visible=False, range=[-5, 105]),
-        yaxis=dict(visible=False, range=[0, num_stages * 10 + 15]),
-        margin=dict(l=20, r=20, t=50, b=20),
-        plot_bgcolor='white'
-    )
+    stage_order = ['URS', 'FS', 'DS', 'BUILD', 'IQOQ', 'PQ', 'VAL']
+    stage_names = {
+        'URS': 'User Requirements', 'FS': 'Functional Specs', 'DS': 'Design Specs',
+        'BUILD': 'Implementation', 'IQOQ': 'IQ / OQ', 'PQ': 'Performance Qualification',
+        'VAL': 'Final Validation'
+    }
     
-    return fig
+    df = df.reindex(stage_order)
+    df.index = df.index.map(lambda key: f"{stage_names[key]}")
+    df.index.name = "V-Model Stage"
+    
+    return df
 
 # --- RESTORED PLOTTING FUNCTION 2 ---
 @st.cache_data
@@ -3953,9 +3848,8 @@ def render_introduction_content():
 
     st.header("🚀 The V&V Model: A Strategic Framework")
     st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
-    # For the main page, we can show a default context or make it interactive too.
-    # Let's default to 'Assay Method' for the main dashboard.
-    fig_v_model = plot_v_model(context='Assay Method')
+    # This now calls the simple, static plotting function
+    fig_v_model = plot_v_model()
     st.plotly_chart(fig_v_model, use_container_width=True)
     
     st.divider()
@@ -3972,30 +3866,27 @@ def render_introduction_content():
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
 
+
 def render_v_model_single():
-    """Renders a dedicated, interactive page for the V-Model plot with a summary diagram."""
+    """Renders a dedicated page for the V-Model plot and its summary table."""
     st.markdown("### The V&V Model: A Strategic Framework")
     st.markdown("""
     This plot illustrates the standard V-Model for system validation and technology transfer. It visually connects the initial user requirements and design specifications (the left side, **Verification**) to the final system qualification and user acceptance testing (the right side, **Validation**).
     """)
+    st.info("Hover over any stage in the diagram for a brief description and generic examples.")
     
-    context_choice = st.selectbox(
-        "Select a V&V Context to see specific examples:",
-        options=['Assay Method', 'Instrument', 'Software System', 'Manufacturing Process'],
-        index=0
-    )
-    
-    st.info("Hover over any stage to see its guiding question and tools relevant to the selected context.")
-    
-    fig = plot_v_model(context=context_choice)
+    # Render the static V-Model diagram
+    fig = plot_v_model()
     st.plotly_chart(fig, use_container_width=True)
     
-    # --- SME ENHANCEMENT: Add the summary diagram in an expander ---
+    # --- Renders the summary table separately below the diagram ---
     st.markdown("---")
-    with st.expander("Show/Hide V-Model Activities Summary Diagram"):
-        st.markdown("The diagram below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different contexts.")
-        summary_fig = plot_v_model_summary_diagram()
-        st.plotly_chart(summary_fig, use_container_width=True)
+    st.markdown("### V-Model Activities by Context")
+    st.markdown("The table below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different biotech contexts.")
+    summary_df = create_v_model_summary_table()
+    
+    # Use st.dataframe for a well-formatted, scrollable table
+    st.dataframe(summary_df)
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================

@@ -196,70 +196,114 @@ def plot_v_model(context='Assay Method'):
     
     return fig
 
-def create_v_model_summary_table():
+# ==============================================================================
+# NEW HELPER FUNCTION FOR V-MODEL SUMMARY DIAGRAM
+# ==============================================================================
+@st.cache_data
+def plot_v_model_summary_diagram():
     """
-    Creates a pandas DataFrame summarizing the V-Model contexts for display as a table.
+    Generates a high-quality, color-coded summary diagram of V-Model activities
+    across different biotech contexts.
     """
-    # This dictionary is the same as the one inside plot_v_model
-    all_contexts = {
-        'Assay Method': {
-            'URS': 'Target Product Profile (TPP), Required sensitivity/specificity',
-            'FS':  'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals',
-            'DS':  'Reagent selection, SOP drafting, Robustness DOE plan',
-            'BUILD': 'Method development experiments, SOP finalization, Analyst training',
-            'IQOQ':'Reagent qualification, Instrument calibration for this assay',
-            'PQ':  'Intermediate Precision, Gage R&R, Method Comparison',
-            'VAL': 'Final Validation Report, Control charting plan'
-        },
-        'Instrument': {
-            'URS': 'Required throughput, Sample types, User skill level',
-            'FS':  'Automation level, Data output format (LIMS), Footprint',
-            'DS':  'Vendor selection, Site prep requirements, Service contract',
-            'BUILD': 'Purchase, Delivery, Physical installation',
-            'IQOQ':'Utility connections check (IQ), Factory tests run (OQ)',
-            'PQ':  'Performance on representative samples, Throughput testing',
-            'VAL': 'System meets all URS criteria, Final release for GMP use'
-        },
-        'Software System': {
-            'URS': 'Business process map, 21 CFR Part 11 requirements',
-            'FS':  'User roles, Required calculations, Audit trail specifications',
-            'DS':  'System architecture, Database schema, UI mockups',
-            'BUILD': 'Coding, Configuration of COTS system, Writing user manuals',
-            'IQOQ':'Server setup validation (IQ), Unit & Integration testing (OQ)',
-            'PQ':  'User Acceptance Testing (UAT) with real-world scenarios',
-            'VAL': 'System Validation Report, Release notes, Go-live approval'
-        },
-        'Manufacturing Process': {
-            'URS': 'Target yield, Critical Quality Attributes (CQAs), Cost of goods',
-            'FS':  'Unit operations (e.g., cell culture, purification), In-Process Controls (IPCs)',
-            'DS':  'Process parameters (CPPs), Bill of Materials, Scale-down model design',
-            'BUILD': 'Engineering runs, Master Batch Record (MBR) authoring',
-            'IQOQ':'Facility/utility qualification, Equipment commissioning',
-            'PQ':  'Process Performance Qualification (PPQ) runs, Cpk analysis',
-            'VAL': 'Final PPQ report, Submission to regulatory agency'
-        }
+    contexts = {
+        'Assay Method': {'color': '#636EFA'},
+        'Instrument': {'color': '#00CC96'},
+        'Software System': {'color': '#EF553B'},
+        'Manufacturing Process': {'color': '#FECB52'}
     }
     
-    # Reformat the dictionary for easy DataFrame creation
-    # I've simplified the dictionary structure to make it cleaner
-    df_data = {}
-    for context, stages in all_contexts.items():
-        df_data[context] = stages
-        
-    df = pd.DataFrame(df_data)
-    
-    # Define the correct order of V-Model stages for the table index
-    stage_order = ['URS', 'FS', 'DS', 'BUILD', 'IQOQ', 'PQ', 'VAL']
-    stage_names = {
-        'URS': 'User Requirements', 'FS': 'Functional Specs', 'DS': 'Design Specs',
-        'BUILD': 'Implementation', 'IQOQ': 'IQ / OQ', 'PQ': 'Performance Qualification',
-        'VAL': 'Final Validation'
+    stages = {
+        'URS': '🎯 User Requirements', 'FS': '⚙️ Functional Specs', 'DS': '✍️ Design Specs',
+        'BUILD': '🛠️ Implementation', 'IQOQ': '🔌 IQ / OQ', 'PQ': '📈 Performance Qualification',
+        'VAL': '✅ Final Validation'
     }
     
-    df = df.reindex(stage_order)
-    df.index = df.index.map(lambda key: f"<b>{stage_names[key]}</b>")
+    all_content = {
+        'Assay Method': [
+            'Target Product Profile (TPP), Required sensitivity/specificity',
+            'Assay type (e.g., ELISA, HPLC), Linearity, LOD/LOQ goals',
+            'Reagent selection, SOP drafting, Robustness DOE plan',
+            'Method development experiments, SOP finalization, Analyst training',
+            'Reagent qualification, Instrument calibration for this assay',
+            'Intermediate Precision, Gage R&R, Method Comparison',
+            'Final Validation Report, Control charting plan'
+        ],
+        'Instrument': [
+            'Required throughput, Sample types, User skill level',
+            'Automation level, Data output format (LIMS), Footprint',
+            'Vendor selection, Site prep requirements, Service contract',
+            'Purchase, Delivery, Physical installation',
+            'Utility connections check (IQ), Factory tests run (OQ)',
+            'Performance on representative samples, Throughput testing',
+            'System meets all URS criteria, Final release for GMP use'
+        ],
+        'Software System': [
+            'Business process map, 21 CFR Part 11 requirements',
+            'User roles, Required calculations, Audit trail specifications',
+            'System architecture, Database schema, UI mockups',
+            'Coding, Configuration of COTS system, Writing user manuals',
+            'Server setup validation (IQ), Unit & Integration testing (OQ)',
+            'User Acceptance Testing (UAT) with real-world scenarios',
+            'System Validation Report, Release notes, Go-live approval'
+        ],
+        'Manufacturing Process': [
+            'Target yield, Critical Quality Attributes (CQAs), Cost of goods',
+            'Unit operations (e.g., cell culture), In-Process Controls (IPCs)',
+            'Process parameters (CPPs), Bill of Materials, Scale-down model design',
+            'Engineering runs, Master Batch Record (MBR) authoring',
+            'Facility/utility qualification, Equipment commissioning',
+            'Process Performance Qualification (PPQ) runs, Cpk analysis',
+            'Final PPQ report, Submission to regulatory agency'
+        ]
+    }
     
-    return df
+    fig = go.Figure()
+    
+    num_stages = len(stages)
+    num_contexts = len(contexts)
+    
+    y_positions = np.linspace(num_stages * 10, 10, num_stages)
+    x_positions = np.linspace(15, 100 - 15, num_contexts)
+    
+    # Add column headers (Contexts)
+    for i, (context, props) in enumerate(contexts.items()):
+        fig.add_annotation(x=x_positions[i], y=y_positions[0] + 10,
+                           text=f"<b>{context}</b>", showarrow=False,
+                           font=dict(size=16, color=props['color']))
+
+    # Add row headers (Stages)
+    for i, stage_name in enumerate(stages.values()):
+        fig.add_annotation(x=0, y=y_positions[i],
+                           text=f"<b>{stage_name}</b>", showarrow=False,
+                           font=dict(size=14), align='left', xanchor='left')
+    
+    # Add the content cells
+    for i, (context, props) in enumerate(contexts.items()):
+        for j, content in enumerate(all_content[context]):
+            # Wrap text for better display
+            wrapped_text = '<br>'.join(content[k:k+40] for k in range(0, len(content), 40))
+            
+            fig.add_shape(type="rect",
+                          x0=x_positions[i] - 12, y0=y_positions[j] - 4,
+                          x1=x_positions[i] + 12, y1=y_positions[j] + 4,
+                          line=dict(color="lightgrey", width=1),
+                          fillcolor=f'rgba({",".join(str(c) for c in px.colors.hex_to_rgb(props["color"]))}, 0.1)')
+                          
+            fig.add_annotation(x=x_positions[i], y=y_positions[j],
+                               text=wrapped_text, showarrow=False,
+                               font=dict(size=11), align='center')
+
+    fig.update_layout(
+        title_text='<b>V-Model Activities: A Side-by-Side Comparison</b>',
+        title_x=0.5,
+        height=700,
+        xaxis=dict(visible=False, range=[-5, 105]),
+        yaxis=dict(visible=False, range=[0, num_stages * 10 + 15]),
+        margin=dict(l=20, r=20, t=50, b=20),
+        plot_bgcolor='white'
+    )
+    
+    return fig
 
 # --- RESTORED PLOTTING FUNCTION 2 ---
 @st.cache_data

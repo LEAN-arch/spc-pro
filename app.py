@@ -1227,86 +1227,80 @@ def plot_roc_curve(diseased_mean=65, population_sd=10, cutoff=55):
 
 def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     """
-    Generates enhanced, more realistic, and interactive plots for the TOST module,
-    including a visualization of the underlying sample distributions.
+    Generates an enhanced, 3-plot dashboard for the TOST module that visually
+    connects the raw data to the final statistical conclusion.
     """
     np.random.seed(1)
-    # Generate two samples based on the slider inputs
     data_A = np.random.normal(loc=100, scale=std_dev, size=n_samples)
     data_B = np.random.normal(loc=100 + true_diff, scale=std_dev, size=n_samples)
     
-    # Perform two one-sided t-tests using Welch's t-test for robustness
     mean_A, var_A = np.mean(data_A), np.var(data_A, ddof=1)
     mean_B, var_B = np.mean(data_B), np.var(data_B, ddof=1)
     diff_mean = mean_B - mean_A
     
-    # Handle cases where n_samples is too small to calculate variance
     if n_samples <= 1:
         return go.Figure(), 1.0, False, 0, 0, 0, 0, 0
 
     std_err_diff = np.sqrt(var_A/n_samples + var_B/n_samples)
-    df_welch = (std_err_diff**4) / ( ((var_A/n_samples)**2 / (n_samples-1)) + ((var_B/n_samples)**2 / (n_samples-1)) )
+    df_welch = (std_err_diff**4) / (((var_A/n_samples)**2 / (n_samples-1)) + ((var_B/n_samples)**2 / (n_samples-1)))
     
     t_lower = (diff_mean - (-delta)) / std_err_diff
     t_upper = (diff_mean - delta) / std_err_diff
-    
-    p_lower = stats.t.sf(t_lower, df_welch)
-    p_upper = stats.t.cdf(t_upper, df_welch)
-    
+    p_lower, p_upper = stats.t.sf(t_lower, df_welch), stats.t.cdf(t_upper, df_welch)
     p_tost = max(p_lower, p_upper)
     is_equivalent = p_tost < 0.05
     
-    # --- Plotting ---
+    ci_margin = t.ppf(0.95, df_welch) * std_err_diff
+    ci_lower, ci_upper = diff_mean - ci_margin, diff_mean + ci_margin
+    
+    # --- PLOTTING ---
     fig = make_subplots(
-        rows=2, cols=1,
-        row_heights=[0.6, 0.4],
-        vertical_spacing=0.05,
-        subplot_titles=("<b>1. Sample Data Distributions</b>", "<b>2. Equivalence Test Conclusion</b>")
+        rows=3, cols=1,
+        row_heights=[0.4, 0.4, 0.2],
+        vertical_spacing=0.1,
+        subplot_titles=("<b>1. Raw Data Distributions (The Samples)</b>",
+                        "<b>2. Distribution of the Difference in Means (The Evidence)</b>",
+                        "<b>3. Equivalence Test (The Verdict)</b>")
     )
 
-    # Plot 1: Ridgeline / Density plots
+    # Plot 1: Raw Data Distributions
     from scipy.stats import gaussian_kde
-    x_range = np.linspace(min(data_A.min(), data_B.min()), max(data_A.max(), data_B.max()), 200)
-    kde_A = gaussian_kde(data_A)
-    kde_B = gaussian_kde(data_B)
-    fig.add_trace(go.Scatter(x=x_range, y=kde_A(x_range), fill='tozeroy', name='Method A', line=dict(color='blue')), row=1, col=1)
-    fig.add_trace(go.Scatter(x=x_range, y=kde_B(x_range), fill='tozeroy', name='Method B', line=dict(color='green')), row=1, col=1)
+    x_range1 = np.linspace(min(data_A.min(), data_B.min()), max(data_A.max(), data_B.max()), 200)
+    kde_A, kde_B = gaussian_kde(data_A), gaussian_kde(data_B)
+    fig.add_trace(go.Scatter(x=x_range1, y=kde_A(x_range1), fill='tozeroy', name='Method A', line=dict(color='blue')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range1, y=kde_B(x_range1), fill='tozeroy', name='Method B', line=dict(color='green')), row=1, col=1)
+    fig.add_vline(x=mean_A, line=dict(color='royalblue', dash='dash'), row=1, col=1)
+    fig.add_vline(x=mean_B, line=dict(color='darkgreen', dash='dash'), row=1, col=1)
+    fig.update_yaxes(showticklabels=False, row=1, col=1)
     
-    # --- THIS IS THE KEY VISUAL FIX ---
-    # Add vertical lines to explicitly show the sample means on the top plot.
-    fig.add_vline(x=mean_A, line=dict(color='royalblue', dash='dash'), row=1, col=1,
-                  annotation_text=f"Mean A = {mean_A:.2f}", annotation_position="top left")
-    fig.add_vline(x=mean_B, line=dict(color='darkgreen', dash='dash'), row=1, col=1,
-                  annotation_text=f"Mean B = {mean_B:.2f}", annotation_position="top right")
-    # --- END OF VISUAL FIX ---
+    # Plot 2: THE VISUAL BRIDGE - Distribution of the Difference
+    x_range2 = np.linspace(diff_mean - 4*std_err_diff, diff_mean + 4*std_err_diff, 200)
+    diff_pdf = stats.t.pdf(x_range2, df=df_welch, loc=diff_mean, scale=std_err_diff)
+    fig.add_trace(go.Scatter(x=x_range2, y=diff_pdf, fill='tozeroy', name='Sampling Dist.', line=dict(color='grey')), row=2, col=1)
     
-    fig.update_yaxes(showticklabels=False, row=1, col=1) # Hide density y-axis for clarity
-
-    # Plot 2: Confidence Interval for the Difference
-    ci_margin = t.ppf(0.95, df_welch) * std_err_diff
-    ci_lower = diff_mean - ci_margin
-    ci_upper = diff_mean + ci_margin
-    
-    ci_color = '#00CC96' if is_equivalent else '#EF553B' # Green for pass, Red for fail
-    
-    fig.add_trace(go.Scatter(
-        x=[diff_mean], y=[0],
-        error_x=dict(type='data', array=[ci_upper-diff_mean], arrayminus=[diff_mean-ci_lower], thickness=10),
-        mode='markers', name='90% CI for Difference',
-        marker=dict(color=ci_color, size=15, line=dict(width=2, color='black'))
-    ), row=2, col=1)
-
-    # Add Equivalence bounds to Plot 2
+    # Shade the 90% CI area
+    x_fill = np.linspace(ci_lower, ci_upper, 100)
+    y_fill = stats.t.pdf(x_fill, df=df_welch, loc=diff_mean, scale=std_err_diff)
+    fig.add_trace(go.Scatter(x=x_fill, y=y_fill, fill='tozeroy', name='90% CI', line=dict(color=ci_color), fillcolor=ci_color), row=2, col=1)
     fig.add_vrect(x0=-delta, x1=delta, fillcolor="rgba(0,128,0,0.1)", layer="below", line_width=0, row=2, col=1)
-    fig.add_shape(type="line", x0=-delta, y0=-0.5, x1=-delta, y1=0.5, line=dict(color="red", width=2, dash="dash"), row=2, col=1)
-    fig.add_shape(type="line", x0=delta, y0=-0.5, x1=delta, y1=0.5, line=dict(color="red", width=2, dash="dash"), row=2, col=1)
-    fig.add_annotation(x=0, y=0.4, text=f"Equivalence Zone (-{delta:.1f} to +{delta:.1f})", showarrow=False, font_size=14, row=2, col=1)
+    fig.add_vline(x=-delta, line=dict(color="red", dash="dash"), row=2, col=1)
+    fig.add_vline(x=delta, line=dict(color="red", dash="dash"), row=2, col=1)
+    fig.update_yaxes(showticklabels=False, row=2, col=1)
+
+    # Plot 3: The Verdict CI Bar
+    fig.add_trace(go.Scatter(
+        x=[diff_mean], y=[0], error_x=dict(type='data', array=[ci_upper-diff_mean], arrayminus=[diff_mean-ci_lower], thickness=15),
+        mode='markers', name='90% CI for Diff.', marker=dict(color=ci_color, size=18, line=dict(width=2, color='black'))
+    ), row=3, col=1)
+    fig.add_vrect(x0=-delta, x1=delta, fillcolor="rgba(0,128,0,0.1)", layer="below", line_width=0, row=3, col=1)
+    fig.add_vline(x=-delta, line=dict(color="red", dash="dash"), row=3, col=1)
+    fig.add_vline(x=delta, line=dict(color="red", dash="dash"), row=3, col=1)
+    fig.update_yaxes(showticklabels=False, range=[-1, 1], row=3, col=1)
     
-    fig.update_layout(height=600, title_text="<b>Equivalence Testing (TOST) Dashboard</b>", title_x=0.5,
-                      barmode='overlay', showlegend=False)
+    fig.update_layout(height=800, title_text="<b>Equivalence Testing: From Raw Data to Verdict</b>", title_x=0.5, showlegend=False)
     fig.update_xaxes(title_text="Measured Value", row=1, col=1)
-    fig.update_xaxes(title_text="Difference in Means (Method B - Method A)", row=2, col=1)
-    fig.update_yaxes(showticklabels=False, row=2, col=1, range=[-1, 1])
+    fig.update_xaxes(title_text="Difference in Means", row=2, col=1)
+    fig.update_xaxes(title_text="Difference in Means", row=3, col=1)
     
     return fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B, diff_mean
 
@@ -4610,33 +4604,29 @@ def render_tost():
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sliders to build an intuition for what drives an equivalence conclusion.
-    - The top plot shows the raw data distributions.
-    - The bottom plot shows the statistical conclusion.
-    - **Your Goal:** Get the entire confidence interval bar (green or red) to fall *inside* the light green "Equivalence Zone".
+    **Interactive Demo:** This new 3-plot dashboard tells a complete story.
+    1.  See the raw sample data at the top.
+    2.  Watch how that translates into the evidence about the *difference* in the middle plot.
+    3.  See the final verdict at the bottom. The bar in Plot 3 is just a summary of the shaded area in Plot 2.
     """)
     
     with st.sidebar:
         st.subheader("TOST Controls")
         delta_slider = st.slider(
-            "⚖️ Equivalence Margin (Δ)", 
-            min_value=1.0, max_value=15.0, value=5.0, step=0.5,
-            help="The 'goalposts'. Defines the zone where differences are considered practically meaningless. A tighter margin is harder to meet."
+            "⚖️ Equivalence Margin (Δ)", 1.0, 15.0, 5.0, 0.5,
+            help="The 'goalposts'. Defines the zone where differences are considered practically meaningless."
         )
         diff_slider = st.slider(
-            "🎯 True Difference", 
-            min_value=-10.0, max_value=10.0, value=1.0, step=0.5,
-            help="The actual underlying difference between the two groups in the simulation. See if you can prove equivalence even when a small true difference exists!"
+            "🎯 True Difference", -10.0, 10.0, 1.0, 0.5,
+            help="The actual underlying difference between the two groups in the simulation."
         )
         sd_slider = st.slider(
-            "🌫️ Standard Deviation (Variability)", 
-            min_value=1.0, max_value=15.0, value=5.0, step=0.5,
-            help="The random noise or imprecision in the data. Higher variability widens the confidence interval, making equivalence harder to prove."
+            "🌫️ Standard Deviation (Variability)", 1.0, 15.0, 5.0, 0.5,
+            help="The random noise in the data. Higher variability widens the CI, making equivalence harder to prove."
         )
         n_slider = st.slider(
-            "🔬 Sample Size (n)", 
-            min_value=10, max_value=200, value=50, step=5,
-            help="The number of samples per group. Higher sample size narrows the confidence interval, increasing your power to prove equivalence."
+            "🔬 Sample Size (n)", 10, 200, 50, 5,
+            help="The number of samples per group. Higher sample size narrows the CI, increasing your power."
         )
     
     fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B, diff_mean = plot_tost(
@@ -4663,20 +4653,18 @@ def render_tost():
 
             st.metric(label="p-value (TOST)", value=f"{p_tost:.4f}", help="If p < 0.05, we conclude equivalence.")
             st.metric(label="📊 Observed 90% CI for Difference", value=f"[{ci_lower:.2f}, {ci_upper:.2f}]")
-            st.metric(label="📈 Observed Difference (from sample)", value=f"{diff_mean:.2f}",
-                      help="The difference between the two sample means (vertical lines in top plot). The CI is centered on this value.")
-            
+            st.metric(label="📈 Observed Difference", value=f"{diff_mean:.2f}",
+                      help="The difference between the two sample means (Mean B - Mean A).")
+            st.metric(label="⚖️ Equivalence Margin", value=f"± {delta_slider:.1f} units")
+
             st.markdown("---")
-            
-            # --- THIS IS THE KEY EXPLANATION FIX ---
-            st.markdown("##### Connecting the Plots: Why the Disconnect?")
+            st.markdown("##### The 3-Plot Story: How the Plots Connect")
             st.markdown("""
-            You might see two distributions in Plot 1 that look clearly different, yet the test concludes they are equivalent. This is not an error!
-            
-            - **Plot 1 shows RAW DATA.** The overlap of the distributions is influenced by the **Standard Deviation**.
-            - **Plot 2 shows the CONCLUSION ABOUT THE MEANS.** The confidence interval is influenced by the **Standard Error (`s/√n`)**.
-            
-            With a large sample size (`n`), the Standard Error can be very small even if the Standard Deviation is large. This means we can be **very confident** that the true difference between the means is small, even if the raw data distributions have a lot of overlap. **Equivalence is a conclusion about the means, not about the overlap of all data points.**
+            1.  **Plot 1 (The Samples):** Shows the raw data you collected. The vertical dashed lines mark the *mean* of each sample.
+            2.  **Plot 2 (The Evidence):** This is the crucial link. It shows our statistical uncertainty about the true difference in means. The shaded area is the **90% Confidence Interval**.
+            3.  **Plot 3 (The Verdict):** This is just a compact summary of Plot 2. The bar represents the exact same 90% Confidence Interval.
+
+            **The conclusion of 'Equivalence' is reached when the entire shaded distribution in Plot 2 falls inside the light green 'Equivalence Zone'.**
             """)
             # --- END OF EXPLANATION FIX ---
         

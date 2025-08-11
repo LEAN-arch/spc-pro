@@ -4794,10 +4794,10 @@ def render_introduction_content():
 #===================================================================================================== ACT 0 Render=================================================================================================================
 #===================================================================================================================================================================================================================================
 def render_tpp_cqa_cascade():
-    """Renders the comprehensive, interactive module for TPP & CQA Cascade."""
+    """Renders the comprehensive, interactive module for TPP & CQA Cascade, including a full QbD introduction."""
     st.markdown("""
-    #### Purpose & Application: The "Golden Thread" of QbD
-    **Purpose:** To be the **"North Star" of the entire project.** This tool visualizes the "golden thread" of Quality by Design (QbD). It starts with the high-level patient or business needs (the **Target Product Profile**), translates them into measurable engineering and scientific requirements (the **Critical Quality Attributes**), and finally links those to the specific process parameters that must be controlled (**Critical Process Parameters**).
+    #### Purpose & Application: The "Golden Thread" of Quality by Design (QbD)
+    **Purpose:** To be the **"North Star" of the entire project.** This tool visualizes the "golden thread" of QbD. It starts with the high-level patient or business needs (the **Target Product Profile**), translates them into measurable product requirements (the **Critical Quality Attributes**), and finally links those to the specific process parameters and material attributes that must be controlled.
     
     **Strategic Application:** This cascade is the first and most important document in a modern, science- and risk-based validation program. It provides a clear, traceable line of sight from the needs of the patient all the way down to the specific dial a process engineer needs to turn. This is the essence of **ICH Q8**.
     """)
@@ -4849,25 +4849,76 @@ def render_tpp_cqa_cascade():
     st.plotly_chart(fig, use_container_width=True)
     
     st.divider()
-    st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    st.subheader("Deeper Dive into Quality by Design (QbD)")
+    
+    # --- THIS IS THE NEW, SUBSTANTIALLY EXTENDED TABS SECTION ---
+    tabs = st.tabs(["💡 Key Insights", "📖 Introduction to QbD", "📋 QbD Glossary", "✅ The Golden Rule", "🏛️ Regulatory & Compliance"])
+    
     with tabs[0]:
         st.markdown("""
         **Reading the Cascade:**
-        - **TPP (Left):** This is the contract with the patient and the business. It defines what the product, process, or system must do.
-        - **CQAs (Middle):** These are the measurable, scientific properties the *product* must possess (or performance attributes the *system* must have) to fulfill the TPP.
-        - **CPPs (Right):** These are the measurable, controllable knobs on the *process* or *design* that influence the CQAs.
+        - **TPP (Left Node):** This is the contract with the patient and the business. It defines what the product, process, or system must do.
+        - **CQAs (Middle Nodes):** These are the measurable, scientific properties the *product* must possess (or performance attributes the *system* must have) to fulfill the TPP. For example, to be "effective," the product must have high "Potency."
+        - **CPPs (Right Nodes):** These are the measurable, controllable knobs on the *process* or *design* that influence the CQAs. For example, "Bioreactor pH" is a CPP that is known to affect the final "Potency" of a MAb.
 
-        **The Interactive Connection:** As you move the sliders, the CQAs directly impacted by your decision are highlighted in yellow. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be designed and controlled.
+        **The Interactive Connection:** As you move the sliders in the sidebar to set more ambitious TPP targets, the CQAs directly impacted by your decision are highlighted in yellow. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be understood and controlled.
         """)
+    
     with tabs[1]:
-        st.success("🟢 **THE GOLDEN RULE:** Begin with the End in Mind. A validation program that does not start with a clearly defined Target Product Profile is a project without a destination. The TPP is the formal document that prevents 'scope creep' and ensures that all development and validation activities are focused on delivering a product that meets the specific, pre-defined needs of the patient and the business.")
-    with tabs[2]:
-        st.markdown("The concepts of TPP and CQA were not invented by regulators, but were adopted from best practices in engineering and product development. However, they were formally introduced into the pharmaceutical lexicon and popularized by the **ICH Q8(R2) Guideline on Pharmaceutical Development** in 2009. This guideline marked a major philosophical shift by the FDA and other global regulators away from a rigid, prescriptive approach to validation towards a more scientific, flexible, and risk-based framework known as **Quality by Design (QbD)**. The TPP/CQA cascade is the central pillar of the QbD philosophy.")
-    with tabs[3]:
         st.markdown("""
-        - **ICH Q8(R2) - Pharmaceutical Development:** This is the primary guideline. It explicitly defines the **Target Product Profile (TPP)** as the starting point and the **Critical Quality Attributes (CQA)** as the foundation for product and process development.
-        - **FDA Guidance on Process Validation (2011):** The entire lifecycle approach is built on this foundation. **Stage 1 (Process Design)** is the activity of translating the CQAs into a robust manufacturing process by identifying and controlling the CPPs.
+        #### The QbD Paradigm Shift
+        Quality by Design (QbD) represents a fundamental shift in the philosophy of manufacturing and validation, championed by global regulators.
+
+        **The Traditional Approach (Quality by Testing):**
+        - The process is a "black box." We follow a fixed recipe and then perform extensive testing on the final product to see if it's acceptable.
+        - **Analogy:** Baking a cake by following a recipe from a very old cookbook without understanding why it works. If the cake comes out badly, your only option is to throw it away and try again. You have tested quality *into* the product at the end.
+
+        **The Modern Approach (Quality by Design):**
+        - The process is a "glass box." We use science and risk management to gain a deep understanding of how raw materials (CMAs) and process parameters (CPPs) interact to affect the final product quality (CQAs).
+        - **Analogy:** Being a master baker who understands the chemistry of baking. You know exactly how adjusting the oven temperature (a CPP) will affect the cake's moistness (a CQA). You design the recipe and process so perfectly that you *know* the cake will be good every single time, with minimal final testing required. You have designed quality *into* the product from the beginning.
+        
+        The TPP/CQA/CPP cascade is the central tool that documents this deep understanding.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### The Language of Quality by Design
+        - **Target Product Profile (TPP):**
+          - **Definition:** A prospective summary of the quality characteristics of a drug product that ideally will be achieved to ensure the desired quality, taking into account safety and efficacy.
+          - **In Simple Terms:** What does this product need to do for the patient?
+          - **Example (MAb):** "A sterile, injectable liquid that safely and effectively treats rheumatoid arthritis with a 24-month shelf life."
+
+        - **Critical Quality Attribute (CQA):**
+          - **Definition:** A physical, chemical, biological, or microbiological property or characteristic that should be within an appropriate limit, range, or distribution to ensure the desired product quality.
+          - **In Simple Terms:** What measurable property must the *product* have to meet the TPP?
+          - **Example (MAb):** "Purity must be > 99%" (to ensure safety and efficacy).
+
+        - **Critical Material Attribute (CMA):**
+          - **Definition:** A physical, chemical, biological or microbiological property of an input material that should be within an appropriate limit, range, or distribution to ensure the desired quality of the output product.
+          - **In Simple Terms:** What property of a *raw material* must be controlled?
+          - **Example (MAb):** "The pH of the cell culture media must be between 6.9 and 7.3."
+
+        - **Critical Process Parameter (CPP):**
+          - **Definition:** A process parameter whose variability has an impact on a critical quality attribute and therefore should be monitored or controlled to ensure the process produces the desired quality.
+          - **In Simple Terms:** What "knob" on the *process* must be controlled?
+          - **Example (MAb):** "The bioreactor temperature must be maintained at 37.0 ± 0.5 °C."
+        """)
+        
+    with tabs[3]:
+        st.success("""
+        🟢 **THE GOLDEN RULE: Begin with the End in Mind, and Document the Links.**
+        
+        A validation program that does not start with a clearly defined Target Product Profile is a project without a destination. The TPP is the formal document that prevents 'scope creep' and ensures all development and validation activities are focused on delivering a product that meets the specific, pre-defined needs of the patient.
+        
+        Furthermore, the entire cascade—from TPP down to CPPs—must be a living, documented "golden thread" that provides the scientific and risk-based rationale for your entire control strategy.
+        """)
+
+    with tabs[4]:
+        st.markdown("""
+        This entire framework is defined and championed by the International Council for Harmonisation (ICH) and adopted by global regulators like the FDA.
+        - **ICH Q8(R2) - Pharmaceutical Development:** This is the primary guideline. It explicitly defines the **Target Product Profile (TPP)**, **Critical Quality Attributes (CQA)**, and **Critical Process Parameters (CPP)** as the foundational elements of QbD. It introduces the concepts of the **Design Space** and **Control Strategy**.
+        - **ICH Q9 - Quality Risk Management:** The process of identifying which attributes and parameters are "critical" (i.e., identifying CQAs and CPPs) is a formal risk assessment activity that must be documented according to the principles of ICH Q9.
+        - **FDA Guidance on Process Validation (2011):** The entire lifecycle approach is built on this foundation. **Stage 1 (Process Design)** is the activity of translating the CQAs into a robust manufacturing process by identifying and controlling the CPPs and CMAs.
         - **GAMP 5:** For instruments and software, the TPP is analogous to the **User Requirement Specification (URS)**, and the CQAs are analogous to the high-level **Functional Specifications (FS)**.
         """)
 

@@ -908,7 +908,7 @@ def plot_attribute_agreement(n_parts, n_replicates, prevalence, skilled_accuracy
     # 1. Create the "gold standard" reference parts, including "borderline" cases
     n_defective = int(n_parts * prevalence)
     n_good = n_parts - n_defective
-    reference = np.array([1] * n_defective + [0] * n_good)
+    reference = np.array([1] * n_defective + [0] * n_good) # 1=Defective, 0=Good
     
     # Add borderline parts that are harder to classify
     n_borderline = int(n_parts * 0.2)
@@ -948,14 +948,19 @@ def plot_attribute_agreement(n_parts, n_replicates, prevalence, skilled_accuracy
 
     # 3. Calculate Key Metrics
     # Fleiss' Kappa for overall agreement
-    table = pd.crosstab(df['Part'], df['Inspector'])
-    n, k = table.shape
-    n_raters_per_item = table.sum(axis=1)
-    p_j = table.sum() / n_raters_per_item.sum()
-    P_i = ((table**2).sum(axis=1) - n_raters_per_item) / (n_raters_per_item * (n_raters_per_item - 1))
+    # Create a contingency table: rows are parts, columns are Good/Defective ratings by inspectors
+    contingency_table = pd.crosstab(df['Part'], df['Assessment'])
+    if 0 not in contingency_table.columns: contingency_table[0] = 0
+    if 1 not in contingency_table.columns: contingency_table[1] = 0
+    
+    N = len(contingency_table) # Number of subjects
+    n = contingency_table.sum(axis=1).iloc[0] # Number of ratings per subject
+    p_j = contingency_table.sum(axis=0) / (N * n) # Proportions of each category
+    P_i = ( (contingency_table**2).sum(axis=1) - n ) / (n * (n-1))
     P_bar = P_i.mean()
     P_e_bar = (p_j**2).sum()
-    kappa = (P_bar - P_e_bar) / (1 - P_e_bar) if (1 - P_e_bar) != 0 else 0
+    kappa = (P_bar - P_e_bar) / (1 - P_e_bar) if (1-P_e_bar) != 0 else 0
+
 
     # Individual inspector effectiveness
     effectiveness = {}
@@ -980,7 +985,7 @@ def plot_attribute_agreement(n_parts, n_replicates, prevalence, skilled_accuracy
         x=df_eff['False Alarm Rate'], y=df_eff['Miss Rate'],
         mode='markers+text', text=df_eff['Inspector'], textposition='top center',
         marker=dict(
-            size=(df_eff['Miss Rate'] + df_eff['False Alarm Rate']) * 200 + 10,
+            size=(df_eff['Miss Rate'] + df_eff['False Alarm Rate']) * 200 + 15, # Bubble size reflects total error
             color=df_eff['Accuracy'], colorscale='RdYlGn', cmin=0.7, cmax=1.0,
             showscale=True, colorbar_title='Accuracy'
         ),
@@ -4834,15 +4839,15 @@ def render_attribute_agreement():
     
     st.info("""
     **Interactive Demo:** Use the sidebar controls to create a challenging inspection scenario with different inspector archetypes.
-    - The **Effectiveness Plot** (left) is your main diagnostic, showing the two critical types of error for each inspector.
-    - The **Kappa Matrix** (right) shows who agrees with whom. Low values between two inspectors indicate they are not aligned on their decision criteria.
+    - The **Effectiveness Plot** (right) is your main diagnostic, showing the two critical types of error for each inspector.
+    - The **Kappa Matrix** (bottom) shows who agrees with whom. Low values between two inspectors indicate they are not aligned on their decision criteria.
     """)
 
     with st.sidebar:
         st.subheader("Attribute Agreement Controls")
         st.markdown("**Study Design**")
         n_parts_slider = st.slider("Number of Parts in Study", 20, 100, 50, 5, help="The total number of unique parts (both good and bad) that will be assessed.")
-        prevalence_slider = st.slider("True Defect Rate in Parts (%)", 10, 50, 20, 5, help="The percentage of parts in the study that are known to be defective. A good study has a high prevalence of defects.")
+        prevalence_slider = st.slider("True Defect Rate in Parts (%)", 10, 50, 20, 5, help="The percentage of parts in the study that are known to be defective. A good study has a high prevalence of defects to properly challenge the inspectors.")
         st.markdown("**Inspector Archetypes**")
         skilled_acc_slider = st.slider("Skilled Inspector Accuracy (%)", 85, 100, 98, 1, help="The base accuracy of your best, most experienced inspector.")
         uncertain_acc_slider = st.slider("Uncertain Inspector Accuracy (%)", 70, 100, 90, 1, help="The base accuracy of an inspector who struggles with borderline cases. Their performance will degrade on ambiguous parts.")
@@ -4863,6 +4868,7 @@ def render_attribute_agreement():
     with col1:
         st.subheader("Overall Study Metrics")
         st.metric("Fleiss' Kappa (Overall Agreement)", f"{kappa:.3f}", help="Measures agreement between all inspectors, corrected for chance. >0.7 is considered substantial agreement.")
+        st.markdown("##### Individual Inspector Performance")
         st.dataframe(df_eff.style.format({"Miss Rate": "{:.2%}", "False Alarm Rate": "{:.2%}", "Accuracy": "{:.2%}"}), use_container_width=True)
         
     with col2:
@@ -4873,31 +4879,44 @@ def render_attribute_agreement():
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
     with tabs[0]:
         st.markdown("""
-        **Reading the Dashboard:**
-        - **Effectiveness Plot:** This is your main diagnostic for individual performance. Each inspector is a bubble.
-            - **X-axis (False Alarm Rate):** How often they fail good parts. A high value for the "Biased" inspector shows their tendency to play it safe.
-            - **Y-axis (Miss Rate):** How often they pass bad parts. This is often the most critical risk.
-            - **Bubble Size & Color:** Both represent total error (size) and accuracy (color). Smaller, greener bubbles are better.
-        - **Kappa Matrix:** This heatmap shows inter-rater reliability. The diagonal is always a perfect 1.0 (an inspector agrees with themselves). The off-diagonal values are important. A low value (e.g., between Inspector B and C) indicates they have fundamentally different criteria for passing or failing parts and need alignment.
+        **A Realistic Workflow & Interpretation:**
+        1.  **Check Overall Agreement (Fleiss' Kappa):** The first KPI tells you if the inspection team, as a whole, is consistent. A low Kappa (<0.7) signals a systemic problem with the procedure or training.
+        2.  **Diagnose Individual Performance (Effectiveness Plot):** This plot is the main tool for root cause analysis.
+            - **Inspector A (Skilled)** should be in the bottom-left "Ideal Zone."
+            - **Inspector B (Uncertain)** will drift away from the ideal zone as you increase defect prevalence, because there are more borderline parts to confuse them. This signals a need for better training or clearer defect standards.
+            - **Inspector C (Biased)** will drift to the right (high False Alarm Rate). This shows they are incorrectly failing good product, indicating they are either misinterpreting a standard or are being overly cautious.
+        3.  **Find Disagreements (Kappa Matrix):** This heatmap shows *who* disagrees with *whom*. A low Kappa value between Inspector B and C, for example, would be expected from the simulation. This tells you exactly which two inspectors need to sit down together with the defect library to align their criteria.
         """)
-    
+
     with tabs[1]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "Percent Agreement" Trap**
 An analyst simply calculates that all inspectors agreed with the standard 95% of the time and declares the system valid.
 - **The Flaw:** If the study only contains 2% true defects, an inspector could pass *every single part* and still achieve 98% agreement! Simple percent agreement is dangerously misleading with imbalanced data.""")
-        st.success("""🟢 **THE GOLDEN RULE: Use Kappa for Agreement, and Effectiveness for Risk**
-A robust analysis separates two key questions.
-1.  **Do the inspectors agree with EACH OTHER?** This is a question of **precision or consistency**. The **Kappa Matrix** is the best tool for this, as it corrects for chance agreement.
-2.  **Do the inspectors agree with the TRUTH?** This is a question of **accuracy**. The **Effectiveness Report** is the best tool for this, as it separates the two types of risk: Miss Rate (Consumer's Risk) and False Alarm Rate (Producer's Risk).""")
+        st.success("""🟢 **THE GOLDEN RULE: Use Kappa for Consistency, and Effectiveness for Risk**
+A robust analysis separates two key questions that must be answered.
+1.  **Are the inspectors CONSISTENT? (Precision)** This is about whether the inspectors agree with **each other**. The **Kappa Matrix** is the best tool for this, as it corrects for chance agreement and pinpoints specific disagreements.
+2.  **Are the inspectors ACCURATE? (Bias/Error)** This is about whether the inspectors agree with the **truth** (the gold standard). The **Effectiveness Report** is the best tool for this, as it separates the two types of business and patient risk: Miss Rate (Consumer's Risk) and False Alarm Rate (Producer's Risk).""")
 
     with tabs[2]:
-        st.markdown("While Gage R&R handled continuous data, a separate methodology was needed for attribute data. In 1960, **Jacob Cohen** developed **Cohen's Kappa** to measure agreement between two raters. This was later extended by **Joseph L. Fleiss** (1971) to handle cases with more than two raters. The key innovation of Kappa statistics was to correct for the amount of agreement that could be expected purely by chance, making it a much more robust metric than simple percent agreement. The AIAG later incorporated these statistical techniques into their **Measurement Systems Analysis (MSA)** manual, codifying them as the industry-standard approach.")
+        st.markdown("""
+        #### Historical Context: Beyond Simple Percentages
+        **The Problem:** For decades, researchers in social sciences and medicine struggled to quantify the reliability of subjective judgments. Simple "percent agreement" was the common method, but it had a fatal flaw: it didn't account for agreement that could happen purely by chance. Two doctors who both diagnose 90% of patients with "common cold" will have high agreement, but their skill might be no better than a coin flip if the true rate is 90%.
+
+        **The 'Aha!' Moment:** In 1960, the psychologist **Jacob Cohen** developed **Cohen's Kappa (κ)**, a statistic that brilliantly solved this problem. Kappa measures the *observed* agreement and then subtracts the *agreement expected by chance*, creating a much more robust measure of true inter-rater reliability. This concept was later extended by **Joseph L. Fleiss** in 1971 to handle cases with more than two raters, resulting in **Fleiss' Kappa**.
+            
+        **The Impact:** Kappa statistics became the gold standard for measuring agreement in fields from psychology to clinical diagnostics. The automotive industry, in its quest for quality, recognized that a human inspector is a "measurement system." They incorporated these advanced statistical techniques into their **Measurement Systems Analysis (MSA)** manual, which is now considered the global standard, codifying Attribute Agreement Analysis as an essential tool for any industry relying on human inspection.
+        """)
         
     with tabs[3]:
-        st.markdown("This analysis is a key part of **Measurement Systems Analysis (MSA)**, which is required by the **FDA's Process Validation Guidance** and quality system regulations like **21 CFR 820**. It provides objective evidence that your inspection process, including the human element, is validated and fit for purpose. It is particularly critical for manual visual inspection processes, which are often cited in regulatory observations if not properly qualified.")
-
+        st.markdown("""
+        This analysis is a key part of **Measurement Systems Analysis (MSA)**, which is a fundamental expectation of a robust quality system.
+        - **FDA Process Validation Guidance & 21 CFR 820 (QSR):** Both require that all measurement systems used for process control and product release be validated and fit for purpose. This explicitly includes human inspection systems. A documented Attribute Agreement Analysis is the objective evidence that this requirement has been met.
+        - **ICH Q9 (Quality Risk Management):** A poorly performing inspection system is a major quality risk. This analysis quantifies that risk (e.g., the Miss Rate is a direct measure of patient/consumer risk) and provides the data to justify mitigation, such as retraining or implementing automated inspection.
+        - **Regulatory Audits:** A lack of qualification for visual inspection processes is a common finding during regulatory audits. Having a robust Attribute Agreement study in your validation package demonstrates a mature and compliant quality system.
+        """)
 def render_gage_rr():
     """Renders the INTERACTIVE module for Gage R&R."""
     st.markdown("""

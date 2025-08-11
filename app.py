@@ -4813,9 +4813,31 @@ def render_introduction_content():
     """Renders the complete, all-in-one introduction and framework dashboard."""
     st.title("🛠️ Biotech V&V Analytics Toolkit")
     st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
-        # --- NAME ADDED HERE ---
-    st.markdown("<h4 style='text-align: left; color: grey;'><i>Developed by </b>Jose Bautista</b>, MSc, LSSBB, PMP</i></h4>", unsafe_allow_html=True)
-    # --- END OF ADDITION ---
+    # --- NEW, PROFESSIONAL HEADER SECTION ---
+    st.markdown("---")
+    col1, col2 = st.columns([1, 2]) # Create two columns for the header
+
+    with col1:
+        # Use simple HTML for styling and line breaks
+        st.markdown(
+            "<p style='color: grey;'>Developed by<br><b>Jose Bautista, MSc, LSSBB, PMP</b></p>", 
+            unsafe_allow_html=True
+        )
+
+    with col2:
+        # Right-align the contact information
+        st.markdown(
+            """
+            <div style='text-align: right; color: grey;'>
+            <b>Contact Information</b><br>
+            📧 jbautistads@gmail.com<br>
+            🔗 linkedin.com/in/josebautista
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    st.markdown("---")
+    # --- END OF NEW HEADER SECTION ---
     st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
     st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
     

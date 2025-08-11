@@ -740,11 +740,11 @@ def plot_atp_radar_chart(project_type, atp_values, achieved_values=None):
     return fig
 
 @st.cache_data
-def plot_fmea_dashboard(fmea_data):
+def plot_fmea_dashboard(fmea_df):
     """
-    Generates a professional-grade FMEA dashboard with a Risk Matrix and Pareto Chart.
+    Generates a professional-grade FMEA dashboard with a Risk Matrix and Pareto Chart from a dataframe.
     """
-    df = pd.DataFrame(fmea_data)
+    df = fmea_df.copy()
     df['RPN_Initial'] = df['S'] * df['O_Initial'] * df['D_Initial']
     df['RPN_Final'] = df['S'] * df['O_Final'] * df['D_Final']
     
@@ -767,16 +767,18 @@ def plot_fmea_dashboard(fmea_data):
 
     # Add risk points
     fig_matrix.add_trace(go.Scatter(
-        x=df['S'], y=df['O_Initial'], mode='markers+text', text=df['ID'], textposition='top center',
-        marker=dict(color='black', size=15, symbol='circle'), name='Initial Risk'
+        x=df['S'], y=df['O_Initial'], mode='markers+text', text=df.index + 1, textposition='top center',
+        marker=dict(color='black', size=15, symbol='circle'), name='Initial Risk',
+        hovertext=df['Failure Mode'], hoverinfo='text'
     ))
     fig_matrix.add_trace(go.Scatter(
-        x=df['S'], y=df['O_Final'], mode='markers+text', text=df['ID'], textposition='bottom center',
-        marker=dict(color=PRIMARY_COLOR, size=15, symbol='diamond-open'), name='Final (Mitigated) Risk'
+        x=df['S'], y=df['O_Final'], mode='markers+text', text=df.index + 1, textposition='bottom center',
+        marker=dict(color=PRIMARY_COLOR, size=15, symbol='diamond-open'), name='Final (Mitigated) Risk',
+        hovertext=df['Failure Mode'], hoverinfo='text'
     ))
     # Add arrows showing mitigation
     for i in df.index:
-        if df.loc[i, 'O_Initial'] != df.loc[i, 'O_Final']: # Only draw arrow if Occurrence changes
+        if df.loc[i, 'O_Initial'] != df.loc[i, 'O_Final']:
             fig_matrix.add_annotation(x=df.loc[i, 'S'], y=df.loc[i, 'O_Final'], ax=df.loc[i, 'S'], ay=df.loc[i, 'O_Initial'],
                                       xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowcolor=PRIMARY_COLOR, arrowwidth=2)
 
@@ -5159,50 +5161,75 @@ def render_fmea():
     #### Purpose & Application: The Blueprint for Validation
     **Purpose:** To serve as the **Master Blueprint for your entire Validation Plan**. A Failure Mode and Effects Analysis (FMEA) is a systematic, proactive method for identifying and mitigating potential risks in a process *before they happen*. It answers the foundational questions: "What could go wrong?", "How bad would it be?", and "How would we know?".
     
-    **Strategic Application:** This is the embodiment of Quality Risk Management (ICH Q9). The output of the FMEA directly justifies which parameters require rigorous characterization (using DOE), which require tight monitoring (using SPC), and which require procedural controls. It is the auditable, documented rationale for your entire validation strategy.
+    **Strategic Application:** This is the embodiment of Quality Risk Management (ICH Q9). The output of the FMEA directly justifies which parameters require rigorous characterization, which require tight monitoring, and which require procedural controls. It is the auditable, documented rationale for your entire validation strategy.
     """)
     
     st.info("""
     **Interactive Demo:** You are the Validation Risk Lead.
-    1.  Use the sliders to score the **initial risk** for three potential failure modes based on their likely Occurrence and Detectability.
-    2.  Use the **Mitigation Toggles** to simulate implementing process improvements.
-    3.  Observe how the mitigations lower the RPN in the **Pareto Chart** and move the risks to a safer zone in the **Risk Matrix**.
+    1.  Select a **Project Type** to load a realistic FMEA template.
+    2.  Use the sliders to score the **initial risk** for each failure mode.
+    3.  Use the **Mitigation Toggles** to simulate implementing improvements.
+    4.  Observe how mitigations lower the RPN in the Pareto Chart and move risks to a safer zone in the Risk Matrix.
     """)
 
-    fmea_data_initial = {
-        'ID': ['A', 'B', 'C'],
-        'Failure Mode': ['Incorrect Buffer Formulation', 'Instrument Calibration Drift', 'Operator Handling Error'],
-        'S': [5, 4, 3] # Severity is usually fixed as it relates to patient/product impact
+    project_type = st.selectbox(
+        "Select a Project Type to view a sample FMEA:",
+        ["Pharma Process (MAb)", "Analytical Assay (ELISA)", "Instrument Qualification (HPLC)", "Software System (LIMS)"]
+    )
+
+    # --- Master dictionary for all FMEA templates ---
+    fmea_templates = {
+        "Pharma Process (MAb)": {
+            'Failure Mode': ['Contamination in Bioreactor', 'Incorrect Chromatography Buffer', 'Filter Integrity Failure'],
+            'S': [5, 4, 5],
+            'O_Initial': [2, 3, 2],
+            'D_Initial': [4, 3, 2]
+        },
+        "Analytical Assay (ELISA)": {
+            'Failure Mode': ['Incorrect Antibody Lot', 'Operator Pipetting Error', 'Incubation Time Error'],
+            'S': [5, 3, 4],
+            'O_Initial': [2, 4, 3],
+            'D_Initial': [5, 3, 2]
+        },
+        "Instrument Qualification (HPLC)": {
+            'Failure Mode': ['Pump Seal Failure', 'Detector Lamp Degradation', 'Autosampler Needle Clog'],
+            'S': [4, 3, 3],
+            'O_Initial': [2, 3, 4],
+            'D_Initial': [4, 2, 3]
+        },
+        "Software System (LIMS)": {
+            'Failure Mode': ['Data Corruption on Save', 'Incorrect Calculation Logic', 'Server Downtime'],
+            'S': [5, 5, 4],
+            'O_Initial': [1, 2, 3],
+            'D_Initial': [4, 5, 2]
+        }
     }
     
+    fmea_data = fmea_templates[project_type]
+    
     with st.sidebar:
-        st.subheader("FMEA Controls")
-        st.markdown("**Initial Risk Assessment**")
-        fmea_data_initial['O_Initial'] = [
-            st.slider("Occurrence (Buffer Error)", 1, 5, 4, help="How frequently is an incorrect buffer formulation likely to occur? 1=Very Rare, 5=Very Frequent."),
-            st.slider("Occurrence (Cal Drift)", 1, 5, 2, help="How frequently does the instrument drift out of calibration?"),
-            st.slider("Occurrence (Handling Error)", 1, 5, 3, help="How frequently do operators make handling errors?")
-        ]
-        fmea_data_initial['D_Initial'] = [
-            st.slider("Detection (Buffer Error)", 1, 5, 5, help="How likely are we to DETECT a bad buffer before it causes a failure? 1=Very Likely, 5=Very Unlikely. (A high score is bad)."),
-            st.slider("Detection (Cal Drift)", 1, 5, 2, help="How likely are we to DETECT calibration drift?"),
-            st.slider("Detection (Handling Error)", 1, 5, 3, help="How likely are we to DETECT an operator handling error?")
-        ]
+        st.subheader("FMEA Risk Scoring")
+        st.markdown(f"**Initial Assessment for: {project_type}**")
         
-        st.markdown("**Proposed Mitigations**")
-        mitigate_buffer = st.toggle("Implement Automated Buffer Prep", value=False, help="This engineering control is designed to reduce the Occurrence of formulation errors.")
-        mitigate_cal = st.toggle("Increase Calibration Frequency", value=False, help="This procedural control is designed to improve the Detection of calibration drift.")
-        mitigate_handling = st.toggle("Enhance Operator Training & Poka-Yoke", value=False, help="This combined control reduces the Occurrence of errors and improves their Detection.")
-        
-        fmea_data_initial['O_Final'] = fmea_data_initial['O_Initial'].copy()
-        fmea_data_initial['D_Final'] = fmea_data_initial['D_Initial'].copy()
-        if mitigate_buffer: fmea_data_initial['O_Final'][0] = 1
-        if mitigate_cal: fmea_data_initial['D_Final'][1] = 1
-        if mitigate_handling:
-            fmea_data_initial['O_Final'][2] = 1
-            fmea_data_initial['D_Final'][2] = 1
+        # Dynamically create sliders based on the selected template
+        for i, mode in enumerate(fmea_data['Failure Mode']):
+            st.markdown(f"--- \n **Failure Mode {i+1}:** *{mode}*")
+            col1, col2 = st.columns(2)
+            fmea_data['O_Initial'][i] = col1.slider(f"Occurrence (O)", 1, 5, fmea_data['O_Initial'][i], key=f"o_{i}")
+            fmea_data['D_Initial'][i] = col2.slider(f"Detection (D)", 1, 5, fmea_data['D_Initial'][i], key=f"d_{i}")
 
-    fig_matrix, fig_pareto = plot_fmea_dashboard(fmea_data_initial)
+    # --- Apply Mitigations (Simplified for demo) ---
+    fmea_data['O_Final'] = fmea_data['O_Initial'].copy()
+    fmea_data['D_Final'] = fmea_data['D_Initial'].copy()
+    # Logic to apply some generic mitigation if RPN is high
+    initial_rpn = [s * o * d for s, o, d in zip(fmea_data['S'], fmea_data['O_Initial'], fmea_data['D_Initial'])]
+    for i, rpn in enumerate(initial_rpn):
+        if rpn >= 50:
+            fmea_data['O_Final'][i] = max(1, fmea_data['O_Initial'][i] - 2)
+            fmea_data['D_Final'][i] = max(1, fmea_data['D_Initial'][i] - 2)
+
+    df_fmea = pd.DataFrame(fmea_data)
+    fig_matrix, fig_pareto = plot_fmea_dashboard(df_fmea)
     
     st.header("Risk Assessment Dashboard")
     col1, col2 = st.columns(2)
@@ -5263,7 +5290,6 @@ The FMEA is not a standalone document; it is the strategic driver for the entire
             - **Risk Control:** Proposing and implementing mitigation actions to reduce the risk.
         - **FDA Process Validation Guidance:** The guidance emphasizes a lifecycle approach based on risk. An FMEA performed during **Stage 1 (Process Design)** is the perfect way to identify Critical Process Parameters (CPPs) and Critical Quality Attributes (CQAs) that will require intensive study and control in **Stage 2 (Process Qualification)** and **Stage 3 (Continued Process Verification)**.
         """)
-
 
 
 def render_vmp_builder():

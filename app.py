@@ -5639,7 +5639,7 @@ def render_dfx_dashboard():
         efforts['sustainability'] = st.slider("Sustainability Effort (DFE)", 0, 10, 5, 1, help="Focus on using recycled/recyclable materials, reducing material usage, and designing for easy disassembly and remanufacturing.")
         efforts['ux'] = st.slider("Service & UX Effort (DFS/DFUX)", 0, 10, 5, 1, help="Focus on making the device easy to use, service, and maintain, reducing long-term operational costs.")
 
-    fig, kpis_base, kpis_improved = plot_dfx_dashboard(efforts)
+    fig_pies, fig_main, kpis_base, kpis_improved = plot_dfx_dashboard(efforts)
 
     st.header("Design Comparison Dashboard")
     

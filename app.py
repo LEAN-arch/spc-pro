@@ -656,15 +656,17 @@ def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
         nodes[key] = {'x': 0.2 + 0.6 * (i / (len(cpp_keys)-1)), 'y': 0.1}
         
     # Draw Edges (Arrows)
+    # --- THIS IS THE CORRECTED BLOCK ---
     for cqa, links in data['CQAs'].items():
         fig.add_annotation(x=nodes[cqa]['x'], y=nodes[cqa]['y']+0.08, ax=nodes['TPP']['x'], ay=nodes['TPP']['y']-0.08,
-                           xref='paper', yref='paper', axref='paper', ayref='paper',
+                           xref='paper', yref='paper', axref='paper', ayref='paper', # <-- axref/ayref added
                            showarrow=True, arrowhead=2, arrowcolor='grey')
     for cpp, cqa_links in data['CPPs'].items():
         for link in cqa_links:
             fig.add_annotation(x=nodes[cpp]['x'], y=nodes[cpp]['y']+0.08, ax=nodes[link]['x'], ay=nodes[link]['y']-0.08,
-                               xref='paper', yref='paper', axref='paper', ayref='paper',
+                               xref='paper', yref='paper', axref='paper', ayref='paper', # <-- axref/ayref added
                                showarrow=True, arrowhead=2, arrowcolor='grey')
+    # --- END OF CORRECTION ---
 
     # Draw Nodes (Boxes)
     # TPP
@@ -963,8 +965,8 @@ def plot_rtm_sankey(selected_urs):
     fig.update_layout(title_text="<b>Requirements Traceability Matrix (RTM) Flow</b>", font_size=12)
     return fig
 
-#==================================================================ACT 0 END ==============================================================================================
-#===========================================================================================================================================================================
+#==================================================================ACT 0 END ==============================================================================================================================
+#==========================================================================================================================================================================================================
 
 @st.cache_data
 def plot_ci_concept(n=30):

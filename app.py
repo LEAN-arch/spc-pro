@@ -10052,7 +10052,7 @@ with st.sidebar:
             "Analytical Target Profile (ATP) Builder",
             "Quality Risk Management (FMEA)",
             "Validation Master Plan (VMP) Builder",
-            "Requirements Traceability Matrix (RTM)"
+            "Requirements Traceability Matrix (RTM)",
             "Design for Excellence (DfX)"
         ],
         "ACT I: FOUNDATION & CHARACTERIZATION": [

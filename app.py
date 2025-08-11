@@ -5016,7 +5016,7 @@ def render_atp_builder():
     **Interactive Demo:** You are the Validation or Project Lead.
     1.  Select the **Project Type** you are planning.
     2.  Use the **Performance Requirement Sliders** in the sidebar to define the "contract" for this project.
-    3.  The **Radar Chart** visualizes your Target Profile (blue). Toggle on the "Simulate Results" to see how a hypothetical final result (green) performs against your targets.
+    3.  Toggle on the "Simulate Results" to see how a hypothetical final result (green) performs against your targets.
     """)
 
     col1, col2 = st.columns([0.4, 0.6])
@@ -5029,6 +5029,7 @@ def render_atp_builder():
         
         atp_values = []
         achieved_values = None
+        show_results = False # Initialize show_results
         
         with st.sidebar:
             st.subheader(f"Controls for {project_type}")
@@ -5038,8 +5039,8 @@ def render_atp_builder():
                 atp_values.append(st.slider("Linearity (R²)", 0.9900, 1.0000, 0.9990, 0.0001, format="%.4f", help="How well does signal correlate with concentration? Higher is better."))
                 atp_values.append(st.slider("Range (Turn-down)", 10, 100, 50, 5, help="Ratio of highest to lowest quantifiable point."))
                 atp_values.append(st.slider("Sensitivity (LOD)", 1, 50, 20, 1, help="Qualitative score for required Limit of Detection. Higher score = more sensitive."))
-                if st.toggle("Simulate Validation Results", value=True):
-                    achieved_values = [99.5, 1.5, 0.9995, 80, 30]
+                show_results = st.toggle("Simulate Validation Results", value=True, key="hplc_results")
+                if show_results: achieved_values = [99.5, 1.5, 0.9995, 80, 30]
             
             elif project_type == "IVD Kit (ELISA)":
                 atp_values.append(st.slider("Clinical Sensitivity (%)", 90.0, 100.0, 98.0, 0.5, help="Ability to correctly identify true positives."))
@@ -5047,8 +5048,8 @@ def render_atp_builder():
                 atp_values.append(st.slider("Precision (%CV)", 10.0, 20.0, 15.0, 1.0, help="Assay repeatability. Lower is better."))
                 atp_values.append(st.slider("Robustness Score", 1, 10, 7, 1, help="Qualitative score for performance across different lots, users, and sites."))
                 atp_values.append(st.slider("Shelf-Life (Months)", 6, 24, 18, 1, help="Required stability of the kit at recommended storage."))
-                if st.toggle("Simulate Validation Results", value=True):
-                    achieved_values = [99.0, 99.5, 12.0, 9, 24]
+                show_results = st.toggle("Simulate Validation Results", value=True, key="ivd_results")
+                if show_results: achieved_values = [99.0, 99.5, 12.0, 9, 24]
 
             elif project_type == "Instrument Qualification":
                 atp_values.append(st.slider("Accuracy (Max Bias %)", 0.1, 5.0, 1.0, 0.1, help="Maximum acceptable systematic error. Lower is better."))
@@ -5056,8 +5057,8 @@ def render_atp_builder():
                 atp_values.append(st.slider("Throughput (Samples/hr)", 10, 200, 100, 10, help="Required sample processing speed."))
                 atp_values.append(st.slider("Uptime (%)", 95.0, 99.9, 99.0, 0.1, format="%.1f", help="Required operational reliability."))
                 atp_values.append(st.slider("Footprint (m²)", 1.0, 5.0, 2.0, 0.5, help="Maximum allowable lab space. Lower is better."))
-                if st.toggle("Simulate Qualification Results", value=True):
-                    achieved_values = [0.8, 1.2, 120, 99.5, 1.8]
+                show_results = st.toggle("Simulate Qualification Results", value=True, key="inst_results")
+                if show_results: achieved_values = [0.8, 1.2, 120, 99.5, 1.8]
 
             elif project_type == "Software System (LIMS)":
                 atp_values.append(st.slider("Reliability (Uptime %)", 99.0, 99.999, 99.9, 0.001, format="%.3f", help="Percentage of time the system must be available."))
@@ -5065,8 +5066,8 @@ def render_atp_builder():
                 atp_values.append(st.slider("Security (Compliance Score)", 1, 10, 8, 1, help="Qualitative score for meeting all 21 CFR Part 11 requirements."))
                 atp_values.append(st.slider("Usability (User Satisfaction Score)", 1, 10, 7, 1, help="Score from User Acceptance Testing (UAT)."))
                 atp_values.append(st.slider("Scalability (Concurrent Users)", 50, 5000, 500, 50, help="Maximum number of users the system must support simultaneously."))
-                if st.toggle("Simulate Validation Results", value=True):
-                    achieved_values = [99.99, 1.5, 10, 8, 1000]
+                show_results = st.toggle("Simulate Validation Results", value=True, key="soft_results")
+                if show_results: achieved_values = [99.99, 1.5, 10, 8, 1000]
 
             elif project_type == "Pharma Process (MAb)":
                 atp_values.append(st.slider("Yield (g/L)", 1.0, 10.0, 5.0, 0.5, help="Grams of product per liter of bioreactor volume."))
@@ -5074,8 +5075,8 @@ def render_atp_builder():
                 atp_values.append(st.slider("Consistency (Inter-batch Cpk)", 1, 10, 8, 1, help="Qualitative score for process predictability and low variability."))
                 atp_values.append(st.slider("Robustness (PAR Size Score)", 1, 10, 6, 1, help="Qualitative score for the size of the proven acceptable range."))
                 atp_values.append(st.slider("Cycle Time (Days)", 10, 20, 14, 1, help="Time from start to finish for a single batch. Lower is better."))
-                if st.toggle("Simulate PPQ Results", value=True):
-                    achieved_values = [6.5, 99.7, 9, 8, 13]
+                show_results = st.toggle("Simulate PPQ Results", value=True, key="proc_results")
+                if show_results: achieved_values = [6.5, 99.7, 9, 8, 13]
 
     with col2:
         st.subheader("Target Profile Visualization")
@@ -5095,9 +5096,14 @@ def render_atp_builder():
         - **Avoiding "Gold-Plating":** This visualization helps teams determine if their requirements are reasonable. If the blue ATP is vastly larger than what is necessary for the intended use, it signals that the project may be "gold-plating" the requirements, leading to excessive development time and cost.
         """)
     with tabs[1]:
-        st.success("🟢 **THE GOLDEN RULE:** Define "Fit for Purpose" Before You Begin. The Target Profile is the formal definition of "fit for purpose." It transforms a vague goal ('we need a good LIMS') into a set of concrete, measurable, and testable acceptance criteria. All subsequent development and validation activities should be designed to prove that the criteria in the Target Profile have been met.")
+        # --- THIS IS THE CORRECTED LINE ---
+        st.success("🟢 **THE GOLDEN RULE:** Define 'Fit for Purpose' Before You Begin. The Target Profile is the formal definition of 'fit for purpose.' It transforms a vague goal ('we need a good LIMS') into a set of concrete, measurable, and testable acceptance criteria. All subsequent development and validation activities should be designed to prove that the criteria in the Target Profile have been met.")
+        # --- END OF CORRECTION ---
     with tabs[2]:
-        st.markdown("The concept of a formal, predefined target profile has its roots in systems engineering and was formalized for pharmaceuticals in the **ICH Q8(R2)** guideline as the **Analytical Target Profile (ATP)** and **Target Product Profile (TPP)**. This represents a shift from a reactive, checklist-based validation to a proactive, lifecycle-based approach to quality, a philosophy known as **Quality by Design (QbD)**.")
+        st.markdown("""
+        #### Historical Context: From Checklist to Lifecycle
+        The concept of a formal, predefined target profile has its roots in systems engineering and was formalized for pharmaceuticals in the **ICH Q8(R2)** guideline as the **Analytical Target Profile (ATP)** and **Target Product Profile (TPP)**. This represents a shift from a reactive, checklist-based validation to a proactive, lifecycle-based approach to quality, a philosophy known as **Quality by Design (QbD)**.
+        """)
     with tabs[3]:
         st.markdown("""
         The Target Profile is a modern best-practice that directly supports several key regulatory guidelines:
@@ -5105,7 +5111,7 @@ def render_atp_builder():
         - **FDA Process Validation Guidance:** The TPP for a process defines the goals for **Stage 1 (Process Design)**.
         - **GAMP 5:** For instruments and software, the Target Profile is a direct translation of the **User Requirement Specification (URS)** into a set of verifiable performance criteria for OQ and PQ.
         """)
-
+        
 def render_fmea():
     """Renders the comprehensive, interactive module for FMEA."""
     st.markdown("""

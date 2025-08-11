@@ -891,7 +891,7 @@ def plot_rtm_sankey(project_type, scenario):
     """
     rtm_data = {
         "Analytical Method (Assay)": {
-            "title": "RTM for Assay Validation", "req_label": "Select ATP Requirement(s) to Trace:",
+            "title": "RTM for Assay Validation",
             "nodes": ['ATP: Accuracy 98-102%', 'ATP: Precision < 2% CV', 'VAL-P-01: Accuracy Study', 'VAL-P-02: Precision Study', 'DEV-01: Extra Robustness Test'],
             "links": [('ATP: Accuracy 98-102%', 'VAL-P-01: Accuracy Study', 1), ('ATP: Precision < 2% CV', 'VAL-P-02: Precision Study', 1)],
             "scenarios": {
@@ -900,31 +900,31 @@ def plot_rtm_sankey(project_type, scenario):
             }
         },
         "Instrument Qualification": {
-            "title": "RTM for Instrument Qualification", "req_label": "Select URS Requirement(s) to Trace:",
+            "title": "RTM for Instrument Qualification",
             "nodes": ['URS-01: Dispense 10-100uL', 'URS-02: Temp Control 37C', 'OQ-01: Dispense Test', 'OQ-02: Temp Mapping', 'PQ-01: Gage R&R', 'ENG-01: Unspecified Speed Test'],
-            "links": [('URS-01: Dispense 10-100uL', 'OQ-01: Dispense Test', 1), ('OQ-01: Dispense Test', 'PQ-01: Gage R&R', 1)],
+            "links": [('URS-01: Dispense 10-100uL', 'OQ-01: Dispense Test', 1), ('OQ-01: Dispense Test', 'PQ-01: Gage R&R', 1), ('URS-02: Temp Control 37C', 'OQ-02: Temp Mapping', 1)],
             "scenarios": {
                 "Untested Requirement": {'remove': [('OQ-01: Dispense Test', 'PQ-01: Gage R&R', 1)], 'add': [], 'finding': "❌ GAP: URS-01 ('Dispense Volume') was verified in OQ but was not confirmed under real-world conditions in PQ."},
                 "Untraced Test ('Orphan')": {'remove': [], 'add': [('URS-01: Dispense 10-100uL', 'ENG-01: Unspecified Speed Test', 1)], 'finding': "⚠️ WARNING: The 'Unspecified Speed Test' was performed but does not trace back to a URS requirement."}
             }
         },
         "Software System (CSV)": {
-            "title": "RTM for Computer System Validation", "req_label": "Select URS Requirement(s) to Trace:",
+            "title": "RTM for Computer System Validation",
             "nodes": ['URS-01: Part 11 Compliant', 'URS-02: Calculate Purity', 'FS-01: Audit Trails', 'FS-02: Area % Calculation', 'OQ-01: Audit Trail Test', 'PQ-01: Purity Calc Test', 'DEV-01: Unlinked Feature Test'],
             "links": [('URS-01: Part 11 Compliant', 'FS-01: Audit Trails', 1), ('FS-01: Audit Trails', 'OQ-01: Audit Trail Test', 1),
                       ('URS-02: Calculate Purity', 'FS-02: Area % Calculation', 1), ('FS-02: Area % Calculation', 'PQ-01: Purity Calc Test', 1)],
             "scenarios": {
-                "Untested Requirement": {'remove': [('FS-02: Area % Calculation', 'PQ-01: Purity Calc Test', 1)], 'finding': "❌ GAP DETECTED: URS-02 ('Calculate Purity') is not fully traced to a final validation test."},
+                "Untested Requirement": {'remove': [('FS-02: Area % Calculation', 'PQ-01: Purity Calc Test', 1)], 'add': [], 'finding': "❌ GAP DETECTED: URS-02 ('Calculate Purity') is not fully traced to a final validation test."},
                 "Untraced Test ('Orphan')": {'remove': [], 'add': [('FS-02: Area % Calculation', 'DEV-01: Unlinked Feature Test', 1)], 'finding': "⚠️ WARNING: 'Unlinked Feature Test' does not trace back to an approved user requirement."}
             }
         },
         "Pharma Process (PPQ)": {
-            "title": "RTM for Process Performance Qualification", "req_label": "Select CQA(s) to Trace:",
+            "title": "RTM for Process Performance Qualification",
             "nodes": ['CQA: Purity > 99%', 'CQA: Yield > 5 g/L', 'CPP: Column Load', 'CPP: Bioreactor pH', 'QC-01: Release Purity Test', 'IPC-01: pH Monitoring', 'MKT-01: Uncontrolled Process Change'],
             "links": [('CQA: Purity > 99%', 'CPP: Column Load', 1), ('CPP: Column Load', 'QC-01: Release Purity Test', 1),
                       ('CQA: Yield > 5 g/L', 'CPP: Bioreactor pH', 1), ('CPP: Bioreactor pH', 'IPC-01: pH Monitoring', 1)],
             "scenarios": {
-                "Untested Requirement": {'remove': [('CPP: Column Load', 'QC-01: Release Purity Test', 1)], 'finding': "❌ GAP: The control of the 'Purity' CQA via the 'Column Load' CPP was not verified by a final QC test."},
+                "Untested Requirement": {'remove': [('CPP: Column Load', 'QC-01: Release Purity Test', 1)], 'add': [], 'finding': "❌ GAP: The control of the 'Purity' CQA via the 'Column Load' CPP was not verified by a final QC test."},
                 "Untraced Test ('Orphan')": {'remove': [], 'add': [('CQA: Yield > 5 g/L', 'MKT-01: Uncontrolled Process Change', 1)], 'finding': "⚠️ WARNING: An 'Uncontrolled Process Change' was made that traces to the Yield CQA but not to a controlled CPP."}
             }
         }
@@ -933,13 +933,12 @@ def plot_rtm_sankey(project_type, scenario):
     data = rtm_data[project_type]
     links = data['links'].copy()
     
-    # --- Scenario Logic ---
     audit_finding = "✅ Traceability Complete: All requirements are fully traced to verification tests."
     if scenario != "Traceability Complete":
         s = data['scenarios'][scenario]
-        for link_to_remove in s['remove']:
+        for link_to_remove in s.get('remove', []):
             if link_to_remove in links: links.remove(link_to_remove)
-        links.extend(s['add'])
+        links.extend(s.get('add', []))
         audit_finding = s['finding']
 
     all_nodes = data['nodes']
@@ -949,8 +948,8 @@ def plot_rtm_sankey(project_type, scenario):
     
     colors = []
     for label in all_nodes:
-        if label.startswith('URS') or label.startswith('ATP') or label.startswith('CQA'): colors.append(PRIMARY_COLOR)
-        elif label.startswith('FS') or label.startswith('CPP'): colors.append(SUCCESS_GREEN)
+        if any(prefix in label for prefix in ['URS', 'ATP', 'CQA']): colors.append(PRIMARY_COLOR)
+        elif any(prefix in label for prefix in ['FS', 'CPP']): colors.append(SUCCESS_GREEN)
         else: colors.append('#636EFA')
 
     fig = go.Figure(data=[go.Sankey(
@@ -5384,15 +5383,9 @@ def render_rtm_builder():
 
     project_type = st.selectbox(
         "Select a Project Type to view a sample RTM:",
-        ["Software System (CSV)", "Instrument Qualification", "Analytical Method (Assay)", "Pharma Process (PPQ)"]
+        ["Software System (CSV)", "Instrument Qualification", "Analytical Method (Assay)", "Pharma Process (PPQ)"],
+        help="Choose the type of validation project to simulate. The diagram and scenarios will update accordingly."
     )
-
-    rtm_data_map = {
-        "Analytical Method (Assay)": {'req_label': "Select ATP Requirement(s) to Trace:", 'options': ['ATP: Accuracy 98-102%', 'ATP: Precision < 2% CV']},
-        "Instrument Qualification": {'req_label': "Select URS Requirement(s) to Trace:", 'options': ['URS-01: Dispense 10-100uL', 'URS-02: Temp Control 37C']},
-        "Software System (CSV)": {'req_label': "Select URS Requirement(s) to Trace:", 'options': ['URS-01: Part 11 Compliant', 'URS-02: Calculate Purity']},
-        "Pharma Process (PPQ)": {'req_label': "Select CQA(s) to Trace:", 'options': ['CQA: Purity > 99%', 'CQA: Yield > 5 g/L']}
-    }
     
     with st.sidebar:
         st.subheader("RTM Audit Simulation")
@@ -5404,7 +5397,8 @@ def render_rtm_builder():
                 "Simulates a critical validation gap.",
                 "Simulates scope creep or an unnecessary test."
             ],
-            key=project_type # Add key to force re-render on project change
+            key=project_type, # This key is crucial to reset the radio button when the project changes
+            help="Choose a scenario to see how different types of common compliance issues appear in a traceability matrix."
         )
         
     fig, audit_finding = plot_rtm_sankey(project_type, scenario)
@@ -5438,6 +5432,7 @@ def render_rtm_builder():
         - **Verification:** The process of evaluating a system to determine whether the products of a given development phase satisfy the conditions imposed at the start of that phase. (Are we building the system right?)
         - **Validation:** The process of evaluating a system during or at the end of the development process to determine whether it satisfies the user requirements. (Are we building the right system?)
         - **Traceability:** The ability to trace a requirement both forwards to its implementation and testing, and backwards to its origin.
+        - **V-Model:** A graphical representation of the system development lifecycle, linking development phases to testing phases.
         """)
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "Back-filled" Matrix**

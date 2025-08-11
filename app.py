@@ -802,7 +802,8 @@ def plot_fmea_dashboard(fmea_df):
 @st.cache_data
 def plot_vmp_flow(project_type):
     """
-    Generates a dynamic V-Model or flowchart for a selected validation project type.
+    Generates a dynamic V-Model or flowchart for a selected validation project type,
+    highlighting key tools from the toolkit for each stage.
     """
     plans = {
         "Analytical Method Validation": {
@@ -810,7 +811,7 @@ def plot_vmp_flow(project_type):
             'stages': {
                 'URS': {'name': 'Assay Requirements', 'tools': 'ATP Builder'},
                 'FS': {'name': 'Performance Specs', 'tools': 'Core Validation, LOD & LOQ'},
-                'DS': {'name': 'Method Design', 'tools': 'Assay Robustness (DOE)'},
+                'DS': {'name': 'Method Design', 'tools': 'Mixture Design, DOE'},
                 'BUILD': {'name': 'Method Development', 'tools': 'Linearity, 4PL Regression'},
                 'IQ/OQ': {'name': 'Reagent & Inst. Qual', 'tools': 'Gage R&R / VCA'},
                 'PQ': {'name': 'Method Performance Qual', 'tools': 'Comprehensive Diagnostic Validation'},
@@ -820,17 +821,17 @@ def plot_vmp_flow(project_type):
         "Instrument Qualification": {
             'title': "V-Model for Instrument Qualification",
             'stages': {
-                'URS': {'name': 'User Needs', 'tools': 'ATP Builder'},
-                'FS': {'name': 'Functional Specs', 'tools': 'Quality Risk Management (FMEA)'},
+                'URS': {'name': 'User Needs (URS)', 'tools': 'ATP Builder'},
+                'FS': {'name': 'Functional Specs (FS)', 'tools': 'Quality Risk Management (FMEA)'},
                 'DS': {'name': 'Vendor Selection/Config', 'tools': ''},
                 'BUILD': {'name': 'Purchase & Install', 'tools': ''},
-                'IQ/OQ': {'name': 'IQ & OQ Execution', 'tools': 'Core Validation Parameters'},
+                'IQ/OQ': {'name': 'IQ & OQ Execution', 'tools': 'Attribute Agreement Analysis'},
                 'PQ': {'name': 'Performance Qualification', 'tools': 'Gage R&R, Process Stability (SPC)'},
                 'VAL': {'name': 'Final IQ/OQ/PQ Report', 'tools': ''}
             }
         },
-        "Process Performance Qualification (PPQ)": {
-            'title': "Workflow for Process Performance Qualification (Pharma Process)",
+        "Pharma Process (PPQ)": {
+            'title': "Workflow for Process Performance Qualification",
             'stages': {
                 'PLAN': {'name': 'PPQ Protocol', 'tools': 'FMEA, Sample Size for Qualification'},
                 'EXEC': {'name': 'Execute PPQ Runs', 'tools': 'Process Stability (SPC)'},
@@ -839,7 +840,7 @@ def plot_vmp_flow(project_type):
             },
             'type': 'flowchart'
         },
-        "Computer System Validation (CSV)": {
+        "Software System (CSV)": {
             'title': "V-Model for GxP Software Validation",
             'stages': {
                 'URS': {'name': 'User Requirements', 'tools': 'RTM Builder'},
@@ -5313,7 +5314,7 @@ def render_vmp_builder():
 
     project_type = st.selectbox(
         "Select a Validation Project Type to Plan:",
-        ("Analytical Method Validation", "Instrument Qualification", "Process Performance Qualification (PPQ)", "Computer System Validation (CSV)"),
+        ("Analytical Method Validation", "Instrument Qualification", "Pharma Process (PPQ)", "Software System (CSV)"),
         index=0,
         help="Choose the type of project you are planning. The diagram will update to show the standard validation workflow and the key analytical tools used at each stage."
     )
@@ -5330,8 +5331,8 @@ def render_vmp_builder():
         This tool demonstrates how all the other modules in the toolkit fit together to form a complete, compliant validation project.
         - The **Analytical Method Validation** workflow follows the classic V-Model, showing the direct link between defining performance specifications (like Linearity) during design and later qualifying them during PQ.
         - The **Instrument Qualification** workflow also follows the V-Model, starting with User Needs (captured in the ATP Builder) and culminating in PQ testing (using Gage R&R and SPC).
-        - The **PPQ Workflow** is a linear process, moving from planning (using FMEA and Sample Size) to execution and final analysis (using SPC and Capability). This represents Stage 2 of the FDA's Process Validation lifecycle.
-        - The **Computer System Validation (CSV)** workflow shows how modern AI/ML tools can be integrated into the GAMP 5 V-Model. For example, **Explainable AI (XAI)** is a key activity during the "Build" phase to ensure the model is transparent.
+        - The **Pharma Process (PPQ)** workflow is a linear process, moving from planning (using FMEA and Sample Size) to execution and final analysis (using SPC and Capability). This represents Stage 2 of the FDA's Process Validation lifecycle.
+        - The **Software System (CSV)** workflow shows how modern AI/ML tools can be integrated into the GAMP 5 V-Model. For example, **Explainable AI (XAI)** is a key activity during the "Build" phase to ensure the model is transparent.
         """)
     with tabs[1]:
         st.markdown("""
@@ -5801,7 +5802,6 @@ A robust diagnostic validation always considers the clinical context.
         - **CLSI Guidelines (Clinical & Laboratory Standards Institute):** Documents like **EP12-A2** provide detailed protocols for user-based evaluation of qualitative test performance, including the calculation of sensitivity, specificity, and predictive values.
         - **GAMP 5:** If the test's result is generated by software (e.g., an algorithm that analyzes an image), that software must be validated (CSV) to ensure its calculations are correct and reliable.
         """)
-
 
 def render_attribute_agreement():
     """Renders the comprehensive, interactive module for Attribute Agreement Analysis."""

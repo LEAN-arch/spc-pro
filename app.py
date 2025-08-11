@@ -8440,8 +8440,8 @@ with st.sidebar:
     all_tools = {
         "ACT I: FOUNDATION & CHARACTERIZATION": [
             "Confidence Interval Concept", "Core Validation Parameters", "Comprehensive Diagnostic Validation", "Attribute Agreement Analysis",
-            "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "Mixture Design (Formulations)",
-            "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Process Optimization: From DOE to AI",
+            "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", 
+            "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Mixture Design (Formulations)", "Process Optimization: From DOE to AI",
             "Split-Plot Designs", "Causal Inference"
         ],
         "ACT II: TRANSFER & STABILITY": [

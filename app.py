@@ -742,7 +742,7 @@ def plot_atp_radar_chart(project_type, atp_values, achieved_values=None):
 @st.cache_data
 def plot_fmea_dashboard(fmea_df):
     """
-    Generates a professional-grade FMEA dashboard with a Risk Matrix and Pareto Chart from a dataframe.
+    Generates a professional-grade FMEA dashboard with a self-documenting Risk Matrix and Pareto Chart.
     """
     df = fmea_df.copy()
     df['RPN_Initial'] = df['S'] * df['O_Initial'] * df['D_Initial']
@@ -764,26 +764,22 @@ def plot_fmea_dashboard(fmea_df):
         else:
             fig_matrix.add_shape(type="rect", x0=props['range_s'][0]-0.5, y0=props['range_o'][0]-0.5, x1=props['range_s'][1]+0.5, y1=props['range_o'][1]+0.5,
                                   fillcolor=props['color'], line_width=0, layer='below')
-
-    # Add risk points
-    fig_matrix.add_trace(go.Scatter(
-        x=df['S'], y=df['O_Initial'], mode='markers+text', text=df.index + 1, textposition='top center',
-        marker=dict(color='black', size=15, symbol='circle'), name='Initial Risk',
-        hovertext=df['Failure Mode'], hoverinfo='text'
-    ))
-    fig_matrix.add_trace(go.Scatter(
-        x=df['S'], y=df['O_Final'], mode='markers+text', text=df.index + 1, textposition='bottom center',
-        marker=dict(color=PRIMARY_COLOR, size=15, symbol='diamond-open'), name='Final (Mitigated) Risk',
-        hovertext=df['Failure Mode'], hoverinfo='text'
-    ))
-    # Add arrows showing mitigation
+    # Add zone labels
+    fig_matrix.add_annotation(x=2, y=2, text="<b>LOW RISK</b>", showarrow=False, font=dict(color='green'))
+    fig_matrix.add_annotation(x=4.5, y=4.5, text="<b>HIGH RISK</b>", showarrow=False, font=dict(color='red'))
+    
+    fig_matrix.add_trace(go.Scatter(x=df['S'], y=df['O_Initial'], mode='markers+text', text=df.index + 1, textposition='top center',
+        marker=dict(color='black', size=15, symbol='circle'), name='Initial Risk', hovertext=df['Failure Mode'], hoverinfo='text'))
+    fig_matrix.add_trace(go.Scatter(x=df['S'], y=df['O_Final'], mode='markers+text', text=df.index + 1, textposition='bottom center',
+        marker=dict(color=PRIMARY_COLOR, size=15, symbol='diamond-open'), name='Final (Mitigated) Risk', hovertext=df['Failure Mode'], hoverinfo='text'))
+    
     for i in df.index:
         if df.loc[i, 'O_Initial'] != df.loc[i, 'O_Final']:
             fig_matrix.add_annotation(x=df.loc[i, 'S'], y=df.loc[i, 'O_Final'], ax=df.loc[i, 'S'], ay=df.loc[i, 'O_Initial'],
                                       xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowcolor=PRIMARY_COLOR, arrowwidth=2)
 
     fig_matrix.update_layout(title='<b>1. Risk Matrix (Severity vs. Occurrence)</b>',
-                             xaxis_title='Severity (S)', yaxis_title='Occurrence (O)',
+                             xaxis_title='<b>Severity (S)</b><br>1 (Low) → 5 (High)', yaxis_title='<b>Occurrence (O)</b><br>1 (Low) → 5 (High)',
                              xaxis=dict(tickvals=list(range(1,6)), range=[0.5, 5.5]),
                              yaxis=dict(tickvals=list(range(1,6)), range=[0.5, 5.5]),
                              legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
@@ -795,10 +791,12 @@ def plot_fmea_dashboard(fmea_df):
     
     fig_pareto = px.bar(df_pareto, x='Failure Mode', y='RPN', color='Stage', barmode='group',
                         title='<b>2. Risk Priority Number (RPN) Pareto</b>',
-                        labels={'RPN': 'Risk Priority Number (S x O x D)'},
+                        labels={'Failure Mode': 'Potential Failure Mode', 'RPN': 'Risk Priority Number (S x O x D)'},
                         color_discrete_sequence=['grey', PRIMARY_COLOR])
     fig_pareto.add_hline(y=50, line_dash="dash", line_color="red", annotation_text="Action Threshold")
-    
+    fig_pareto.add_annotation(x=len(df['Failure Mode'])-0.5, y=120, text="<b>RPN Scale:</b><br>1-50: Low Risk<br>51-80: Medium Risk<br>>80: High Risk",
+                              showarrow=False, align="left", bordercolor="black", borderwidth=1, bgcolor="white")
+
     return fig_matrix, fig_pareto
     
 @st.cache_data
@@ -5167,7 +5165,7 @@ def render_fmea():
     st.info("""
     **Interactive Demo:** You are the Validation Risk Lead.
     1.  Select a **Project Type** to load a realistic FMEA template.
-    2.  Use the sliders to score the **initial risk** for each failure mode.
+    2.  Use the sliders (with detailed '?' explainers) to score the **initial risk** for each failure mode.
     3.  Use the **Mitigation Toggles** to simulate implementing improvements.
     4.  Observe how mitigations lower the RPN in the Pareto Chart and move risks to a safer zone in the Risk Matrix.
     """)
@@ -5177,32 +5175,11 @@ def render_fmea():
         ["Pharma Process (MAb)", "Analytical Assay (ELISA)", "Instrument Qualification (HPLC)", "Software System (LIMS)"]
     )
 
-    # --- Master dictionary for all FMEA templates ---
     fmea_templates = {
-        "Pharma Process (MAb)": {
-            'Failure Mode': ['Contamination in Bioreactor', 'Incorrect Chromatography Buffer', 'Filter Integrity Failure'],
-            'S': [5, 4, 5],
-            'O_Initial': [2, 3, 2],
-            'D_Initial': [4, 3, 2]
-        },
-        "Analytical Assay (ELISA)": {
-            'Failure Mode': ['Incorrect Antibody Lot', 'Operator Pipetting Error', 'Incubation Time Error'],
-            'S': [5, 3, 4],
-            'O_Initial': [2, 4, 3],
-            'D_Initial': [5, 3, 2]
-        },
-        "Instrument Qualification (HPLC)": {
-            'Failure Mode': ['Pump Seal Failure', 'Detector Lamp Degradation', 'Autosampler Needle Clog'],
-            'S': [4, 3, 3],
-            'O_Initial': [2, 3, 4],
-            'D_Initial': [4, 2, 3]
-        },
-        "Software System (LIMS)": {
-            'Failure Mode': ['Data Corruption on Save', 'Incorrect Calculation Logic', 'Server Downtime'],
-            'S': [5, 5, 4],
-            'O_Initial': [1, 2, 3],
-            'D_Initial': [4, 5, 2]
-        }
+        "Pharma Process (MAb)": {'Failure Mode': ['Contamination in Bioreactor', 'Incorrect Chromatography Buffer', 'Filter Integrity Failure'],'S': [5, 4, 5],'O_Initial': [2, 3, 2],'D_Initial': [4, 3, 2]},
+        "Analytical Assay (ELISA)": {'Failure Mode': ['Incorrect Antibody Lot', 'Operator Pipetting Error', 'Incubation Time Error'],'S': [5, 3, 4],'O_Initial': [2, 4, 3],'D_Initial': [5, 3, 2]},
+        "Instrument Qualification (HPLC)": {'Failure Mode': ['Pump Seal Failure', 'Detector Lamp Degradation', 'Autosampler Needle Clog'],'S': [4, 3, 3],'O_Initial': [2, 3, 4],'D_Initial': [4, 2, 3]},
+        "Software System (LIMS)": {'Failure Mode': ['Data Corruption on Save', 'Incorrect Calculation Logic', 'Server Downtime'],'S': [5, 5, 4],'O_Initial': [1, 2, 3],'D_Initial': [4, 5, 2]}
     }
     
     fmea_data = fmea_templates[project_type]
@@ -5211,31 +5188,37 @@ def render_fmea():
         st.subheader("FMEA Risk Scoring")
         st.markdown(f"**Initial Assessment for: {project_type}**")
         
-        # Dynamically create sliders based on the selected template
         for i, mode in enumerate(fmea_data['Failure Mode']):
             st.markdown(f"--- \n **Failure Mode {i+1}:** *{mode}*")
             col1, col2 = st.columns(2)
-            fmea_data['O_Initial'][i] = col1.slider(f"Occurrence (O)", 1, 5, fmea_data['O_Initial'][i], key=f"o_{i}")
-            fmea_data['D_Initial'][i] = col2.slider(f"Detection (D)", 1, 5, fmea_data['D_Initial'][i], key=f"d_{i}")
+            fmea_data['O_Initial'][i] = col1.slider(f"Occurrence (O)", 1, 5, fmea_data['O_Initial'][i], key=f"o_{i}",
+                help="How frequently is this failure likely to occur? 1=Very Rare (<1/year), 2=Remote, 3=Occasional, 4=Frequent, 5=Very Frequent (>1/month).")
+            fmea_data['D_Initial'][i] = col2.slider(f"Detection (D)", 1, 5, fmea_data['D_Initial'][i], key=f"d_{i}",
+                help="How likely are we to DETECT this failure before it impacts the product? 1=Very Likely (automated 100% check), 3=Moderate (in-process check), 5=Very Unlikely (only detected by final QC or customer). A high score is bad.")
 
-    # --- Apply Mitigations (Simplified for demo) ---
+    # --- Apply Mitigations ---
     fmea_data['O_Final'] = fmea_data['O_Initial'].copy()
     fmea_data['D_Final'] = fmea_data['D_Initial'].copy()
-    # Logic to apply some generic mitigation if RPN is high
     initial_rpn = [s * o * d for s, o, d in zip(fmea_data['S'], fmea_data['O_Initial'], fmea_data['D_Initial'])]
+    st.markdown("---")
+    st.subheader("Proposed Mitigations")
     for i, rpn in enumerate(initial_rpn):
         if rpn >= 50:
-            fmea_data['O_Final'][i] = max(1, fmea_data['O_Initial'][i] - 2)
-            fmea_data['D_Final'][i] = max(1, fmea_data['D_Initial'][i] - 2)
+            st.write(f"**For Failure Mode {i+1}** (*{fmea_data['Failure Mode'][i]}*):")
+            col_mit1, col_mit2 = st.columns(2)
+            reduce_o = col_mit1.toggle(f"Reduce Occurrence", key=f"mit_o_{i}", help=f"Implement a control (e.g., automation, poka-yoke) to make '{fmea_data['Failure Mode'][i]}' less likely.")
+            improve_d = col_mit2.toggle(f"Improve Detection", key=f"mit_d_{i}", help=f"Implement a new check or monitoring system to make it easier to catch '{fmea_data['Failure Mode'][i]}'.")
+            if reduce_o: fmea_data['O_Final'][i] = max(1, fmea_data['O_Initial'][i] - 2)
+            if improve_d: fmea_data['D_Final'][i] = max(1, fmea_data['D_Initial'][i] - 2)
 
     df_fmea = pd.DataFrame(fmea_data)
     fig_matrix, fig_pareto = plot_fmea_dashboard(df_fmea)
     
     st.header("Risk Assessment Dashboard")
-    col1, col2 = st.columns(2)
-    with col1:
+    col_main, col_pareto = st.columns(2)
+    with col_main:
         st.plotly_chart(fig_matrix, use_container_width=True)
-    with col2:
+    with col_pareto:
         st.plotly_chart(fig_pareto, use_container_width=True)
 
     st.divider()

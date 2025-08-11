@@ -4814,7 +4814,7 @@ def render_introduction_content():
     st.title("🛠️ Biotech V&V Analytics Toolkit")
     st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
         # --- NAME ADDED HERE ---
-    st.markdown("<h4 style='text-align: left; color: grey;'><i>Developed by [Jose Bautista, MSc, LSSBB, PMP]</i></h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: left; color: grey;'><i>Developed by **Jose Bautista**, MSc, LSSBB, PMP</i></h4>", unsafe_allow_html=True)
     # --- END OF ADDITION ---
     st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
     st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
@@ -4869,8 +4869,8 @@ def render_introduction_content():
         """
         <p style='text-align: center; color: grey;'>
         Contact: 
-        <a href="mailto:[jbautistads@gmail.com]">📧 Email</a> | 
-        <a href="https://www.linkedin.com/in/[josebautista]/">🔗 LinkedIn</a> | 
+        <a href="mailto:jbautistads@gmail.com">📧 Email</a> | 
+        <a href="https://www.linkedin.com/in/josebautista/">🔗 LinkedIn</a> | 
         </p>
         """, 
         unsafe_allow_html=True

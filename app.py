@@ -805,38 +805,50 @@ def plot_vmp_flow(project_type):
     Generates a dynamic V-Model or flowchart for a selected validation project type.
     """
     plans = {
-        "New Analytical Method Validation": {
+        "Analytical Method Validation": {
             'title': "V-Model for Analytical Method Validation",
             'stages': {
-                'URS': {'name': 'Assay Requirements', 'tools': 'TPP & CQA Cascade'},
-                'FS': {'name': 'Performance Specs', 'tools': 'Core Validation Parameters, LOD & LOQ'},
+                'URS': {'name': 'Assay Requirements', 'tools': 'ATP Builder'},
+                'FS': {'name': 'Performance Specs', 'tools': 'Core Validation, LOD & LOQ'},
                 'DS': {'name': 'Method Design', 'tools': 'Assay Robustness (DOE)'},
-                'BUILD': {'name': 'Method Development', 'tools': 'Linearity & Range, Non-Linear Regression'},
-                'IQOQ': {'name': 'Reagent & Inst. Qual', 'tools': 'Gage R&R / VCA'},
-                'PQ': {'name': 'Method Performance Qual', 'tools': 'Comprehensive Diagnostic Validation, Attribute Agreement Analysis'},
-                'VAL': {'name': 'Final Validation Report', 'tools': 'Method Comparison, Equivalence Testing (TOST)'}
+                'BUILD': {'name': 'Method Development', 'tools': 'Linearity, 4PL Regression'},
+                'IQ/OQ': {'name': 'Reagent & Inst. Qual', 'tools': 'Gage R&R / VCA'},
+                'PQ': {'name': 'Method Performance Qual', 'tools': 'Comprehensive Diagnostic Validation'},
+                'VAL': {'name': 'Final Validation Report', 'tools': 'Method Comparison, Equivalence'}
+            }
+        },
+        "Instrument Qualification": {
+            'title': "V-Model for Instrument Qualification",
+            'stages': {
+                'URS': {'name': 'User Needs', 'tools': 'ATP Builder'},
+                'FS': {'name': 'Functional Specs', 'tools': 'Quality Risk Management (FMEA)'},
+                'DS': {'name': 'Vendor Selection/Config', 'tools': ''},
+                'BUILD': {'name': 'Purchase & Install', 'tools': ''},
+                'IQ/OQ': {'name': 'IQ & OQ Execution', 'tools': 'Core Validation Parameters'},
+                'PQ': {'name': 'Performance Qualification', 'tools': 'Gage R&R, Process Stability (SPC)'},
+                'VAL': {'name': 'Final IQ/OQ/PQ Report', 'tools': ''}
             }
         },
         "Process Performance Qualification (PPQ)": {
-            'title': "Workflow for Process Performance Qualification",
+            'title': "Workflow for Process Performance Qualification (Pharma Process)",
             'stages': {
-                'PLAN': {'name': 'PPQ Protocol', 'tools': 'Quality Risk Management (FMEA), Sample Size for Qualification'},
+                'PLAN': {'name': 'PPQ Protocol', 'tools': 'FMEA, Sample Size for Qualification'},
                 'EXEC': {'name': 'Execute PPQ Runs', 'tools': 'Process Stability (SPC)'},
                 'EVAL': {'name': 'Assess Capability', 'tools': 'Process Capability (Cpk), Tolerance Intervals'},
-                'REPORT': {'name': 'Final PPQ Report', 'tools': 'Statistical Equivalence for Process Transfer'}
+                'REPORT': {'name': 'Final PPQ Report', 'tools': 'Statistical Equivalence for Transfer'}
             },
             'type': 'flowchart'
         },
         "Computer System Validation (CSV)": {
             'title': "V-Model for GxP Software Validation",
             'stages': {
-                'URS': {'name': 'User Requirements', 'tools': 'TPP & CQA Cascade'},
-                'FS': {'name': 'Functional Specs', 'tools': 'Quality Risk Management (FMEA)'},
+                'URS': {'name': 'User Requirements', 'tools': 'RTM Builder'},
+                'FS': {'name': 'Functional Specs', 'tools': 'FMEA'},
                 'DS': {'name': 'Design Specs', 'tools': 'Advanced AI Concepts'},
                 'BUILD': {'name': 'Coding & Configuration', 'tools': 'Explainable AI (XAI)'},
-                'IQOQ': {'name': 'Installation & Unit Test', 'tools': 'Anomaly Detection'},
+                'IQ/OQ': {'name': 'Installation & Unit Test', 'tools': 'Anomaly Detection'},
                 'PQ': {'name': 'Performance Testing (UAT)', 'tools': 'Predictive QC (Classification)'},
-                'VAL': {'name': 'Final Validation Summary', 'tools': 'Clustering (Unsupervised)'}
+                'VAL': {'name': 'Final Validation Summary', 'tools': 'Clustering'}
             }
         }
     }
@@ -866,7 +878,7 @@ def plot_vmp_flow(project_type):
             stage = v_model_stages[key]
             fig.add_shape(type="rect", x0=path_x[i]-0.6, y0=path_y[i]-0.4, x1=path_x[i]+0.6, y1=path_y[i]+0.4, fillcolor=PRIMARY_COLOR, line=dict(color="black"))
             fig.add_annotation(x=path_x[i], y=path_y[i], text=f"<b>{stage['name']}</b>", font=dict(color='white'), showarrow=False)
-            fig.add_annotation(x=path_x[i], y=path_y[i]-0.6, text=f"<i>Key Tool: {stage['tools']}</i>", showarrow=False)
+            fig.add_annotation(x=path_x[i], y=path_y[i]-0.6, text=f"<i>Key Tool: {stage['tools']}</i>" if stage['tools'] else "", showarrow=False)
         fig.update_layout(title=f'<b>{plan["title"]}</b>', xaxis=dict(visible=False), yaxis=dict(visible=False, range=[1, 6]))
         
     fig.update_layout(height=500)
@@ -5285,12 +5297,12 @@ def render_vmp_builder():
     """)
     
     st.info("""
-    **Interactive Demo:** You are the Validation Manager. Select a **Project Type** from the dropdown menu. The diagram below will dynamically update to show the standard workflow for that project, highlighting which tools from this application are used at each critical stage.
+    **Interactive Demo:** You are the Validation Manager. Select a **Project Type** from the dropdown menu. The diagram below will dynamically update to show the standard validation workflow for that project, highlighting which tools from this application are used at each critical stage.
     """)
 
     project_type = st.selectbox(
         "Select a Validation Project Type to Plan:",
-        ("New Analytical Method Validation", "Process Performance Qualification (PPQ)", "Computer System Validation (CSV)"),
+        ("Analytical Method Validation", "Instrument Qualification", "Process Performance Qualification (PPQ)", "Computer System Validation (CSV)"),
         index=0,
         help="Choose the type of project you are planning. The diagram will update to show the standard validation workflow and the key analytical tools used at each stage."
     )
@@ -5302,12 +5314,13 @@ def render_vmp_builder():
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
-        st.markdown("""
-        **Connecting Strategy to Execution:**
+        st.markdown(f"""
+        **Connecting Strategy to Execution for: {project_type}**
         This tool demonstrates how all the other modules in the toolkit fit together to form a complete, compliant validation project.
         - The **Analytical Method Validation** workflow follows the classic V-Model, showing the direct link between defining performance specifications (like Linearity) during design and later qualifying them during PQ.
+        - The **Instrument Qualification** workflow also follows the V-Model, starting with User Needs (captured in the ATP Builder) and culminating in PQ testing (using Gage R&R and SPC).
         - The **PPQ Workflow** is a linear process, moving from planning (using FMEA and Sample Size) to execution and final analysis (using SPC and Capability). This represents Stage 2 of the FDA's Process Validation lifecycle.
-        - The **Computer System Validation (CSV)** workflow shows how modern AI/ML tools can be integrated into the GAMP 5 V-Model. For example, **Explainable AI (XAI)** is a key activity during the "Build" phase to ensure the model is transparent, and **Anomaly Detection** can be used during OQ to test the system's error handling.
+        - The **Computer System Validation (CSV)** workflow shows how modern AI/ML tools can be integrated into the GAMP 5 V-Model. For example, **Explainable AI (XAI)** is a key activity during the "Build" phase to ensure the model is transparent.
         """)
     with tabs[1]:
         st.markdown("""
@@ -5356,13 +5369,13 @@ def render_rtm_builder():
     """)
     
     st.info("""
-    **Interactive Demo:** You are the Validation Lead for a new software system.
+    **Interactive Demo (CSV Case Study):** This dashboard uses a Computer System Validation (CSV) project as a classic example to demonstrate traceability.
     1.  Use the multiselect box in the sidebar to choose which User Requirements you want to trace.
-    2.  The **Sankey Diagram** will dynamically update to show the "golden thread" for those requirements, flowing from the initial request (URS) through the design (FS) to the final verification tests (IQ/OQ/PQ).
+    2.  The **Sankey Diagram** will dynamically update to show the "golden thread" for those requirements, flowing from the initial request (URS) to the final verification tests (IQ/OQ/PQ).
     """)
 
     with st.sidebar:
-        st.subheader("RTM Controls")
+        st.subheader("RTM Controls (CSV Example)")
         urs_options = ['URS-01: Must be Part 11 Compliant', 'URS-02: Must Calculate Purity', 'URS-03: Must be Easy to Use']
         selected_urs = st.multiselect(
             "Select User Requirements to Trace:",
@@ -5379,13 +5392,17 @@ def render_rtm_builder():
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
-        **Reading the Sankey Diagram:**
-        - The diagram shows the flow of logic from left to right, following the V-Model.
+        **Reading the Sankey Diagram (CSV Example):**
+        - The diagram shows the flow of logic from left to right. A complete "thread" from a URS on the left to a Test on the right demonstrates full traceability for that requirement.
         - **URS (User Requirement Spec):** The 'what'—the high-level need from the user.
-        - **FS (Functional Spec):** The 'how'—the specific functions the system must perform to meet the URS.
-        - **Tests (IQ/OQ/PQ):** The 'proof'—the specific validation tests that verify the FS functions correctly.
+        - **FS (Functional Spec):** The 'how'—the specific functions the system must perform.
+        - **Tests (IQ/OQ/PQ):** The 'proof'—the specific validation tests that verify the functions.
         
-        **The Power of Traceability:** The diagram's main power is in visually identifying gaps. If a URS on the left has no path leading to a Test on the right, it means that requirement has not been tested. This traceability is the cornerstone of a defensible validation package. The ability to trace both forwards (from requirement to test) and backwards (from a test result back to the original requirement) is the hallmark of a robust RTM.
+        **Applying Traceability to Other Projects:**
+        While the RTM is most formally used in CSV, the principle is universal.
+        - **Instrument Qualification:** Traceability is simpler. A URS for "Dispense Volume 10-100 μL" traces directly to an OQ test case that verifies dispensing accuracy and precision at those volumes.
+        - **Analytical Method Validation:** The requirements are defined in the **ATP**. A requirement for "Linearity R² > 0.999" traces directly to the specific linearity experiments and acceptance criteria in the validation protocol.
+        - **Process Validation (PPQ):** The **CQAs** are the requirements. A CQA for "Purity > 99%" traces directly to the process parameters (CPPs) that control it, the in-process controls that monitor it, and the final release testing that confirms it.
         """)
     with tabs[1]:
         st.markdown("""

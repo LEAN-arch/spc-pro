@@ -6732,13 +6732,13 @@ def render_mixture_design():
         """)
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: Using a Standard DOE**
-An analyst tries to use a standard factorial or response surface design to optimize a formulation.
-- **The Flaw:** Standard DOEs treat factors as independent variables that can be changed freely. In a formulation, they are not independent; increasing one component *must* decrease another. This violates the core mathematical assumptions of a standard DOE, leading to incorrect models and nonsensical predictions.""")
-        st.success("""🟢 **THE GOLDEN RULE: Use a Mixture Design for Mixture Problems**
-The experimental design must match the physical reality of the problem.
-1.  **Identify the Constraint:** If your factors are ingredients or components that must sum to a constant (e.g., 100%), you have a mixture problem.
-2.  **Choose the Right Design:** Use a specialized experimental design, like a **Simplex-Lattice** or **Simplex-Centroid** design, which efficiently places points at the vertices, edges, and center of the formulation space.
-3.  **Use the Right Model:** Analyze the results with a model designed for mixtures, like the **Scheffé polynomial**, which correctly handles the mathematical constraints.""")
+        An analyst tries to use a standard factorial or response surface design to optimize a formulation.
+        - **The Flaw:** Standard DOEs treat factors as independent variables that can be changed freely. In a formulation, they are not independent; increasing one component *must* decrease another. This violates the core mathematical assumptions of a standard DOE, leading to incorrect models and nonsensical predictions.""")
+                st.success("""🟢 **THE GOLDEN RULE: Use a Mixture Design for Mixture Problems**
+        The experimental design must match the physical reality of the problem.
+        1.  **Identify the Constraint:** If your factors are ingredients or components that must sum to a constant (e.g., 100%), you have a mixture problem.
+        2.  **Choose the Right Design:** Use a specialized experimental design, like a **Simplex-Lattice** or **Simplex-Centroid** design, which efficiently places points at the vertices, edges, and center of the formulation space.
+        3.  **Use the Right Model:** Analyze the results with a model designed for mixtures, like the **Scheffé polynomial**, which correctly handles the mathematical constraints.""")
 
     with tabs[3]:
         st.markdown("""
@@ -6966,7 +6966,7 @@ def render_split_plot():
             st.error("""🔴 **THE INCORRECT APPROACH: The "Pretend it's Standard" Fallacy**
             An analyst runs a split-plot experiment for convenience but analyzes it as if it were a standard, fully randomized DOE.
             - **The Flaw:** This is statistically invalid. A standard analysis assumes every run is independent, but in a split-plot, all the sub-plots within a whole plot are correlated. This error leads to incorrect p-values and a high risk of declaring an effect significant when it's just random noise.""")
-                        st.success("""🟢 **THE GOLDEN RULE: Design Dictates Analysis**
+            st.success("""🟢 **THE GOLDEN RULE: Design Dictates Analysis**
             The way you conduct your experiment dictates the only valid way to analyze it.
             1.  **Recognize the Constraint:** Identify if you have factors that are much harder, slower, or more expensive to change than others.
             2.  **Choose the Right Design:** If you do, a Split-Plot design is likely the most efficient and practical choice.

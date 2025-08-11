@@ -669,6 +669,77 @@ def plot_tpp_cqa_cascade(project_type, target1_val, target2_val, target1_tag, ta
     return fig
 
 @st.cache_data
+def plot_atp_radar_chart(project_type, atp_values, achieved_values=None):
+    """
+    Generates a professional-grade radar chart for an Analytical Target Profile,
+    now supporting multiple project types with unique performance criteria.
+    """
+    profiles = {
+        "Pharma Assay (HPLC)": {
+            'categories': ['Accuracy<br>(%Rec)', 'Precision<br>(%CV)', 'Linearity<br>(R²)', 'Range<br>(Turn-down)', 'Sensitivity<br>(LOD)'],
+            'ranges': [[95, 102], [5, 1], [0.99, 0.9999], [10, 100], [1, 50]],
+            'direction': [1, -1, 1, 1, 1]
+        },
+        "IVD Kit (ELISA)": {
+            'categories': ['Clinical<br>Sensitivity', 'Clinical<br>Specificity', 'Precision<br>(%CV)', 'Robustness', 'Shelf-Life<br>(Months)'],
+            'ranges': [[90, 100], [90, 100], [20, 10], [1, 10], [6, 24]],
+            'direction': [1, 1, -1, 1, 1]
+        },
+        "Instrument Qualification": {
+            'categories': ['Accuracy<br>(Bias %)', 'Precision<br>(%CV)', 'Throughput<br>(Samples/hr)', 'Uptime<br>(%)', 'Footprint<br>(m²)'],
+            'ranges': [[5, 0.1], [5, 0.5], [10, 200], [95, 99.9], [5, 1]],
+            'direction': [-1, -1, 1, 1, -1]
+        },
+        "Software System (LIMS)": {
+            'categories': ['Reliability<br>(Uptime %)', 'Performance<br>(Query Time)', 'Security<br>(Compliance)', 'Usability<br>(User Score)', 'Scalability<br>(Users)'],
+            'ranges': [[99, 99.999], [10, 0.5], [1, 10], [1, 10], [50, 5000]],
+            'direction': [1, -1, 1, 1, 1]
+        },
+        "Pharma Process (MAb)": {
+            'categories': ['Yield<br>(g/L)', 'Purity<br>(%)', 'Process<br>Consistency', 'Robustness<br>(PAR Size)', 'Cycle Time<br>(Days)'],
+            'ranges': [[1, 10], [98, 99.9], [1, 10], [1, 10], [20, 10]],
+            'direction': [1, 1, 1, 1, -1]
+        }
+    }
+    
+    profile = profiles[project_type]
+    categories = profile['categories']
+    
+    def normalize_value(val, val_range, direction):
+        low, high = val_range
+        if direction == -1: low, high = high, low
+        scaled = ((val - low) / (high - low)) * 100 if (high - low) != 0 else 50
+        return np.clip(scaled, 0, 100)
+
+    scaled_atp = [normalize_value(atp_values[i], profile['ranges'][i], profile['direction'][i]) for i in range(len(categories))]
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=scaled_atp, theta=categories, fill='toself', name='ATP (Target)',
+        line=dict(color=PRIMARY_COLOR), fillcolor='rgba(0, 104, 201, 0.4)'
+    ))
+
+    if achieved_values:
+        scaled_achieved = [normalize_value(achieved_values[i], profile['ranges'][i], profile['direction'][i]) for i in range(len(categories))]
+        fig.add_trace(go.Scatterpolar(
+            r=scaled_achieved, theta=categories, fill='toself', name='Achieved Performance',
+            line=dict(color=SUCCESS_GREEN), fillcolor='rgba(44, 160, 44, 0.4)'
+        ))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 100], showticklabels=False, ticks='', gridcolor='lightgrey'),
+            angularaxis=dict(tickfont=dict(size=12), linecolor='grey', gridcolor='lightgrey')
+        ),
+        showlegend=True,
+        legend=dict(yanchor="bottom", y=-0.2, xanchor="center", x=0.5, orientation="h"),
+        title=f"<b>Target Profile for {project_type}</b>",
+        margin=dict(t=80)
+    )
+    
+    return fig
+
+@st.cache_data
 def plot_fmea_dashboard(fmea_data):
     """
     Generates a professional-grade FMEA dashboard with a Risk Matrix and Pareto Chart.
@@ -4933,48 +5004,85 @@ def render_tpp_cqa_cascade():
 
 
 def render_atp_builder():
-    """Renders the comprehensive, interactive module for the Analytical Target Profile builder."""
+    """Renders the comprehensive, interactive module for building a Target Profile."""
     st.markdown("""
-    #### Purpose & Application: The Method's "Contract"
-    **Purpose:** To serve as the **"Design Specification" or "Contract" for a new analytical method.** Before a single experiment is run, the ATP formally documents the performance characteristics the method *must* achieve to be suitable for its intended purpose.
+    #### Purpose & Application: The Project's "Contract"
+    **Purpose:** To serve as the **"Design Specification" or "Contract" for a new product, process, or system.** Before significant work begins, the Target Profile formally documents the performance characteristics that *must* be achieved for the project to be considered a success.
     
-    **Strategic Application:** The ATP is the formal translation of a high-level CQA into a concrete set of statistical acceptance criteria for the lab. It is the objective scorecard against which all method development and validation activities are measured, preventing "goalpost moving" and ensuring the final method is truly fit-for-purpose.
+    **Strategic Application:** This is the formal translation of high-level user needs (from the TPP or URS) into a concrete set of statistical and performance-based acceptance criteria. It is the objective scorecard against which all development and validation activities are measured, preventing "goalpost moving" and ensuring the final result is truly fit-for-purpose.
     """)
     
     st.info("""
-    **Interactive Demo:** You are the Analytical Development Lead.
-    1.  Select the **Assay Type** you need to develop.
-    2.  Use the **Performance Requirement Sliders** to define the "contract" for this new method.
-    3.  The **Radar Chart** visualizes your ATP (blue) against the performance of a typical, well-validated method (grey). This helps you see if your requirements are reasonable, too stringent, or too lenient.
+    **Interactive Demo:** You are the Validation or Project Lead.
+    1.  Select the **Project Type** you are planning.
+    2.  Use the **Performance Requirement Sliders** in the sidebar to define the "contract" for this project.
+    3.  The **Radar Chart** visualizes your Target Profile (blue). Toggle on the "Simulate Results" to see how a hypothetical final result (green) performs against your targets.
     """)
 
     col1, col2 = st.columns([0.4, 0.6])
     
     with col1:
-        st.subheader("ATP Requirements")
-        assay_type = st.selectbox("Select Assay Type", ["HPLC Purity Assay", "ELISA Potency Assay"])
+        st.subheader("Target Profile Requirements")
+        project_type = st.selectbox("Select Project Type", [
+            "Pharma Assay (HPLC)", "IVD Kit (ELISA)", "Instrument Qualification", "Software System (LIMS)", "Pharma Process (MAb)"
+        ])
         
-        atp_values = {}
-        if assay_type == "HPLC Purity Assay":
-            st.markdown("##### Performance Criteria")
-            atp_values['accuracy'] = st.slider("Required Accuracy (%Recovery)", 95.0, 105.0, 98.0, 0.5, help="How close must the average measurement be to the true value? Target is 100%.")
-            atp_values['precision'] = st.slider("Required Precision (%CV)", 0.5, 5.0, 2.0, 0.1, help="How much random variability is acceptable? Lower is better.")
-            atp_values['linearity'] = st.slider("Required Linearity (R²)", 0.99, 1.0, 0.999, 0.0001, format="%.4f", help="How well does the signal correlate with concentration? Higher is better.")
-            atp_values['range'] = st.slider("Required Range (Turn-down)", 10, 100, 50, 5, help="How wide must the accurate measurement range be? E.g., a value of 50 means the highest point is 50x the lowest point.")
-            atp_values['lod_loq'] = st.slider("Required Sensitivity (LOD)", 1, 100, 20, 1, help="How low must the method be able to detect? (Represented qualitatively)")
+        atp_values = []
+        achieved_values = None
         
-        elif assay_type == "ELISA Potency Assay":
-            st.markdown("##### Performance Criteria")
-            atp_values['accuracy'] = st.slider("Required Accuracy (%Recovery)", 80.0, 120.0, 90.0, 1.0)
-            atp_values['precision'] = st.slider("Required Precision (%CV)", 5.0, 30.0, 15.0, 1.0)
-            atp_values['linearity'] = st.slider("Required Linearity (R²)", 0.95, 1.0, 0.99, 0.001, format="%.3f")
-            atp_values['range'] = st.slider("Required Range (Turn-down)", 5, 50, 10, 1)
-            atp_values['sensitivity'] = st.slider("Required Sensitivity", 1, 100, 80, 1)
+        with st.sidebar:
+            st.subheader(f"Controls for {project_type}")
+            if project_type == "Pharma Assay (HPLC)":
+                atp_values.append(st.slider("Accuracy (%Rec)", 95.0, 102.0, 98.0, 0.5, help="Target: 100%. How close must the average measurement be to the true value?"))
+                atp_values.append(st.slider("Precision (%CV)", 0.5, 5.0, 2.0, 0.1, help="How much random variability is acceptable? Lower is better."))
+                atp_values.append(st.slider("Linearity (R²)", 0.9900, 1.0000, 0.9990, 0.0001, format="%.4f", help="How well does signal correlate with concentration? Higher is better."))
+                atp_values.append(st.slider("Range (Turn-down)", 10, 100, 50, 5, help="Ratio of highest to lowest quantifiable point."))
+                atp_values.append(st.slider("Sensitivity (LOD)", 1, 50, 20, 1, help="Qualitative score for required Limit of Detection. Higher score = more sensitive."))
+                if st.toggle("Simulate Validation Results", value=True):
+                    achieved_values = [99.5, 1.5, 0.9995, 80, 30]
+            
+            elif project_type == "IVD Kit (ELISA)":
+                atp_values.append(st.slider("Clinical Sensitivity (%)", 90.0, 100.0, 98.0, 0.5, help="Ability to correctly identify true positives."))
+                atp_values.append(st.slider("Clinical Specificity (%)", 90.0, 100.0, 99.0, 0.5, help="Ability to correctly identify true negatives."))
+                atp_values.append(st.slider("Precision (%CV)", 10.0, 20.0, 15.0, 1.0, help="Assay repeatability. Lower is better."))
+                atp_values.append(st.slider("Robustness Score", 1, 10, 7, 1, help="Qualitative score for performance across different lots, users, and sites."))
+                atp_values.append(st.slider("Shelf-Life (Months)", 6, 24, 18, 1, help="Required stability of the kit at recommended storage."))
+                if st.toggle("Simulate Validation Results", value=True):
+                    achieved_values = [99.0, 99.5, 12.0, 9, 24]
+
+            elif project_type == "Instrument Qualification":
+                atp_values.append(st.slider("Accuracy (Max Bias %)", 0.1, 5.0, 1.0, 0.1, help="Maximum acceptable systematic error. Lower is better."))
+                atp_values.append(st.slider("Precision (Max %CV)", 0.5, 5.0, 1.5, 0.1, help="Maximum acceptable random error. Lower is better."))
+                atp_values.append(st.slider("Throughput (Samples/hr)", 10, 200, 100, 10, help="Required sample processing speed."))
+                atp_values.append(st.slider("Uptime (%)", 95.0, 99.9, 99.0, 0.1, format="%.1f", help="Required operational reliability."))
+                atp_values.append(st.slider("Footprint (m²)", 1.0, 5.0, 2.0, 0.5, help="Maximum allowable lab space. Lower is better."))
+                if st.toggle("Simulate Qualification Results", value=True):
+                    achieved_values = [0.8, 1.2, 120, 99.5, 1.8]
+
+            elif project_type == "Software System (LIMS)":
+                atp_values.append(st.slider("Reliability (Uptime %)", 99.0, 99.999, 99.9, 0.001, format="%.3f", help="Percentage of time the system must be available."))
+                atp_values.append(st.slider("Performance (Query Time sec)", 0.5, 10.0, 2.0, 0.5, help="Maximum time for a key database query to return. Lower is better."))
+                atp_values.append(st.slider("Security (Compliance Score)", 1, 10, 8, 1, help="Qualitative score for meeting all 21 CFR Part 11 requirements."))
+                atp_values.append(st.slider("Usability (User Satisfaction Score)", 1, 10, 7, 1, help="Score from User Acceptance Testing (UAT)."))
+                atp_values.append(st.slider("Scalability (Concurrent Users)", 50, 5000, 500, 50, help="Maximum number of users the system must support simultaneously."))
+                if st.toggle("Simulate Validation Results", value=True):
+                    achieved_values = [99.99, 1.5, 10, 8, 1000]
+
+            elif project_type == "Pharma Process (MAb)":
+                atp_values.append(st.slider("Yield (g/L)", 1.0, 10.0, 5.0, 0.5, help="Grams of product per liter of bioreactor volume."))
+                atp_values.append(st.slider("Purity (%)", 98.0, 99.9, 99.5, 0.1, help="Final product purity via SEC-HPLC."))
+                atp_values.append(st.slider("Consistency (Inter-batch Cpk)", 1, 10, 8, 1, help="Qualitative score for process predictability and low variability."))
+                atp_values.append(st.slider("Robustness (PAR Size Score)", 1, 10, 6, 1, help="Qualitative score for the size of the proven acceptable range."))
+                atp_values.append(st.slider("Cycle Time (Days)", 10, 20, 14, 1, help="Time from start to finish for a single batch. Lower is better."))
+                if st.toggle("Simulate PPQ Results", value=True):
+                    achieved_values = [6.5, 99.7, 9, 8, 13]
 
     with col2:
-        st.subheader("ATP Visualization")
-        fig = plot_atp_radar_chart(assay_type, atp_values)
+        st.subheader("Target Profile Visualization")
+        fig = plot_atp_radar_chart(project_type, atp_values, achieved_values)
         st.plotly_chart(fig, use_container_width=True)
+        if show_results:
+            st.success("The validation results (green) meet or exceed the target profile (blue) on all criteria.")
 
     st.divider()
     st.subheader("Deeper Dive")
@@ -4982,22 +5090,20 @@ def render_atp_builder():
     with tabs[0]:
         st.markdown("""
         **Interpreting the Radar Chart:**
-        - The chart provides an immediate, holistic view of the method's required performance. The goal is to develop and validate a method whose performance polygon **fully encompasses** the blue ATP polygon.
-        - **Comparing to the Grey Zone:** The grey polygon represents a typical, high-quality method. If your blue ATP is much smaller, your requirements may be too lenient. If it's much larger, your requirements may be unrealistic or "gold-plated," potentially leading to significant development delays and costs.
-        - **Trade-offs:** Notice that it's difficult to create a method that excels on all axes simultaneously. For example, a method with an extremely wide **Range** may have to sacrifice some **Precision** at the lowest levels. The ATP makes these trade-offs a conscious, documented decision.
+        - The chart provides an immediate, holistic view of the project's required performance characteristics. The **blue polygon is your 'contract' (the Target Profile)**. The **green polygon is the 'deliverable' (the final validated performance)**.
+        - **Success Criteria:** A successful validation project is one where the green "Achieved" polygon **fully encompasses** the blue "Target" polygon.
+        - **Avoiding "Gold-Plating":** This visualization helps teams determine if their requirements are reasonable. If the blue ATP is vastly larger than what is necessary for the intended use, it signals that the project may be "gold-plating" the requirements, leading to excessive development time and cost.
         """)
     with tabs[1]:
-        # --- THIS IS THE CORRECTED LINE ---
-        st.success("🟢 **THE GOLDEN RULE:** Define 'Fit for Purpose' Before You Begin. The ATP is the formal definition of 'fit for purpose.' It transforms a vague goal ('we need a potency assay') into a set of concrete, measurable, and testable acceptance criteria. All subsequent method development and validation activities should be designed to prove that the criteria in the ATP have been met.")
-        # --- END OF CORRECTION ---
+        st.success("🟢 **THE GOLDEN RULE:** Define "Fit for Purpose" Before You Begin. The Target Profile is the formal definition of "fit for purpose." It transforms a vague goal ('we need a good LIMS') into a set of concrete, measurable, and testable acceptance criteria. All subsequent development and validation activities should be designed to prove that the criteria in the Target Profile have been met.")
     with tabs[2]:
-        st.markdown("The concept of the Analytical Target Profile (ATP) is a direct application of the **Quality by Design (QbD)** principles to the lifecycle of an analytical method. It was formally introduced and championed by the FDA and in publications from scientific bodies like the AAPS in the 2010s. It parallels the **Target Product Profile (TPP)**, but instead of defining the goals for a drug product, it defines the goals for the measurement system used to test that product. It represents a shift from a reactive, checklist-based validation to a proactive, lifecycle-based approach to analytical method quality.")
+        st.markdown("The concept of a formal, predefined target profile has its roots in systems engineering and was formalized for pharmaceuticals in the **ICH Q8(R2)** guideline as the **Analytical Target Profile (ATP)** and **Target Product Profile (TPP)**. This represents a shift from a reactive, checklist-based validation to a proactive, lifecycle-based approach to quality, a philosophy known as **Quality by Design (QbD)**.")
     with tabs[3]:
         st.markdown("""
-        The ATP is a modern best-practice that directly supports several key regulatory guidelines:
-        - **ICH Q8(R2) - Pharmaceutical Development:** The ATP is the starting point for applying QbD principles to analytical methods, ensuring they are suitable for measuring the CQAs of the product.
-        - **ICH Q14 - Analytical Procedure Development (Draft):** This emerging guideline is expected to formalize the concept of the ATP as the foundation for a more flexible, performance-based approach to analytical method validation and lifecycle management.
-        - **USP Chapter <1220> - Analytical Procedure Lifecycle:** This new chapter champions a holistic, lifecycle approach to method management, for which the ATP is a foundational element.
+        The Target Profile is a modern best-practice that directly supports several key regulatory guidelines:
+        - **ICH Q8(R2), Q14:** The ATP is the starting point for applying QbD principles to analytical methods.
+        - **FDA Process Validation Guidance:** The TPP for a process defines the goals for **Stage 1 (Process Design)**.
+        - **GAMP 5:** For instruments and software, the Target Profile is a direct translation of the **User Requirement Specification (URS)** into a set of verifiable performance criteria for OQ and PQ.
         """)
 
 def render_fmea():

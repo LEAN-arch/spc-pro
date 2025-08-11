@@ -1653,7 +1653,7 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
 @st.cache_data
 def plot_mixture_design(a_effect, b_effect, c_effect, ab_interaction, ac_interaction, bc_interaction, noise_sd, response_threshold):
     """
-    Generates a professional-grade dashboard for a mixture design, including a model effects plot and a topographic ternary plot.
+    Generates a professional-grade dashboard for a mixture design of experiments.
     """
     # 1. Define the experimental design points (Simplex-Lattice Design)
     points = [[1,0,0], [0,1,0], [0,0,1], [0.5,0.5,0], [0.5,0,0.5], [0,0.5,0.5], [1/3,1/3,1/3]]
@@ -1668,11 +1668,11 @@ def plot_mixture_design(a_effect, b_effect, c_effect, ab_interaction, ac_interac
     # 3. Fit the model
     model = ols('Response ~ A + B + C + A:B + A:C + B:C - 1', data=df).fit()
     
-    # 4. Create a grid of points for the ternary plot surface
+    # 4. Create a dense grid of points for the ternary plot surface
     @st.cache_data
-    def generate_ternary_grid(n=50):
-        from itertools import combinations_with_replacement
-        s = combinations_with_replacement(range(n + 1), 3)
+    def generate_ternary_grid(n=40):
+        import itertools
+        s = itertools.product(range(n + 1), repeat=3)
         points = np.array(list(s))
         points = points[points.sum(axis=1) == n] / n
         return pd.DataFrame(points, columns=['A', 'B', 'C'])
@@ -1694,25 +1694,40 @@ def plot_mixture_design(a_effect, b_effect, c_effect, ab_interaction, ac_interac
     opt_blend = grid.loc[opt_idx]
     
     fig_ternary = go.Figure()
-    # Layer 1: The filled contour surface
-    fig_ternary.add_trace(go.Contourternary(
-        a=grid['A'], b=grid['B'], c=grid['C'], z=grid['Predicted_Response'],
-        colorscale='Viridis', showscale=True,
-        colorbar=dict(title='Response<br>(e.g., Solubility)'),
-        contours=dict(coloring='fill', showlabels=True, labelfont=dict(color='white'))
+
+    # --- THIS IS THE CORRECTED PLOTTING LOGIC ---
+    # Layer 1: The heatmap surface, created with a scatterternary trace
+    fig_ternary.add_trace(go.Scatterternary(
+        a=grid['A'], b=grid['B'], c=grid['C'],
+        mode='markers',
+        marker=dict(
+            color=grid['Predicted_Response'],
+            colorscale='Viridis',
+            showscale=True,
+            colorbar=dict(title='Response<br>(e.g., Solubility)'),
+            size=5
+        ),
+        hoverinfo='none'
     ))
-    # Layer 2: The Design Space boundary
-    fig_ternary.add_trace(go.Contourternary(
-        a=grid['A'], b=grid['B'], c=grid['C'], z=grid['Predicted_Response'],
-        contours_coloring='lines', line_width=4, line_color='#FFBF00', showscale=False,
-        contours=dict(start=response_threshold, end=response_threshold, coloring='lines')
+
+    # Layer 2: The "Sweet Spot" / Design Space boundary
+    sweet_spot_grid = grid[grid['Predicted_Response'] >= response_threshold]
+    fig_ternary.add_trace(go.Scatterternary(
+        a=sweet_spot_grid['A'], b=sweet_spot_grid['B'], c=sweet_spot_grid['C'],
+        mode='markers',
+        marker=dict(color=SUCCESS_GREEN, size=5, opacity=0.6),
+        hoverinfo='none',
+        name='Design Space'
     ))
+    # --- END OF CORRECTION ---
+
     # Layer 3: The experimental points
     fig_ternary.add_trace(go.Scatterternary(
         a=df['A'], b=df['B'], c=df['C'], mode='markers',
         marker=dict(symbol='circle', color='red', size=12, line=dict(width=2, color='black')),
         name='DOE Runs'
     ))
+    
     # Layer 4: The predicted optimum
     fig_ternary.add_trace(go.Scatterternary(
         a=[opt_blend['A']], b=[opt_blend['B']], c=[opt_blend['C']], mode='markers',

@@ -9167,75 +9167,78 @@ def render_mewma_xgboost():
     **Purpose:** To create a two-stage "Detect and Diagnose" system. A **Multivariate EWMA (MEWMA)** chart acts as a highly sensitive alarm for small, coordinated drifts in a process. When it alarms, a pre-trained **XGBoost + SHAP model** instantly performs an automated root cause analysis.
     
     **Strategic Application:** This represents the state-of-the-art in intelligent process monitoring.
-    - **Detect:** The MEWMA chart excels at finding subtle "stealth shifts" that individual charts would miss, because it understands the process's normal correlation structure.
+    - **Detect:** The MEWMA chart excels at finding subtle "stealth shifts" that individual charts would miss because it understands the process's normal correlation structure.
     - **Diagnose:** Instead of technicians guessing the cause of an alarm, the SHAP plot provides an immediate, data-driven "Top Suspects" list, dramatically accelerating troubleshooting.
     """)
-
-    st.info("""
-    **Interactive Demo:** Use the sliders to control the simulated process.
-    - **`Gradual Drift Magnitude`**: Controls how quickly the Temp and Pressure variables drift away from baseline during the monitoring phase.
-    - **`MEWMA Lambda (λ)`**: Controls the "memory" of the chart. A smaller lambda gives it a longer memory, making it more sensitive to tiny, persistent drifts.
+    st.info("""**Interactive Demo:** Use the sliders to control the simulated process.
+    - **`Gradual Drift Magnitude`**: Controls how quickly the Temp and Pressure variables drift away from baseline.
+    - **`MEWMA Lambda (λ)`**: Controls the "memory" of the chart. A smaller lambda makes it more sensitive to tiny, persistent drifts.
     """)
-
     with st.sidebar:
         st.sidebar.subheader("MEWMA + XGBoost Controls")
-        drift_slider = st.sidebar.slider("Gradual Drift Magnitude", 0.0, 0.1, 0.03, 0.01,
-            help="Controls the rate of the slow, creeping drift introduced into Temp & Pressure. A smaller value is harder to detect.")
-        lambda_slider = st.sidebar.slider("MEWMA Lambda (λ)", 0.05, 0.5, 0.2, 0.05,
-            help="Controls the 'memory' of the MEWMA chart. Smaller values give longer memory, increasing sensitivity.")
-
+        drift_slider = st.sidebar.slider("Gradual Drift Magnitude", 0.0, 0.1, 0.03, 0.01, help="Controls the rate of the slow, creeping drift introduced into Temp & Pressure.")
+        lambda_slider = st.sidebar.slider("MEWMA Lambda (λ)", 0.05, 0.5, 0.2, 0.05, help="Controls the 'memory' of the MEWMA chart. Smaller values give longer memory.")
     fig_dashboard, buf_waterfall, alarm_time = plot_mewma_xgboost(drift_magnitude=drift_slider, lambda_mewma=lambda_slider)
-
     st.plotly_chart(fig_dashboard, use_container_width=True)
-    
     st.subheader("Diagnostic Analysis")
     if alarm_time:
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
             st.metric("Alarm Status", "🚨 OUT-OF-CONTROL")
-            st.metric("First Detection Time", f"Observation #{alarm_time}",
-                      help="The first data point in the monitoring phase to trigger an alarm.")
-            st.markdown("""
-            **Interpretation:**
-            - **Top Plot:** Notice how the gradual drift in Temperature and Pressure is almost invisible to the naked eye, hidden within the normal process noise.
-            - **Bottom Plot:** The MEWMA chart, with its memory, successfully accumulates the evidence of this subtle, coordinated drift until it crosses the control limit, sounding a clear alarm.
-            """)
+            st.metric("First Detection Time", f"Observation #{alarm_time}")
+            st.markdown("""**Interpretation:**
+            - **Top Plot:** The gradual drift is almost invisible to the naked eye.
+            - **Bottom Plot:** The MEWMA chart successfully accumulates evidence of this drift until it crosses the control limit.""")
         with col2:
             st.markdown("##### Automated Root Cause Diagnosis (SHAP Waterfall)")
             st.image(buf_waterfall)
-            st.markdown("The waterfall plot explains the alarm. Red bars (`Temp`, `Pressure`) are the features that pushed the risk of failure higher. The blue bar (`pH`) helped keep the risk lower.")
-
+            st.markdown("The waterfall plot explains the alarm. Red bars (`Temp`, `Pressure`) pushed the risk of failure higher.")
     else:
         st.success("✅ IN-CONTROL: No alarm detected in the monitoring phase.")
-
     st.markdown("---")
-    tabs = st.tabs(["✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
-        st.error("""🔴 **THE INCORRECT APPROACH: The 'Whack-a-Mole' Investigation**
-An alarm sounds. Engineers frantically check every individual parameter chart, trying to find a clear signal. They might chase a noisy pH sensor, ignoring the subtle, combined drift in Temp and Pressure that is the real root cause.""")
-        st.success("""🟢 **THE GOLDEN RULE: Detect Multivariately, Diagnose with Explainability**
-1. Trust the multivariate alarm. It sees the process holistically.
-2. Use the explainable AI diagnostic (SHAP) as your first investigative tool. It instantly narrows the search space from all possible causes to the most probable ones.
-3. This turns a slow, manual investigation into a rapid, data-driven confirmation.""")
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Phase 1 (Training):** A multivariate model of the normal process is built using data from validated, successful runs. A classifier model (XGBoost) is also trained to distinguish between "in-control" and "out-of-control" states based on historical data.
+        2.  **Phase 2 (Monitoring):** The **MEWMA chart** monitors the process in real-time. It is the high-sensitivity "smoke detector."
+        3.  **Phase 3 (Diagnosis):** When the MEWMA alarms, the data from that time point is fed to the **XGBoost + SHAP** model. The resulting waterfall plot provides an immediate, rank-ordered list of the variables that contributed most to the alarm, guiding the investigation.
+        
+        **The Strategic Insight:** This hybrid approach solves the biggest weakness of traditional multivariate SPC. While charts like Hotelling's T² or MEWMA are good at *detecting* a problem, they are poor at *diagnosing* it. By fusing a sensitive statistical detector with a powerful, explainable AI diagnostician, you get the best of both worlds: robust detection and rapid, data-driven root cause analysis.
+        """)
     with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **MEWMA (Multivariate EWMA):** A multivariate SPC chart that applies the "memory" of an EWMA to a vector of correlated process variables. It is highly sensitive to small, persistent drifts in the process mean.
+        - **XGBoost (Extreme Gradient Boosting):** A powerful and efficient machine learning algorithm that builds a predictive model as an ensemble of many simple decision trees.
+        - **SHAP (SHapley Additive exPlanations):** A game theory-based method for explaining the output of any machine learning model. It calculates the contribution of each feature to a specific prediction.
+        - **Waterfall Plot:** A SHAP visualization that shows how each feature's SHAP value contributes to pushing the model's prediction from a baseline value to the final output.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The 'Whack-a-Mole' Investigation**
+A multivariate alarm sounds. Engineers frantically check dozens of individual parameter charts, trying to find a clear signal. They might chase a noisy pH sensor, ignoring the subtle, combined drift in Temp and Pressure that is the real root cause, wasting valuable time while the process may be producing non-conforming material.""")
+        st.success("""🟢 **THE GOLDEN RULE: Detect Multivariately, Diagnose with Explainability**
+1.  **Trust the multivariate alarm.** It sees the process holistically and can detect problems that are invisible to univariate charts.
+2.  **Use the explainable AI diagnostic (SHAP) as your first investigative tool.** It instantly narrows the search space from all possible causes to the most probable ones based on historical patterns.
+3.  **Confirm with SME knowledge.** The SHAP output is a powerful clue, not a final verdict. Use this data-driven starting point to guide the subject matter expert's investigation. This turns a slow, manual investigation into a rapid, data-driven confirmation.""")
+    with tabs[3]:
         st.markdown("""
         #### Historical Context: The Diagnostic Bottleneck
         **The Problem:** By the 1980s, engineers had powerful multivariate detection tools like Hotelling's T² chart. However, these charts were slow to detect small, persistent drifts. The invention of the univariate EWMA chart was a major step forward, but the multivariate world was still waiting for its "high-sensitivity" detector.
 
         **The First Solution (MEWMA):** In 1992, Lowry et al. published their paper on the Multivariate EWMA (MEWMA) chart. The insight was a direct generalization: apply the "memory" and "weighting" concepts of EWMA to the vector of process variables. This created a chart that was exceptionally good at detecting small, coordinated shifts that T² would miss.
 
-        **The New Problem (The Diagnostic Bottleneck):** But MEWMA created a new challenge. An alarm from a MEWMA chart is just a single number crossing a line. It tells you *that* the system has drifted, but gives no information about *which* variables are the cause.
+        **The New Problem (The Diagnostic Bottleneck):** But MEWMA created a new challenge. An alarm from a MEWMA chart is just a single number crossing a line. It tells you *that* the system has drifted, but gives no information about *which* variables are the cause. This has been the primary weakness of MSPC for decades.
 
         **The Modern Fusion:** This is where the AI revolution provided the missing piece. **XGBoost** (2014) offered a way to build highly accurate models to predict an alarm state, and **SHAP** (2017) provided the key to unlock that model's "black box." By fusing the robust statistical detection of MEWMA with the powerful, explainable diagnostics of XGBoost and SHAP, we finally solved the diagnostic bottleneck, creating a true "detect and diagnose" system.
         """)
-    with tabs[2]:
+    with tabs[4]:
         st.markdown("""
-        These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-        - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
-        - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-        - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-        - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+        This advanced hybrid system is a state-of-the-art implementation of the principles of modern process monitoring and control.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** This tool provides a highly effective method for meeting the CPV requirement of continuously monitoring the process to ensure it remains in a state of control, and for investigating any departures.
+        - **FDA Guidance for Industry - PAT:** This "Detect and Diagnose" system is a direct implementation of the PAT goal of understanding and controlling manufacturing through timely measurements and feedback loops.
+        - **ICH Q9 (Quality Risk Management):** By providing rapid root cause analysis, this system significantly reduces the risk associated with process deviations, minimizing their duration and impact.
+        - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML model to provide diagnostic information for a GxP process, the model and the software it runs on would need to be validated as a Computerized System.
         """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 2)
@@ -9247,7 +9250,7 @@ def render_bocpd_ml_features():
     **Purpose:** To provide a real-time, probabilistic assessment of process stability. Unlike traditional charts that give a binary "in/out" signal, **Bayesian Online Change Point Detection (BOCPD)** calculates the full probability distribution of the "current run length" (time since the last change). It acts like a seismologist, constantly looking for the tremors that signal a process earthquake.
     
     **Strategic Application:** This is a sophisticated method for monitoring high-value processes where understanding uncertainty is critical.
-    - **Monitoring Model Performance:** We can monitor the forecast errors (residuals) from a predictive model. BOCPD can detect when the model's performance suddenly degrades, signaling that the underlying process has changed in a way the model doesn't understand.
+    - **Monitoring Model Performance:** Instead of monitoring raw data, this tool monitors the forecast errors (residuals) from a predictive ML model. BOCPD can detect when the model's performance suddenly degrades, signaling that the underlying process has changed in a way the model doesn't understand.
     - **Adaptive Alarming:** Instead of a fixed control limit, you can set alarms based on probability (e.g., "alarm if the probability of a recent changepoint exceeds 90%").
     """)
 
@@ -9272,56 +9275,59 @@ def render_bocpd_ml_features():
 
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        st.metric("True Changepoint Location", "Obs #100")
+        st.metric("Detection Certainty at Changepoint", f"{change_prob:.1%}",
+                  help="The posterior probability that a changepoint occurred at exactly observation #100.")
         
-        with tabs[0]:
-            st.metric("True Changepoint Location", "Obs #100")
-            st.metric("Detection Certainty at Changepoint", f"{change_prob:.1%}",
-                      help="The posterior probability that a changepoint occurred at exactly observation #100.")
-            
-            st.markdown("""
-            **Reading the Dashboard:**
-            1.  **Raw Data:** Shows the simulated process. The change in dynamics at the red line is subtle and very difficult to spot by eye.
-            2.  **Model Residuals:** We monitor the errors from a simple predictive model. Because the process dynamics change at the changepoint, the model starts making bigger errors, making the change much more visible.
-            3.  **Most Likely Run Length:** The algorithm's "best guess" of how long the process has been stable. Note the sharp drop to zero at the changepoint.
-            4.  **Probability of a Changepoint:** This is the clearest signal. The algorithm becomes highly confident that a changepoint has just occurred right at observation #100.
-            """)
-
-        with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The 'Delayed Reaction'**
-Waiting for a traditional SPC chart to alarm on a complex signal (like a change in autocorrelation) can take a very long time, if it alarms at all. By the time it does, significant out-of-spec material may have been produced.""")
-            st.success("""🟢 **THE GOLDEN RULE: Monitor Model Residuals, Not Just Raw Data**
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Raw Data (Plot 1):** Shows the simulated process. The change in dynamics at the red line (e.g., becoming less smooth and more noisy) is subtle and very difficult to spot by eye.
+        2.  **Model Residuals (Plot 2):** We monitor the errors from a simple predictive model that was trained on the "normal" process. Because the process dynamics change at the changepoint, the model starts making bigger, more volatile errors, making the change much more visible.
+        3.  **Most Likely Run Length (Plot 3):** The algorithm's "best guess" of how long the process has been stable. Note the sharp drop to zero at the changepoint, signaling a reset.
+        4.  **Probability of a Changepoint (Plot 4):** This is the clearest signal. The algorithm becomes highly confident that a changepoint has just occurred right at observation #100.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **BOCPD (Bayesian Online Change Point Detection):** A real-time algorithm that calculates the full probability distribution of the "run length" (the time since the last statistically significant change in a process).
+        - **Changepoint:** A point in time where the statistical properties of a time series (e.g., its mean, variance, or autocorrelation) change.
+        - **Run Length:** The amount of time that has passed since the last changepoint. BOCPD's output is a probability distribution over this value.
+        - **Residuals:** The difference between an observed value and a predicted value from a model. Monitoring residuals is a powerful way to detect when a process deviates from its expected behavior.
+        - **Hazard Rate:** A parameter in the BOCPD algorithm that represents the prior probability of a changepoint occurring at any given step.
+        """)
+        
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The 'Delayed Reaction'**
+Waiting for a traditional SPC chart to alarm on a complex signal (like a change in autocorrelation or variance) can take a very long time, if it alarms at all. The underlying assumptions of the chart are violated, but it may not produce a clear signal until significant out-of-spec material has been produced.""")
+        st.success("""🟢 **THE GOLDEN RULE: Monitor Model Residuals, Not Just Raw Data**
 For complex, dynamic processes, the most sensitive way to detect a change is to:
-1.  Build a model of the process's **normal** behavior.
-2.  Monitor the **residuals** (forecast errors) of that model.
-3.  When the process changes, the model's assumptions will be violated, and the residuals will change their behavior, providing a powerful and early signal that something is wrong. BOCPD is an excellent algorithm for detecting this change.""")
+1.  **Build a model of the process's **normal** behavior.** This model (which could be a simple AR(1) model or a complex Neural Network) learns the "fingerprint" of a stable process.
+2.  **Monitor the **residuals** (forecast errors) of that model.**
+3.  When the process changes, the model's assumptions will be violated, and the residuals will change their behavior (e.g., become larger, more volatile, or biased). This provides a powerful and early signal that something is fundamentally wrong. BOCPD is an excellent algorithm for detecting this change in the residuals.""")
 
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: From Offline to Online
-            **The Problem:** For decades, changepoint detection was primarily an *offline*, retrospective analysis. An engineer would collect an entire dataset, run a complex algorithm, and get a result like: "A significant change was detected at observation #152." While useful for forensic investigations after a failure, this was useless for preventing the failure in the first place.
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: From Offline to Online
+        **The Problem:** For decades, changepoint detection was primarily an *offline*, retrospective analysis. An engineer would collect an entire dataset, run a complex algorithm, and get a result like: "A significant change was detected at observation #152." While useful for forensic investigations after a failure, this was useless for preventing the failure in the first place.
 
-            **The 'Aha!' Moment:** In their 2007 paper, "Bayesian Online Changepoint Detection," Ryan P. Adams and David J.C. MacKay presented a brilliantly elegant solution. Their key insight was to reframe the problem from finding a single "best" changepoint to calculating the full, evolving probability distribution of the "run length" (the time since the last changepoint). 
-            
-            **The Impact:** This probabilistic approach was a game-changer. It provided a much richer output than a simple binary alarm, and its recursive, online nature was computationally efficient enough to run in real-time on streaming data. It effectively transformed changepoint detection from a historical analysis tool into a modern, real-time process monitoring system.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("At each time `t`, the algorithm calculates the posterior probability of the current run length `r_t`. This is done via a recursive update:")
-            st.latex(r"P(r_t | x_{1:t}) \propto \underbrace{P(x_t | r_{t-1}, x_{<t})}_\text{Predictive Probability} \times \underbrace{P(r_t | r_{t-1})}_\text{Changepoint Model}")
-            st.markdown("""
-            -   The **Predictive Probability** is the likelihood of the new data point `x_t` given the data seen during the current run.
-            -   The **Changepoint Model** is based on a *hazard rate*, which is our prior belief about how likely a changepoint is at any given step.
-            The algorithm calculates this for two cases: the run continues (`r_t = r_{t-1} + 1`) or a changepoint occurs (`r_t = 0`), and then normalizes to get the final probability distribution shown in the heatmap.
-            """)
-        with tabs[3]:
-            st.markdown("""
-            These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
+        **The 'Aha!' Moment:** In their 2007 paper, "Bayesian Online Changepoint Detection," **Ryan P. Adams and David J.C. MacKay** presented a brilliantly elegant solution. Their key insight was to reframe the problem from finding a single "best" changepoint to calculating the full, evolving probability distribution of the "run length" (the time since the last changepoint). 
+        
+        **The Impact:** This probabilistic approach was a game-changer. It provided a much richer output than a simple binary alarm, and its recursive, online nature was computationally efficient enough to run in real-time on streaming data. It effectively transformed changepoint detection from a historical analysis tool into a modern, real-time process monitoring system, especially powerful when combined with feature extraction from modern ML models.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        This advanced hybrid system is a state-of-the-art implementation of the principles of modern process monitoring and control.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** This tool provides a highly effective method for meeting the CPV requirement of continuously monitoring the process to ensure it remains in a state of control, and for investigating any departures.
+        - **FDA Guidance for Industry - PAT:** This "Model and Monitor Residuals" approach is a direct implementation of the PAT goal of understanding and controlling manufacturing through timely measurements and feedback loops.
+        - **ICH Q9 (Quality Risk Management):** By providing rapid and probabilistic detection of process changes, this system can significantly reduce the risk of producing non-conforming material.
+        - **GAMP 5 & 21 CFR Part 11:** As this system uses an ML model to provide diagnostic information for a GxP process, the model and the software it runs on would need to be validated as a Computerized System.
+        """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 3)
 # ==============================================================================
@@ -9329,7 +9335,7 @@ def render_kalman_nn_residual():
     """Renders the Kalman Filter + Residual Chart module."""
     st.markdown("""
     #### Purpose & Application: The AI Navigator
-    **Purpose:** To track and predict the state of a dynamic process in real-time, even with noisy sensor data. The **Kalman Filter** acts as an optimal "navigator," constantly predicting the process's next move and then correcting its course based on the latest measurement. The key output is the **residual**-the degree of "surprise" at each measurement.
+    **Purpose:** To track and predict the state of a dynamic process in real-time, even with noisy sensor data. The **Kalman Filter** acts as an optimal "navigator," constantly predicting the process's next move and then correcting its course based on the latest measurement. The key output is the **residual**—the degree of "surprise" at each measurement.
     
     **Strategic Application:** This is fundamental for state estimation in any time-varying system.
     - **Intelligent Filtering:** Provides a smooth, real-time estimate of a process's true state, filtering out sensor noise.
@@ -9362,55 +9368,62 @@ def render_kalman_nn_residual():
 
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            st.metric("Process Shock Event", "Time #70")
-            st.metric("Alarm on Residuals", f"Time #{alarm_time}" if alarm_time else "N/A", help="The time the residual chart first detected the shock.")
-            st.markdown("""
-            **Reading the Dashboard:**
-            - **1. State Estimation (Top):** The red line is the Kalman Filter's "best guess" of the true state (black dashed line), created by optimally blending its internal model with the noisy measurements (grey dots). The shaded red area is the filter's own uncertainty.
-            - **2. Residuals Control Chart (Bottom):** This chart shows the "surprise" at each step. Notice the huge spike at time #70 when the process shock occurs-the measurement was far from what the filter predicted. This provides an unambiguous alarm.
-            """)
+        st.metric("Process Shock Event", "Time #70")
+        st.metric("Alarm on Residuals", f"Time #{alarm_time}" if alarm_time else "Not Detected", help="The time the residual chart first detected the shock.")
 
-        with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: Monitoring Raw, Noisy Data**
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **State Estimation (Plot 1):** The red line is the Kalman Filter's "best guess" of the true state (black dashed line), created by optimally blending its internal model with the noisy measurements (grey dots). The shaded red area is the filter's own uncertainty about its estimate.
+        2.  **Tuning the Filter (Sidebar):**
+            - **Increase `Process Noise (Q)`:** Watch the red estimate line become "jittery" and follow the noisy measurements more closely. The uncertainty band also widens. This tells the filter "don't trust your model, trust the data."
+            - **Decrease `Process Noise (Q)`:** The red line becomes much smoother, ignoring the noisy data. This tells the filter "my model is good, trust the prediction."
+        3.  **Fault Detection (Plot 2):** This chart shows the "surprise" at each step. Notice the huge spike at time #70 when the process shock occurs—the measurement was far from what the filter predicted. This provides an unambiguous alarm.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Kalman Filter:** An optimal algorithm for estimating the hidden state of a dynamic system from a series of noisy measurements. It operates in a two-step "predict-update" cycle.
+        - **State Estimation:** The process of estimating the true, unobservable internal state of a system based on external, noisy measurements.
+        - **Residual (or Innovation):** The difference between an actual measurement and the Kalman Filter's prediction of that measurement. A large residual indicates a "surprise" and signals that the process is not behaving as the model expected.
+        - **Process Noise (Q):** A tuning parameter representing the uncertainty in the process model itself. It's the amount you expect the true state to randomly change between time steps.
+        - **Measurement Noise (R):** A parameter representing the known uncertainty or variance of the measurement sensor.
+        - **Kalman Gain:** A value calculated at each step that determines how much weight to give to the new measurement versus the model's prediction.
+        """)
+        
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: Monitoring Raw, Noisy Data**
 Charting the raw measurements (grey dots) directly would lead to a wide, insensitive control chart. The process shock might not even trigger an alarm if it's small relative to the measurement noise. You are blind to subtle deviations from the expected *behavior*.""")
-            st.success("""🟢 **THE GOLDEN RULE: Model the Expected, Monitor the Unexpected**
-1.  Use a dynamic model (like a Kalman Filter) to capture the known, predictable behavior of your process.
+        st.success("""🟢 **THE GOLDEN RULE: Model the Expected, Monitor the Unexpected**
+1.  Use a dynamic model (like a Kalman Filter or a Neural Network) to capture the known, predictable behavior of your process.
 2.  This model separates the signal into two streams: the predictable part (the state estimate) and the unpredictable part (the residuals).
 3.  Place your high-sensitivity control chart on the **residuals**. This is monitoring the "unexplained" portion of the data, which is where novel faults will always appear first.""")
 
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: From Space Race to Bioreactor
-            **The Problem:** During the height of the Cold War and the Space Race, a fundamental challenge was navigation. How could you guide a missile, or more inspiringly, a spacecraft to the Moon, using only a stream of noisy, imperfect sensor readings? You needed a way to fuse the predictions from a physical model (orbital mechanics) with the incoming data to get the best possible estimate of your true position and velocity.
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: From Space Race to Bioreactor
+        **The Problem:** During the height of the Cold War and the Space Race, a fundamental challenge was navigation. How could you guide a missile, or more inspiringly, a spacecraft to the Moon, using only a stream of noisy, imperfect sensor readings? You needed a way to fuse the predictions from a physical model (orbital mechanics) with the incoming data to get the best possible estimate of your true position and velocity.
 
-            **The 'Aha!' Moment:** In 1960, **Rudolf E. Kálmán** published his landmark paper describing a recursive algorithm that provided the optimal solution to this problem. The **Kalman Filter** was born. Its elegant two-step "predict-update" cycle was computationally efficient enough to run on the primitive computers of the era.
-            
-            **The Impact:** The filter was almost immediately adopted by the aerospace industry and was a critical, mission-enabling component of the **NASA Apollo program**. Without the Kalman Filter to provide reliable real-time state estimation, the lunar landings would not have been possible. Its applications have since exploded into countless fields.
-            
-            **The Neural Network Connection:** The classic Kalman Filter assumes you have a good *linear* model of your system. But what about a complex, non-linear bioprocess? The modern approach is to replace the linear model with a **Recurrent Neural Network (RNN)**. The RNN *learns* the complex non-linear dynamics from data, and the Kalman Filter framework provides the mathematically optimal way to blend the RNN's predictions with new sensor measurements.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The Kalman Filter operates in a two-step cycle at each time point `k`:")
-            st.markdown("**1. Predict Step:** The filter predicts the next state and its uncertainty based on the internal model.")
-            st.latex(r"\hat{x}_{k|k-1} = F \hat{x}_{k-1|k-1} \quad (\text{State Prediction})")
-            st.latex(r"P_{k|k-1} = F P_{k-1|k-1} F^T + Q \quad (\text{Uncertainty Prediction})")
-            st.markdown("**2. Update Step:** The filter uses the new measurement `z_k` to correct the prediction.")
-            st.latex(r"K_k = P_{k|k-1} H^T (H P_{k|k-1} H^T + R)^{-1} \quad (\text{Kalman Gain})")
-            st.latex(r"\hat{x}_{k|k} = \hat{x}_{k|k-1} + K_k (z_k - H \hat{x}_{k|k-1}) \quad (\text{State Update})")
-            st.markdown("The term `(z_k - H \hat{x}_{k|k-1})` is the **residual** or **innovation**, which is the signal we monitor for faults.")
-        with tabs[3]:
-            st.markdown("""
-            These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
-
+        **The 'Aha!' Moment:** In 1960, **Rudolf E. Kálmán** published his landmark paper describing a recursive algorithm that provided the optimal solution to this problem. The **Kalman Filter** was born. Its elegant two-step "predict-update" cycle was computationally efficient enough to run on the primitive computers of the era.
+        
+        **The Impact:** The filter was almost immediately adopted by the aerospace industry and was a critical, mission-enabling component of the **NASA Apollo program**. Without the Kalman Filter to provide reliable real-time state estimation, the lunar landings would not have been possible. Its applications have since exploded into countless fields.
+        
+        **The Neural Network Connection:** The classic Kalman Filter assumes you have a good *linear* model of your system. But what about a complex, non-linear bioprocess? The modern approach is to replace the linear model with a **Recurrent Neural Network (RNN)**. The RNN *learns* the complex non-linear dynamics from data, and the Kalman Filter framework provides the mathematically optimal way to blend the RNN's predictions with new sensor measurements.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        This advanced hybrid system is a state-of-the-art implementation of the principles of modern process monitoring and control.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** This tool provides a highly effective method for meeting the CPV requirement of continuously monitoring the process to ensure it remains in a state of control, and for investigating any departures.
+        - **FDA Guidance for Industry - PAT:** This "Model and Monitor Residuals" approach is a direct implementation of the PAT goal of understanding and controlling manufacturing through timely measurements and feedback loops.
+        - **ICH Q9 (Quality Risk Management):** By providing rapid detection of deviations from the expected process trajectory, this system can significantly reduce risk.
+        - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML model to provide diagnostic information for a GxP process, the model and the software it runs on would need to be validated as a Computerized System.
+        """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 4)
 # ==============================================================================
@@ -9430,32 +9443,27 @@ def render_rl_tuning():
     with st.sidebar:
         st.sidebar.subheader("RL Economic & Process Controls")
         cost_fa_slider = st.sidebar.slider("Cost of a False Alarm ($)", 1, 20, 1, 1,
-            help="The economic cost ($) of a single false alarm (stopping the process to investigate a non-existent problem).")
+            help="The economic cost ($) of a single false alarm (stopping the process, investigating a non-existent problem, scrapping material).")
         cost_delay_slider = st.sidebar.slider("Cost of Detection Delay ($/unit time)", 1, 20, 5, 1,
-            help="The economic cost ($) incurred for *each time unit* that a real process shift goes undetected.")
+            help="The economic cost ($) incurred for *each time unit* that a real process shift goes undetected (e.g., cost of producing scrap).")
         shift_size_slider = st.sidebar.slider("Target Shift Size to Detect (σ)", 0.5, 3.0, 1.0, 0.25,
             help="The magnitude of the critical process shift you want to detect as quickly as possible.")
 
-    # Call the updated plot function which now returns TWO figures
     fig_3d, fig_2d, opt_lambda, opt_L, min_cost = plot_rl_tuning(
         cost_false_alarm=cost_fa_slider,
         cost_delay_unit=cost_delay_slider,
         shift_size=shift_size_slider
     )
     
-    # --- Redesigned Layout to handle two figures ---
     st.header("Economic Optimization Landscape")
     col1, col2 = st.columns([0.5, 0.5])
     with col1:
         st.plotly_chart(fig_3d, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        st.metric("Optimal λ Found by RL", f"{opt_lambda:.3f}",
-                    help="The optimal EWMA memory parameter.")
-        st.metric("Optimal Limit Width (L) Found by RL", f"{opt_L:.2f}σ",
-                    help="The optimal control limit width in multiples of sigma.")
-        st.metric("Minimum Achievable Cost", f"${min_cost:.3f}",
-                    help="The best possible economic performance for this chart.")
+        st.metric("Optimal λ Found by RL", f"{opt_lambda:.3f}", help="The optimal EWMA memory parameter.")
+        st.metric("Optimal Limit Width (L) Found by RL", f"{opt_L:.2f}σ", help="The optimal control limit width in multiples of sigma.")
+        st.metric("Minimum Achievable Cost", f"${min_cost:.3f}", help="The best possible economic performance for this chart.")
         st.markdown("""
         **The RL Agent's Solution:**
         The agent balances two competing goals: maximizing the time between false alarms (ARL₀) and minimizing the time to detect a real shift (ARL₁). The **3D Cost Surface** shows the combined economic result of this trade-off. The agent finds the `(λ, L)` combination at the bottom of this "cost valley" to design the most profitable control chart.
@@ -9463,43 +9471,57 @@ def render_rl_tuning():
 
     st.header("Diagnostic Plots & Final Chart")
     st.plotly_chart(fig_2d, use_container_width=True)
-
-    # --- Keep the original tabs for theory and context ---
-    st.markdown("---")
-    tabs = st.tabs(["✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
     with tabs[0]:
-        st.error("""🔴 **THE INCORRECT APPROACH: The 'Cookbook' Method**
-A scientist reads a textbook that says 'use λ=0.2 and L=3 for EWMA charts.' They apply these default values to every process, regardless of the process stability or the economic consequences of an error.""")
-        st.success("""🟢 **THE GOLDEN RULE: Design the Chart to Match the Risk**
-The control chart is not just a statistical tool; it's an economic asset. The tuning parameters should be deliberately chosen to minimize the total expected cost of quality. An RL framework provides a powerful, data-driven way to formalize this optimization problem and find the provably best solution.""")
-
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Define the Costs:** The most critical step is for the business to provide realistic cost estimates for a false alarm and a detection delay.
+        2.  **Explore the Landscape (Plot 1):** The 3D surface shows that poor parameter choices can be extremely costly. The agent's job is to find the lowest point.
+        3.  **Understand the Trade-off (Plots 2 & 3):** The contour plots show the underlying statistical reality. Designs in the top-right have a very long time to a false alarm (high ARL₀) but are slow to detect real shifts (high ARL₁). Designs in the bottom-left are fast to detect shifts but have frequent false alarms.
+        4.  **Deploy the Optimal Chart (Plot 4):** The final chart is the EWMA chart built with the economically optimal `λ` and `L` parameters.
+        
+        **The Strategic Insight:** Try increasing the **Cost of Detection Delay**. The RL agent will find a new optimum with a smaller `λ` and/or `L`, creating a more "nervous" and sensitive chart, because the business has decided that missing a shift is more costly than having a few extra false alarms.
+        """)
+        
     with tabs[1]:
         st.markdown("""
+        ##### Glossary of Key Terms
+        - **Reinforcement Learning (RL):** A field of AI where an "agent" learns to make optimal decisions by interacting with an environment (or a simulation) to maximize a cumulative reward.
+        - **Economic Design of Control Charts:** A framework for selecting control chart parameters (like `λ` and `L`) to minimize a total cost function, rather than relying on purely statistical rules.
+        - **Loss Function:** A mathematical function that quantifies the economic cost associated with a control chart's performance, typically including the cost of false alarms and the cost of detection delays.
+        - **ARL₀ (Average Run Length - In Control):** The average number of samples taken before a false alarm occurs. A higher ARL₀ is better.
+        - **ARL₁ (Average Run Length - Out of Control):** The average number of samples taken to detect a true process shift of a given magnitude. A lower ARL₁ is better.
+        """)
+        
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The 'Cookbook' Method**
+A scientist reads a textbook that says 'use λ=0.2 and L=3 for EWMA charts.' They apply these default values to every process, regardless of the process stability, the value of the product, or the economic consequences of an error.""")
+        st.success("""🟢 **THE GOLDEN RULE: Design the Chart to Match the Risk and the Business**
+The control chart is not just a statistical tool; it's an economic asset. The tuning parameters should be deliberately chosen to minimize the total expected cost of quality for a specific process.
+1.  **Quantify the Risk:** Work with stakeholders to define the costs of both Type I errors (false alarms) and Type II errors (missed signals).
+2.  **Define the Target:** Identify the critical process shift that you must detect quickly.
+3.  **Optimize:** Use a framework like this to find the chart parameters that provide the most cost-effective monitoring solution. This creates a highly defensible, data-driven control strategy.""")
+
+    with tabs[3]:
+        st.markdown("""
         #### Historical Context: The Unfulfilled Promise
-        **The Problem:** The idea of designing control charts based on economics is surprisingly old, dating back to the work of Acheson Duncan in the 1950s. He recognized that the choice of chart parameters was an economic trade-off. However, the mathematics required to find the optimal solution were incredibly complex and relied on many assumptions that were difficult to verify. For decades, "Economic Design of Control Charts" remained an academically interesting but practically ignored field.
+        **The Problem:** The idea of designing control charts based on economics is surprisingly old, dating back to the work of **Acheson Duncan in the 1950s**. He recognized that the choice of chart parameters was an economic trade-off between the cost of looking for trouble (sampling and investigation) and the cost of not finding it in time (producing defective product). However, the mathematics required to find the optimal solution were incredibly complex and relied on many assumptions that were difficult to verify in practice. For decades, "Economic Design of Control Charts" remained an academically interesting but practically ignored field.
 
-        **The 'Aha!' Moment (Simulation):** The modern solution came not from better math, but from more computing power. **Reinforcement Learning (RL)**, a field that exploded in the 2010s with successes like AlphaGo, provided a new paradigm. Instead of solving complex equations, an RL agent could learn the optimal strategy through millions of trial-and-error experiments in a fast, simulated "digital twin" of the manufacturing process.
-
+        **The 'Aha!' Moment (Simulation):** The modern solution came not from better math, but from more computing power. **Reinforcement Learning (RL)**, a field that exploded in the 2010s with successes like AlphaGo, provided a new paradigm. Instead of solving complex equations, an RL agent could learn the optimal strategy through millions of trial-and-error experiments in a fast, simulated "digital twin" of the manufacturing process. The agent's "reward" is simply the inverse of the economic loss function.
+        
         **The Impact:** The rise of RL and high-fidelity process simulation has finally made the promise of economic design a practical reality. It allows engineers to move beyond statistical "rules of thumb" and design monitoring strategies that are provably optimized for their specific business and risk environment.
         """)
-        st.markdown("#### Mathematical Basis")
-        st.markdown("The RL agent's goal is to find the chart parameters (e.g., `λ, L`) that minimize an economic Loss Function `L`:")
-        st.latex(r"L(\lambda, L) = \frac{C_{FA}}{ARL_0(\lambda, L)} + C_{Delay} \cdot ARL_1(\lambda, L, \delta)")
+        
+    with tabs[4]:
         st.markdown("""
-        -   `C_FA`: The cost of a single False Alarm.
-        -   `C_Delay`: The cost per unit of time for a detection delay.
-        -   `ARL₀`: The average time until a false alarm, which depends on `λ` and `L`. We want this to be high.
-        -   `ARL₁`: The average time to detect a real shift of size `δ`, which also depends on `λ` and `L`. We want this to be low.
-        The RL agent explores the trade-off between these two competing objectives to find the (`λ`, `L`) combination that minimizes the total long-run cost.
-        """)
-    with tabs[2]:
-        st.markdown("""
-        These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-        - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
-        - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-        - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-        - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+        This advanced design methodology is a state-of-the-art implementation of the principles of modern process monitoring and control.
+        - **ICH Q9 (Quality Risk Management):** This tool provides a direct, quantitative link between the business and patient risks (captured in the cost function) and the technical design of the control strategy. It is a perfect example of a risk-based approach to process monitoring.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** An economically designed chart provides a highly defensible rationale for the chosen monitoring strategy during CPV.
+        - **FDA Guidance for Industry - PAT:** This tool supports the PAT goal of designing and controlling manufacturing based on a deep understanding of the process and the risks involved.
+        - **GAMP 5 & 21 CFR Part 11:** If the RL agent and its simulation environment are used to formally set and justify control limits for a GxP process, the software and models would require validation as a Computerized System.
         """)
         
 # ==============================================================================
@@ -9512,7 +9534,7 @@ def render_tcn_cusum():
     **Purpose:** To create a powerful, hybrid system for detecting tiny, gradual drifts hidden within complex, non-linear, and seasonal time series data. A **Temporal Convolutional Network (TCN)** first learns and "subtracts" the complex but predictable patterns. Then, a **CUSUM chart** is applied to the remaining signal (the residuals) to detect any subtle, underlying drift.
     
     **Strategic Application:** This is for monitoring complex, dynamic processes like bioreactors or utility systems, where normal behavior is non-linear and cyclical.
-    - **Bioreactor Monitoring:** A TCN can learn the complex S-shaped growth curve and daily cycles. The CUSUM on the residuals can then detect if the underlying cell growth rate is slowly starting to decline, signaling a problem with the media or culture health.
+    - **Bioreactor Monitoring:** A TCN can learn the complex S-shaped growth curve and daily cycles. The CUSUM on the residuals can then detect if the underlying cell growth rate is slowly starting to decline, signaling a problem with the media or culture health long before the raw data looks abnormal.
     """)
     st.info("""
     **Interactive Demo:** Use the sliders to control the simulated bioprocess.
@@ -9534,54 +9556,59 @@ def render_tcn_cusum():
 
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        st.metric("Drift Detection Time", f"Hour #{alarm_time}" if alarm_time else "Not Detected",
+                  help="The time the CUSUM chart first signaled a significant deviation in the residuals.")
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Model the Predictable (Plot 1):** A TCN is trained on historical data from successful batches. It learns the complex but normal patterns, such as the S-shaped growth curve and daily cycles. The red dashed line is the TCN's forecast of what *should* be happening.
+        2.  **Isolate the Unpredictable (Plot 3):** The model's forecast errors (the residuals) are calculated. This isolates the part of the signal that the model *cannot* explain. For a healthy process, these residuals should be random noise.
+        3.  **Monitor for Drift (Plot 2):** The CUSUM chart is applied to these residuals. It is designed to ignore random noise but will accumulate the small, persistent signal caused by the hidden drift, eventually crossing the red control limit and firing a clear alarm (red 'X').
+
+        **The Strategic Insight:** This hybrid approach allows you to apply a highly sensitive statistical tool (CUSUM) to a process that would normally violate all of its assumptions. The TCN acts as an intelligent "pre-processor," removing the complex, non-stationary patterns and allowing the simple, powerful CUSUM to do its job effectively.
+        """)
         
-        with tabs[0]:
-            st.metric("Drift Detection Time", f"Hour #{alarm_time}" if alarm_time else "Not Detected",
-                      help="The time the CUSUM chart first signaled a significant deviation in the residuals.")
-            st.markdown("""
-            **Reading the Dashboard:**
-            - **1. TCN Forecast:** The TCN (red dashed line) has learned the complex non-linear growth and daily cycles, but is blind to the unexpected gradual drift. The orange shaded area shows the "receptive field" - how much past data the model uses for each prediction.
-            - **2. CUSUM on Residuals:** The CUSUM chart acts on the TCN's forecast errors. It ignores the random noise but accumulates the persistent signal from the drift until it crosses the red control limit, firing a clear alarm (red 'X').
-            - **3. Residual Diagnostics:** For a good model, the residuals should be random noise. The histogram should look roughly normal, and the Q-Q plot points should fall along the red line.
-            """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **TCN (Temporal Convolutional Network):** A type of deep learning architecture that applies convolutional layers to time series data. It is known for its ability to capture long-range patterns efficiently.
+        - **CUSUM (Cumulative Sum):** A "memory-based" control chart that plots the cumulative sum of deviations from a target. It is the fastest possible chart for detecting a shift of a specific, pre-defined magnitude.
+        - **Residuals:** The difference between the actual data and the TCN's forecast. By applying CUSUM to the residuals, we monitor for changes in the part of the signal the TCN *could not* predict.
+        - **Receptive Field:** The span of historical data that a TCN uses to make a single prediction. TCNs use dilated convolutions to achieve very large receptive fields efficiently.
+        - **Non-Stationary Data:** A time series whose statistical properties such as mean and variance change over time. Bioprocess data is typically non-stationary.
+        """)
+        
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: Charting the Raw Data**
+Applying a CUSUM chart directly to the raw bioprocess data would be a disaster. The massive swings from the S-shaped growth curve and the daily cycles would cause constant false alarms, making the chart completely useless. The true, tiny drift signal would be completely buried in the predictable patterns.""")
+        st.success("""🟢 **THE GOLDEN RULE: Separate the Predictable from the Unpredictable**
+This is a fundamental principle of modern process monitoring for complex, dynamic systems.
+1.  **Model the Known:** Use a sophisticated forecasting model (like a TCN or LSTM) to learn and mathematically remove the complex, **known patterns** (like growth curves and seasonality) from your data.
+2.  **Monitor the Unknown:** Apply a sensitive change detection algorithm (like CUSUM or EWMA) to the model's **residuals** (the forecast errors). This focuses your monitoring on the part of the signal that is truly changing and unpredictable, where novel faults will always appear first.""")
 
-        with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: Charting the Raw Data**
-Applying a CUSUM chart directly to the raw bioprocess data would be a disaster. The massive swings from the growth curve and daily cycles would cause constant false alarms, making the chart useless. The true, tiny drift signal would be completely buried.""")
-            st.success("""🟢 **THE GOLDEN RULE: Separate the Predictable from the Unpredictable**
-This is a fundamental principle of modern process monitoring.
-1. Use a sophisticated forecasting model (like a TCN) to learn and remove the complex, **known patterns** from your data.
-2. Apply a sensitive change detection algorithm (like CUSUM) to the model's **residuals** (the forecast errors). This focuses your monitoring on the part of the signal that is truly changing and unpredictable.""")
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: The Evolution of Sequence Modeling
+        **The Problem:** For years, Recurrent Neural Networks (RNNs) and their advanced variant, LSTMs, were the undisputed kings of sequence modeling. However, their inherently sequential nature-having to process time step `t` before moving to `t+1`-made them slow to train on very long sequences and difficult to parallelize on modern GPUs.
 
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: The Evolution of Sequence Modeling
-            **The Problem:** For years, Recurrent Neural Networks (RNNs) and their advanced variant, LSTMs, were the undisputed kings of sequence modeling. However, their inherently sequential nature-having to process time step `t` before moving to `t+1`-made them slow to train on very long sequences and difficult to parallelize on modern GPUs.
+        **The 'Aha!' Moment:** In 2018, a paper by **Bai, Kolter, and Koltun**, "An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling," showed that a different architecture could outperform LSTMs on many standard sequence tasks while being much faster. They systematized the **Temporal Convolutional Network (TCN)**. The key insight was to adapt techniques from computer vision (Convolutional Neural Networks) for time-series data. By using **causal convolutions** (to prevent seeing the future) and **dilated convolutions** (which exponentially increase the field of view), TCNs could learn very long-range patterns in parallel.
 
-            **The 'Aha!' Moment:** In 2018, a paper by Bai, Kolter, and Koltun, "An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling," showed that a different architecture could outperform LSTMs on many standard sequence tasks while being much faster. They systematized the **Temporal Convolutional Network (TCN)**. The key insight was to adapt techniques from computer vision (Convolutional Neural Networks) for time-series data. By using **causal convolutions** (to prevent seeing the future) and **dilated convolutions** (which exponentially increase the field of view), TCNs could learn very long-range patterns in parallel.
-
-            **The Impact:** TCNs provided a powerful, fast, and often simpler alternative to LSTMs, becoming a go-to architecture for many time-series applications. Fusing this modern deep learning model with a classic, high-sensitivity statistical chart like **CUSUM (Page, 1954)** creates a hybrid system that leverages the best of both worlds.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The system first models the data `Y_t` and calculates the residuals `e_t`:")
-            st.latex(r"e_t = Y_t - \text{TCN}(Y_{t-1}, Y_{t-2}, ...)")
-            st.markdown("Then, a one-sided CUSUM statistic `S_t` is applied to these residuals to detect a positive drift:")
-            st.latex(r"S_t = \max(0, S_{t-1} + (e_t - \mu_e) - k)")
-            st.markdown("""
-            -   `μ_e`: The target mean of the residuals (should be 0).
-            -   `k`: A "slack" parameter, typically `0.5 * σ_e`, that allows the chart to ignore small, random fluctuations in the residuals.
-            An alarm is signaled when `S_t` exceeds a control limit `H`.
-            """)
-        with tabs[3]:
-            st.markdown("""
-            These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
+        **The Impact:** TCNs provided a powerful, fast, and often simpler alternative to LSTMs, becoming a go-to architecture for many time-series applications. Fusing this modern deep learning model with a classic, high-sensitivity statistical chart like **CUSUM (Page, 1954)** creates a hybrid system that leverages the best of both worlds: the pattern-recognition power of deep learning and the statistical rigor of classic SPC.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        This advanced hybrid system is a state-of-the-art implementation of the principles of modern process monitoring and control.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** This tool provides a highly effective method for meeting the CPV requirement of continuously monitoring complex, non-stationary processes.
+        - **FDA Guidance for Industry - PAT:** This "Model and Monitor Residuals" approach is a direct implementation of the PAT goal of understanding and controlling manufacturing through timely measurements and feedback loops.
+        - **ICH Q9 (Quality Risk Management):** By providing early detection of subtle drifts, this system can significantly reduce the risk of producing non-conforming material.
+        - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML model to provide diagnostic information for a GxP process, the model and the software it runs on would need to be validated as a Computerized System.
+        """)
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 6)
 # ==============================================================================
@@ -9616,53 +9643,60 @@ def render_lstm_autoencoder_monitoring():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        st.metric("EWMA Drift Detection Time", f"Hour #{ewma_time}" if ewma_time else "Not Detected",
+                  help="Time the EWMA chart alarmed on the slow drift.")
+        st.metric("BOCPD Spike Detection Time", f"Hour #{bocpd_time}" if bocpd_time else "Not Detected",
+                  help="Time the BOCPD algorithm alarmed on the sudden spike.")
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Learn the "Fingerprint" (Plot 1):** The LSTM Autoencoder is trained only on data from healthy, successful batches. It learns to reconstruct the normal, correlated dance between Temperature and pH. The dashed lines show the AI's reconstruction.
+        2.  **Generate a Health Score (Plot 2):** When the live process data deviates from normal (due to the drift or spike), the AI struggles to reconstruct it. This failure is quantified as the **Reconstruction Error**, which serves as a single, powerful "health score" for the entire multivariate system.
+        3.  **Deploy a Layered Defense (Plot 3):** Two specialized detectors monitor the health score:
+            - The **EWMA chart (orange)** is insensitive to the sudden spike but accumulates the small, persistent signal from the gradual drift, eventually sounding an alarm.
+            - The **BOCPD algorithm (purple)** ignores the slow drift but instantly detects the abrupt change caused by the spike, signaling an acute event.
         
-        with tabs[0]:
-            st.metric("EWMA Drift Detection Time", f"Hour #{ewma_time}" if ewma_time else "Not Detected",
-                      help="Time the EWMA chart alarmed on the slow drift.")
-            st.metric("BOCPD Spike Detection Time", f"Hour #{bocpd_time}" if bocpd_time else "Not Detected",
-                      help="Time the BOCPD algorithm alarmed on the sudden spike.")
-            
-            st.markdown("""
-            **Reading the Dashboard:**
-            1.  **Process Data (Top):** The solid lines show the true (but noisy) process data for Temperature and pH. The dashed lines show the AI's reconstruction. Note how the reconstruction fails to follow the data after an anomaly occurs.
-            2.  **Health Score (Middle):** This is the **reconstruction error**. It's low when the process is normal, but increases when the AI can't reconstruct the anomalous data.
-            3.  **Hybrid Monitoring (Bottom):** Two charts monitor the health score. The **EWMA (orange)** catches the slow rise, while the **BOCPD (purple)** spikes in response to the sudden shock.
-            """)
+        **The Strategic Insight:** This architecture creates a comprehensive "immune system" for your process. The LSTM Autoencoder is the T-cell that learns "self," and the hybrid monitoring charts are the antibodies and macrophages that detect and classify different types of "non-self" threats.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **LSTM (Long Short-Term Memory):** A type of recurrent neural network (RNN) that is excellent at learning long-range, time-dependent patterns in sequential data.
+        - **Autoencoder:** An unsupervised neural network trained to reconstruct its input. It consists of an **Encoder** that compresses the data into a low-dimensional "fingerprint" and a **Decoder** that attempts to recreate the original data from that fingerprint.
+        - **Reconstruction Error:** The difference between the original input data and the autoencoder's reconstructed output. It is a powerful anomaly score; if the model cannot reconstruct the data well, the error will be high, indicating an anomaly.
+        - **Hybrid Monitoring:** The practice of applying multiple, specialized control charts (like EWMA for drifts and BOCPD for spikes) to a single "health score" like the reconstruction error to create a comprehensive detection system.
+        """)
+        
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "One-Tool" Mindset**
+An engineer tries to use a single Shewhart chart on the reconstruction error. It misses the slow drift entirely, and while it might catch the big spike, it gives no probabilistic context and provides no diagnostic information about the *type* of failure (chronic vs. acute).""")
+        st.success("""🟢 **THE GOLDEN RULE: Use a Layered Defense for Anomaly Detection**
+Different types of process failures leave different signatures in the data. A robust monitoring system must use a combination of tools, each specialized for a different type of signature. By running EWMA (for drifts) and BOCPD (for shocks) in parallel on the same AI-driven health score, you create a comprehensive immune system that can effectively detect and begin to classify both chronic and acute process diseases.""")
 
-        with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The 'One-Tool' Mindset**
-An engineer tries to use a single Shewhart chart on the reconstruction error. It misses the slow drift entirely, and while it might catch the big spike, it gives no probabilistic context.""")
-            st.success("""🟢 **THE GOLDEN RULE: Use a Layered Defense for Anomaly Detection**
-Different types of process failures leave different signatures in the data. A robust monitoring system must use a combination of tools, each specialized for a different type of signature. By running EWMA (for drifts) and BOCPD (for shocks) in parallel on the same AI-driven health score, you create a comprehensive immune system that can effectively detect both chronic and acute process diseases.""")
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: A Powerful Synthesis
+        **The Problem:** Monitoring high-dimensional time-series data (like a bioreactor with hundreds of sensors) for anomalies is extremely difficult. A fault might not be a single sensor going haywire, but a subtle change in the *temporal correlation* between many sensors. How can you detect a deviation from a complex, dynamic "normal" state without having any examples of what "abnormal" looks like?
 
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: A Powerful Synthesis
-            **The Problem:** Monitoring high-dimensional time-series data (like a bioreactor with hundreds of sensors) for anomalies is extremely difficult. A fault might not be a single sensor going haywire, but a subtle change in the *temporal correlation* between many sensors. How can you detect a deviation from a complex, dynamic "normal" state without having any examples of what "abnormal" looks like?
-
-            **The 'Aha!' Moment (Synthesis):** This architecture became a popular and powerful technique in the late 2010s by intelligently combining three distinct ideas to solve the problem piece by piece:
-            1.  **The Autoencoder:** A classic neural network design for unsupervised learning. It learns to compress data down to its essential features and then decompress it back to the original. Its ability to reconstruct the input serves as a measure of normalcy.
-            2.  **The LSTM:** The Long Short-Term Memory network (Hochreiter & Schmidhuber, 1997) was the perfect choice to build the encoder and decoder, as it is specifically designed to learn the "grammar" and patterns of sequential data. Fusing these created the **LSTM Autoencoder**.
-            3.  **Hybrid Monitoring:** The final piece was realizing that the autoencoder's output—the reconstruction error—is a single, powerful time series representing the health of the process. This allowed engineers to apply the best-in-class univariate monitoring tools, like **EWMA** and **BOCPD**, to this signal, creating a specialized, layered defense system.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The autoencoder consists of an **Encoder** `f` and a **Decoder** `g`. The encoder compresses the input time series `X` into a low-dimensional latent vector `Z`. The decoder attempts to reconstruct the original series `X` from `Z`.")
-            st.latex(r"Z = f(X) \quad (\text{Encoding})")
-            st.latex(r"\hat{X} = g(Z) \quad (\text{Decoding})")
-            st.markdown("The **reconstruction error** `E` is the difference between the original and the reconstructed series, often measured by the Mean Squared Error (MSE). This scalar value is the health score we monitor.")
-            st.latex(r"E = || X - \hat{X} ||^2 = || X - g(f(X)) ||^2")
-            st.markdown("If the model is trained only on normal data, it will be very good at reconstructing normal series (low `E`), but very bad at reconstructing anomalous series (high `E`).")
-        with tabs[3]:
-            st.markdown("""
-            These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
+        **The 'Aha!' Moment (Synthesis):** This architecture became a popular and powerful technique in the late 2010s by intelligently combining three distinct ideas to solve the problem piece by piece:
+        1.  **The Autoencoder:** A classic neural network design for unsupervised learning. It learns to compress data down to its essential features and then decompress it back to the original. Its ability to reconstruct the input serves as a measure of normalcy.
+        2.  **The LSTM:** The Long Short-Term Memory network (**Hochreiter & Schmidhuber, 1997**) was the perfect choice to build the encoder and decoder, as it is specifically designed to learn the "grammar" and patterns of sequential data. Fusing these created the **LSTM Autoencoder**.
+        3.  **Hybrid Monitoring:** The final piece was realizing that the autoencoder's output—the reconstruction error—is a single, powerful time series representing the health of the process. This allowed engineers to apply the best-in-class univariate monitoring tools, like **EWMA** and **BOCPD**, to this signal, creating a specialized, layered defense system.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        This advanced hybrid system is a state-of-the-art implementation of the principles of modern process monitoring and control.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** This tool provides a highly effective method for meeting the CPV requirement of continuously monitoring complex, multivariate processes.
+        - **FDA Guidance for Industry - PAT:** This "learn the fingerprint" approach is a direct implementation of the PAT goal of understanding and controlling manufacturing through timely measurements and feedback loops.
+        - **ICH Q9 (Quality Risk Management):** By providing early detection of both gradual and sudden deviations, this system can significantly reduce the risk of producing non-conforming material.
+        - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML model to provide diagnostic information for a GxP process, the model and the software it runs on would need to be validated as a Computerized System.
+        """)
 
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT

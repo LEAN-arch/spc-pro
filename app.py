@@ -6964,13 +6964,13 @@ def render_split_plot():
 
         with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Pretend it's Standard" Fallacy**
-An analyst runs a split-plot experiment for convenience but analyzes it as if it were a standard, fully randomized DOE.
-- **The Flaw:** This is statistically invalid. A standard analysis assumes every run is independent, but in a split-plot, all the sub-plots within a whole plot are correlated. This error leads to incorrect p-values and a high risk of declaring an effect significant when it's just random noise.""")
-            st.success("""🟢 **THE GOLDEN RULE: Design Dictates Analysis**
-The way you conduct your experiment dictates the only valid way to analyze it.
-1.  **Recognize the Constraint:** Identify if you have factors that are much harder, slower, or more expensive to change than others.
-2.  **Choose the Right Design:** If you do, a Split-Plot design is likely the most efficient and practical choice.
-3.  **Use the Right Model:** Analyze the results using a statistical model that correctly accounts for the two different error structures (the "whole plot error" for the HTC factor and the "sub-plot error" for the ETC factor). This is typically done with a mixed-model ANOVA.""")
+            An analyst runs a split-plot experiment for convenience but analyzes it as if it were a standard, fully randomized DOE.
+            - **The Flaw:** This is statistically invalid. A standard analysis assumes every run is independent, but in a split-plot, all the sub-plots within a whole plot are correlated. This error leads to incorrect p-values and a high risk of declaring an effect significant when it's just random noise.""")
+                        st.success("""🟢 **THE GOLDEN RULE: Design Dictates Analysis**
+            The way you conduct your experiment dictates the only valid way to analyze it.
+            1.  **Recognize the Constraint:** Identify if you have factors that are much harder, slower, or more expensive to change than others.
+            2.  **Choose the Right Design:** If you do, a Split-Plot design is likely the most efficient and practical choice.
+            3.  **Use the Right Model:** Analyze the results using a statistical model that correctly accounts for the two different error structures (the "whole plot error" for the HTC factor and the "sub-plot error" for the ETC factor). This is typically done with a mixed-model ANOVA.""")
 
         with tabs[3]:
             st.markdown("""
@@ -7058,13 +7058,13 @@ def render_causal_inference():
             """)
         with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The Correlation Trap**
-- An analyst observes that higher sensor readings are correlated with lower final purity. They recommend changing the process target to achieve lower sensor readings, believing this will improve purity.
-- **The Flaw:** This intervention would be a disaster. They are acting on a spurious correlation. The real cause of low purity is the old calibration. Their "fix" would actually make things worse by targeting the wrong variable.""")
-            st.success("""🟢 **THE GOLDEN RULE: Draw the Map, Block the Backdoors**
-A robust causal analysis follows a disciplined process.
-1.  **Draw the Map (Build the DAG):** Collaborate with Subject Matter Experts to encode all domain knowledge and causal beliefs into a formal DAG.
-2.  **Identify the Backdoor Paths:** Use the DAG to identify all non-causal "backdoor" paths that create confounding. In our case, the path `Sensor Reading <- Calibration Age -> Purity` is a backdoor.
-3.  **Block the Backdoors:** Use the appropriate statistical technique (like multiple regression) to "adjust for" the confounding variable (`Calibration Age`), blocking the backdoor path and isolating the true causal effect.""")
+            - An analyst observes that higher sensor readings are correlated with lower final purity. They recommend changing the process target to achieve lower sensor readings, believing this will improve purity.
+            - **The Flaw:** This intervention would be a disaster. They are acting on a spurious correlation. The real cause of low purity is the old calibration. Their "fix" would actually make things worse by targeting the wrong variable.""")
+                        st.success("""🟢 **THE GOLDEN RULE: Draw the Map, Block the Backdoors**
+            A robust causal analysis follows a disciplined process.
+            1.  **Draw the Map (Build the DAG):** Collaborate with Subject Matter Experts to encode all domain knowledge and causal beliefs into a formal DAG.
+            2.  **Identify the Backdoor Paths:** Use the DAG to identify all non-causal "backdoor" paths that create confounding. In our case, the path `Sensor Reading <- Calibration Age -> Purity` is a backdoor.
+            3.  **Block the Backdoors:** Use the appropriate statistical technique (like multiple regression) to "adjust for" the confounding variable (`Calibration Age`), blocking the backdoor path and isolating the true causal effect.""")
 
         with tabs[3]:
             st.markdown("""
@@ -7302,7 +7302,7 @@ def render_spc_charts():
     fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
     
     st.subheader(f"Analysis & Interpretation: {scenario} Process")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
     with tabs[0]:
         st.info("💡 Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
@@ -7318,20 +7318,29 @@ def render_spc_charts():
         with st.expander("Proportion (P) Chart", expanded=True):
             st.plotly_chart(fig_p, use_container_width=True)
             st.markdown("- **Interpretation:** This chart tracks the proportion of defects. The control limits become tighter for larger batches, reflecting increased statistical certainty.")
-
-    with tabs[1]:
-        st.error("""🔴 **THE INCORRECT APPROACH: "Process Tampering"**
-This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
-- *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
-Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.""")
-        st.success("""🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
-The control chart's signal dictates one of two paths:
-1.  **Process is IN-CONTROL (only common cause variation):**
-    - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).
-2.  **Process is OUT-OF-CONTROL (a special cause is present):**
-    - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.""")
-
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of SPC Terms
+            - **SPC (Statistical Process Control):** A method of quality control which employs statistical methods to monitor and control a process.
+            - **Control Chart:** A graph used to study how a process changes over time. Data are plotted in time order.
+            - **Control Limits:** Horizontal lines on a control chart (typically at ±3σ) that represent the natural variation of a process. They are calculated from the process data itself.
+            - **Common Cause Variation:** The natural, random variation inherent in a stable process. It is the "noise" of the system.
+            - **Special Cause Variation:** Variation that is not inherent to the process and is caused by a specific, assignable event (e.g., a machine malfunction, a new operator). It is the "signal" that something has changed.
+            - **In a State of Statistical Control:** A process from which all special causes of variation have been removed, leaving only common cause variation. Such a process is stable and predictable.
+            """)
     with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: "Process Tampering"**
+        This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
+        - *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
+        Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.""")
+                st.success("""🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
+        The control chart's signal dictates one of two paths:
+        1.  **Process is IN-CONTROL (only common cause variation):**
+            - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).
+        2.  **Process is OUT-OF-CONTROL (a special cause is present):**
+            - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.""")
+
+    with tabs[3]:
         st.markdown("""
         #### Historical Context: The Birth of Modern Quality
         **The Problem:** In the early 1920s, manufacturing at Western Electric for the Bell Telephone system was a chaotic affair. The challenge was immense: how could you ensure consistency across millions of components when you couldn't tell the difference between normal, random variation and a real production problem? Engineers were lost in a "fog" of data, constantly "tampering" with the process based on noise, often making things worse.
@@ -7348,7 +7357,7 @@ The control chart's signal dictates one of two paths:
         - **Estimating Sigma:** In practice, the true `σ` is unknown. For an I-MR chart, it is estimated from the average moving range (`MR-bar`) using a statistical constant `d₂`:
         """)
         st.latex(r"\hat{\sigma} = \frac{\overline{MR}}{d_2}")
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         SPC is the primary tool for Stage 3 of the process validation lifecycle, known as Continued or Ongoing Process Verification (CPV/OPV).
         - **FDA Process Validation Guidance (Stage 3):** Explicitly states that "an ongoing program to collect and analyze product and process data... must be established." SPC charts are the standard method for this real-time monitoring.

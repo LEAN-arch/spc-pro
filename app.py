@@ -898,76 +898,117 @@ def plot_diagnostic_dashboard(sensitivity, specificity, prevalence, n_total=1000
     }
     
     return fig_cm, fig_roc, fig_pv, metrics, other_concepts
+
 @st.cache_data
-def plot_mixture_design(a_effect, b_effect, c_effect, ab_interaction, ac_interaction, bc_interaction, noise_sd, response_threshold):
+def plot_attribute_agreement(n_parts, n_replicates, prevalence, skilled_accuracy, uncertain_accuracy, biased_accuracy, bias_strength):
     """
-    Generates a professional-grade ternary plot for a mixture design of experiments.
+    Generates a professional-grade dashboard for Attribute Agreement Analysis with realistic inspector archetypes.
     """
-    # 1. Define the experimental design points (Simplex-Lattice Design)
-    points = [
-        [1, 0, 0], [0, 1, 0], [0, 0, 1],  # Vertices
-        [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5],  # Midpoints
-        [1/3, 1/3, 1/3]  # Centroid
-    ]
-    df = pd.DataFrame(points, columns=['A', 'B', 'C'])
-
-    # 2. Simulate the response using the Scheffé quadratic model
-    a, b, c = df['A'], df['B'], df['C']
-    true_response = (a_effect * a) + (b_effect * b) + (c_effect * c) + \
-                    (ab_interaction * a * b) + (ac_interaction * a * c) + (bc_interaction * b * c)
-    df['Response'] = true_response + np.random.normal(0, noise_sd, len(df))
-
-    # 3. Fit the model
-    model = ols('Response ~ A + B + C + A:B + A:C + B:C - 1', data=df).fit() # No intercept in Scheffe model
+    np.random.seed(42)
+    # 1. Create the "gold standard" reference parts, including "borderline" cases
+    n_defective = int(n_parts * prevalence)
+    n_good = n_parts - n_defective
+    reference = np.array([1] * n_defective + [0] * n_good)
     
-    # 4. Create a grid of points for the ternary plot surface
-    @st.cache_data
-    def generate_ternary_grid(n=50):
-        from itertools import combinations_with_replacement
-        s = combinations_with_replacement(range(n + 1), 3)
-        points = np.array(list(s))
-        points = points[points.sum(axis=1) == n] / n
-        return pd.DataFrame(points, columns=['A', 'B', 'C'])
+    # Add borderline parts that are harder to classify
+    n_borderline = int(n_parts * 0.2)
+    borderline_indices = np.random.choice(n_parts, n_borderline, replace=False)
+    is_borderline = np.zeros(n_parts, dtype=bool)
+    is_borderline[borderline_indices] = True
+    
+    # 2. Simulate inspector assessments with different archetypes
+    inspectors = {
+        'Inspector A (Skilled)': {'acc': skilled_accuracy, 'bias': 0.5},
+        'Inspector B (Uncertain)': {'acc': uncertain_accuracy, 'bias': 0.5},
+        'Inspector C (Biased)': {'acc': biased_accuracy, 'bias': bias_strength}
+    }
+    
+    assessments = []
+    for name, params in inspectors.items():
+        for part_idx in range(n_parts):
+            for _ in range(n_replicates):
+                true_status = reference[part_idx]
+                accuracy = params['acc']
+                # The "Uncertain" inspector is less accurate on borderline parts
+                if "Uncertain" in name and is_borderline[part_idx]:
+                    accuracy *= 0.7 
+                
+                is_correct = np.random.rand() < accuracy
+                if is_correct:
+                    assessment = true_status
+                else: # They got it wrong
+                    assessment = 1 - true_status
+                    # The "Biased" inspector is more likely to make a false positive error
+                    if "Biased" in name and true_status == 0:
+                        assessment = 1 if np.random.rand() < params['bias'] else 0
+                
+                assessments.append([name, f'Part_{part_idx+1}', true_status, assessment])
+
+    df = pd.DataFrame(assessments, columns=['Inspector', 'Part', 'Reference', 'Assessment'])
+
+    # 3. Calculate Key Metrics
+    # Fleiss' Kappa for overall agreement
+    table = pd.crosstab(df['Part'], df['Inspector'])
+    n, k = table.shape
+    n_raters_per_item = table.sum(axis=1)
+    p_j = table.sum() / n_raters_per_item.sum()
+    P_i = ((table**2).sum(axis=1) - n_raters_per_item) / (n_raters_per_item * (n_raters_per_item - 1))
+    P_bar = P_i.mean()
+    P_e_bar = (p_j**2).sum()
+    kappa = (P_bar - P_e_bar) / (1 - P_e_bar) if (1 - P_e_bar) != 0 else 0
+
+    # Individual inspector effectiveness
+    effectiveness = {}
+    for name in df['Inspector'].unique():
+        sub = df[df['Inspector'] == name]
+        cm = pd.crosstab(sub['Reference'], sub['Assessment'])
+        tn = cm.loc[0,0] if 0 in cm.index and 0 in cm.columns else 0
+        fp = cm.loc[0,1] if 0 in cm.index and 1 in cm.columns else 0
+        fn = cm.loc[1,0] if 1 in cm.index and 0 in cm.columns else 0
+        tp = cm.loc[1,1] if 1 in cm.index and 1 in cm.columns else 0
         
-    grid = generate_ternary_grid()
-    grid['Predicted_Response'] = model.predict(grid)
+        miss_rate = fn / (fn + tp) if (fn + tp) > 0 else 0
+        false_alarm_rate = fp / (fp + tn) if (fp + tn) > 0 else 0
+        accuracy = (tp + tn) / (tp + tn + fp + fn)
+        effectiveness[name] = {'Miss Rate': miss_rate, 'False Alarm Rate': false_alarm_rate, 'Accuracy': accuracy}
     
-    # 5. Generate the Plot
-    fig = px.treemap(path=[]) # Dummy figure to use px colors
-    fig.data = [] # Clear the dummy data
+    df_eff = pd.DataFrame(effectiveness).T.reset_index().rename(columns={'index':'Inspector'})
 
-    # Layer 1: The filled contour surface
-    fig.add_trace(go.Contourternary(
-        a=grid['A'], b=grid['B'], c=grid['C'], z=grid['Predicted_Response'],
-        colorscale='Viridis', showscale=True,
-        colorbar=dict(title='Response<br>(e.g., Solubility)'),
-        contours=dict(coloring='fill', showlabels=True, labelfont=dict(color='white'))
+    # 4. Generate Plots
+    fig_eff = go.Figure()
+    fig_eff.add_trace(go.Scatter(
+        x=df_eff['False Alarm Rate'], y=df_eff['Miss Rate'],
+        mode='markers+text', text=df_eff['Inspector'], textposition='top center',
+        marker=dict(
+            size=(df_eff['Miss Rate'] + df_eff['False Alarm Rate']) * 200 + 10,
+            color=df_eff['Accuracy'], colorscale='RdYlGn', cmin=0.7, cmax=1.0,
+            showscale=True, colorbar_title='Accuracy'
+        ),
     ))
-    # Layer 2: The "Sweet Spot" / Design Space
-    grid['Design_Space'] = (grid['Predicted_Response'] >= response_threshold).astype(int)
-    fig.add_trace(go.Contourternary(
-        a=grid['A'], b=grid['B'], c=grid['C'], z=grid['Design_Space'],
-        colorscale=[[0, 'rgba(0,0,0,0)'], [1, 'rgba(44, 160, 44, 0.5)']],
-        showscale=False, line_width=0
-    ))
-    # Layer 3: The experimental points
-    fig.add_trace(go.Scatterternary(
-        a=df['A'], b=df['B'], c=df['C'], mode='markers',
-        marker=dict(symbol='circle', color='red', size=12, line=dict(width=2, color='black')),
-        text=[f'Run {i+1}<br>Response: {r:.1f}' for i, r in enumerate(df['Response'])],
-        hoverinfo='text'
-    ))
+    fig_eff.add_shape(type="rect", x0=0, y0=0, x1=0.05, y1=0.1, fillcolor='rgba(44, 160, 44, 0.2)', line_width=0, layer='below')
+    fig_eff.add_annotation(x=0.025, y=0.05, text="<b>Ideal Zone</b>", showarrow=False)
+    fig_eff.update_layout(title="<b>1. Inspector Effectiveness Report</b>",
+                          xaxis_title="False Alarm Rate (Good parts failed)", yaxis_title="Miss Rate (Bad parts passed)",
+                          xaxis_tickformat=".1%", yaxis_tickformat=".1%",
+                          xaxis_range=[-0.02, max(0.2, df_eff['False Alarm Rate'].max()*1.2)],
+                          yaxis_range=[-0.02, max(0.2, df_eff['Miss Rate'].max()*1.2)])
+
+    # Plot 2: Cohen's Kappa Matrix
+    from sklearn.metrics import cohen_kappa_score
+    kappa_matrix = pd.DataFrame(index=inspectors.keys(), columns=inspectors.keys())
+    for name1 in inspectors.keys():
+        for name2 in inspectors.keys():
+            d1 = df[df['Inspector'] == name1]['Assessment']
+            d2 = df[df['Inspector'] == name2]['Assessment']
+            kappa_matrix.loc[name1, name2] = cohen_kappa_score(d1, d2)
+    kappa_matrix = kappa_matrix.astype(float)
     
-    fig.update_layout(
-        title='<b>Formulation Design Space (Ternary Plot)</b>',
-        ternary_sum=1,
-        ternary_aaxis_title_text='<b>Component A (%)</b>',
-        ternary_baxis_title_text='<b>Component B (%)</b>',
-        ternary_caxis_title_text='<b>Component C (%)</b>',
-        margin=dict(l=40, r=40, b=40, t=60)
-    )
+    fig_kappa = px.imshow(kappa_matrix, text_auto=".2f", aspect="auto",
+                          color_continuous_scale='Blues',
+                          title="<b>2. Inter-Inspector Agreement (Cohen's Kappa)</b>",
+                          labels=dict(color="Kappa"))
     
-    return fig, model
+    return fig_eff, fig_kappa, kappa, df_eff
 
 @st.cache_data    
 def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75, interaction_sd=0.5):
@@ -1605,96 +1646,87 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
     return fig_contour, fig_3d, fig_pareto, anova_summary, opt_ph_real, opt_temp_real, max_response
 
 @st.cache_data
-def plot_attribute_agreement(n_parts, n_inspectors, n_replicates, prevalence, inspector_accuracy, inspector_bias):
+def plot_mixture_design(a_effect, b_effect, c_effect, ab_interaction, ac_interaction, bc_interaction, noise_sd, response_threshold):
     """
-    Generates a professional-grade dashboard for Attribute Agreement Analysis.
+    Generates a professional-grade ternary plot for a mixture design of experiments.
     """
-    np.random.seed(42)
-    # 1. Create the "gold standard" reference parts
-    n_defective = int(n_parts * prevalence)
-    n_good = n_parts - n_defective
-    reference = np.array([1] * n_defective + [0] * n_good) # 1=Defective, 0=Good
-    np.random.shuffle(reference)
+    # 1. Define the experimental design points (Simplex-Lattice Design)
+    points = [
+        [1, 0, 0], [0, 1, 0], [0, 0, 1],
+        [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5],
+        [1/3, 1/3, 1/3]
+    ]
+    df = pd.DataFrame(points, columns=['A', 'B', 'C'])
+
+    # 2. Simulate the response using the Scheffé quadratic model
+    a, b, c = df['A'], df['B'], df['C']
+    true_response = (a_effect * a) + (b_effect * b) + (c_effect * c) + \
+                    (ab_interaction * a * b) + (ac_interaction * a * c) + (bc_interaction * b * c)
+    df['Response'] = true_response + np.random.normal(0, noise_sd, len(df))
+
+    # 3. Fit the model
+    model = ols('Response ~ A + B + C + A:B + A:C + B:C - 1', data=df).fit()
     
-    # 2. Simulate inspector assessments with error
-    assessments = []
-    for i in range(n_inspectors):
-        inspector_name = f'Inspector {chr(65+i)}'
-        for part_idx, true_status in enumerate(reference):
-            for rep in range(n_replicates):
-                # Did the inspector get it right?
-                is_correct = np.random.rand() < inspector_accuracy
-                
-                if is_correct:
-                    assessment = true_status
-                else: # They got it wrong, now apply bias
-                    if true_status == 1: # True defect, they missed it
-                        assessment = 0
-                    else: # True good, they made a false call
-                        # Bias: >0.5 means more likely to call good parts bad
-                        assessment = 1 if np.random.rand() < inspector_bias else 0
-                
-                assessments.append([inspector_name, f'Part_{part_idx+1}', true_status, assessment])
-
-    df = pd.DataFrame(assessments, columns=['Inspector', 'Part', 'Reference', 'Assessment'])
-
-    # 3. Calculate Key Metrics
-    # Fleiss' Kappa for overall agreement
-    # Create a contingency table: rows are parts, columns are Good/Defective ratings
-    table = df.pivot_table(index='Part', columns='Assessment', values='Inspector', aggfunc='count', fill_value=0)
-    if 0 not in table.columns: table[0] = 0
-    if 1 not in table.columns: table[1] = 0
-    n, k = table.shape[0], table.iloc[0].sum()
-    p_j = table.sum() / (n * k)
-    P_i = ((table**2).sum(axis=1) - k) / (k * (k - 1))
-    P_bar = P_i.mean()
-    P_e_bar = (p_j**2).sum()
-    kappa = (P_bar - P_e_bar) / (1 - P_e_bar) if (1 - P_e_bar) != 0 else 0
-
-    # Individual inspector effectiveness
-    effectiveness = {}
-    for name in df['Inspector'].unique():
-        sub = df[df['Inspector'] == name]
-        cm = pd.crosstab(sub['Reference'], sub['Assessment'])
-        tn = cm.loc[0,0] if 0 in cm.index and 0 in cm.columns else 0
-        fp = cm.loc[0,1] if 0 in cm.index and 1 in cm.columns else 0
-        fn = cm.loc[1,0] if 1 in cm.index and 0 in cm.columns else 0
-        tp = cm.loc[1,1] if 1 in cm.index and 1 in cm.columns else 0
+    # 4. Create a dense grid of points for the ternary plot surface
+    @st.cache_data
+    def generate_ternary_grid(n=40): # n=40 creates a dense enough grid
+        import itertools
+        s = itertools.product(range(n + 1), repeat=3)
+        points = np.array(list(s))
+        points = points[points.sum(axis=1) == n] / n
+        return pd.DataFrame(points, columns=['A', 'B', 'C'])
         
-        miss_rate = fn / (fn + tp) if (fn + tp) > 0 else 0
-        false_alarm_rate = fp / (fp + tn) if (fp + tn) > 0 else 0
-        effectiveness[name] = {'Miss Rate': miss_rate, 'False Alarm Rate': false_alarm_rate}
+    grid = generate_ternary_grid()
+    grid['Predicted_Response'] = model.predict(grid)
     
-    df_eff = pd.DataFrame(effectiveness).T.reset_index().rename(columns={'index':'Inspector'})
+    # 5. Generate the Plot using correct objects
+    fig = go.Figure()
 
-    # 4. Generate Plots
-    fig = make_subplots(
-        rows=1, cols=2,
-        subplot_titles=("<b>1. Inspector Effectiveness Report</b>", "<b>2. Inspector vs. Standard Agreement</b>"),
-        column_widths=[0.6, 0.4]
+    # Layer 1: The heatmap surface, created with a scatterternary trace
+    fig.add_trace(go.Scatterternary(
+        a=grid['A'], b=grid['B'], c=grid['C'],
+        mode='markers',
+        marker=dict(
+            color=grid['Predicted_Response'],
+            colorscale='Viridis',
+            showscale=True,
+            colorbar=dict(title='Response<br>(e.g., Solubility)'),
+            size=5
+        ),
+        hoverinfo='none'
+    ))
+
+    # Layer 2: The "Sweet Spot" / Design Space boundary
+    sweet_spot_grid = grid[grid['Predicted_Response'] >= response_threshold]
+    fig.add_trace(go.Scatterternary(
+        a=sweet_spot_grid['A'], b=sweet_spot_grid['B'], c=sweet_spot_grid['C'],
+        mode='markers',
+        marker=dict(color=SUCCESS_GREEN, size=5, opacity=0.5),
+        hoverinfo='none',
+        name='Design Space'
+    ))
+
+    # Layer 3: The experimental points
+    fig.add_trace(go.Scatterternary(
+        a=df['A'], b=df['B'], c=df['C'], mode='markers',
+        marker=dict(symbol='circle', color='red', size=12, line=dict(width=2, color='black')),
+        text=[f'Run {i+1}<br>Response: {r:.1f}' for i, r in enumerate(df['Response'])],
+        hoverinfo='text',
+        name='Experimental Runs'
+    ))
+    
+    fig.update_layout(
+        title='<b>Formulation Design Space (Ternary Plot)</b>',
+        ternary_sum=1,
+        ternary_aaxis_title_text='<b>Component A (%)</b>',
+        ternary_baxis_title_text='<b>Component B (%)</b>',
+        ternary_caxis_title_text='<b>Component C (%)</b>',
+        margin=dict(l=40, r=40, b=40, t=60),
+        showlegend=False
     )
-
-    # Plot 1: Effectiveness Bubble Chart
-    fig.add_trace(go.Scatter(
-        x=df_eff['False Alarm Rate'], y=df_eff['Miss Rate'],
-        mode='markers+text', text=df_eff['Inspector'], textposition='top center',
-        marker=dict(size=30, color=df_eff['Miss Rate'] + df_eff['False Alarm Rate'], colorscale='Reds', showscale=True, colorbar_title='Total Error'),
-    ), row=1, col=1)
-    fig.add_shape(type="rect", x0=0, y0=0, x1=0.05, y1=0.1, fillcolor='rgba(44, 160, 44, 0.2)', line_width=0, layer='below', row=1, col=1)
-    fig.add_annotation(x=0.025, y=0.05, text="<b>Ideal<br>Zone</b>", showarrow=False, row=1, col=1)
     
-    # Plot 2: Agreement Bar Chart
-    df_agree_std = df.groupby('Inspector').apply(lambda x: (x['Assessment'] == x['Reference']).mean()).reset_index(name='Agreement')
-    fig.add_trace(go.Bar(x=df_agree_std['Agreement'], y=df_agree_std['Inspector'], orientation='h'), row=1, col=2)
-    fig.add_vline(x=0.9, line=dict(dash='dash', color='red'), row=1, col=2, annotation_text="90% Target")
+    return fig, model
     
-    fig.update_layout(showlegend=False)
-    fig.update_xaxes(title_text="False Alarm Rate (Good parts called Bad)", range=[-0.02, max(0.2, df_eff['False Alarm Rate'].max()*1.1)], row=1, col=1)
-    fig.update_yaxes(title_text="Miss Rate (Bad parts called Good)", range=[-0.02, max(0.2, df_eff['Miss Rate'].max()*1.1)], row=1, col=1)
-    fig.update_xaxes(title_text="Agreement with Standard (%)", tickformat=".0%", row=1, col=2)
-    
-    return fig, kappa
-
 @st.cache_data
 def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_quad_effect, temp_quad_effect, asymmetry_effect, noise_sd, yield_threshold):
     """
@@ -4790,65 +4822,81 @@ A robust diagnostic validation always considers the clinical context.
         - **GAMP 5:** If the test's result is generated by software (e.g., an algorithm that analyzes an image), that software must be validated (CSV) to ensure its calculations are correct and reliable.
         """)
 
-def render_mixture_design():
-    """Renders the comprehensive, interactive module for Mixture DOE."""
+
+def render_attribute_agreement():
+    """Renders the comprehensive, interactive module for Attribute Agreement Analysis."""
     st.markdown("""
-    #### Purpose & Application: The Formulation Scientist's GPS
-    **Purpose:** To act as a **Formulation Scientist's GPS**. While a standard DOE maps a process, a Mixture DOE is specifically designed to navigate the complex world of formulations where components must sum to 100%. It answers questions like: "What is the optimal blend of three excipients to maximize drug solubility?"
+    #### Purpose & Application: Validating Human Judgment
+    **Purpose:** To validate your **human measurement systems**. It answers the critical question: "Can our inspectors consistently and accurately distinguish good product from bad?" This is the counterpart to Gage R&R, but for subjective, pass/fail, or categorical assessments.
     
-    **Strategic Application:** This is an essential tool for developing stable drug products, buffers, or cell culture media. The resulting ternary plot provides an intuitive map of all possible formulations, instantly highlighting the "sweet spot" of optimal performance.
+    **Strategic Application:** This analysis is essential for validating any process that relies on human visual inspection or go/no-go gauges. A failed study indicates that inspectors are either missing true defects (a risk to the patient/customer) or rejecting good product (a risk to the business), and that retraining or improved inspection aids are required.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sidebar controls to define the "true" properties of your formulation components.
-    - **Component Effects:** Define the baseline performance of each pure component.
-    - **Interaction Effects:** A positive value indicates **synergy** (components work better together), while a negative value indicates **antagonism** (they interfere with each other).
-    - **Response Threshold:** This slider draws the green "sweet spot" (Design Space) on the map.
+    **Interactive Demo:** Use the sidebar controls to create a challenging inspection scenario with different inspector archetypes.
+    - The **Effectiveness Plot** (left) is your main diagnostic, showing the two critical types of error for each inspector.
+    - The **Kappa Matrix** (right) shows who agrees with whom. Low values between two inspectors indicate they are not aligned on their decision criteria.
     """)
 
     with st.sidebar:
-        st.subheader("Mixture Design Controls")
-        st.markdown("**Component Main Effects**")
-        a_slider = st.slider("Component A Effect", 0, 100, 60, 5)
-        b_slider = st.slider("Component B Effect", 0, 100, 80, 5)
-        c_slider = st.slider("Component C Effect", 0, 100, 50, 5)
-        st.markdown("**Component Interactions (Synergy/Antagonism)**")
-        ab_slider = st.slider("A x B Interaction", -50, 50, 20, 5)
-        ac_slider = st.slider("A x C Interaction", -50, 50, 0, 5)
-        bc_slider = st.slider("B x C Interaction", -50, 50, -30, 5)
-        st.markdown("**Experimental & Quality Controls**")
-        noise_slider = st.slider("Experimental Noise (SD)", 0.1, 10.0, 2.0, 0.5)
-        threshold_slider = st.slider("Min. Acceptable Response", 20, 100, 75, 5)
+        st.subheader("Attribute Agreement Controls")
+        st.markdown("**Study Design**")
+        n_parts_slider = st.slider("Number of Parts in Study", 20, 100, 50, 5, help="The total number of unique parts (both good and bad) that will be assessed.")
+        prevalence_slider = st.slider("True Defect Rate in Parts (%)", 10, 50, 20, 5, help="The percentage of parts in the study that are known to be defective. A good study has a high prevalence of defects.")
+        st.markdown("**Inspector Archetypes**")
+        skilled_acc_slider = st.slider("Skilled Inspector Accuracy (%)", 85, 100, 98, 1, help="The base accuracy of your best, most experienced inspector.")
+        uncertain_acc_slider = st.slider("Uncertain Inspector Accuracy (%)", 70, 100, 90, 1, help="The base accuracy of an inspector who struggles with borderline cases. Their performance will degrade on ambiguous parts.")
+        biased_acc_slider = st.slider("Biased Inspector Accuracy (%)", 70, 100, 92, 1, help="The base accuracy of an inspector who is generally good but has a specific bias.")
+        bias_strength_slider = st.slider("Biased Inspector 'Safe Play' Bias", 0.5, 1.0, 0.8, 0.05, help="When the Biased Inspector is unsure about a GOOD part, what is the probability they will fail it to be safe? 0.5 is no bias; 1.0 is maximum bias.")
 
-    fig, model = plot_mixture_design(
-        a_effect=a_slider, b_effect=b_slider, c_effect=c_slider,
-        ab_interaction=ab_slider, ac_interaction=ac_slider, bc_interaction=bc_slider,
-        noise_sd=noise_slider, response_threshold=threshold_slider
+    fig_eff, fig_kappa, kappa, df_eff = plot_attribute_agreement(
+        n_parts=n_parts_slider, n_replicates=3,
+        prevalence=prevalence_slider/100.0, 
+        skilled_accuracy=skilled_acc_slider/100.0,
+        uncertain_accuracy=uncertain_acc_slider/100.0,
+        biased_accuracy=biased_acc_slider/100.0,
+        bias_strength=bias_strength_slider
     )
 
-    col1, col2 = st.columns([0.6, 0.4])
+    st.header("Results Dashboard")
+    col1, col2 = st.columns([0.4, 0.6])
     with col1:
-        st.plotly_chart(fig, use_container_width=True)
+        st.subheader("Overall Study Metrics")
+        st.metric("Fleiss' Kappa (Overall Agreement)", f"{kappa:.3f}", help="Measures agreement between all inspectors, corrected for chance. >0.7 is considered substantial agreement.")
+        st.dataframe(df_eff.style.format({"Miss Rate": "{:.2%}", "False Alarm Rate": "{:.2%}", "Accuracy": "{:.2%}"}), use_container_width=True)
+        
     with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        with tabs[0]:
-            st.metric("Model R-squared", f"{model.rsquared_adj:.3f}", help="How well the statistical model fits the experimental data.")
-            st.markdown("""
-            **Reading the Map:**
-            - **Vertices (Corners):** Represent pure (100%) components.
-            - **Edges:** Represent blends of two components.
-            - **Center:** Represents a blend of all components.
-            - **Color Contours:** Show the predicted response. The "hottest" color indicates the region of optimal performance.
-            - **Green Shaded Area:** This is your **Design Space** or "sweet spot"—the set of all formulations predicted to meet your acceptance criteria.
-            - **Red Dots:** The actual experimental runs performed to build the model.
-            """)
-        with tabs[1]:
-            st.success("🟢 **THE GOLDEN RULE:** Use a dedicated mixture design when your factors are proportions of a whole. Analyzing formulation data with a standard factorial DOE is statistically invalid and will lead to nonsensical conclusions.")
-        with tabs[2]:
-            st.markdown("Developed by **Henry Scheffé** in 1958, mixture designs solved a problem that had plagued chemists and food scientists for decades. Scheffé's key insight was to create a new type of statistical model (the **Scheffé polynomial**) and specialized experimental designs (like the **simplex-lattice design**) that respect the mathematical constraint that all components must sum to one.")
-        with tabs[3]:
-            st.markdown("Mixture DOE is a specialized tool for establishing a **Design Space** for formulation parameters, a core concept of **ICH Q8(R2) Pharmaceutical Development**. It provides the objective evidence required to define the acceptable ranges for the proportions of different components in a formulation.")
+        st.plotly_chart(fig_eff, use_container_width=True)
+    
+    st.plotly_chart(fig_kappa, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Reading the Dashboard:**
+        - **Effectiveness Plot:** This is your main diagnostic for individual performance. Each inspector is a bubble.
+            - **X-axis (False Alarm Rate):** How often they fail good parts. A high value for the "Biased" inspector shows their tendency to play it safe.
+            - **Y-axis (Miss Rate):** How often they pass bad parts. This is often the most critical risk.
+            - **Bubble Size & Color:** Both represent total error (size) and accuracy (color). Smaller, greener bubbles are better.
+        - **Kappa Matrix:** This heatmap shows inter-rater reliability. The diagonal is always a perfect 1.0 (an inspector agrees with themselves). The off-diagonal values are important. A low value (e.g., between Inspector B and C) indicates they have fundamentally different criteria for passing or failing parts and need alignment.
+        """)
+    
+    with tabs[1]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Percent Agreement" Trap**
+An analyst simply calculates that all inspectors agreed with the standard 95% of the time and declares the system valid.
+- **The Flaw:** If the study only contains 2% true defects, an inspector could pass *every single part* and still achieve 98% agreement! Simple percent agreement is dangerously misleading with imbalanced data.""")
+        st.success("""🟢 **THE GOLDEN RULE: Use Kappa for Agreement, and Effectiveness for Risk**
+A robust analysis separates two key questions.
+1.  **Do the inspectors agree with EACH OTHER?** This is a question of **precision or consistency**. The **Kappa Matrix** is the best tool for this, as it corrects for chance agreement.
+2.  **Do the inspectors agree with the TRUTH?** This is a question of **accuracy**. The **Effectiveness Report** is the best tool for this, as it separates the two types of risk: Miss Rate (Consumer's Risk) and False Alarm Rate (Producer's Risk).""")
+
+    with tabs[2]:
+        st.markdown("While Gage R&R handled continuous data, a separate methodology was needed for attribute data. In 1960, **Jacob Cohen** developed **Cohen's Kappa** to measure agreement between two raters. This was later extended by **Joseph L. Fleiss** (1971) to handle cases with more than two raters. The key innovation of Kappa statistics was to correct for the amount of agreement that could be expected purely by chance, making it a much more robust metric than simple percent agreement. The AIAG later incorporated these statistical techniques into their **Measurement Systems Analysis (MSA)** manual, codifying them as the industry-standard approach.")
+        
+    with tabs[3]:
+        st.markdown("This analysis is a key part of **Measurement Systems Analysis (MSA)**, which is required by the **FDA's Process Validation Guidance** and quality system regulations like **21 CFR 820**. It provides objective evidence that your inspection process, including the human element, is validated and fit for purpose. It is particularly critical for manual visual inspection processes, which are often cited in regulatory observations if not properly qualified.")
 
 def render_gage_rr():
     """Renders the INTERACTIVE module for Gage R&R."""
@@ -5541,59 +5589,83 @@ By testing factors in combination using a dedicated design (like a Central Compo
         - **FDA Guidance on Process Validation:** Emphasizes a lifecycle approach and process understanding, which are best achieved through the systematic study of process parameters using DOE.
         """)
 
-def render_attribute_agreement():
-    """Renders the comprehensive, interactive module for Attribute Agreement Analysis."""
+def render_mixture_design():
+    """Renders the comprehensive, interactive module for Mixture DOE."""
     st.markdown("""
-    #### Purpose & Application: Validating Human Judgment
-    **Purpose:** To validate your **human measurement systems**. It answers the critical question: "Can our inspectors consistently and accurately distinguish good product from bad?" This is the counterpart to Gage R&R, but for subjective, pass/fail, or categorical assessments.
+    #### Purpose & Application: The Formulation Scientist's GPS
+    **Purpose:** To act as a **Formulation Scientist's GPS**. While a standard DOE maps a process, a Mixture DOE is specifically designed to navigate the complex world of formulations where components must sum to 100%. It answers questions like: "What is the optimal blend of three excipients to maximize drug solubility?"
     
-    **Strategic Application:** This analysis is essential for validating any process that relies on human visual inspection or go/no-go gauges. A failed study indicates that inspectors are either missing true defects (a risk to the patient/customer) or rejecting good product (a risk to the business), and that retraining or improved inspection aids are required.
+    **Strategic Application:** This is an essential tool for developing stable drug products, buffers, or cell culture media. The resulting ternary plot provides an intuitive map of all possible formulations, instantly highlighting the "sweet spot" of optimal performance, which can be filed as a regulatory Design Space.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the sidebar controls to create a challenging inspection scenario.
-    - **Inspector Accuracy:** Controls the overall skill of the inspectors.
-    - **Inspector Bias:** A value > 0.5 makes inspectors more likely to "play it safe" and fail borderline parts.
-    - The **Effectiveness Plot** (left) is the key diagnostic. The goal is to have all inspectors in the bottom-left "Ideal Zone."
+    **Interactive Demo:** Use the sidebar controls to define the "true" properties of your formulation components.
+    - **Component Effects:** Define the baseline performance of each pure component.
+    - **Interaction Effects:** A positive value indicates **synergy** (components work better together), while a negative value indicates **antagonism** (they interfere with each other).
+    - **Response Threshold:** This slider draws the green "sweet spot" (Design Space) on the map.
     """)
 
     with st.sidebar:
-        st.subheader("Attribute Agreement Controls")
-        n_parts_slider = st.slider("Number of Parts in Study", 20, 100, 50, 5, help="The total number of unique parts (both good and bad) that will be assessed.")
-        n_inspectors_slider = st.slider("Number of Inspectors", 2, 5, 3, 1, help="The number of people participating in the study.")
-        prevalence_slider = st.slider("True Defect Rate in Parts (%)", 10, 50, 20, 5, help="The percentage of parts in the study that are known to be defective. A good study has a high prevalence of defects.")
-        accuracy_slider = st.slider("Inspector Accuracy (%)", 70, 100, 95, 1, help="The base probability that an inspector will correctly classify any given part.")
-        bias_slider = st.slider("Inspector 'Safe Play' Bias", 0.0, 1.0, 0.6, 0.1, help="When an inspector is unsure about a GOOD part, what is the probability they will fail it to be safe? 0.5 is no bias.")
+        st.subheader("Mixture Design Controls")
+        st.markdown("**Component Main Effects**")
+        a_slider = st.slider("Component A Effect", 0, 100, 60, 5, help="The response value when the formulation is 100% Component A.")
+        b_slider = st.slider("Component B Effect", 0, 100, 80, 5, help="The response value when the formulation is 100% Component B.")
+        c_slider = st.slider("Component C Effect", 0, 100, 50, 5, help="The response value when the formulation is 100% Component C.")
+        st.markdown("**Component Interactions (Synergy/Antagonism)**")
+        ab_slider = st.slider("A x B Interaction", -50, 50, 20, 5, help="Positive values mean A and B work better together than expected (synergy). Negative values mean they interfere with each other (antagonism).")
+        ac_slider = st.slider("A x C Interaction", -50, 50, 0, 5, help="Controls the synergy or antagonism between components A and C.")
+        bc_slider = st.slider("B x C Interaction", -50, 50, -30, 5, help="Controls the synergy or antagonism between components B and C.")
+        st.markdown("**Experimental & Quality Controls**")
+        noise_slider = st.slider("Experimental Noise (SD)", 0.1, 10.0, 2.0, 0.5, help="The random measurement error in each experimental run.")
+        threshold_slider = st.slider("Min. Acceptable Response", 20, 100, 75, 5, help="The quality target. Any formulation predicted to be above this value will be included in the green 'Design Space'.")
 
-    fig, kappa = plot_attribute_agreement(
-        n_parts=n_parts_slider, n_inspectors=n_inspectors_slider, n_replicates=3,
-        prevalence=prevalence_slider/100.0, inspector_accuracy=accuracy_slider/100.0, inspector_bias=bias_slider
+    fig, model = plot_mixture_design(
+        a_effect=a_slider, b_effect=b_slider, c_effect=c_slider,
+        ab_interaction=ab_slider, ac_interaction=ac_slider, bc_interaction=bc_slider,
+        noise_sd=noise_slider, response_threshold=threshold_slider
     )
 
-    col1, col2 = st.columns([0.7, 0.3])
+    col1, col2 = st.columns([0.65, 0.35])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
-            st.metric("Fleiss' Kappa (Overall Agreement)", f"{kappa:.3f}", help="Measures agreement between all inspectors, corrected for chance. >0.7 is considered substantial agreement.")
+            st.metric("Model Adjusted R-squared", f"{model.rsquared_adj:.3f}", help="How well the statistical model fits the experimental data, adjusted for the number of terms.")
             st.markdown("""
-            **Reading the Dashboard:**
-            - **Effectiveness Plot (Left):** This is your main diagnostic. It visualizes two types of critical errors:
-                - **Miss Rate:** Inspectors letting bad parts pass (Consumer's Risk).
-                - **False Alarm Rate:** Inspectors failing good parts (Producer's Risk).
-            - **Agreement Plot (Right):** Shows the simple percentage of time each inspector agreed with the known standard. This is useful but can be misleading if the defect rate is very low.
+            **Reading the Map:**
+            - **Vertices (Corners):** Represent pure (100%) components.
+            - **Edges:** Represent blends of only two components.
+            - **Color Contours:** Show the predicted response (e.g., stability, solubility, efficacy). The "hottest" color indicates the region of optimal performance.
+            - **Green Shaded Area:** This is your **Design Space** or "sweet spot"—the set of all formulations predicted to meet your acceptance criteria.
+            - **Red Dots:** The actual experimental runs performed to build the model.
             """)
         with tabs[1]:
-            st.markdown("Acceptance criteria are based on the AIAG's MSA Manual:")
-            st.markdown("- **Agreement with Standard:** All inspectors should agree with the reference standard on at least **90%** of assessments.")
-            st.markdown("- **Fleiss' Kappa:** A Kappa value > **0.75** indicates good to excellent agreement among all inspectors.")
-            st.markdown("- **Effectiveness:** Both the Miss Rate and False Alarm Rate should ideally be below **5%**.")
+            st.error("""🔴 **THE INCORRECT APPROACH: Using a Standard DOE**
+An analyst tries to use a standard factorial or response surface design to optimize a formulation.
+- **The Flaw:** Standard DOEs treat factors as independent variables that can be changed freely. In a formulation, they are not independent; increasing one component *must* decrease another. This violates the core mathematical assumptions of a standard DOE, leading to incorrect models and nonsensical predictions.""")
+            st.success("""🟢 **THE GOLDEN RULE: Use a Mixture Design for Mixture Problems**
+The experimental design must match the physical reality of the problem.
+1.  **Identify the Constraint:** If your factors are ingredients or components that must sum to a constant (e.g., 100%), you have a mixture problem.
+2.  **Choose the Right Design:** Use a specialized experimental design, like a **Simplex-Lattice** or **Simplex-Centroid** design.
+3.  **Use the Right Model:** Analyze the results with a model designed for mixtures, like the **Scheffé polynomial**, which correctly handles the mathematical constraints.""")
         with tabs[2]:
-            st.markdown("While Gage R&R handled continuous data, a separate methodology was needed for attribute data. In 1971, **Joseph L. Fleiss** developed a statistical measure to assess the reliability of agreement between a fixed number of raters when assigning categorical ratings. **Fleiss' Kappa** became the standard for multi-rater agreement, extending an earlier idea (Cohen's Kappa) to more than two raters. The AIAG later incorporated these statistical techniques into their **Measurement Systems Analysis (MSA)** manual, codifying them as the industry-standard approach.")
+            st.markdown("""
+            #### Historical Context: Solving the Chemist's Dilemma
+            **The Problem:** For the first half of the 20th century, optimizing formulations was more art than science. Chemists and food scientists relied on intuition and laborious one-factor-at-a-time experiments. The powerful Design of Experiments (DOE) tools developed by Fisher and Box were of little help, as they couldn't handle the fundamental constraint that `A + B + C = 100%`.
+
+            **The 'Aha!' Moment:** In a landmark 1958 paper, the statistician **Henry Scheffé** solved this problem. He recognized that the experimental space was not a cube (like in a standard DOE) but a **simplex** (in this case, a triangle). He then derived a new class of polynomial models, now known as **Scheffé polynomials**, specifically for this geometry. These models cleverly omit the intercept and rearrange terms to perfectly suit the mixture constraint.
+            
+            **The Impact:** Scheffé's work gave scientists a systematic, statistically rigorous, and highly efficient methodology to optimize blends and formulations. It transformed formulation development from guesswork into a predictable science and is now a cornerstone of product development in industries ranging from pharmaceuticals and food science to petrochemicals and materials science.
+            """)
         with tabs[3]:
-            st.markdown("This analysis is a key part of **Measurement Systems Analysis (MSA)**, which is required by the **FDA's Process Validation Guidance** and quality system regulations like **21 CFR 820**. It provides objective evidence that your inspection process, including the human element, is validated and fit for purpose.")
+            st.markdown("""
+            Mixture DOE is a specialized tool for establishing a **Design Space** for formulation parameters, a core concept of **Quality by Design (QbD)**.
+            - **ICH Q8(R2) - Pharmaceutical Development:** This guideline is the primary driver for this type of work. The green "sweet spot" generated by this tool is a direct visualization of a formulation Design Space. Filing this with a regulatory agency provides significant manufacturing flexibility.
+            - **ICH Q11 - Development and Manufacture of Drug Substances:** The principles of QbD, including the use of DOE to understand the relationship between material attributes and quality, apply equally to drug substances.
+            - **FDA Process Validation Guidance:** Emphasizes a lifecycle approach and deep process/product understanding. A mixture DOE provides this deep understanding for the formulation itself.
+            """)
 
 def render_process_optimization_suite():
     """Renders the comprehensive, interactive module for the full optimization workflow."""

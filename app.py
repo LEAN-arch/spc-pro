@@ -5472,7 +5472,7 @@ def render_ci_concept():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label=f"📈 KPI: Average CI Width (Precision) at n={n_slider}", value=f"{avg_width:.2f} units", help="A smaller width indicates higher precision. This is inversely proportional to the square root of n.")
             st.metric(label="🎯 Empirical Coverage Rate", value=f"{(capture_count/n_sims):.1%}", help=f"The % of our {n_sims} simulated CIs that successfully 'captured' the true population mean. Should be close to 95%.")
@@ -5484,8 +5484,16 @@ def render_ci_concept():
             - **The n-slider is key:** As you increase `n`, the orange curve gets narrower and the CIs in the bottom plot become dramatically shorter.
             - **Diminishing Returns:** The gain in precision from n=5 to n=20 is huge. The gain from n=80 to n=100 is much smaller. This illustrates that to double your precision (halve the CI width), you must **quadruple** your sample size.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Core Concepts
+            - **Population:** The entire group that you want to draw conclusions about (e.g., all possible measurements from a process). In reality, the true population parameters (like the mean) are unknown.
+            - **Sample:** A specific group of individuals that you will collect data from (e.g., the 30 measurements you took today).
+            - **Sampling Distribution:** The theoretical probability distribution of a statistic (like the sample mean) obtained through a large number of samples drawn from a specific population.
+            - **Standard Error:** The standard deviation of the sampling distribution. It measures the precision of the sample statistic as an estimate of the population parameter.
+            - **Confidence Level:** The percentage of all possible samples that can be expected to include the true population parameter within the calculated interval (e.g., 95%). This is a property of the *procedure*, not a single interval.
+            """)
+        with tabs[2]:
             st.error("""
             🔴 **THE INCORRECT (Bayesian) INTERPRETATION:**
             *"Based on my sample, there is a 95% probability that the true mean is in this interval [X, Y]."*
@@ -5498,7 +5506,7 @@ def render_ci_concept():
             
             The full meaning is: *"This interval was constructed using a procedure that, when repeated many times, will produce intervals that capture the true mean 95% of the time."* Our confidence is in the **procedure**, not in any single outcome.
             """)
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Great Debate
             **The Problem:** In the early 20th century, the field of statistics was in turmoil. The giant of the field, **Sir Ronald A. Fisher**, had developed a concept called "fiducial inference" to create intervals, but it was complex and controversial. A new school of thought, led by **Jerzy Neyman** and **Egon Pearson**, was emerging, focused on a more rigorous, decision-theoretic framework. They needed a way to define an interval estimate that was objective, mathematically sound, and had a clear, long-run performance guarantee.
@@ -5517,7 +5525,7 @@ def render_ci_concept():
             For a 95% CI for the mean, the formula is:
             """)
             st.latex(r"\bar{x} \pm t_{(0.975, n-1)} \cdot \frac{s}{\sqrt{n}}")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             While not a standalone requirement, the correct application and interpretation of confidence intervals are a **foundational statistical principle** that underpins compliance with numerous guidelines.
             - **ICH Q2(R1) - Validation of Analytical Procedures:** Used to establish confidence intervals for key parameters like the slope and intercept in linearity studies.
@@ -5582,7 +5590,7 @@ def render_core_validation_params():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.info("Play with the sliders in the sidebar to see how different sources of error affect the results!")
@@ -5595,8 +5603,19 @@ def render_core_validation_params():
 
             **The Core Strategic Insight:** This simulation shows that validation is a process of hunting for and quantifying different types of error. Accuracy is about finding *bias*, Precision is about characterizing *random error*, and Specificity is about eliminating *interference error*.
             """)
-
+            
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Validation Parameters
+            - **Accuracy (Bias):** The closeness of the average test result to the true value. It measures **systematic error**. High accuracy means low bias.
+            - **Precision (%CV):** The closeness of agreement (degree of scatter) between a series of measurements. It measures **random error**. High precision means low random error.
+            - **Repeatability (Intra-assay precision):** Precision under the same operating conditions over a short interval of time (e.g., one analyst, one instrument, one day).
+            - **Intermediate Precision (Inter-assay precision):** Precision within the same laboratory, but under different conditions (e.g., different analysts, different days, different instruments).
+            - **Specificity:** The ability to assess the analyte unequivocally in the presence of components which may be expected to be present (e.g., impurities, degradants, matrix components).
+            - **Interference:** A type of error caused by a substance in the sample matrix that falsely alters the assay's response to the target analyte.
+            """)
+
+        with tabs[2]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: "Validation Theater"**
             The goal of validation is to get the protocol to pass by any means necessary.
@@ -5618,7 +5637,7 @@ def render_core_validation_params():
             This approach builds a truly robust method that generates trustworthy data, ensuring product quality and patient safety.
             """)
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context & Origin
             Before the 1990s, a pharmaceutical company wishing to market a new drug globally had to prepare different, massive submission packages for each region (USA, Europe, Japan), each with slightly different technical requirements for method validation. This created enormous, costly, and scientifically redundant work.
@@ -5637,7 +5656,7 @@ def render_core_validation_params():
             st.markdown("""
             **Specificity is often assessed via Hypothesis Testing:** A Student's t-test compares the means of the "Analyte Only" and "Analyte + Interferent" groups. The null hypothesis ($H_0$) is that the means are equal. A high p-value (e.g., > 0.05) means we fail to reject $H_0$, providing evidence that the interferent has no significant effect.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             The concepts of Accuracy, Precision, and Specificity are the absolute core of analytical method validation as defined by global regulators.
             - **ICH Q2(R1) - Validation of Analytical Procedures:** This is the primary global guideline that explicitly defines these parameters and provides methodologies for their assessment.
@@ -5734,7 +5753,7 @@ def render_diagnostic_validation_suite():
 
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
         **The Prevalence Effect: The Most Important Insight**
@@ -5748,8 +5767,19 @@ def render_diagnostic_validation_suite():
         - **Likelihood Ratios (LR+ / LR-):** How much does a positive/negative result increase/decrease the odds of having the disease? They are powerful because, unlike PPV/NPV, they are independent of prevalence.
         - **MCC & Kappa:** These are advanced accuracy metrics that are robust to imbalanced data (unlike simple Accuracy). A score of +1 is perfect, 0 is random, and -1 is perfectly wrong. **MCC** is generally considered one of the most robust and informative single-number scores for a classifier.
         """)
-        
-    with tabs[1]:
+        with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Diagnostic Metrics
+        - **Sensitivity (TPR):** The ability of the test to correctly identify individuals who *have* the disease. `TPR = TP / (TP + FN)`
+        - **Specificity (TNR):** The ability of the test to correctly identify individuals who do *not* have the disease. `TNR = TN / (TN + FP)`
+        - **Prevalence:** The proportion of individuals in a population who have the disease at a specific time.
+        - **PPV (Positive Predictive Value):** If a patient tests positive, the probability that they actually have the disease. Highly dependent on prevalence.
+        - **NPV (Negative Predictive Value):** If a patient tests negative, the probability that they are actually healthy. Also dependent on prevalence.
+        - **Likelihood Ratio (LR+):** How much a positive test result increases the odds of having the disease. `LR+ = Sensitivity / (1 - Specificity)`. Independent of prevalence.
+        - **AUC (Area Under Curve):** A single metric (0.5 to 1.0) summarizing the overall diagnostic power of a test across all possible cutoffs.
+        - **MCC (Matthews Correlation Coefficient):** A balanced measure of a test's quality, ranging from -1 (perfectly wrong) to +1 (perfectly right), with 0 being random. Considered very robust for imbalanced data.
+        """)
+    with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: "Accuracy is Everything"**
 An analyst reports that their new test has "95% accuracy" and declares it a success.
 - **The Flaw:** Accuracy is a simple but often misleading metric, especially with imbalanced data. A test for a rare disease (1% prevalence) can achieve 99% accuracy by simply calling every single patient "Healthy." It has perfect specificity but zero sensitivity, making it clinically useless.""")
@@ -5760,7 +5790,7 @@ A robust diagnostic validation always considers the clinical context.
 3.  **Evaluate Holistically:** Use advanced, prevalence-independent metrics like **Likelihood Ratios**, **MCC**, or **AUC** to get a complete picture of test performance, but always report the PPV/NPV expected for the target population.
         """)
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown("""
         #### Historical Context: A Multi-Disciplinary Synthesis
         The metrics on this dashboard were not developed at once, but represent a synthesis of ideas from epidemiology, statistics, computer science, and psychology over the 20th century.
@@ -5771,7 +5801,7 @@ A robust diagnostic validation always considers the clinical context.
         - **Machine Learning (1990s-2000s):** As classifiers became common, metrics were needed to handle imbalanced datasets. The **F1 Score** emerged from information retrieval, while the **Matthews Correlation Coefficient (MCC)** was developed in bioinformatics (1980). **Log-Loss** became a standard for evaluating probabilistic forecasts.
         """)
 
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         Demonstrating the performance of a diagnostic test is a primary focus of global medical device and IVD regulations.
         - **FDA 21 CFR 820.30 (Design Controls for Medical Devices):** Requires **design validation** to ensure devices conform to defined user needs and intended uses. For an IVD, this is proven through clinical performance studies that establish the metrics on this dashboard.
@@ -5830,7 +5860,7 @@ def render_attribute_agreement():
 
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     
     with tabs[0]:
         st.markdown("""
@@ -5842,8 +5872,17 @@ def render_attribute_agreement():
             - **Inspector C (Biased)** will drift to the right (high False Alarm Rate). This shows they are incorrectly failing good product, indicating they are either misinterpreting a standard or are being overly cautious.
         3.  **Find Disagreements (Kappa Matrix):** This heatmap shows *who* disagrees with *whom*. A low Kappa value between Inspector B and C, for example, would be expected from the simulation. This tells you exactly which two inspectors need to sit down together with the defect library to align their criteria.
         """)
-
     with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Agreement Terms
+        - **Attribute Data:** Data that is categorical or discrete, such as pass/fail, good/bad, or a defect classification.
+        - **Miss Rate (False Negative):** The proportion of known defective parts that an inspector incorrectly classified as good. This represents **consumer's risk**.
+        - **False Alarm Rate (False Positive):** The proportion of known good parts that an inspector incorrectly classified as defective. This represents **producer's risk**.
+        - **Inter-Rater Reliability:** The degree of agreement among different inspectors (raters).
+        - **Cohen's Kappa (κ):** A statistic that measures inter-rater agreement for categorical items, while taking into account the possibility of the agreement occurring by chance.
+        - **Fleiss' Kappa:** An adaptation of Cohen's Kappa for measuring agreement between a fixed number of raters (more than two).
+        """)
+    with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "Percent Agreement" Trap**
 An analyst simply calculates that all inspectors agreed with the standard 95% of the time and declares the system valid.
 - **The Flaw:** If the study only contains 2% true defects, an inspector could pass *every single part* and still achieve 98% agreement! Simple percent agreement is dangerously misleading with imbalanced data.""")
@@ -5852,7 +5891,7 @@ A robust analysis separates two key questions that must be answered.
 1.  **Are the inspectors CONSISTENT? (Precision)** This is about whether the inspectors agree with **each other**. The **Kappa Matrix** is the best tool for this, as it corrects for chance agreement and pinpoints specific disagreements.
 2.  **Are the inspectors ACCURATE? (Bias/Error)** This is about whether the inspectors agree with the **truth** (the gold standard). The **Effectiveness Report** is the best tool for this, as it separates the two types of business and patient risk: Miss Rate (Consumer's Risk) and False Alarm Rate (Producer's Risk).""")
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown("""
         #### Historical Context: Beyond Simple Percentages
         **The Problem:** For decades, researchers in social sciences and medicine struggled to quantify the reliability of subjective judgments. Simple "percent agreement" was the common method, but it had a fatal flaw: it didn't account for agreement that could happen purely by chance. Two doctors who both diagnose 90% of patients with "common cold" will have high agreement, but their skill might be no better than a coin flip if the true rate is 90%.
@@ -5862,13 +5901,14 @@ A robust analysis separates two key questions that must be answered.
         **The Impact:** Kappa statistics became the gold standard for measuring agreement in fields from psychology to clinical diagnostics. The automotive industry, in its quest for quality, recognized that a human inspector is a "measurement system." They incorporated these advanced statistical techniques into their **Measurement Systems Analysis (MSA)** manual, which is now considered the global standard, codifying Attribute Agreement Analysis as an essential tool for any industry relying on human inspection.
         """)
         
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         This analysis is a key part of **Measurement Systems Analysis (MSA)**, which is a fundamental expectation of a robust quality system.
         - **FDA Process Validation Guidance & 21 CFR 820 (QSR):** Both require that all measurement systems used for process control and product release be validated and fit for purpose. This explicitly includes human inspection systems. A documented Attribute Agreement Analysis is the objective evidence that this requirement has been met.
         - **ICH Q9 (Quality Risk Management):** A poorly performing inspection system is a major quality risk. This analysis quantifies that risk (e.g., the Miss Rate is a direct measure of patient/consumer risk) and provides the data to justify mitigation, such as retraining or implementing automated inspection.
         - **Regulatory Audits:** A lack of qualification for visual inspection processes is a common finding during regulatory audits. Having a robust Attribute Agreement study in your validation package demonstrates a mature and compliant quality system.
         """)
+        
 def render_gage_rr():
     """Renders the INTERACTIVE module for Gage R&R."""
     st.markdown("""
@@ -5915,7 +5955,7 @@ def render_gage_rr():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights",  "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse")
             st.metric(label="📊 KPI: Number of Distinct Categories (ndc)", value=f"{ndc}", help="How many distinct groups of parts the system can reliably distinguish. Must be ≥ 5.")
@@ -5928,8 +5968,17 @@ def render_gage_rr():
 
             **Core Insight:** A low % Gage R&R is achieved when measurement error is small *relative to* the true process variation. You can improve your Gage R&R by either reducing measurement error OR by testing it on parts that have a wider, more representative range of true variation.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of MSA Terms
+            - **Measurement System Analysis (MSA):** A formal statistical study to evaluate the total variation present in a measurement system.
+            - **Gage R&R:** The combined estimate of a measurement system's Repeatability and Reproducibility. It quantifies the inherent variability of the measurement process itself.
+            - **Repeatability (Equipment Variation):** The variation observed when the same operator measures the same part multiple times with the same device. It represents the inherent "noise" of the instrument.
+            - **Reproducibility (Appraiser Variation):** The variation observed when different operators measure the same part using the same device. It represents the inconsistency between people.
+            - **% Gage R&R:** The percentage of the total observed process variation that is consumed by measurement system error.
+            - **Number of Distinct Categories (ndc):** An index that represents the number of distinct groups of parts the measurement system can reliably distinguish. A value ≥ 5 is considered acceptable.
+            """)
+        with tabs[2]:
             st.markdown("Acceptance criteria are derived from the **AIAG's Measurement Systems Analysis (MSA)** manual, the global standard.")
             st.markdown("- **< 10% Gage R&R:** The system is **acceptable**.")
             st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable**, may be approved based on importance of application and cost. ")
@@ -5938,7 +5987,7 @@ def render_gage_rr():
             **The Part Selection Catastrophe**: The most common way to fail a Gage R&R is not bad math, but bad study design. If you select parts that are all very similar (low Part-to-Part variation), you are mathematically guaranteed to get a high % Gage R&R, even with a perfect instrument. **You must select parts that represent the full range of expected process variation.**
             """)
             
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Crisis that Forged a Standard
             **The Problem:** In the 1970s and 80s, the American automotive industry was in crisis, facing intense competition from Japanese manufacturers who had mastered statistical quality control. A major source of defects and waste was inconsistent measurement. A part might pass inspection at a supplier's factory but fail at the assembly plant simply because the two locations' measurement systems ("gages") didn't agree. There was no standardized way to qualify a measurement system.
@@ -5959,7 +6008,7 @@ def render_gage_rr():
             st.latex(r"\hat{\sigma}^2_{\text{Operator}} = \frac{MS_{\text{Operator}} - MS_{\text{Interaction}}}{n \cdot r}")
             st.markdown("The final KPI is the **% Gage R&R**, which is the percentage of the total variation that is consumed by the measurement system:")
             st.latex(r"\% \text{Gage R\&R} = \frac{\hat{\sigma}_{\text{Gage R\&R}}}{\hat{\sigma}_{\text{Total}}} \times 100")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             Gage R&R is the standard methodology for Measurement Systems Analysis (MSA), a critical component of ensuring data integrity and process control.
             - **AIAG MSA Manual:** While from the automotive industry, this is considered the global "gold standard" reference for Gage R&R methodology and acceptance criteria.
@@ -6002,7 +6051,7 @@ def render_lod_loq():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} units", help="The lowest concentration you can report with confidence in the numerical value.")
             st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} units", help="The lowest concentration you can reliably claim is 'present'.")
@@ -6013,8 +6062,15 @@ def render_lod_loq():
 
             **The Core Strategic Insight:** The sensitivity of an assay is a direct battle between its **signal-generating power (Slope)** and its **inherent noise (SD)**. The LOD and LOQ are simply the statistical formalization of this signal-to-noise ratio.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Sensitivity Terms
+            - **Limit of Blank (LOB):** The highest measurement result that is likely to be observed for a blank sample. It defines the "noise floor" of the assay.
+            - **Limit of Detection (LOD):** The lowest concentration of analyte that can be reliably detected above the LOB, but not necessarily quantified with acceptable precision and accuracy.
+            - **Limit of Quantitation (LOQ):** The lowest concentration of analyte that can be reliably quantified with a pre-defined level of precision and accuracy. This is the lower boundary of the assay's reportable range.
+            - **Slope (Sensitivity):** In a calibration curve, the slope represents the change in analytical signal per unit change in analyte concentration. A steeper slope generally indicates a more sensitive assay.
+            """)
+        with tabs[2]:
             st.markdown("- The primary, non-negotiable criterion is that the experimentally determined **LOQ must be ≤ the lowest concentration that the assay is required to measure** for its specific application (e.g., a release specification for an impurity).")
             st.markdown("- For a concentration to be formally declared the LOQ, it must be experimentally confirmed. This typically involves analyzing 5-6 independent samples at the claimed LOQ concentration and demonstrating that they meet pre-defined criteria for precision and accuracy (e.g., **%CV < 20% and %Recovery between 80-120%** for a bioassay).")
             st.warning("""
@@ -6024,7 +6080,7 @@ def render_lod_loq():
             - **Limit of Detection (LOD):** The lowest concentration whose signal is statistically distinguishable from the LOB.
             - **Limit of Quantitation (LOQ):** The lowest concentration meeting precision/accuracy requirements, which is almost always higher than the LOD.
             """)
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context & Origin
             The need to define analytical sensitivity is old, but definitions were inconsistent until the **International Council for Harmonisation (ICH)** guideline **ICH Q2(R1)** harmonized the methodologies. This work was heavily influenced by the statistical framework established by **Lloyd Currie at NIST** in his 1968 paper, which established the clear, hypothesis-testing basis for the modern LOB/LOD/LOQ hierarchy.
@@ -6035,7 +6091,7 @@ def render_lod_loq():
             st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
             st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
             st.markdown("The factor of 10 for LOQ is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             The determination of detection and quantitation limits is a mandatory part of validating quantitative assays for impurities or trace components.
             - **ICH Q2(R1) - Validation of Analytical Procedures:** Explicitly lists "Quantitation Limit" and "Detection Limit" as key validation characteristics and provides the statistical methodologies (e.g., based on signal-to-noise or standard deviation of the response and the slope).
@@ -6085,7 +6141,7 @@ def render_linearity():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights",  "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}", help="Indicates the proportion of variance explained by the model. Note how a high R² can hide clear non-linearity!")
             st.metric(label="💡 Metric: Slope", value=f"{model.params['Nominal']:.3f}", help="Ideal = 1.0.")
@@ -6098,15 +6154,23 @@ def render_linearity():
             
             **The Core Strategic Insight:** A high R-squared is **not sufficient** to prove linearity. You must visually inspect the residual plot for hidden patterns. The residual plot tells the true story of your model's fit.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Linearity Terms
+            - **Linearity:** The ability of an analytical procedure to obtain test results which are directly proportional to the concentration of analyte in the sample.
+            - **Range:** The interval between the upper and lower concentration of analyte for which the procedure has demonstrated a suitable level of precision, accuracy, and linearity.
+            - **Residuals:** The vertical distance between an observed data point and the fitted regression line. Analyzing patterns in residuals is the best way to diagnose non-linearity.
+            - **R-squared (R²):** A statistical measure of how close the data are to the fitted regression line. While a high R² is necessary, it is not sufficient to prove linearity.
+            - **Weighted Least Squares (WLS):** A regression method used when the variance of the errors is not constant (heteroscedasticity). It gives less weight to less precise (typically high-concentration) data points.
+            """)
+        with tabs[2]:
             st.markdown("These criteria are defined in the validation protocol and must be met to declare the method linear.")
             st.markdown("- **R-squared (R²):** Typically > **0.995**, but for high-precision methods (e.g., HPLC), > **0.999** is often required.")
             st.markdown("- **Slope & Intercept:** The 95% confidence intervals for the slope and intercept should contain 1.0 and 0, respectively.")
             st.markdown("- **Residuals:** There should be no obvious pattern or trend. A formal **Lack-of-Fit test** can be used for objective proof (requires true replicates at each level).")
             st.markdown("- **Recovery:** The percent recovery at each concentration level must fall within a pre-defined range (e.g., 80% to 120% for bioassays).")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context & Origin
             The mathematical engine is **Ordinary Least Squares (OLS) Regression**, developed independently by **Adrien-Marie Legendre (1805)** and **Carl Friedrich Gauss (1809)**. The genius of OLS is that it finds the one line that **minimizes the sum of the squared vertical distances (the "residuals")** between the data points and the line.
@@ -6120,7 +6184,7 @@ def render_linearity():
             - **OLS** finds the `β` values that minimize: `Σ(yᵢ - ŷᵢ)²`
             - **WLS** finds the `β` values that minimize: `Σwᵢ(yᵢ - ŷᵢ)²`, where `wᵢ` is the weight for the i-th observation, typically `1/σ²ᵢ`.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             Linearity is a fundamental characteristic required for all quantitative analytical methods.
             - **ICH Q2(R1) - Validation of Analytical Procedures:** Mandates the evaluation of Linearity and Range for quantitative tests. It specifies that a linear relationship should be evaluated across the range of the analytical procedure.
@@ -6191,8 +6255,17 @@ def render_4pl_regression():
             st.markdown("""
             **The Core Strategic Insight:** The 4PL curve is a complete picture of your assay's performance. The **residuals plot is your most important diagnostic tool**. A random scatter around zero means your model is a good fit. Any pattern (like a curve or funnel) indicates a problem with the model or the data weighting.
             """)
-            
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Bioassay Terms
+            - **4PL (Four-Parameter Logistic) Model:** A type of non-linear regression model used to describe sigmoidal (S-shaped) dose-response curves.
+            - **Upper Asymptote (a):** The maximum response of the assay at infinite concentration (the "ceiling").
+            - **Lower Asymptote (d):** The response of the assay at zero concentration (the "floor" or background).
+            - **EC50 / IC50 (c):** The concentration that gives a response halfway between the lower and upper asymptotes. It is the primary measure of a substance's **potency**.
+            - **Hill Slope (b):** A parameter that describes the steepness of the curve at its midpoint (the EC50).
+            - **Potency:** A measure of drug activity expressed in terms of the amount required to produce an effect of a given intensity. A lower EC50 means higher potency.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: "Force the Fit"**
 - *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated and can hide significant lack of fit).
 - *"The model doesn't fit a point well. I'll delete the outlier."* (Data manipulation without statistical justification).
@@ -6202,7 +6275,7 @@ def render_4pl_regression():
 - **Weight Your Points:** Bioassay data is almost always heteroscedastic (non-constant variance). Use a weighted regression (like IRLS) to get the most accurate and reliable parameter estimates.
 - **Inspect the Residuals:** The residuals must be visually random. Any pattern indicates your model is not correctly capturing the data's behavior.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: Modeling Dose-Response
             **The Problem:** In the early 20th century, pharmacologists and biologists needed a mathematical way to describe the relationship between the dose of a substance and its biological response. This relationship was rarely linear; it typically showed a sigmoidal (S-shaped) curve, with a floor, a steep middle section, and a ceiling (saturation).
@@ -6221,7 +6294,7 @@ def render_4pl_regression():
             - **`d`**: The lower asymptote (response at zero concentration).
             Since this equation is non-linear in its parameters, it cannot be solved directly with linear algebra. It must be fit using an iterative numerical optimization algorithm (like Levenberg-Marquardt) that finds the parameter values `(a,b,c,d)` that minimize the sum of squared errors between the data and the fitted curve.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             While the 4PL model itself is a mathematical tool, its use is governed by guidelines on the validation of bioassays, where such non-linear responses are common.
             - **USP General Chapters <111>, <1032>, <1033>:** These chapters provide extensive guidance on the design and statistical analysis of biological assays. They discuss the importance of using an appropriate non-linear model to fit dose-response curves and assess parallelism.
@@ -6276,7 +6349,7 @@ def render_roc_curve():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History" "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Overall KPI: Area Under Curve (AUC)", value=f"{auc_value:.3f}",
@@ -6294,8 +6367,17 @@ def render_roc_curve():
             st.markdown("""
             **The Core Insight:** The AUC tells you how good your *assay* is. The four metrics on the right tell you how good your *decision* is at a specific cutoff. A great assay can still lead to poor outcomes if the wrong cutoff is chosen for the clinical context.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of ROC Terms
+            - **ROC Curve:** A plot of the True Positive Rate (Sensitivity) against the False Positive Rate (1 - Specificity) for all possible cutoff values of a diagnostic test.
+            - **AUC (Area Under the Curve):** A single metric (0.5 to 1.0) summarizing the overall diagnostic power of a test. 0.5 is random chance; 1.0 is a perfect test.
+            - **Cutoff / Threshold:** The specific test value used to make a decision (e.g., classify a patient as "diseased" or "healthy").
+            - **Sensitivity (TPR):** The ability of the test to correctly identify individuals who *have* the disease.
+            - **Specificity (TNR):** The ability of the test to correctly identify individuals who do *not* have the disease.
+            - **Youden's Index (J):** A statistic that captures the performance of a diagnostic test. `J = Sensitivity + Specificity - 1`. The cutoff that maximizes J is the point on the ROC curve furthest from the random chance line.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: "Worship the AUC" & "Hug the Corner"**
 - *"My AUC is 0.95, so we're done."* (The *chosen cutoff* might still be terrible for the clinical need).
 - *"I'll just pick the cutoff closest to the top-left corner."* (This balances errors equally, which is rarely desired).""")
@@ -6304,7 +6386,7 @@ Ask: **"What is worse? A false positive or a false negative?"**
 - **For deadly disease screening:** You must catch every possible case. Prioritize **maximum Sensitivity**.
 - **For confirming a diagnosis for a risky surgery:** You must be certain the patient has the disease. Prioritize **maximum Specificity** to avoid unnecessary procedures.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: From Radar Blips to Medical Labs
             **The Problem:** During World War II, engineers were developing radar to detect enemy aircraft. They faced a classic signal-detection problem: how do you set the sensitivity of the receiver? If it's too sensitive, it will pick up random noise (birds, atmospheric clutter) as enemy planes (a **false alarm**). If it's not sensitive enough, it will miss real enemy planes (a **missed hit**).
@@ -6317,7 +6399,7 @@ Ask: **"What is worse? A false positive or a false negative?"**
             st.markdown("The curve plots **Sensitivity (Y-axis)** versus **1 - Specificity (X-axis)**.")
             st.latex(r"\text{Sensitivity} = \frac{TP}{TP + FN} \quad , \quad \text{Specificity} = \frac{TN}{TN + FP}")
             st.markdown("Each point on the curve represents the (Sensitivity, 1-Specificity) pair for a specific cutoff value. The **Area Under the Curve (AUC)** has a powerful probabilistic interpretation: it is the probability that a randomly chosen 'Diseased' subject will have a higher test score than a randomly chosen 'Healthy' subject.")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             ROC analysis is the global standard for demonstrating the clinical performance of In Vitro Diagnostics (IVDs) and medical devices.
             - **FDA 21 CFR 820 (Quality System Regulation):** The design validation section (§820.30(g)) requires objective evidence that the device conforms to user needs and intended uses. For a diagnostic, this evidence is typically clinical sensitivity and specificity, which are summarized by ROC analysis.
@@ -6373,7 +6455,7 @@ def render_tost():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             status = "✅ EQUIVALENT" if is_equivalent else "❌ NOT EQUIVALENT"
@@ -6397,10 +6479,15 @@ def render_tost():
 
             **The conclusion of 'Equivalence' is reached when the entire shaded distribution in Plot 2 falls inside the light green 'Equivalence Zone'.**
             """)
-            # --- END OF EXPLANATION FIX ---
-        
-        # ... (The rest of the tabs remain the same) ...
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Equivalence Terms
+            - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference between two groups or methods is smaller than a pre-specified, practically meaningless amount.
+            - **TOST (Two One-Sided Tests):** The standard statistical method for performing an equivalence test. It involves testing two separate null hypotheses of "too different."
+            - **Equivalence Margin (Δ):** A pre-defined range `[-Δ, +Δ]` within which two products or methods are considered to be practically equivalent. Setting this margin is a critical, risk-based decision.
+            - **Confidence Interval Approach:** An equivalent method to TOST. If the 90% confidence interval for the difference between the two groups falls entirely within the equivalence margin, equivalence is demonstrated at the 5% significance level.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The Fallacy of the Non-Significant P-Value**
 - A scientist runs a standard t-test and gets a p-value of 0.25. They exclaim, *"Great, p > 0.05, so the methods are the same!"*
 - **This is wrong.** All they have shown is a *failure to find evidence of a difference*. **Absence of evidence is not evidence of absence.** Their study may have been underpowered (too much noise or too few samples).""")
@@ -6409,7 +6496,7 @@ The TOST procedure forces a more rigorous scientific approach.
 1.  **First, Define the Margin:** Before collecting data, stakeholders must use scientific and clinical judgment to define the equivalence margin (`Δ`). This is the zone where a difference is considered practically meaningless.
 2.  **Then, Prove You're Inside:** Conduct the experiment. The burden of proof is on you to show that your evidence (the 90% CI for the difference) is precise enough to fall entirely within that pre-defined margin.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Rise of Generic Drugs
             **The Problem:** In the early 1980s, the pharmaceutical landscape was changing. The **1984 Hatch-Waxman Act** in the US created the modern pathway for generic drug approval. This created a new statistical challenge for regulators: how could a generic manufacturer *prove* that their drug was "the same as" the innovator's drug in terms of how it was absorbed by the body (bioequivalence)?
@@ -6428,7 +6515,7 @@ The TOST procedure forces a more rigorous scientific approach.
             A mathematically equivalent shortcut is to calculate the **90% confidence interval** for the difference. If this entire interval falls within `[-Δ, +Δ]`, you can conclude equivalence at the 5% significance level.
             """)
             
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             TOST is the required statistical method for demonstrating similarity or equivalence in various regulated contexts.
             - **FDA Guidance on Bioequivalence Studies:** TOST is the standard method for proving that the rate and extent of absorption of a generic drug are not significantly different from the reference listed drug.
@@ -6512,7 +6599,7 @@ def render_assay_robustness_doe():
     st.subheader("Deeper Dive")
     
     # --- THIS IS THE LINE THAT WAS FIXED ---
-    tabs_deep = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs_deep = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     # --- END OF FIX ---
     
     with tabs_deep[0]:
@@ -6522,7 +6609,18 @@ def render_assay_robustness_doe():
         - **Interaction Effects:** A significant interaction (`pH:Temp`) means the factors are not independent. The effect of pH is different at high vs. low temperatures.
         - **Curvature Effects:** Significant quadratic terms (`I(pH**2)`) are the key to optimization. A negative curvature effect (as simulated by default) proves you have found a "peak" or optimal zone. A positive effect would indicate a "valley."
         """)
-    with tabs_deep[1]:
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of DOE/RSM Terms
+        - **DOE (Design of Experiments):** A systematic method to determine the relationship between factors affecting a process and the output of that process.
+        - **Factor:** An input variable that is intentionally varied during an experiment (e.g., Temperature, pH).
+        - **Response:** The output variable that is measured (e.g., Yield, Purity).
+        - **Main Effect:** The effect of a single factor on the response.
+        - **Interaction Effect:** Occurs when the effect of one factor on the response depends on the level of another factor.
+        - **RSM (Response Surface Methodology):** A collection of statistical and mathematical techniques useful for developing, improving, and optimizing processes. It uses designs (like the CCD) that can estimate curvature.
+        - **Quadratic Effect:** A term in the model that describes the curvature of the response surface. A significant quadratic effect is necessary to find a true optimum (a peak or valley).
+        """)
+    with tabs_deep[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: One-Factor-at-a-Time (OFAT)**
 Imagine trying to find the highest point on a mountain by only walking in straight lines, first due North-South, then due East-West. You will almost certainly end up on a ridge or a local hill, convinced it's the summit, while the true peak was just a few steps to the northeast.
 **The Flaw:** This is what OFAT does. It is statistically inefficient and, more importantly, it is **guaranteed to miss the true optimum** if any interaction between the factors exists.""")
@@ -6532,7 +6630,7 @@ By testing factors in combination using a dedicated design (like a Central Compo
 2.  **Understand the Terrain:** Uncover critical interaction and curvature effects that describe the true shape of the process space.
 3.  **Find the True Peak:** Develop a predictive mathematical model that acts as a GPS, guiding you directly to the optimal operating conditions.""")
 
-    with tabs_deep[2]:
+    with tabs_deep[3]:
         st.markdown("""
         #### Historical Context: From Screening to Optimization
         **The Problem (The Genesis):** In the 1920s, **Sir Ronald A. Fisher** invented Design of Experiments to solve agricultural problems. His factorial designs were brilliant for *screening*—efficiently figuring out *which* factors (e.g., fertilizer type, seed variety) were important.
@@ -6552,7 +6650,7 @@ By testing factors in combination using a dedicated design (like a Central Compo
         To get stable estimates of these coefficients, the analysis is performed on **coded variables**, where the high and low levels of each factor are scaled to be +1 and -1, respectively.
         """)
         
-    with tabs_deep[3]:
+    with tabs_deep[4]:
         st.markdown("""
         DOE and RSM are core methodologies for fulfilling the principles of Quality by Design (QbD), which is strongly encouraged by regulators.
         - **ICH Q8(R2) - Pharmaceutical Development:** This guideline introduces the concept of the **Design Space**, which is defined as "the multidimensional combination and interaction of input variables... that has been demonstrated to provide assurance of quality." RSM is the primary statistical tool used to establish a Design Space.
@@ -6609,7 +6707,7 @@ def render_mixture_design():
     
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     
     with tabs[0]:
         st.markdown("""
@@ -6622,8 +6720,17 @@ def render_mixture_design():
             - **Orange Boundary:** This is your **Design Space** or **Proven Acceptable Range (PAR)**—the set of all formulations predicted to meet your acceptance criteria.
             - **White Star:** The single "best" blend predicted by the model.
         """)
-
     with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Mixture Terms
+        - **Mixture Design:** A special class of DOE for experiments with ingredients or components of a mixture as the factors, where the response depends on the proportions of the ingredients, not their absolute amounts.
+        - **Constraint:** The mathematical requirement that the sum of the proportions of all components must equal a constant (usually 1 or 100%).
+        - **Ternary Plot:** A triangular plot used to visualize the relationship between three components of a mixture and a response variable.
+        - **Simplex:** The geometric space that defines the experimental region for a mixture. For three components, the simplex is a triangle.
+        - **Synergy:** A positive interaction effect where the combined effect of two or more components is greater than the sum of their individual effects.
+        - **Antagonism:** A negative interaction effect where the combined effect is less than the sum of their individual effects.
+        """)
+    with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: Using a Standard DOE**
 An analyst tries to use a standard factorial or response surface design to optimize a formulation.
 - **The Flaw:** Standard DOEs treat factors as independent variables that can be changed freely. In a formulation, they are not independent; increasing one component *must* decrease another. This violates the core mathematical assumptions of a standard DOE, leading to incorrect models and nonsensical predictions.""")
@@ -6633,7 +6740,7 @@ The experimental design must match the physical reality of the problem.
 2.  **Choose the Right Design:** Use a specialized experimental design, like a **Simplex-Lattice** or **Simplex-Centroid** design, which efficiently places points at the vertices, edges, and center of the formulation space.
 3.  **Use the Right Model:** Analyze the results with a model designed for mixtures, like the **Scheffé polynomial**, which correctly handles the mathematical constraints.""")
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown("""
         #### Historical Context: Solving the Chemist's Dilemma
         **The Problem:** For the first half of the 20th century, optimizing formulations was more art than science. Chemists and food scientists relied on intuition and laborious one-factor-at-a-time experiments. The powerful Design of Experiments (DOE) tools developed by Fisher and Box were of little help, as they couldn't handle the fundamental constraint that `A + B + C = 100%`.
@@ -6643,7 +6750,7 @@ The experimental design must match the physical reality of the problem.
         **The Impact:** Scheffé's work gave scientists a systematic, statistically rigorous, and highly efficient methodology to optimize blends and formulations. It transformed formulation development from guesswork into a predictable science and is now a cornerstone of product development in industries ranging from pharmaceuticals and food science to petrochemicals and materials science.
         """)
 
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         Mixture DOE is a specialized tool for establishing a **Design Space** for formulation parameters (material attributes), a core concept of **Quality by Design (QbD)**.
         - **ICH Q8(R2) - Pharmaceutical Development:** This guideline is the primary driver for this type of work. The region inside the orange boundary on the map is a direct visualization of a formulation **Design Space**. Filing this with a regulatory agency provides significant manufacturing flexibility, as movement within this space is not considered a change.
@@ -6719,7 +6826,7 @@ def render_process_optimization_suite():
 
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
         **A Realistic Workflow:**
@@ -6729,8 +6836,15 @@ def render_process_optimization_suite():
         
         **Core Insight:** The simple RSM model is for **validation and communication**. The complex ML model is for **accuracy and deep understanding**. A mature QbD program uses both in tandem. The workflow demonstrates a powerful modern paradigm: **Use DOE to build a simple, causal foundation. Then, use ML on larger historical datasets to refine that understanding and create a high-fidelity "digital twin" of your process that can be used for automated optimization.**
         """)
-        
     with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Optimization Terms
+        - **RSM (Response Surface Methodology):** A statistical technique for modeling and optimizing a response based on a set of input variables, typically using a quadratic model derived from a planned DOE.
+        - **Gradient Boosting (e.g., XGBoost):** A powerful machine learning algorithm that builds a predictive model as an ensemble of many simple "weak" decision trees. It is known for high accuracy and the ability to capture complex, non-linear relationships.
+        - **PDP (Partial Dependence Plot):** A visualization that shows the marginal effect of one or two features on the predicted outcome of a machine learning model. It helps to understand the model's behavior.
+        - **Gradient Descent:** An iterative optimization algorithm used to find the minimum of a function. In this context (maximization), it follows the positive gradient ("steepest ascent") to "climb the hill" of the predicted response surface to find the optimum.
+        """)
+    with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "ML is Magic" Fallacy**
 An analyst takes a messy historical dataset, trains a complex ML model, and uses Gradient Descent to find a "perfect" optimum without understanding the underlying causality.
 - **The Flaw:** The historical data may contain confounding. The model might learn that "high yield is correlated with Operator Bob," but this is not an actionable insight. Trying to optimize for "more Bob" is nonsensical. The model has learned a correlation, not a causal lever.""")
@@ -6740,7 +6854,7 @@ A robust optimization strategy uses the best of both worlds.
 2.  **Capture Complexity with ML:** Once you have a large historical dataset, use a more powerful ML model to capture the complex, non-linear interactions your simple RSM model might miss.
 3.  **Optimize on Causal Levers:** Finally, use optimization algorithms like Gradient Descent on your ML model, but only allow it to optimize the parameters you have already proven to be causal. This ensures your final "optimum" is both accurate and actionable.""")
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown("""
         #### Historical Context: A Convergence of Titans
         This dashboard represents the convergence of three separate, powerful intellectual traditions that developed over nearly a century.
@@ -6751,7 +6865,7 @@ A robust optimization strategy uses the best of both worlds.
         **The Modern Synthesis:** Today, we can combine these three titans. We use the principles of Fisher and Box to design smart experiments, the predictive power of Friedman's algorithms to build an accurate map, and the efficiency of Cauchy's optimization to find the peak.
         """)
         
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         This integrated workflow is a direct implementation of the most advanced principles of **Quality by Design (QbD)** and **Process Analytical Technology (PAT)**.
         - **ICH Q8(R2) - Pharmaceutical Development:** The DOE/RSM portion is the standard method for establishing a **Design Space**. The ML and Gradient Descent portions represent an advanced method for achieving a deeper **Process Understanding** and identifying an optimal **Control Strategy**.
@@ -6820,7 +6934,7 @@ def render_split_plot():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.markdown("##### ANOVA Results")
@@ -6837,8 +6951,18 @@ def render_split_plot():
                 - `C(Supplement)`: Tests the main effect of the supplement.
                 - `C(Lot):C(Supplement)`: Tests the **interaction effect**. This is often the most important result.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Split-Plot Terms
+            - **Split-Plot Design:** A type of DOE used when one or more factors are "hard-to-change" while others are "easy-to-change."
+            - **Hard-to-Change (HTC) Factor:** A factor that is difficult, expensive, or time-consuming to change between experimental runs (e.g., bioreactor setup, media lot).
+            - **Easy-to-Change (ETC) Factor:** A factor that can be easily changed between runs (e.g., supplement concentration, agitation speed).
+            - **Whole Plot:** The experimental unit to which the levels of the HTC factor are applied.
+            - **Sub-Plot:** The smaller experimental units within a whole plot, to which the levels of the ETC factor are applied.
+            - **Restricted Randomization:** The key feature of a split-plot design. The levels of the HTC factor are not fully randomized, which must be accounted for in the statistical analysis.
+            """)
+
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Pretend it's Standard" Fallacy**
 An analyst runs a split-plot experiment for convenience but analyzes it as if it were a standard, fully randomized DOE.
 - **The Flaw:** This is statistically invalid. A standard analysis assumes every run is independent, but in a split-plot, all the sub-plots within a whole plot are correlated. This error leads to incorrect p-values and a high risk of declaring an effect significant when it's just random noise.""")
@@ -6848,7 +6972,7 @@ The way you conduct your experiment dictates the only valid way to analyze it.
 2.  **Choose the Right Design:** If you do, a Split-Plot design is likely the most efficient and practical choice.
 3.  **Use the Right Model:** Analyze the results using a statistical model that correctly accounts for the two different error structures (the "whole plot error" for the HTC factor and the "sub-plot error" for the ETC factor). This is typically done with a mixed-model ANOVA.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Fertile Fields of Rothamsted
             **The Problem:** Like much of modern statistics, the Split-Plot design was born from the practical challenges of agriculture. Its inventors, **Sir Ronald A. Fisher** and **Frank Yates**, were working at the Rothamsted Experimental Station in the 1920s and 30s, the oldest agricultural research institution in the world. They faced a logistical nightmare: they wanted to test different large-scale treatments (like irrigation methods) and small-scale treatments (like crop varieties) in the same experiment.
@@ -6869,7 +6993,7 @@ The way you conduct your experiment dictates the only valid way to analyze it.
             -   `εᵢⱼₖ`: The random **sub-plot error**, ~ N(0, σ²_ε). This is the error term for testing factor B and the interaction.
             Because `σ²_γ` is typically larger than `σ²_ε`, the test for the hard-to-change factor (A) is less powerful than the test for the easy-to-change factor (B), which is the fundamental trade-off of this design.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             As a specific type of Design of Experiments, Split-Plot designs are tools used to fulfill the broader regulatory expectations around process understanding and robustness.
             - **ICH Q8(R2) - Pharmaceutical Development:** The principles of efficient experimentation to gain process knowledge are central to QbD. A split-plot design is a practical tool for achieving this when certain factors are hard to change.
@@ -6910,7 +7034,7 @@ def render_causal_inference():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="Biased Estimate (Naive Correlation)", value=f"{naive_effect:.3f}",
@@ -6923,8 +7047,16 @@ def render_causal_inference():
             - **The DAG (Top Plot):** This map shows our scientific belief. We believe a higher `Sensor Reading` *causes* higher `Purity`. However, `Calibration Age` is a **confounder**: it independently *increases* the Sensor Reading (drift) and *decreases* the Purity.
             - **The Scatter Plot (Bottom):** The naive orange line looks at all data together and concludes that higher sensor readings are associated with *lower* purity. This is **Simpson's Paradox**. The green lines show the truth: *within each calibration group (New or Old)*, the relationship is positive. The adjusted model correctly identifies this true, positive causal effect.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Causal Terms
+            - **Causation vs. Correlation:** Correlation indicates that two variables move together, but does not imply that one causes the other. Causation means that a change in one variable directly produces a change in another.
+            - **Confounding:** A situation where the relationship between two variables is distorted by a third, unobserved variable (the confounder) that is associated with both.
+            - **DAG (Directed Acyclic Graph):** A visual map of causal assumptions. Nodes represent variables, and directed arrows represent assumed causal effects.
+            - **Backdoor Path:** A non-causal path between two variables in a DAG that creates a spurious correlation. To find the true causal effect, all backdoor paths must be "blocked."
+            - **Simpson's Paradox:** A statistical phenomenon where a trend appears in several different groups of data but disappears or reverses when these groups are combined. It is a classic example of confounding.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The Correlation Trap**
 - An analyst observes that higher sensor readings are correlated with lower final purity. They recommend changing the process target to achieve lower sensor readings, believing this will improve purity.
 - **The Flaw:** This intervention would be a disaster. They are acting on a spurious correlation. The real cause of low purity is the old calibration. Their "fix" would actually make things worse by targeting the wrong variable.""")
@@ -6934,7 +7066,7 @@ A robust causal analysis follows a disciplined process.
 2.  **Identify the Backdoor Paths:** Use the DAG to identify all non-causal "backdoor" paths that create confounding. In our case, the path `Sensor Reading <- Calibration Age -> Purity` is a backdoor.
 3.  **Block the Backdoors:** Use the appropriate statistical technique (like multiple regression) to "adjust for" the confounding variable (`Calibration Age`), blocking the backdoor path and isolating the true causal effect.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Causal Revolution
             **The Problem:** For most of the 20th century, mainstream statistics was deeply allergic to the language of causation. The mantra, famously drilled into every student, was **"correlation is not causation."** While true, this left a massive void: if correlation isn't the answer, what is? Statisticians were excellent at describing relationships but had no formal language to discuss *why* those relationships existed, leaving a critical gap between data and real-world action.
@@ -6950,7 +7082,7 @@ A robust causal analysis follows a disciplined process.
             st.markdown("Pearl's **backdoor adjustment formula** shows how to calculate the intervention from observational data. To find the effect of `X` on `Y` with a set of confounders `Z`, we calculate:")
             st.latex(r"P(Y | do(X=x)) = \sum_z P(Y | X=x, Z=z) P(Z=z)")
             st.markdown("In simple terms, this means: for each level of the confounder `z`, find the relationship between `X` and `Y`, and then average those relationships across the distribution of `z`. This is precisely what a multiple regression model does when you include `Z` as a covariate.")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             Causal inference is an advanced technique that provides a rigorous framework for Root Cause Analysis (RCA), a fundamental requirement of a compliant quality system.
             - **ICH Q10 - Pharmaceutical Quality System:** Mandates a system for Corrective and Preventive Actions (CAPA) that includes a thorough investigation to determine the root cause of deviations. Causal inference provides a formal language and toolset to move beyond simple correlation in these investigations.

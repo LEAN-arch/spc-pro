@@ -6734,7 +6734,7 @@ def render_mixture_design():
         st.error("""🔴 **THE INCORRECT APPROACH: Using a Standard DOE**
         An analyst tries to use a standard factorial or response surface design to optimize a formulation.
         - **The Flaw:** Standard DOEs treat factors as independent variables that can be changed freely. In a formulation, they are not independent; increasing one component *must* decrease another. This violates the core mathematical assumptions of a standard DOE, leading to incorrect models and nonsensical predictions.""")
-                st.success("""🟢 **THE GOLDEN RULE: Use a Mixture Design for Mixture Problems**
+        st.success("""🟢 **THE GOLDEN RULE: Use a Mixture Design for Mixture Problems**
         The experimental design must match the physical reality of the problem.
         1.  **Identify the Constraint:** If your factors are ingredients or components that must sum to a constant (e.g., 100%), you have a mixture problem.
         2.  **Choose the Right Design:** Use a specialized experimental design, like a **Simplex-Lattice** or **Simplex-Centroid** design, which efficiently places points at the vertices, edges, and center of the formulation space.

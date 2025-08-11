@@ -609,15 +609,12 @@ def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
     """
     Generates a professional, interactive cascade diagram for TPP -> CQA -> CPP.
     """
-    # Define the data structure for different product types
     cascade_data = {
         "Monoclonal Antibody": {
             "TPP": "A safe, effective, and stable MAb therapeutic for IV administration.",
             "CQAs": {
-                "Purity (SEC) > 99%": {"link": "Efficacy"},
-                "Aggregate < 1%": {"link": "Safety"},
-                "Potency (ELISA) 80-120%": {"link": "Efficacy"},
-                "Charge Variant Profile": {"link": "Efficacy"},
+                "Purity (SEC) > 99%": {"link": "Efficacy"}, "Aggregate < 1%": {"link": "Safety"},
+                "Potency (ELISA) 80-120%": {"link": "Efficacy"}, "Charge Variant Profile": {"link": "Efficacy"},
                 "Stability (24 months)": {"link": "Shelf-Life"}
             },
             "CPPs": {
@@ -629,10 +626,8 @@ def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
         "IVD Kit": {
             "TPP": "A reliable and accurate diagnostic kit for early disease detection.",
             "CQAs": {
-                "Clinical Sensitivity > 98%": {"link": "Efficacy"},
-                "Clinical Specificity > 99%": {"link": "Efficacy"},
-                "Assay Precision (CV < 15%)": {"link": "Reliability"},
-                "Shelf-Life (18 months)": {"link": "Shelf-Life"}
+                "Clinical Sensitivity > 98%": {"link": "Efficacy"}, "Clinical Specificity > 99%": {"link": "Efficacy"},
+                "Assay Precision (CV < 15%)": {"link": "Reliability"}, "Shelf-Life (18 months)": {"link": "Shelf-Life"}
             },
             "CPPs": {
                 "Antibody Concentration": ["Clinical Sensitivity > 98%"],
@@ -643,10 +638,8 @@ def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
     }
     
     data = cascade_data[product_type]
-    
     fig = go.Figure()
 
-    # Node positions
     nodes = {'TPP': {'x': 0.5, 'y': 0.9}}
     cqa_keys = list(data['CQAs'].keys())
     for i, key in enumerate(cqa_keys):
@@ -655,37 +648,32 @@ def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
     for i, key in enumerate(cpp_keys):
         nodes[key] = {'x': 0.2 + 0.6 * (i / (len(cpp_keys)-1)), 'y': 0.1}
         
-    # Draw Edges (Arrows)
-    # --- THIS IS THE CORRECTED BLOCK ---
-    for cqa, links in data['CQAs'].items():
-        fig.add_annotation(x=nodes[cqa]['x'], y=nodes[cqa]['y']+0.08, ax=nodes['TPP']['x'], ay=nodes['TPP']['y']-0.08,
-                           xref='paper', yref='paper', axref='paper', ayref='paper', # <-- axref/ayref added
+    # Draw Edges (Arrows) with the corrected axref/ayref properties
+    for cqa in data['CQAs']:
+        fig.add_annotation(ax=nodes['TPP']['x'], ay=nodes['TPP']['y']-0.08,
+                           x=nodes[cqa]['x'], y=nodes[cqa]['y']+0.08,
+                           xref='paper', yref='paper', axref='paper', ayref='paper',
                            showarrow=True, arrowhead=2, arrowcolor='grey')
     for cpp, cqa_links in data['CPPs'].items():
         for link in cqa_links:
-            fig.add_annotation(x=nodes[cpp]['x'], y=nodes[cpp]['y']+0.08, ax=nodes[link]['x'], ay=nodes[link]['y']-0.08,
-                               xref='paper', yref='paper', axref='paper', ayref='paper', # <-- axref/ayref added
+            fig.add_annotation(ax=nodes[link]['x'], ay=nodes[link]['y']-0.08,
+                               x=nodes[cpp]['x'], y=nodes[cpp]['y']+0.08,
+                               xref='paper', yref='paper', axref='paper', ayref='paper',
                                showarrow=True, arrowhead=2, arrowcolor='grey')
-    # --- END OF CORRECTION ---
 
     # Draw Nodes (Boxes)
-    # TPP
     is_highlighted = data['CQAs'].get(f"Efficacy > {efficacy_target}%") or data['CQAs'].get(f"Shelf-Life ({shelf_life_target} months)")
     tpp_color = SUCCESS_GREEN if is_highlighted else PRIMARY_COLOR
     fig.add_shape(type="rect", x0=0.2, y0=0.82, x1=0.8, y1=0.98, xref='paper', yref='paper',
                   fillcolor=tpp_color, line=dict(width=2, color='black'))
     fig.add_annotation(x=0.5, y=0.9, text=f"<b>Target Product Profile (TPP)</b><br>{data['TPP']}",
                        showarrow=False, font=dict(color='white', size=14), xref='paper', yref='paper')
-
-    # CQAs
     for key, props in data['CQAs'].items():
-        is_active = (("Efficacy" in props['link'] and efficacy_target > 80) or ("Shelf-Life" in props['link'] and shelf_life_target > 12))
+        is_active = (("Efficacy" in props['link'] and efficacy_target > 90) or ("Shelf-Life" in props['link'] and shelf_life_target > 12) or ("Sensitivity" in key and efficacy_target > 95))
         cqa_color = SUCCESS_GREEN if is_active else PRIMARY_COLOR
         x_pos = nodes[key]['x']
         fig.add_shape(type="rect", x0=x_pos-0.12, y0=0.42, x1=x_pos+0.12, y1=0.58, xref='paper', yref='paper', fillcolor=cqa_color, line=dict(width=2, color='black'))
         fig.add_annotation(x=x_pos, y=0.5, text=f"<b>CQA</b><br>{key.replace(' (', '<br>(')}", showarrow=False, font=dict(color='white'), xref='paper', yref='paper')
-
-    # CPPs
     for key in data['CPPs'].keys():
         x_pos = nodes[key]['x']
         fig.add_shape(type="rect", x0=x_pos-0.12, y0=0.02, x1=x_pos+0.12, y1=0.18, xref='paper', yref='paper', fillcolor=PRIMARY_COLOR, line=dict(width=2, color='black'))
@@ -693,9 +681,7 @@ def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
     
     fig.update_layout(height=600, margin=dict(t=30, b=30),
                       xaxis=dict(visible=False, range=[0,1]), yaxis=dict(visible=False, range=[0,1]))
-    
     return fig
-
 @st.cache_data
 def plot_atp_radar_chart(assay_type, atp_values):
     """

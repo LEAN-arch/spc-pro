@@ -605,35 +605,30 @@ def create_toolkit_conceptual_map():
 #==============================================================================================================================================================================================================
 
 @st.cache_data
-def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
+def plot_tpp_cqa_cascade(product_type, target1_val, target2_val, target1_tag, target2_tag):
     """
-    Generates a professional, interactive Sankey diagram for TPP -> CQA -> CPP cascade.
+    Generates a professional, interactive Sankey diagram for TPP -> CQA -> CPP cascade for multiple project types.
     """
     cascade_data = {
         "Monoclonal Antibody": {
-            "TPP": "A safe, effective, and stable MAb therapeutic.",
-            "CQAs": {
-                "Purity > 99%": {"link": "Efficacy"}, "Aggregate < 1%": {"link": "Safety"},
-                "Potency 80-120%": {"link": "Efficacy"}, "Charge Variants": {"link": "Efficacy"},
-                "Stability": {"link": "Shelf-Life"}
-            },
-            "CPPs": {
-                "Bioreactor pH": ["Potency 80-120%", "Charge Variants"],
-                "Column Load": ["Purity > 99%", "Aggregate < 1%"],
-                "Formulation Buffer": ["Stability"]
-            }
+            "TPP": "A safe, effective, and stable MAb therapeutic.", "CQAs": {"Purity > 99%": {"link": "Efficacy"}, "Aggregate < 1%": {"link": "Safety"}, "Potency 80-120%": {"link": "Efficacy"}, "Charge Variants": {"link": "Efficacy"}, "Stability": {"link": "Shelf-Life"}},
+            "CPPs": {"Bioreactor pH": ["Potency 80-120%", "Charge Variants"], "Column Load": ["Purity > 99%", "Aggregate < 1%"], "Formulation Buffer": ["Stability"]}
         },
         "IVD Kit": {
-            "TPP": "A reliable and accurate diagnostic kit.",
-            "CQAs": {
-                "Sensitivity > 98%": {"link": "Efficacy"}, "Specificity > 99%": {"link": "Efficacy"},
-                "Precision < 15% CV": {"link": "Reliability"}, "Shelf-Life": {"link": "Shelf-Life"}
-            },
-            "CPPs": {
-                "Antibody Conc.": ["Sensitivity > 98%"],
-                "Blocking Buffer": ["Specificity > 99%"],
-                "Lyophilization Cycle": ["Shelf-Life"]
-            }
+            "TPP": "A reliable and accurate diagnostic kit.", "CQAs": {"Sensitivity > 98%": {"link": "Efficacy"}, "Specificity > 99%": {"link": "Efficacy"}, "Precision < 15% CV": {"link": "Reliability"}, "Shelf-Life": {"link": "Shelf-Life"}},
+            "CPPs": {"Antibody Conc.": ["Sensitivity > 98%"], "Blocking Buffer": ["Specificity > 99%"], "Lyophilization Cycle": ["Shelf-Life"]}
+        },
+        "Pharma Process (Small Molecule)": {
+            "TPP": "A robust and efficient process for Drug Substance X.", "CQAs": {"Impurity Profile < 0.1%": {"link": "Purity"}, "Process Yield > 85%": {"link": "Yield"}, "Correct Polymorph (Form II)": {"link": "Efficacy"}, "Particle Size (D90 < 20μm)": {"link": "Efficacy"}},
+            "CPPs": {"Reaction Temperature": ["Impurity Profile < 0.1%"], "Reagent Stoichiometry": ["Process Yield > 85%"], "Crystallization Solvent": ["Correct Polymorph (Form II)"], "Milling Speed": ["Particle Size (D90 < 20μm)"]}
+        },
+        "Instrument Qualification": {
+            "TPP": "A high-throughput, reliable liquid handler for automated sample prep.", "CQAs": {"Dispense Accuracy & Precision": {"link": "Reliability"}, "Throughput (Plates/hr)": {"link": "Throughput"}, "Cross-Contamination < 0.01%": {"link": "Reliability"}, "Uptime > 99%": {"link": "Reliability"}},
+            "CPPs": {"Pump Calibration Algorithm": ["Dispense Accuracy & Precision"], "Robotic Arm Speed": ["Throughput (Plates/hr)"], "Tip Wash Protocol": ["Cross-Contamination < 0.01%"], "Preventive Maintenance": ["Uptime > 99%"]}
+        },
+        "Computer System Validation": {
+            "TPP": "A 21 CFR Part 11 compliant LIMS for managing lab data.", "CQAs": {"Audit Trail Integrity": {"link": "Compliance"}, "User Access Control": {"link": "Compliance"}, "Report Generation Time < 5s": {"link": "Performance"}, "Data Backup & Recovery": {"link": "Compliance"}},
+            "CPPs": {"Database Schema": ["Audit Trail Integrity"], "Role-Based Permission Matrix": ["User Access Control"], "Query Optimization": ["Report Generation Time < 5s"], "Replication Strategy": ["Data Backup & Recovery"]}
         }
     }
     
@@ -646,11 +641,10 @@ def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
     
     node_colors = [PRIMARY_COLOR] + [SUCCESS_GREEN]*len(data['CQAs']) + ['#636EFA']*len(data['CPPs'])
 
-    # Highlight nodes based on slider inputs
+    # More robust highlighting logic
     for i, (key, props) in enumerate(data['CQAs'].items()):
-        is_active = (("Efficacy" in props['link'] and efficacy_target > 90) or 
-                     ("Shelf-Life" in props['link'] and shelf_life_target > 12) or 
-                     ("Sensitivity" in key and efficacy_target > 95))
+        is_active = (target1_tag in props['link'] and target1_val) or \
+                    (target2_tag in props['link'] and target2_val)
         if is_active:
             node_colors[i + 1] = '#FFBF00' # Highlight color
             
@@ -672,90 +666,11 @@ def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
             values.append(1)
 
     fig = go.Figure(data=[go.Sankey(
-        node=dict(
-            pad=25,
-            thickness=20,
-            line=dict(color="black", width=0.5),
-            label=labels,
-            color=node_colors
-        ),
-        link=dict(
-            source=sources,
-            target=targets,
-            value=values,
-            color='rgba(200,200,200,0.5)'
-        )
+        node=dict(pad=25, thickness=20, line=dict(color="black", width=0.5), label=labels, color=node_colors),
+        link=dict(source=sources, target=targets, value=values, color='rgba(200,200,200,0.5)')
     )])
     
     fig.update_layout(title_text="<b>The 'Golden Thread': TPP → CQA → CPP Cascade</b>", font_size=12, height=600)
-    return fig
-    
-@st.cache_data
-def plot_atp_radar_chart(assay_type, atp_values):
-    """
-    Generates a professional-grade radar chart for an Analytical Target Profile.
-    """
-    # Define the axes and typical performance for different assay types
-    profiles = {
-        "HPLC Purity Assay": {
-            'categories': ['Accuracy (%R)', 'Precision (%CV)', 'Linearity (R²)', 'Range (Turn-down)', 'LOD/LOQ (S/N)'],
-            'typical_performance': [99, 99, 99.9, 95, 90], # Scaled 0-100
-            'direction': [1, -1, 1, 1, 1] # 1=higher is better, -1=lower is better
-        },
-        "ELISA Potency Assay": {
-            'categories': ['Accuracy (%R)', 'Precision (%CV)', 'Linearity (R²)', 'Range (Turn-down)', 'Sensitivity'],
-            'typical_performance': [90, 85, 99, 80, 90],
-            'direction': [1, -1, 1, 1, 1]
-        }
-    }
-    
-    profile = profiles[assay_type]
-    categories = profile['categories']
-    
-    # Normalize user inputs to a 0-100 scale where 100 is always best
-    scaled_values = []
-    for i, key in enumerate(atp_values):
-        val = atp_values[key]
-        if profile['direction'][i] == -1: # Lower is better (like %CV)
-            scaled_val = 100 - (val * 4) # Simple scaling for visual effect
-        elif 'R²' in categories[i]:
-            scaled_val = (val - 0.95) / (1.0 - 0.95) * 100
-        else:
-            scaled_val = val
-        scaled_values.append(np.clip(scaled_val, 0, 100))
-        
-    fig = go.Figure()
-
-    # Layer 1: Typical Performance (Reference)
-    fig.add_trace(go.Scatterpolar(
-        r=profile['typical_performance'],
-        theta=categories,
-        fill='toself',
-        name='Typical Validated Method',
-        line=dict(color='grey'),
-        fillcolor='rgba(128,128,128,0.2)'
-    ))
-    
-    # Layer 2: User-defined Target Profile
-    fig.add_trace(go.Scatterpolar(
-        r=scaled_values,
-        theta=categories,
-        fill='toself',
-        name='Your Target Profile (ATP)',
-        line=dict(color=PRIMARY_COLOR),
-        fillcolor='rgba(0, 104, 201, 0.4)'
-    ))
-
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(visible=True, range=[0, 100], showticklabels=False, ticks=''),
-            angularaxis=dict(tickfont=dict(size=14))
-        ),
-        showlegend=True,
-        legend=dict(yanchor="bottom", y=-0.2, xanchor="center", x=0.5, orientation="h"),
-        title=f"<b>Analytical Target Profile for {assay_type}</b>"
-    )
-    
     return fig
 
 @st.cache_data
@@ -4894,25 +4809,50 @@ def render_tpp_cqa_cascade():
     
     st.info("""
     **Interactive Demo:** You are the Head of Product Development.
-    1.  Select a **Product Type** to see its unique quality cascade.
-    2.  Use the **TPP Target Sliders** to define your product's ambition. Notice how increasing a target (e.g., higher Efficacy) highlights the specific CQAs (in yellow) that are critical to achieving that goal.
+    1.  Select a **Project Type** to see its unique quality cascade.
+    2.  Use the **TPP Target Sliders** in the sidebar to define your project's ambition. Notice how increasing a target highlights the specific CQAs (in yellow) that are critical to achieving that goal.
     """)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        product_type = st.selectbox("Select Product Type", ["Monoclonal Antibody", "IVD Kit"])
+    project_type = st.selectbox(
+        "Select a Project Type to visualize its Quality Cascade:", 
+        ["Monoclonal Antibody", "IVD Kit", "Pharma Process (Small Molecule)", "Instrument Qualification", "Computer System Validation"]
+    )
     
-    efficacy_target, shelf_life_target = 90, 12
+    # Initialize generic target values and tags
+    target1_val, target2_val = None, None
+    target1_tag, target2_tag = "", ""
+
     with st.sidebar:
         st.subheader("TPP Target Controls")
         if product_type == "Monoclonal Antibody":
-            efficacy_target = st.slider("Desired Efficacy Target (%)", 80, 120, 95, 1, help="The target for the product's biological activity. Higher targets place more pressure on potency and purity CQAs.")
-            shelf_life_target = st.slider("Required Shelf-Life (Months)", 12, 36, 24, 1, help="The required stability of the final product. Longer shelf-life places more pressure on formulation CQAs.")
+            target1_val = st.slider("Desired Efficacy Target (%)", 80, 120, 95, 1, help="Why > 100%? Potency is often measured *relative* to a Reference Standard (defined as 100%). A process improvement could yield a more potent drug.")
+            target1_tag = "Efficacy"
+            target2_val = st.slider("Required Shelf-Life (Months)", 12, 36, 24, 1)
+            target2_tag = "Shelf-Life"
         elif product_type == "IVD Kit":
-            efficacy_target = st.slider("Desired Clinical Sensitivity (%)", 90, 100, 98, 1, help="The target for correctly identifying true positives. Higher targets place more pressure on reagent concentration and quality.")
-            shelf_life_target = st.slider("Required Shelf-Life (Months)", 6, 24, 18, 1, help="The required stability of the diagnostic kit components.")
-            
-    fig = plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target)
+            target1_val = st.slider("Desired Clinical Sensitivity (%)", 90, 100, 98, 1)
+            target1_tag = "Efficacy"
+            target2_val = st.slider("Required Shelf-Life (Months)", 6, 24, 18, 1)
+            target2_tag = "Shelf-Life"
+        elif product_type == "Pharma Process (Small Molecule)":
+            target1_val = st.slider("Target Process Yield (%)", 75, 95, 85, 1, help="Higher yield is a key business driver.")
+            target1_tag = "Yield"
+            target2_val = st.slider("Target Purity Level (%)", 99.0, 99.9, 99.5, 0.1, format="%.1f", help="Higher purity is critical for patient safety.")
+            target2_tag = "Purity"
+        elif product_type == "Instrument Qualification":
+            target1_val = st.slider("Target Throughput (Plates/hr)", 10, 100, 50, 5, help="Higher throughput is a key performance requirement.")
+            target1_tag = "Throughput"
+            target2_val = st.slider("Target Reliability (Uptime %)", 95.0, 99.9, 99.0, 0.1, format="%.1f", help="Higher uptime is critical for operational efficiency.")
+            target2_tag = "Reliability"
+        elif product_type == "Computer System Validation":
+            target1_val = st.slider("Target Performance (Report Time in sec)", 1, 10, 5, 1, help="Faster performance is a key user requirement. Lower is better.")
+            target1_tag = "Performance" # Note: Highlighting logic in plot is for 'greater than'
+            # To make the slider highlight, we invert the value
+            target1_val = 11 - target1_val # Now a higher slider value means better performance
+            target2_val = st.checkbox("Full 21 CFR Part 11 Compliance Required", value=True)
+            target2_tag = "Compliance"
+
+    fig = plot_tpp_cqa_cascade(product_type, target1_val, target2_val, target1_tag, target2_tag)
     st.plotly_chart(fig, use_container_width=True)
     
     st.divider()
@@ -4921,11 +4861,11 @@ def render_tpp_cqa_cascade():
     with tabs[0]:
         st.markdown("""
         **Reading the Cascade:**
-        - **TPP (Left):** This is the contract with the patient and the business. It defines what the product must do.
-        - **CQAs (Middle):** These are the measurable, scientific properties the *product* must possess to fulfill the TPP. For example, to be "effective," the product must have high "Potency."
-        - **CPPs (Right):** These are the measurable, controllable knobs on the *process* that influence the CQAs. For example, "Bioreactor pH" is a CPP that is known to affect the final "Potency" of a MAb.
+        - **TPP (Left):** This is the contract with the patient and the business. It defines what the product, process, or system must do.
+        - **CQAs (Middle):** These are the measurable, scientific properties the *product* must possess (or performance attributes the *system* must have) to fulfill the TPP.
+        - **CPPs (Right):** These are the measurable, controllable knobs on the *process* or *design* that influence the CQAs.
 
-        **The Interactive Connection:** As you move the sliders, the CQAs directly impacted by your decision are highlighted in yellow. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be controlled.
+        **The Interactive Connection:** As you move the sliders, the CQAs directly impacted by your decision are highlighted in yellow. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be designed and controlled.
         """)
     with tabs[1]:
         st.success("🟢 **THE GOLDEN RULE:** Begin with the End in Mind. A validation program that does not start with a clearly defined Target Product Profile is a project without a destination. The TPP is the formal document that prevents 'scope creep' and ensures that all development and validation activities are focused on delivering a product that meets the specific, pre-defined needs of the patient and the business.")
@@ -4935,6 +4875,7 @@ def render_tpp_cqa_cascade():
         st.markdown("""
         - **ICH Q8(R2) - Pharmaceutical Development:** This is the primary guideline. It explicitly defines the **Target Product Profile (TPP)** as the starting point and the **Critical Quality Attributes (CQA)** as the foundation for product and process development.
         - **FDA Guidance on Process Validation (2011):** The entire lifecycle approach is built on this foundation. **Stage 1 (Process Design)** is the activity of translating the CQAs into a robust manufacturing process by identifying and controlling the CPPs.
+        - **GAMP 5:** For instruments and software, the TPP is analogous to the **User Requirement Specification (URS)**, and the CQAs are analogous to the high-level **Functional Specifications (FS)**.
         """)
 
 def render_atp_builder():

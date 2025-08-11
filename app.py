@@ -4813,6 +4813,9 @@ def render_introduction_content():
     """Renders the complete, all-in-one introduction and framework dashboard."""
     st.title("🛠️ Biotech V&V Analytics Toolkit")
     st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
+        # --- NAME ADDED HERE ---
+    st.markdown("<h4 style='text-align: left; color: grey;'><i>Developed by [Jose Bautista, MSc, LSSBB, PMP]</i></h4>", unsafe_allow_html=True)
+    # --- END OF ADDITION ---
     st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
     st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
     
@@ -4859,6 +4862,20 @@ def render_introduction_content():
     st.header("🗺️ Conceptual Map of Tools")
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
+
+  # --- CONTACT INFORMATION ADDED HERE ---
+    st.divider()
+    st.markdown(
+        """
+        <p style='text-align: center; color: grey;'>
+        Contact: 
+        <a href="mailto:[jbautistads@gmail.com]">📧 Email</a> | 
+        <a href="https://www.linkedin.com/in/[josebautista]/">🔗 LinkedIn</a> | 
+        </p>
+        """, 
+        unsafe_allow_html=True
+    )
+    # --- END OF ADDITION ---
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================

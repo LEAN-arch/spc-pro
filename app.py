@@ -4870,7 +4870,7 @@ def render_introduction_content():
         <p style='text-align: center; color: grey;'>
         Contact: 
         📧 Email: jbautistads@gmail.com | 
-        🔗 LinkedIn: linkedin.com/in/josebautista/| 
+        🔗 LinkedIn: linkedin.com/in/josebautista/ 
         </p>
         """, 
         unsafe_allow_html=True

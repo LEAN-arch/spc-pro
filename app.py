@@ -8952,7 +8952,7 @@ def render_xai_shap():
     """)
 
     st.info("""
-    **Interactive Demo:** This dashboard shows a full XAI workflow.
+    **Interactive Demo:** This dashboard shows a full XAI workflow. Since the tool is computationally intensive, it may take some time to load.
     1.  **Global Explanations:** See the model's overall strategy in the Beeswarm plot.
     2.  **Local Explanations:** Select a specific case to investigate and see its root cause analysis in the Waterfall plot.
     3.  **Feature Deep Dive:** Use the PDP/ICE Plot to explore how the model uses a single feature across all samples.
@@ -8970,7 +8970,6 @@ def render_xai_shap():
             }[key]
         )
         
-        # We need the original feature names for the user to select from
         feature_names = ['Operator Experience (Months)', 'Reagent Age (Days)', 'Calibrator Slope', 'QC Level 1 Value', 'Instrument ID']
         dependence_feature_choice = st.sidebar.selectbox(
             "Select Feature for Deep Dive Plot:",
@@ -8982,21 +8981,23 @@ def render_xai_shap():
         dependence_feature=dependence_feature_choice
     )
     
-    tab1, tab2, tab3, tab4 = st.tabs(["Global Explanations", "Local Explanation", "Feature Deep Dive", "🔬 SME Analysis", "📋 Glossary", "🏛️ Regulatory & Compliance"])
+    # --- THIS IS THE CORRECTED TAB CREATION ---
+    tabs = st.tabs(["Global Explanations", "Local Explanation", "Feature Deep Dive", "🔬 SME Analysis", "📋 Glossary", "🏛️ Regulatory & Compliance"])
+    # --- END OF CORRECTION ---
 
-    with tab1:
+    with tabs[0]:
         st.subheader("Global Feature Importance (The Model's General Strategy)")
         st.markdown("This **Beeswarm plot** shows the impact of every feature for every sample. Each dot is a single run. Red dots are high feature values, blue are low. A positive SHAP value increases the prediction of failure.")
         st.image(summary_buf)
 
-    with tab2:
+    with tabs[1]:
         st.subheader(f"Local Root Cause Analysis for Run #{idx} ({case_choice.replace('_', ' ').title()})")
         st.markdown(f"**This run was selected for analysis. Actual Outcome: `{outcome}`**")
         st.dataframe(instance_df)
         st.markdown("The **Waterfall plot** below shows exactly how each feature contributed to this specific prediction, starting from the base rate and building to the final risk score.")
         st.image(waterfall_buf)
 
-    with tab3:
+    with tabs[2]:
         st.subheader(f"Feature Deep Dive: '{dependence_feature_choice}'")
         st.markdown("""
         The **Partial Dependence Plot (PDP)** with **Individual Conditional Expectation (ICE)** lines shows how a feature affects predictions.
@@ -9005,7 +9006,7 @@ def render_xai_shap():
         """)
         st.image(pdp_buf)
 
-    with tab4:
+    with tabs[3]:
         st.markdown("""
         #### SME Analysis: From Raw Data to Actionable Intelligence
         As a Subject Matter Expert (SME) in process validation and tech transfer, this tool isn't just a data science curiosity; it's a powerful diagnostic and risk-management engine. Here’s how we would use this in a real-world GxP environment.
@@ -9032,7 +9033,7 @@ def render_xai_shap():
         2.  **Phase 2 (Advisory Mode):** The system is integrated with the LIMS. It can generate advisories like: **"Warning: Reagent Lot XYZ is 85 days old. This significantly increases risk. Consider using a newer lot."**
         3.  **Phase 3 (Proactive Control / Real-Time Release):** A fully validated model's predictions can become part of the batch record. A run with a very low predicted risk and a favorable SHAP explanation could be eligible for **Real-Time Release Testing (RTRT)**, accelerating production timelines.
         """)
-    with tabs[5]:
+    with tabs[4]:
         st.markdown("""
         ##### Glossary of XAI Terms
         - **XAI (Explainable AI):** A field of AI dedicated to creating techniques that produce machine learning models that are understandable and trustworthy to human users.
@@ -9042,7 +9043,7 @@ def render_xai_shap():
         - **Local Explanation:** An explanation for a single, specific prediction (e.g., the Waterfall plot, which shows how each feature contributed to the risk score for one specific batch).
         - **PDP (Partial Dependence Plot):** A plot that shows the marginal effect of a feature on the predicted outcome of a model.
         """)
-    with tabs[6]: # Note: this is the 5th tab
+    with tabs[5]:
         st.markdown("""
         Explainable AI (XAI) is a critical emerging field for the validation of AI/ML models in a regulated environment. It addresses the "black box" problem.
         - **FDA AI/ML Action Plan:** The FDA is actively developing its framework for regulating AI/ML-based software. A key principle is transparency, and XAI methods like SHAP provide the evidence that a model's reasoning is scientifically sound.
@@ -9091,31 +9092,41 @@ def render_advanced_ai_concepts():
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        tabs = st.tabs(["💡 Application Insight", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             if concept_key == "Transformers":
                 st.metric(label="🧠 Core Concept", value="Self-Attention")
                 st.markdown("**The AI Historian for Your Batch Record.** It learns long-range dependencies, such as how an early event in a batch influences the final outcome weeks later.")
-                st.markdown("**Challenge:** A batch fails, but the root cause isn't obvious. Was it an event on Day 3 or a slow drift starting on Day 9?")
-                st.markdown("**AI Solution:** A Transformer can analyze the entire multivariate history of a batch. By examining its attention weights (red bars), we can ask the model: 'To predict the final titer, which days were most important?' This can pinpoint critical process periods that univariate SPC would miss.")
             elif concept_key == "Graph Neural Networks (GNNs)":
                 st.metric(label="🧠 Core Concept", value="Message Passing")
                 st.markdown("**The System-Wide Process Cartographer.** It models your entire facility as a network to trace contamination or failures back to their root cause.")
-                st.markdown("**Challenge:** A QC assay for a released batch fails. Which of the dozens of raw material lots used across multiple batches is the most likely root cause?")
-                st.markdown("**AI Solution:** A GNN models the entire supply chain as a network. When a failure is input, it propagates a 'guilt' signal backwards through the graph, increasing the `P(Cause)` for all connected lots. This allows for rapid, targeted investigations.")
             elif concept_key == "Reinforcement Learning (RL)":
                 st.metric(label="🧠 Core Concept", value="Reward Maximization")
                 st.markdown("**The AI Process Optimization Pilot.** It learns the optimal control strategy for a process by running millions of experiments in a safe, digital twin environment.")
-                st.markdown("**Challenge:** During tech transfer to a new site, the optimal feeding strategy for a bioreactor is unknown and expensive to determine experimentally.")
-                st.markdown("**AI Solution:** An RL agent is trained in a 'digital twin' (a high-fidelity simulation) of the new site's bioreactor. It runs millions of virtual batches to learn an optimal, robust feeding policy before the first real GMP run ever starts.")
             elif concept_key == "Generative AI":
                 st.metric(label="🧠 Core Concept", value="Distribution Learning")
                 st.markdown("**The Synthetic Data Factory.** It learns from a few examples of rare events and generates new, realistic synthetic examples to train more robust predictive models.")
-                st.markdown("**Challenge:** We want to build a model to predict rare Out-of-Specification (OOS) events for an assay, but we only have 4 historical examples.")
-                st.markdown("**AI Solution:** A Generative AI model can learn the statistical 'fingerprint' of the few real failures. It can then generate hundreds of new, plausible synthetic failure examples. This augmented dataset can then be used to train a robust predictive QC classifier.")
-        
+
         with tabs[1]:
+            # --- THIS IS THE DYNAMIC GLOSSARY ---
+            st.markdown("##### Glossary of Key Terms")
+            if concept_key == "Transformers":
+                st.markdown("- **Self-Attention:** A mechanism that allows a model to weigh the importance of different parts of the input sequence when processing a specific part. This is the core innovation of the Transformer.")
+                st.markdown("- **Tokenization:** The process of converting a sequence of data (like a time series) into a series of discrete units or 'tokens' that the model can understand.")
+            elif concept_key == "Graph Neural Networks (GNNs)":
+                st.markdown("- **Graph:** A data structure consisting of 'nodes' (entities, e.g., raw material lots) and 'edges' (the relationships between them).")
+                st.markdown("- **Message Passing:** The fundamental operation of a GNN, where each node aggregates information from its neighbors to update its own state or representation.")
+            elif concept_key == "Reinforcement Learning (RL)":
+                st.markdown("- **Agent:** The AI model that learns to make decisions (e.g., the feeding policy).")
+                st.markdown("- **Environment:** The world the agent interacts with. In this case, a high-fidelity simulation of a bioreactor (a 'digital twin').")
+                st.markdown("- **Reward:** A numerical signal that tells the agent how good or bad its last action was. The agent's goal is to maximize the cumulative reward over time.")
+            elif concept_key == "Generative AI":
+                st.markdown("- **Generative Model:** An AI model that learns the underlying probability distribution of a dataset and can generate new, synthetic samples from that distribution.")
+                st.markdown("- **Discriminative Model:** The more common type of AI model, which learns to distinguish between different categories of data (e.g., a classifier that predicts Pass/Fail).")
+            # --- END OF DYNAMIC GLOSSARY ---
+
+        with tabs[2]:
             if concept_key == "Transformers":
                 st.success("🟢 **THE GOLDEN RULE:** Tokenize Your Process Narrative. Convert continuous data into a discrete sequence of meaningful events (e.g., `[Feed_Event, pH_Excursion, Operator_Shift]`).")
             elif concept_key == "Graph Neural Networks (GNNs)":
@@ -9125,71 +9136,24 @@ def render_advanced_ai_concepts():
             elif concept_key == "Generative AI":
                 st.success("🟢 **THE GOLDEN RULE:** Validate the Forgeries. The generated data is only useful if it is proven to be statistically indistinguishable from real data.")
         
-        with tabs[2]:
+        with tabs[3]:
             if concept_key == "Transformers":
-                st.markdown("""
-                #### Historical Context: Attention is All You Need
-                **The Problem:** For years, Recurrent Neural Networks (RNNs) and LSTMs were the state-of-the-art for sequence data, but their sequential nature made them slow and poor at capturing very long-range dependencies.
-                
-                **The 'Aha!' Moment:** The 2017 Google Brain paper, **"Attention Is All You Need,"** introduced the Transformer architecture. It completely discarded recurrence and relied solely on a mechanism called **self-attention**, allowing every point in a sequence to directly look at every other point.
-                
-                **The Impact:** This was a revolution. Transformers could be trained in parallel, were vastly more efficient, and excelled at capturing long-range context. This breakthrough is the foundation for virtually all modern large language models, including GPT.
-                """)
-                st.markdown("#### Mathematical Basis")
-                st.markdown("The core of a Transformer is the **Scaled Dot-Product Attention** mechanism:")
-                st.latex(r"\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V")
-                st.markdown("Where `Q` (Queries), `K` (Keys), and `V` (Values) are matrices derived from the input sequence. This operation allows every point to dynamically decide which other points are most important and weight their influence accordingly.")
-
+                st.markdown("The 2017 Google Brain paper, **'Attention Is All You Need,'** introduced the Transformer. It discarded recurrence and relied solely on **self-attention**, allowing every point in a sequence to directly 'look at' every other point. This is the foundation of all modern Large Language Models.")
             elif concept_key == "Graph Neural Networks (GNNs)":
-                st.markdown("""
-                #### Historical Context: Deep Learning on Networks
-                **The Problem:** Deep learning achieved massive success on orderly data like images (grids) and text (sequences). But how could you apply it to irregular, networked data like social networks, molecular structures, or supply chains?
-                
-                **The 'Aha!' Moment:** The field exploded around 2017-2018 with the development of unifying frameworks like **Message Passing Neural Networks (MPNNs)**. The key insight was to create a "convolution-like" operation for graphs: each node would update its state by aggregating information ("messages") from its immediate neighbors.
-                
-                **The Impact:** GNNs generalized deep learning to a much broader class of problems. They are now state-of-the-art for tasks like drug discovery (predicting molecular properties) and fraud detection (finding anomalous patterns in transaction networks).
-                """)
-                st.markdown("#### Mathematical Basis")
-                st.markdown("GNNs work via **neighbor aggregation** or **message passing**. To update the state (embedding) `h_v` of a node `v`, the GNN aggregates messages from all its neighboring nodes `u` in the set `N(v)`:")
-                st.latex(r"h_v^{(k)} = \text{UPDATE}^{(k)}\left(h_v^{(k-1)}, \bigoplus_{u \in N(v)} \phi^{(k)}(h_u^{(k-1)})\right)")
-                st.markdown("This process is repeated for `k` layers, allowing information to propagate across the graph. The `UPDATE` and `AGGREGATE` (⊕, φ) functions are learnable neural networks.")
-
+                st.markdown("Pioneered around 2017, GNNs generalize deep learning to irregular graph data. The core insight is **message passing**, where each node updates its state by aggregating information from its neighbors, allowing complex relationships to be modeled.")
             elif concept_key == "Reinforcement Learning (RL)":
-                st.markdown("""
-                #### Historical Context: Learning from Trial and Error
-                **The Problem:** How do you teach a machine to perform a complex task, like playing a game or controlling a robot, without explicitly programming the rules for every possible situation?
-                
-                **The 'Aha!' Moment:** RL, with deep roots in control theory and psychology, provided the answer: let the agent learn from trial and error. The breakthrough came in the mid-2010s when researchers at **DeepMind** combined traditional RL algorithms with deep neural networks.
-                
-                **The Impact:** Their landmark achievement, **AlphaGo**, defeated the world's best Go player in 2016. This demonstrated that "Deep RL" could solve problems with enormous state spaces previously thought to be intractable, sparking a massive wave of research into self-learning systems for everything from game playing to process control.
-                """)
-                st.markdown("#### Mathematical Basis")
-                st.markdown("RL agents learn to maximize a cumulative reward. The core is the **Bellman equation**, which defines the optimal action-value function `Q*(s, a)`:")
-                st.latex(r"Q^*(s, a) = E\left[R_{t+1} + \gamma \max_{a'} Q^*(s', a')\right]")
-                st.markdown("This states that the value of taking action `a` in state `s` is the immediate reward `R` plus the discounted (`γ`) value of the best possible action from the next state `s'`. Deep RL uses a neural network to approximate this `Q*` function.")
-        
+                st.markdown("With roots in control theory, the modern era of RL was sparked by **DeepMind's AlphaGo** (2016). By combining traditional RL with deep neural networks, they demonstrated that an AI agent could learn superhuman strategies in complex environments through self-play.")
             elif concept_key == "Generative AI":
-                st.markdown("""
-                #### Historical Context: Teaching AI to Create
-                **The Problem:** For decades, AI was primarily *discriminative*—it could classify images, but not create them. How could you teach a machine to generate new, realistic data that looked like it came from a given dataset?
-                
-                **The 'Aha!' Moment:** The field was revolutionized in 2014 by Ian Goodfellow's invention of **Generative Adversarial Networks (GANs)**. The key insight was to pit two neural networks against each other in a game: a **Generator** trying to create realistic fakes, and a **Discriminator** trying to tell the fakes from real data.
-                
-                **The Impact:** This adversarial game forces the generator to become incredibly good at mimicking the true data distribution. This sparked a creative explosion in AI. More recently, **Diffusion Models** (popularized by models like DALL-E 2 and Stable Diffusion) have become state-of-the-art for many generation tasks.
-                """)
-                st.markdown("#### Mathematical Basis")
-                st.markdown("In a **GAN**, the Generator `G` and Discriminator `D` play a minimax game. The Generator tries to minimize a value function `V(D, G)` while the Discriminator tries to maximize it:")
-                st.latex(r"\min_G \max_D V(D, G) = E_{x \sim p_{data}}[\log D(x)] + E_{z \sim p_z}[\log(1 - D(G(z)))]")
-                st.markdown("This game theoretically converges when the generator's distribution is identical to the real data distribution, meaning the discriminator can't do better than random guessing.")
-            with tabs[3]:
-                st.markdown("""
-                These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-                - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
-                - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-                - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-                - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-                - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-                """)
+                st.markdown("Revolutionized in 2014 by Ian Goodfellow's invention of **Generative Adversarial Networks (GANs)**, which pit a 'Generator' and a 'Discriminator' against each other. This adversarial game forces the generator to create incredibly realistic synthetic data.")
+        
+        with tabs[4]:
+            st.markdown("""
+            These advanced AI/ML methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA AI/ML Action Plan & GMLP:** These tools are part of the emerging field of AI/ML in regulated industries. They must align with principles of transparency, risk management, and model lifecycle management as defined in developing guidance like the FDA's Action Plan and Good Machine Learning Practice (GMLP).
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
 #==============================================================================================================================================================================================
 #======================================================================NEW METHODS UI RENDERING ==============================================================================================
 #=============================================================================================================================================================================================

@@ -10103,7 +10103,7 @@ else:
         "Quality Risk Management (FMEA)": render_fmea,
         "Validation Master Plan (VMP) Builder": render_vmp_builder,
         "Requirements Traceability Matrix (RTM)": render_rtm_builder,
-        "Design for Excellence (DfX)": render_dfx_dashboard
+        "Design for Excellence (DfX)": render_dfx_dashboard,
         # Act I
         "Confidence Interval Concept": render_ci_concept,
         "Confidence Intervals for Proportions": render_proportion_cis,

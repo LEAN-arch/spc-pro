@@ -2307,7 +2307,7 @@ def plot_process_equivalence(cpk_site_a, mean_shift, var_change_factor, n_sample
     diff_cpk = cpk_b_sample - cpk_a_sample
 
     # 4. Perform Equivalence Test (Bootstrap CI for Cpk difference)
-    @st.cache_data
+    # --- THIS DECORATOR HAS BEEN REMOVED ---
     def bootstrap_cpk_diff(d1, d2, l, u, n_boot=1000):
         boot_diffs = []
         for _ in range(n_boot):
@@ -2317,6 +2317,7 @@ def plot_process_equivalence(cpk_site_a, mean_shift, var_change_factor, n_sample
             boot_cpk2 = calculate_cpk(s2, l, u)
             boot_diffs.append(boot_cpk2 - boot_cpk1)
         return np.array(boot_diffs)
+    # --- END OF FIX ---
 
     boot_diffs = bootstrap_cpk_diff(data_a, data_b, lsl, usl)
     ci_lower, ci_upper = np.percentile(boot_diffs, [5, 95]) # 90% CI for TOST

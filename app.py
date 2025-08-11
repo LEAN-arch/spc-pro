@@ -7060,7 +7060,7 @@ def render_causal_inference():
             st.error("""🔴 **THE INCORRECT APPROACH: The Correlation Trap**
             - An analyst observes that higher sensor readings are correlated with lower final purity. They recommend changing the process target to achieve lower sensor readings, believing this will improve purity.
             - **The Flaw:** This intervention would be a disaster. They are acting on a spurious correlation. The real cause of low purity is the old calibration. Their "fix" would actually make things worse by targeting the wrong variable.""")
-                        st.success("""🟢 **THE GOLDEN RULE: Draw the Map, Block the Backdoors**
+            st.success("""🟢 **THE GOLDEN RULE: Draw the Map, Block the Backdoors**
             A robust causal analysis follows a disciplined process.
             1.  **Draw the Map (Build the DAG):** Collaborate with Subject Matter Experts to encode all domain knowledge and causal beliefs into a formal DAG.
             2.  **Identify the Backdoor Paths:** Use the DAG to identify all non-causal "backdoor" paths that create confounding. In our case, the path `Sensor Reading <- Calibration Age -> Purity` is a backdoor.

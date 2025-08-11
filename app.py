@@ -4814,13 +4814,12 @@ def render_introduction_content():
     st.title("🛠️ Biotech V&V Analytics Toolkit")
     st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
     # --- NEW, PROFESSIONAL HEADER SECTION ---
-    st.markdown("---")
     col1, col2 = st.columns([1, 2]) # Create two columns for the header
 
     with col1:
         # Use simple HTML for styling and line breaks
         st.markdown(
-            "<p style='color: grey;'>Developed by<br><b>Jose Bautista, MSc, LSSBB, PMP</b></p>", 
+            "<p style='color: grey; margin-bottom: 0;'>Developed by<br><b>Jose Bautista, MSc, LSSBB, PMP</b></p>", 
             unsafe_allow_html=True
         )
 
@@ -4828,7 +4827,7 @@ def render_introduction_content():
         # Right-align the contact information
         st.markdown(
             """
-            <div style='text-align: right; color: grey;'>
+            <div style='text-align: right; color: grey; margin-bottom: 0;'>
             <b>Contact Information</b><br>
             📧 jbautistads@gmail.com<br>
             🔗 linkedin.com/in/josebautista
@@ -4885,19 +4884,7 @@ def render_introduction_content():
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
 
-  # --- CONTACT INFORMATION ADDED HERE ---
-    st.divider()
-    st.markdown(
-        """
-        <p style='text-align: center; color: grey;'>
-        Contact: 
-        📧 Email: jbautistads@gmail.com | 
-        🔗 LinkedIn: linkedin.com/in/josebautista/ 
-        </p>
-        """, 
-        unsafe_allow_html=True
-    )
-    # --- END OF ADDITION ---
+
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================

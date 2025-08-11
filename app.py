@@ -7159,7 +7159,7 @@ def render_sample_size_calculator():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
         with tabs[0]:
             st.metric(
@@ -7178,8 +7178,16 @@ def render_sample_size_calculator():
             - As `n` increases, your statistical power increases, allowing you to claim higher reliability.
             - Notice the **Hypergeometric curve (orange dash)** is always above the Binomial curve. This shows that for a finite lot, you need a slightly smaller sample size to make the same statistical claim, as each good part you draw slightly increases the chance the next one is good.
             """)
-        
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Sampling Terms
+            - **Acceptance Sampling:** A statistical method used to determine whether to accept or reject a production lot of material based on the inspection of a sample.
+            - **Confidence (C):** The probability that the conclusion you draw from your sample is correct. A 95% confidence level means you are accepting a 5% risk of being wrong (drawing a "lucky" good sample from a bad lot).
+            - **Reliability (R):** The proportion of conforming items in the lot or process. A reliability of 99% means the true defect rate is no more than 1%.
+            - **Binomial Distribution:** A probability model used when sampling from a very large or continuous population (sampling with replacement). The probability of success is constant for each trial.
+            - **Hypergeometric Distribution:** A probability model used when sampling from a small, finite population without replacement. The probability of success changes with each draw.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Square Root of N Plus One" Fallacy**
 An engineer is asked for a sampling plan and defaults to an arbitrary, non-statistical rule of thumb they learned years ago, like `n = sqrt(Lot Size) + 1`.
 - **The Flaw:** This plan is completely disconnected from risk. It cannot answer the question: "What level of confidence and reliability does this plan provide?" It is indefensible during a regulatory audit.""")
@@ -7189,7 +7197,7 @@ A compliant and statistically sound sampling plan is always derived from pre-def
 2.  **Then, Justify the Model:** Choose the correct statistical model for the situation (Binomial for a continuous process, Hypergeometric for a finite lot).
 3.  **Finally, Calculate `n`:** The required sample size is the direct mathematical output of the first two steps. This creates a clear, traceable, and audit-proof justification for your validation plan.""")
             
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: From Gosset's Brewery to Modern Industry
             **The Problem:** At the turn of the 20th century, William Sealy Gosset, a chemist at the Guinness brewery in Dublin, faced a problem central to industrial quality control: how to make reliable conclusions from very small samples. The classical statistical theory of the time required large samples, but Gosset could only afford to take a few measurements from each batch of beer. This practical constraint forced a revolution in statistics.
@@ -7201,7 +7209,7 @@ A compliant and statistically sound sampling plan is always derived from pre-def
             **The Modern Synthesis:** Today's practices blend both legacies. Gosset's "small-sample" thinking justifies using triplicates for preliminary repeatability checks, while the military's acceptance sampling framework provides the high-assurance models needed for final product release and process qualification.
             """)
         
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             A statistically justified sampling plan is a fundamental expectation in any GxP-regulated environment. It provides the **objective evidence** required to support validation claims and batch disposition decisions.
             

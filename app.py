@@ -8952,7 +8952,7 @@ def render_xai_shap():
     """)
 
     st.info("""
-    **Interactive Demo:** This dashboard shows a full XAI workflow. The tool is computationally intensive, and depending on latency, it may take a minute to load.
+    **Interactive Demo:** This dashboard shows a full XAI workflow. **The tool is computationally intensive, and depending on latency, it may take a minute to load.**
     1.  **Global Explanations:** See the model's overall strategy in the Beeswarm plot.
     2.  **Local Explanations:** Select a specific case to investigate and see its root cause analysis in the Waterfall plot.
     3.  **Feature Deep Dive:** Use the PDP/ICE Plot to explore how the model uses a single feature across all samples.
@@ -9170,7 +9170,7 @@ def render_mewma_xgboost():
     - **Detect:** The MEWMA chart excels at finding subtle "stealth shifts" that individual charts would miss because it understands the process's normal correlation structure.
     - **Diagnose:** Instead of technicians guessing the cause of an alarm, the SHAP plot provides an immediate, data-driven "Top Suspects" list, dramatically accelerating troubleshooting.
     """)
-    st.info("""**Interactive Demo:** Use the sliders to control the simulated process. The tool is computationally intensive, and depending on latency, it may take a minute to load.
+    st.info("""**Interactive Demo:** Use the sliders to control the simulated process. **The tool is computationally intensive, and depending on latency, it may take a minute to load.**
     - **`Gradual Drift Magnitude`**: Controls how quickly the Temp and Pressure variables drift away from baseline.
     - **`MEWMA Lambda (λ)`**: Controls the "memory" of the chart. A smaller lambda makes it more sensitive to tiny, persistent drifts.
     """)

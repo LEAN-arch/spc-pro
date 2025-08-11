@@ -885,72 +885,81 @@ def plot_vmp_flow(project_type):
     return fig
 
 @st.cache_data
-def plot_rtm_sankey(selected_urs):
+def plot_rtm_sankey(project_type, scenario):
     """
-    Generates a professional-grade Sankey diagram for a Requirements Traceability Matrix.
+    Generates a professional-grade Sankey diagram for an RTM, simulating different audit scenarios across all project types.
     """
-    # Master data for the entire RTM
-    all_data = {
-        'URS': ['URS-01: Must be Part 11 Compliant', 'URS-02: Must Calculate Purity', 'URS-03: Must be Easy to Use'],
-        'FS': ['FS-01: Audit Trails', 'FS-02: E-Signatures', 'FS-03: Area % Calculation', 'FS-04: Intuitive UI'],
-        'Tests': ['IQ-01: Server OS Patches', 'OQ-01: Audit Trail Test', 'OQ-02: Signature Lockout', 'PQ-01: Purity Calculation Test', 'PQ-02: Usability Study'],
-        'Links': [
-            # URS-01 Links
-            ('URS-01: Must be Part 11 Compliant', 'FS-01: Audit Trails', 1),
-            ('URS-01: Must be Part 11 Compliant', 'FS-02: E-Signatures', 1),
-            ('FS-01: Audit Trails', 'IQ-01: Server OS Patches', 1),
-            ('FS-01: Audit Trails', 'OQ-01: Audit Trail Test', 1),
-            ('FS-02: E-Signatures', 'OQ-02: Signature Lockout', 1),
-            # URS-02 Links
-            ('URS-02: Must Calculate Purity', 'FS-03: Area % Calculation', 1),
-            ('FS-03: Area % Calculation', 'PQ-01: Purity Calculation Test', 1),
-            # URS-03 Links
-            ('URS-03: Must be Easy to Use', 'FS-04: Intuitive UI', 1),
-            ('FS-04: Intuitive UI', 'PQ-02: Usability Study', 1)
-        ]
+    rtm_data = {
+        "Analytical Method (Assay)": {
+            "title": "RTM for Assay Validation", "req_label": "Select ATP Requirement(s) to Trace:",
+            "nodes": ['ATP: Accuracy 98-102%', 'ATP: Precision < 2% CV', 'VAL-P-01: Accuracy Study', 'VAL-P-02: Precision Study', 'DEV-01: Extra Robustness Test'],
+            "links": [('ATP: Accuracy 98-102%', 'VAL-P-01: Accuracy Study', 1), ('ATP: Precision < 2% CV', 'VAL-P-02: Precision Study', 1)],
+            "scenarios": {
+                "Untested Requirement": {'remove': [('ATP: Precision < 2% CV', 'VAL-P-02: Precision Study', 1)], 'add': [], 'finding': "❌ GAP: The 'Precision' requirement in the ATP was not verified by a validation study."},
+                "Untraced Test ('Orphan')": {'remove': [], 'add': [('ATP: Accuracy 98-102%', 'DEV-01: Extra Robustness Test', 1)], 'finding': "⚠️ WARNING: The 'Extra Robustness Test' does not trace back to a pre-defined ATP requirement."}
+            }
+        },
+        "Instrument Qualification": {
+            "title": "RTM for Instrument Qualification", "req_label": "Select URS Requirement(s) to Trace:",
+            "nodes": ['URS-01: Dispense 10-100uL', 'URS-02: Temp Control 37C', 'OQ-01: Dispense Test', 'OQ-02: Temp Mapping', 'PQ-01: Gage R&R', 'ENG-01: Unspecified Speed Test'],
+            "links": [('URS-01: Dispense 10-100uL', 'OQ-01: Dispense Test', 1), ('OQ-01: Dispense Test', 'PQ-01: Gage R&R', 1)],
+            "scenarios": {
+                "Untested Requirement": {'remove': [('OQ-01: Dispense Test', 'PQ-01: Gage R&R', 1)], 'add': [], 'finding': "❌ GAP: URS-01 ('Dispense Volume') was verified in OQ but was not confirmed under real-world conditions in PQ."},
+                "Untraced Test ('Orphan')": {'remove': [], 'add': [('URS-01: Dispense 10-100uL', 'ENG-01: Unspecified Speed Test', 1)], 'finding': "⚠️ WARNING: The 'Unspecified Speed Test' was performed but does not trace back to a URS requirement."}
+            }
+        },
+        "Software System (CSV)": {
+            "title": "RTM for Computer System Validation", "req_label": "Select URS Requirement(s) to Trace:",
+            "nodes": ['URS-01: Part 11 Compliant', 'URS-02: Calculate Purity', 'FS-01: Audit Trails', 'FS-02: Area % Calculation', 'OQ-01: Audit Trail Test', 'PQ-01: Purity Calc Test', 'DEV-01: Unlinked Feature Test'],
+            "links": [('URS-01: Part 11 Compliant', 'FS-01: Audit Trails', 1), ('FS-01: Audit Trails', 'OQ-01: Audit Trail Test', 1),
+                      ('URS-02: Calculate Purity', 'FS-02: Area % Calculation', 1), ('FS-02: Area % Calculation', 'PQ-01: Purity Calc Test', 1)],
+            "scenarios": {
+                "Untested Requirement": {'remove': [('FS-02: Area % Calculation', 'PQ-01: Purity Calc Test', 1)], 'finding': "❌ GAP DETECTED: URS-02 ('Calculate Purity') is not fully traced to a final validation test."},
+                "Untraced Test ('Orphan')": {'remove': [], 'add': [('FS-02: Area % Calculation', 'DEV-01: Unlinked Feature Test', 1)], 'finding': "⚠️ WARNING: 'Unlinked Feature Test' does not trace back to an approved user requirement."}
+            }
+        },
+        "Pharma Process (PPQ)": {
+            "title": "RTM for Process Performance Qualification", "req_label": "Select CQA(s) to Trace:",
+            "nodes": ['CQA: Purity > 99%', 'CQA: Yield > 5 g/L', 'CPP: Column Load', 'CPP: Bioreactor pH', 'QC-01: Release Purity Test', 'IPC-01: pH Monitoring', 'MKT-01: Uncontrolled Process Change'],
+            "links": [('CQA: Purity > 99%', 'CPP: Column Load', 1), ('CPP: Column Load', 'QC-01: Release Purity Test', 1),
+                      ('CQA: Yield > 5 g/L', 'CPP: Bioreactor pH', 1), ('CPP: Bioreactor pH', 'IPC-01: pH Monitoring', 1)],
+            "scenarios": {
+                "Untested Requirement": {'remove': [('CPP: Column Load', 'QC-01: Release Purity Test', 1)], 'finding': "❌ GAP: The control of the 'Purity' CQA via the 'Column Load' CPP was not verified by a final QC test."},
+                "Untraced Test ('Orphan')": {'remove': [], 'add': [('CQA: Yield > 5 g/L', 'MKT-01: Uncontrolled Process Change', 1)], 'finding': "⚠️ WARNING: An 'Uncontrolled Process Change' was made that traces to the Yield CQA but not to a controlled CPP."}
+            }
+        }
     }
     
-    # Filter links based on selected URS
-    filtered_sources = set(selected_urs)
-    filtered_links = []
+    data = rtm_data[project_type]
+    links = data['links'].copy()
     
-    # First pass: URS to FS
-    for source, target, value in all_data['Links']:
-        if source in selected_urs:
-            filtered_links.append((source, target, value))
-            filtered_sources.add(target)
-    
-    # Second pass: FS to Tests
-    for source, target, value in all_data['Links']:
-        if source in filtered_sources:
-            filtered_links.append((source, target, value))
+    # --- Scenario Logic ---
+    audit_finding = "✅ Traceability Complete: All requirements are fully traced to verification tests."
+    if scenario != "Traceability Complete":
+        s = data['scenarios'][scenario]
+        for link_to_remove in s['remove']:
+            if link_to_remove in links: links.remove(link_to_remove)
+        links.extend(s['add'])
+        audit_finding = s['finding']
 
-    if not filtered_links:
-        return go.Figure(layout={'title': '<b>Select a User Requirement to see its traceability</b>'})
-
-    # Create Sankey Diagram
-    all_nodes = all_data['URS'] + all_data['FS'] + all_data['Tests']
-    source_indices = [all_nodes.index(link[0]) for link in filtered_links]
-    target_indices = [all_nodes.index(link[1]) for link in filtered_links]
-    values = [link[2] for link in filtered_links]
+    all_nodes = data['nodes']
+    source_indices = [all_nodes.index(link[0]) for link in links]
+    target_indices = [all_nodes.index(link[1]) for link in links]
+    values = [link[2] for link in links]
     
+    colors = []
+    for label in all_nodes:
+        if label.startswith('URS') or label.startswith('ATP') or label.startswith('CQA'): colors.append(PRIMARY_COLOR)
+        elif label.startswith('FS') or label.startswith('CPP'): colors.append(SUCCESS_GREEN)
+        else: colors.append('#636EFA')
+
     fig = go.Figure(data=[go.Sankey(
-        node=dict(
-            pad=25, thickness=20,
-            line=dict(color="black", width=0.5),
-            label=all_nodes,
-            color=PRIMARY_COLOR
-        ),
-        link=dict(
-            source=source_indices,
-            target=target_indices,
-            value=values,
-            color='rgba(200,200,200,0.5)'
-        )
+        node=dict(pad=25, thickness=20, line=dict(color="black", width=0.5), label=all_nodes, color=colors),
+        link=dict(source=source_indices, target=target_indices, value=values, color='rgba(200,200,200,0.5)')
     )])
     
-    fig.update_layout(title_text="<b>Requirements Traceability Matrix (RTM) Flow</b>", font_size=12)
-    return fig
+    fig.update_layout(title_text=f"<b>{data['title']} - Scenario: {scenario}</b>", font_size=12, height=500)
+    return fig, audit_finding
 
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
@@ -5363,57 +5372,72 @@ def render_rtm_builder():
     """Renders the comprehensive, interactive module for the Requirements Traceability Matrix."""
     st.markdown("""
     #### Purpose & Application: The Auditor's Golden Thread
-    **Purpose:** To be the **"Auditor's Golden Thread."** The RTM is a master table that links every single User Requirement (URS) to its corresponding Functional Specification (FS), Design Specification (DS), and, most critically, to the specific Test Case(s) (IQ, OQ, PQ) that prove it was met.
+    **Purpose:** To be the **"Auditor's Golden Thread."** The RTM is a master document that links every high-level requirement (like a URS or CQA) to the specific design elements and, most critically, to the specific Test Case(s) (IQ, OQ, PQ) that prove it was met.
     
-    **Strategic Application:** The RTM provides irrefutable, traceable proof that **everything that was asked for was built, and everything that was built was tested.** It is the ultimate tool for ensuring completeness in complex projects like Computer System Validation (CSV) and is often the very first document an auditor will ask to see. A gap in the RTM is a major compliance failure.
+    **Strategic Application:** The RTM provides irrefutable, traceable proof that **everything that was asked for was built, and everything that was built was tested.** It is the ultimate tool for ensuring completeness in complex projects and is often the very first document an auditor will ask for. A gap in the RTM is a major compliance failure.
     """)
     
     st.info("""
-    **Interactive Demo (CSV Case Study):** This dashboard uses a Computer System Validation (CSV) project as a classic example to demonstrate traceability.
-    1.  Use the multiselect box in the sidebar to choose which User Requirements you want to trace.
-    2.  The **Sankey Diagram** will dynamically update to show the "golden thread" for those requirements, flowing from the initial request (URS) to the final verification tests (IQ/OQ/PQ).
+    **Interactive Demo: The Audit Simulation**
+    You are the Quality Auditor. Your task is to review the RTM for different project types. Select a project and then a scenario to see how compliance issues are detected.
     """)
 
+    project_type = st.selectbox(
+        "Select a Project Type to view a sample RTM:",
+        ["Software System (CSV)", "Instrument Qualification", "Analytical Method (Assay)", "Pharma Process (PPQ)"]
+    )
+
+    rtm_data_map = {
+        "Analytical Method (Assay)": {'req_label': "Select ATP Requirement(s) to Trace:", 'options': ['ATP: Accuracy 98-102%', 'ATP: Precision < 2% CV']},
+        "Instrument Qualification": {'req_label': "Select URS Requirement(s) to Trace:", 'options': ['URS-01: Dispense 10-100uL', 'URS-02: Temp Control 37C']},
+        "Software System (CSV)": {'req_label': "Select URS Requirement(s) to Trace:", 'options': ['URS-01: Part 11 Compliant', 'URS-02: Calculate Purity']},
+        "Pharma Process (PPQ)": {'req_label': "Select CQA(s) to Trace:", 'options': ['CQA: Purity > 99%', 'CQA: Yield > 5 g/L']}
+    }
+    
     with st.sidebar:
-        st.subheader("RTM Controls (CSV Example)")
-        urs_options = ['URS-01: Must be Part 11 Compliant', 'URS-02: Must Calculate Purity', 'URS-03: Must be Easy to Use']
-        selected_urs = st.multiselect(
-            "Select User Requirements to Trace:",
-            options=urs_options,
-            default=urs_options,
-            help="Choose one or more requirements to see their complete traceability path from request to test. This simulates filtering a large, complex RTM."
+        st.subheader("RTM Audit Simulation")
+        scenario = st.radio(
+            f"Select a Scenario for the {project_type} RTM:",
+            ("Traceability Complete", "Untested Requirement", "Untraced Test ('Orphan')"),
+            captions=[
+                "The ideal, fully-compliant RTM.",
+                "Simulates a critical validation gap.",
+                "Simulates scope creep or an unnecessary test."
+            ],
+            key=project_type # Add key to force re-render on project change
         )
         
-    fig = plot_rtm_sankey(selected_urs)
+    fig, audit_finding = plot_rtm_sankey(project_type, scenario)
     st.plotly_chart(fig, use_container_width=True)
 
+    st.subheader("Audit Finding")
+    if "✅" in audit_finding:
+        st.success(audit_finding)
+    elif "❌" in audit_finding:
+        st.error(audit_finding)
+    elif "⚠️" in audit_finding:
+        st.warning(audit_finding)
     st.divider()
+
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
-        st.markdown("""
-        **Reading the Sankey Diagram (CSV Example):**
-        - The diagram shows the flow of logic from left to right. A complete "thread" from a URS on the left to a Test on the right demonstrates full traceability for that requirement.
-        - **URS (User Requirement Spec):** The 'what'—the high-level need from the user.
-        - **FS (Functional Spec):** The 'how'—the specific functions the system must perform.
-        - **Tests (IQ/OQ/PQ):** The 'proof'—the specific validation tests that verify the functions.
+        st.markdown(f"""
+        **Interpreting the Audit Scenarios for an {project_type}:**
+        - **Traceability Complete:** This is the goal. Every high-level requirement (blue nodes on the left) has an unbroken "golden thread" all the way to a final verification test (purple nodes on the right). This is an auditable and compliant RTM.
         
-        **Applying Traceability to Other Projects:**
-        While the RTM is most formally used in CSV, the principle is universal.
-        - **Instrument Qualification:** Traceability is simpler. A URS for "Dispense Volume 10-100 μL" traces directly to an OQ test case that verifies dispensing accuracy and precision at those volumes.
-        - **Analytical Method Validation:** The requirements are defined in the **ATP**. A requirement for "Linearity R² > 0.999" traces directly to the specific linearity experiments and acceptance criteria in the validation protocol.
-        - **Process Validation (PPQ):** The **CQAs** are the requirements. A CQA for "Purity > 99%" traces directly to the process parameters (CPPs) that control it, the in-process controls that monitor it, and the final release testing that confirms it.
+        - **Untested Requirement:** In this scenario, you will see a requirement (blue) or a design element (green) that is a "dead end"—it has no forward connections to a test. This is a **critical validation gap** and would be a major audit finding.
+
+        - **Untraced Test ('Orphan'):** Here, a test case (purple) appears that does not trace back to an original, approved requirement. This "orphan" test raises a key question for the auditor: Was this feature added without proper approval (**scope creep**), or is it an engineering test that was incorrectly included in the validation package (**wasted effort**)?
         """)
     with tabs[1]:
         st.markdown("""
         ##### Glossary of RTM & V-Model Terms
-        - **Requirement:** A condition or capability needed by a user to solve a problem or achieve an objective.
-        - **URS (User Requirement Specification):** The document that specifies what the user needs the system to do.
-        - **FS (Functional Specification):** Translates the URS into a detailed description of what the system *must do* (its functions).
-        - **DS (Design Specification):** Describes *how* the system will be built to meet the FS.
-        - **Test Case:** A set of conditions under which a tester will determine whether an application or software system is working correctly.
+        - **Requirement:** A condition or capability needed by a user to solve a problem or achieve an objective. Can be a URS, an ATP element, or a CQA.
+        - **Specification:** A document that specifies, in a complete, precise, verifiable manner, the requirements, design, behavior, or other characteristics of a system. (e.g., FS, DS).
+        - **Verification:** The process of evaluating a system to determine whether the products of a given development phase satisfy the conditions imposed at the start of that phase. (Are we building the system right?)
+        - **Validation:** The process of evaluating a system during or at the end of the development process to determine whether it satisfies the user requirements. (Are we building the right system?)
         - **Traceability:** The ability to trace a requirement both forwards to its implementation and testing, and backwards to its origin.
-        - **V-Model:** A graphical representation of the system development lifecycle. It highlights the relationships between each phase of development and its associated phase of testing.
         """)
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "Back-filled" Matrix**
@@ -5421,8 +5445,8 @@ A project team completes all testing and then, just before the final report is d
 - **The Flaw:** This almost always reveals gaps—requirements that were never tested, and tests that were run for no clear requirement. The RTM is treated as a bureaucratic afterthought, not the living project management tool it's meant to be.""")
         st.success("""🟢 **THE GOLDEN RULE: Test What You Build, Build What Was Asked For**
 The RTM is the master document that enforces this discipline.
-1.  **Start at the Beginning:** The RTM is created during the planning phase, alongside the URS.
-2.  **Update at Every Stage:** As each FS, DS, and test protocol is written, it is immediately added to the RTM and linked to its parent requirement.
+1.  **Start at the Beginning:** The RTM is created during the planning phase, alongside the URS/ATP/CQA.
+2.  **Update at Every Stage:** As each specification and test protocol is written, it is immediately added to the RTM and linked to its parent requirement.
 3.  **Use it as a Checklist:** Before project closure, the RTM is reviewed to ensure every single requirement has a link all the way through to a completed test case with a "Pass" result.
 This makes the RTM a living document that guarantees completeness and compliance.""")
         
@@ -5436,7 +5460,7 @@ This makes the RTM a living document that guarantees completeness and compliance
         
     with tabs[4]:
         st.markdown("""
-        The RTM is the primary document used to demonstrate compliance with a variety of regulations governing complex systems, particularly software and computerized systems.
+        The RTM is the primary document used to demonstrate compliance with a variety of regulations governing complex systems.
         - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** The RTM is a foundational document in the GAMP 5 framework. The entire V-Model validation approach relies on the traceability provided by a well-maintained RTM.
         - **FDA 21 CFR Part 11 (Electronic Records; Electronic Signatures):** When validating a system for Part 11 compliance, the RTM must clearly trace requirements like "audit trail generation" or "e-signature security" to the specific OQ and PQ test cases that challenge and verify those functions.
         - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing. It is a critical component of the Design History File (DHF).

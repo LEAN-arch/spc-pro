@@ -1653,14 +1653,10 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
 @st.cache_data
 def plot_mixture_design(a_effect, b_effect, c_effect, ab_interaction, ac_interaction, bc_interaction, noise_sd, response_threshold):
     """
-    Generates a professional-grade ternary plot for a mixture design of experiments.
+    Generates a professional-grade dashboard for a mixture design, including a model effects plot and a topographic ternary plot.
     """
     # 1. Define the experimental design points (Simplex-Lattice Design)
-    points = [
-        [1, 0, 0], [0, 1, 0], [0, 0, 1],
-        [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5],
-        [1/3, 1/3, 1/3]
-    ]
+    points = [[1,0,0], [0,1,0], [0,0,1], [0.5,0.5,0], [0.5,0,0.5], [0,0.5,0.5], [1/3,1/3,1/3]]
     df = pd.DataFrame(points, columns=['A', 'B', 'C'])
 
     # 2. Simulate the response using the Scheffé quadratic model
@@ -1672,11 +1668,11 @@ def plot_mixture_design(a_effect, b_effect, c_effect, ab_interaction, ac_interac
     # 3. Fit the model
     model = ols('Response ~ A + B + C + A:B + A:C + B:C - 1', data=df).fit()
     
-    # 4. Create a dense grid of points for the ternary plot surface
+    # 4. Create a grid of points for the ternary plot surface
     @st.cache_data
-    def generate_ternary_grid(n=40): # n=40 creates a dense enough grid
-        import itertools
-        s = itertools.product(range(n + 1), repeat=3)
+    def generate_ternary_grid(n=50):
+        from itertools import combinations_with_replacement
+        s = combinations_with_replacement(range(n + 1), 3)
         points = np.array(list(s))
         points = points[points.sum(axis=1) == n] / n
         return pd.DataFrame(points, columns=['A', 'B', 'C'])
@@ -1684,53 +1680,56 @@ def plot_mixture_design(a_effect, b_effect, c_effect, ab_interaction, ac_interac
     grid = generate_ternary_grid()
     grid['Predicted_Response'] = model.predict(grid)
     
-    # 5. Generate the Plot using correct objects
-    fig = go.Figure()
+    # 5. Generate Plot 1: Model Effects
+    effects = model.params
+    effect_df = pd.DataFrame({'Term': effects.index, 'Coefficient': effects.values})
+    effect_df['Type'] = ['Interaction' if ':' in term else 'Main Effect' for term in effect_df['Term']]
+    fig_effects = px.bar(effect_df, x='Coefficient', y='Term', color='Type', orientation='h',
+                         title='<b>1. Model Effects Plot</b>',
+                         labels={'Coefficient': 'Coefficient Value (Impact on Response)'})
+    fig_effects.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
 
-    # Layer 1: The heatmap surface, created with a scatterternary trace
-    fig.add_trace(go.Scatterternary(
-        a=grid['A'], b=grid['B'], c=grid['C'],
-        mode='markers',
-        marker=dict(
-            color=grid['Predicted_Response'],
-            colorscale='Viridis',
-            showscale=True,
-            colorbar=dict(title='Response<br>(e.g., Solubility)'),
-            size=5
-        ),
-        hoverinfo='none'
+    # 6. Generate Plot 2: Professional Ternary Map
+    opt_idx = grid['Predicted_Response'].idxmax()
+    opt_blend = grid.loc[opt_idx]
+    
+    fig_ternary = go.Figure()
+    # Layer 1: The filled contour surface
+    fig_ternary.add_trace(go.Contourternary(
+        a=grid['A'], b=grid['B'], c=grid['C'], z=grid['Predicted_Response'],
+        colorscale='Viridis', showscale=True,
+        colorbar=dict(title='Response<br>(e.g., Solubility)'),
+        contours=dict(coloring='fill', showlabels=True, labelfont=dict(color='white'))
     ))
-
-    # Layer 2: The "Sweet Spot" / Design Space boundary
-    sweet_spot_grid = grid[grid['Predicted_Response'] >= response_threshold]
-    fig.add_trace(go.Scatterternary(
-        a=sweet_spot_grid['A'], b=sweet_spot_grid['B'], c=sweet_spot_grid['C'],
-        mode='markers',
-        marker=dict(color=SUCCESS_GREEN, size=5, opacity=0.5),
-        hoverinfo='none',
-        name='Design Space'
+    # Layer 2: The Design Space boundary
+    fig_ternary.add_trace(go.Contourternary(
+        a=grid['A'], b=grid['B'], c=grid['C'], z=grid['Predicted_Response'],
+        contours_coloring='lines', line_width=4, line_color='#FFBF00', showscale=False,
+        contours=dict(start=response_threshold, end=response_threshold, coloring='lines')
     ))
-
     # Layer 3: The experimental points
-    fig.add_trace(go.Scatterternary(
+    fig_ternary.add_trace(go.Scatterternary(
         a=df['A'], b=df['B'], c=df['C'], mode='markers',
         marker=dict(symbol='circle', color='red', size=12, line=dict(width=2, color='black')),
-        text=[f'Run {i+1}<br>Response: {r:.1f}' for i, r in enumerate(df['Response'])],
-        hoverinfo='text',
-        name='Experimental Runs'
+        name='DOE Runs'
+    ))
+    # Layer 4: The predicted optimum
+    fig_ternary.add_trace(go.Scatterternary(
+        a=[opt_blend['A']], b=[opt_blend['B']], c=[opt_blend['C']], mode='markers',
+        marker=dict(symbol='star', color='white', size=18, line=dict(width=2, color='black')),
+        name='Predicted Optimum'
     ))
     
-    fig.update_layout(
-        title='<b>Formulation Design Space (Ternary Plot)</b>',
+    fig_ternary.update_layout(
+        title='<b>2. Formulation Design Space Map</b>',
         ternary_sum=1,
         ternary_aaxis_title_text='<b>Component A (%)</b>',
         ternary_baxis_title_text='<b>Component B (%)</b>',
         ternary_caxis_title_text='<b>Component C (%)</b>',
-        margin=dict(l=40, r=40, b=40, t=60),
-        showlegend=False
+        margin=dict(l=40, r=40, b=40, t=60), showlegend=False
     )
     
-    return fig, model
+    return fig_effects, fig_ternary, model, opt_blend
     
 @st.cache_data
 def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_quad_effect, temp_quad_effect, asymmetry_effect, noise_sd, yield_threshold):
@@ -5619,9 +5618,8 @@ def render_mixture_design():
     
     st.info("""
     **Interactive Demo:** Use the sidebar controls to define the "true" properties of your formulation components.
-    - **Component Effects:** Define the baseline performance of each pure component.
-    - **Interaction Effects:** A positive value indicates **synergy** (components work better together), while a negative value indicates **antagonism** (they interfere with each other).
-    - **Response Threshold:** This slider draws the green "sweet spot" (Design Space) on the map.
+    - The **Model Effects Plot** is your primary statistical diagnostic, showing *why* the map has its shape.
+    - The **Ternary Map** is your visual guide to the Design Space (the region bounded by the orange line).
     """)
 
     with st.sidebar:
@@ -5636,56 +5634,69 @@ def render_mixture_design():
         bc_slider = st.slider("B x C Interaction", -50, 50, -30, 5, help="Controls the synergy or antagonism between components B and C.")
         st.markdown("**Experimental & Quality Controls**")
         noise_slider = st.slider("Experimental Noise (SD)", 0.1, 10.0, 2.0, 0.5, help="The random measurement error in each experimental run.")
-        threshold_slider = st.slider("Min. Acceptable Response", 20, 100, 75, 5, help="The quality target. Any formulation predicted to be above this value will be included in the green 'Design Space'.")
+        threshold_slider = st.slider("Min. Acceptable Response", 20, 100, 75, 5, help="The quality target. Any formulation predicted to be above this value will be inside the orange Design Space boundary.")
 
-    fig, model = plot_mixture_design(
+    fig_effects, fig_ternary, model, opt_blend = plot_mixture_design(
         a_effect=a_slider, b_effect=b_slider, c_effect=c_slider,
         ab_interaction=ab_slider, ac_interaction=ac_slider, bc_interaction=bc_slider,
         noise_sd=noise_slider, response_threshold=threshold_slider
     )
 
-    col1, col2 = st.columns([0.65, 0.35])
+    st.header("Results Dashboard")
+    col1, col2 = st.columns([0.45, 0.55])
     with col1:
-        st.plotly_chart(fig, use_container_width=True)
+        st.subheader("Statistical Diagnostics")
+        st.metric("Model Adj. R-squared", f"{model.rsquared_adj:.3f}", help="How well the model fits the data.")
+        st.markdown("##### Predicted Optimal Blend")
+        st.dataframe(opt_blend.apply(lambda x: f"{x:.1%}").to_frame(name='Proportion'))
+        st.plotly_chart(fig_effects, use_container_width=True)
+        
     with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        with tabs[0]:
-            st.metric("Model Adjusted R-squared", f"{model.rsquared_adj:.3f}", help="How well the statistical model fits the experimental data, adjusted for the number of terms.")
-            st.markdown("""
-            **Reading the Map:**
-            - **Vertices (Corners):** Represent pure (100%) components.
-            - **Edges:** Represent blends of only two components.
-            - **Color Contours:** Show the predicted response (e.g., stability, solubility, efficacy). The "hottest" color indicates the region of optimal performance.
-            - **Green Shaded Area:** This is your **Design Space** or "sweet spot"—the set of all formulations predicted to meet your acceptance criteria.
-            - **Red Dots:** The actual experimental runs performed to build the model.
-            """)
-        with tabs[1]:
-            st.error("""🔴 **THE INCORRECT APPROACH: Using a Standard DOE**
+        st.plotly_chart(fig_ternary, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Start with the Model Effects Plot:** This is your primary statistical diagnostic. It explains *why* the ternary map has its shape.
+            - **Main Effects (Blue):** The coefficients for `A`, `B`, and `C` represent the predicted response at the pure, 100% vertices of the triangle.
+            - **Interactions (Red):** These are the most important terms. A large **positive** coefficient (like `A:B`) indicates **synergy**—the blend is better than a simple average of its parts. A large **negative** coefficient (like `B:C`) indicates **antagonism**—the components interfere with each other.
+        2.  **Consult the Ternary Map:** This is your visual guide to the formulation space.
+            - **Color Contours:** Show the predicted response. The "hottest" color indicates the region of optimal performance, driven by the synergistic interactions.
+            - **Orange Boundary:** This is your **Design Space** or **Proven Acceptable Range (PAR)**—the set of all formulations predicted to meet your acceptance criteria.
+            - **White Star:** The single "best" blend predicted by the model.
+        """)
+
+    with tabs[1]:
+        st.error("""🔴 **THE INCORRECT APPROACH: Using a Standard DOE**
 An analyst tries to use a standard factorial or response surface design to optimize a formulation.
 - **The Flaw:** Standard DOEs treat factors as independent variables that can be changed freely. In a formulation, they are not independent; increasing one component *must* decrease another. This violates the core mathematical assumptions of a standard DOE, leading to incorrect models and nonsensical predictions.""")
-            st.success("""🟢 **THE GOLDEN RULE: Use a Mixture Design for Mixture Problems**
+        st.success("""🟢 **THE GOLDEN RULE: Use a Mixture Design for Mixture Problems**
 The experimental design must match the physical reality of the problem.
 1.  **Identify the Constraint:** If your factors are ingredients or components that must sum to a constant (e.g., 100%), you have a mixture problem.
-2.  **Choose the Right Design:** Use a specialized experimental design, like a **Simplex-Lattice** or **Simplex-Centroid** design.
+2.  **Choose the Right Design:** Use a specialized experimental design, like a **Simplex-Lattice** or **Simplex-Centroid** design, which efficiently places points at the vertices, edges, and center of the formulation space.
 3.  **Use the Right Model:** Analyze the results with a model designed for mixtures, like the **Scheffé polynomial**, which correctly handles the mathematical constraints.""")
-        with tabs[2]:
-            st.markdown("""
-            #### Historical Context: Solving the Chemist's Dilemma
-            **The Problem:** For the first half of the 20th century, optimizing formulations was more art than science. Chemists and food scientists relied on intuition and laborious one-factor-at-a-time experiments. The powerful Design of Experiments (DOE) tools developed by Fisher and Box were of little help, as they couldn't handle the fundamental constraint that `A + B + C = 100%`.
 
-            **The 'Aha!' Moment:** In a landmark 1958 paper, the statistician **Henry Scheffé** solved this problem. He recognized that the experimental space was not a cube (like in a standard DOE) but a **simplex** (in this case, a triangle). He then derived a new class of polynomial models, now known as **Scheffé polynomials**, specifically for this geometry. These models cleverly omit the intercept and rearrange terms to perfectly suit the mixture constraint.
-            
-            **The Impact:** Scheffé's work gave scientists a systematic, statistically rigorous, and highly efficient methodology to optimize blends and formulations. It transformed formulation development from guesswork into a predictable science and is now a cornerstone of product development in industries ranging from pharmaceuticals and food science to petrochemicals and materials science.
-            """)
-        with tabs[3]:
-            st.markdown("""
-            Mixture DOE is a specialized tool for establishing a **Design Space** for formulation parameters, a core concept of **Quality by Design (QbD)**.
-            - **ICH Q8(R2) - Pharmaceutical Development:** This guideline is the primary driver for this type of work. The green "sweet spot" generated by this tool is a direct visualization of a formulation Design Space. Filing this with a regulatory agency provides significant manufacturing flexibility.
-            - **ICH Q11 - Development and Manufacture of Drug Substances:** The principles of QbD, including the use of DOE to understand the relationship between material attributes and quality, apply equally to drug substances.
-            - **FDA Process Validation Guidance:** Emphasizes a lifecycle approach and deep process/product understanding. A mixture DOE provides this deep understanding for the formulation itself.
-            """)
+    with tabs[2]:
+        st.markdown("""
+        #### Historical Context: Solving the Chemist's Dilemma
+        **The Problem:** For the first half of the 20th century, optimizing formulations was more art than science. Chemists and food scientists relied on intuition and laborious one-factor-at-a-time experiments. The powerful Design of Experiments (DOE) tools developed by Fisher and Box were of little help, as they couldn't handle the fundamental constraint that `A + B + C = 100%`.
 
+        **The 'Aha!' Moment:** In a landmark 1958 paper, the statistician **Henry Scheffé** solved this problem. He recognized that the experimental space was not a cube (like in a standard DOE) but a **simplex** (a triangle for 3 components, a tetrahedron for 4, etc.). He then derived a new class of polynomial models, now known as **Scheffé polynomials**, specifically for this geometry. These models cleverly omit the intercept and rearrange terms to perfectly suit the mixture constraint.
+        
+        **The Impact:** Scheffé's work gave scientists a systematic, statistically rigorous, and highly efficient methodology to optimize blends and formulations. It transformed formulation development from guesswork into a predictable science and is now a cornerstone of product development in industries ranging from pharmaceuticals and food science to petrochemicals and materials science.
+        """)
+
+    with tabs[3]:
+        st.markdown("""
+        Mixture DOE is a specialized tool for establishing a **Design Space** for formulation parameters (material attributes), a core concept of **Quality by Design (QbD)**.
+        - **ICH Q8(R2) - Pharmaceutical Development:** This guideline is the primary driver for this type of work. The region inside the orange boundary on the map is a direct visualization of a formulation **Design Space**. Filing this with a regulatory agency provides significant manufacturing flexibility, as movement within this space is not considered a change.
+        - **ICH Q11 - Development and Manufacture of Drug Substances:** The principles of QbD, including the use of DOE to understand the relationship between material attributes and quality, apply equally to drug substances.
+        - **FDA Process Validation Guidance:** Emphasizes a lifecycle approach and deep process/product understanding. A mixture DOE provides this deep understanding for the formulation itself and can be used to justify the **Bill of Materials (BOM)** and the acceptable ranges for each component.
+        """)
 def render_process_optimization_suite():
     """Renders the comprehensive, interactive module for the full optimization workflow."""
     st.markdown("""

@@ -2619,6 +2619,85 @@ def plot_capability(scenario='Ideal'):
     return fig, cpk_val
 
 @st.cache_data
+def plot_proportion_cis(n_samples, n_successes, prior_alpha, prior_beta):
+    """
+    Calculates and plots a comparison of multiple confidence interval methods for a binomial proportion.
+    """
+    if n_samples == 0:
+        return go.Figure(), {} # Return empty objects if no data
+
+    k, n = n_successes, n_samples
+    p_hat = k / n
+    
+    # --- Calculate all 7 intervals ---
+    metrics = {}
+    
+    # 1. Wald (for demonstration of its flaws)
+    if n > 0 and p_hat > 0 and p_hat < 1:
+        wald_se = np.sqrt(p_hat * (1 - p_hat) / n)
+        metrics['Wald (Approximate)'] = (p_hat - 1.96 * wald_se, p_hat + 1.96 * wald_se)
+    else:
+        metrics['Wald (Approximate)'] = (0, 0) # Fails at extremes
+        
+    # 2. Wilson Score
+    metrics['Wilson Score'] = wilson_score_interval(p_hat, n)
+    
+    # 3. Agresti-Coull
+    n_adj, k_adj = n + 4, k + 2
+    p_adj = k_adj / n_adj
+    ac_se = np.sqrt(p_adj * (1 - p_adj) / n_adj)
+    metrics['Agresti–Coull'] = (p_adj - 1.96 * ac_se, p_adj + 1.96 * ac_se)
+    
+    # 4. Clopper-Pearson (Exact)
+    metrics['Clopper–Pearson (Exact)'] = stats.beta.interval(0.95, k, n - k + 1)
+    
+    # 5. Jeffreys Interval (Bayesian)
+    metrics['Jeffreys Interval (Bayesian)'] = stats.beta.interval(0.95, k + 0.5, n - k + 0.5)
+    
+    # 6. Bayesian with Beta Priors
+    metrics['Bayesian with Custom Prior'] = stats.beta.interval(0.95, k + prior_alpha, n - k + prior_beta)
+    
+    # 7. Bootstrapped CI
+    @st.cache_data
+    def bootstrap_ci(num_samples, num_successes):
+        data = np.array([1] * num_successes + [0] * (num_samples - num_successes))
+        if len(data) == 0: return (0, 0)
+        boot_means = [np.random.choice(data, size=len(data), replace=True).mean() for _ in range(2000)]
+        return np.percentile(boot_means, [2.5, 97.5])
+    metrics['Bootstrapped CI'] = bootstrap_ci(n, k)
+    
+    # --- Create the Plot ---
+    fig = go.Figure()
+    
+    # Order the intervals for logical presentation
+    order = ['Wald (Approximate)', 'Agresti–Coull', 'Wilson Score', 'Clopper–Pearson (Exact)', 
+             'Jeffreys Interval (Bayesian)', 'Bayesian with Custom Prior', 'Bootstrapped CI']
+    
+    for i, name in enumerate(order):
+        lower, upper = metrics[name]
+        color = '#EF553B' if name.startswith('Wald') else PRIMARY_COLOR
+        fig.add_trace(go.Scatter(
+            x=[lower, upper], y=[name, name],
+            mode='lines', line=dict(color=color, width=10),
+            hovertemplate=f"<b>{name}</b><br>95% CI: [{lower:.3f}, {upper:.3f}]<extra></extra>"
+        ))
+    
+    fig.add_vline(x=p_hat, line=dict(color='black', dash='dash'), annotation_text=f"Observed Rate = {p_hat:.2%}")
+    fig.add_vrect(x0=0.95, x1=1.0, fillcolor="rgba(44, 160, 44, 0.1)", layer="below", line_width=0,
+                  annotation_text="Target >95% Success", annotation_position="bottom left")
+
+    fig.update_layout(
+        title=f'<b>Comparing 95% CIs for {k} Successes in {n} Samples</b>',
+        xaxis_title='Success Rate (Proportion)',
+        yaxis_title='Confidence Interval Method',
+        xaxis_range=[-0.05, 1.05],
+        xaxis_tickformat=".0%",
+        showlegend=False
+    )
+    
+    return fig, metrics
+
+@st.cache_data
 def plot_process_equivalence(cpk_site_a, mean_shift, var_change_factor, n_samples, margin):
     """
     Generates a professional, multi-plot dashboard for demonstrating statistical equivalence between two processes.
@@ -7482,6 +7561,96 @@ def render_capability():
             - **Global Harmonization Task Force (GHTF):** For medical devices, guidance on process validation similarly requires demonstrating that the process output consistently meets predetermined requirements.
             """)
 
+def render_proportion_cis():
+    """Renders the comprehensive, interactive module for comparing binomial confidence intervals."""
+    st.markdown("""
+    #### Purpose & Application: Choosing the Right Statistical Ruler for Pass/Fail Data
+    **Purpose:** To compare and contrast different statistical methods for calculating a confidence interval for pass/fail (binomial) data. This tool demonstrates that the choice of statistical method is not trivial and can have a significant impact on the final conclusion, especially in common validation scenarios with high success rates and limited sample sizes.
+    
+    **Strategic Application:** This is a critical decision point when writing a validation protocol or a statistical analysis plan. When you must prove that a process meets a high reliability target (e.g., >99% success rate) based on a limited sample, the statistical interval you choose determines your ability to make that claim. Using an overly conservative interval (like Clopper-Pearson) may require a much larger sample size, increasing project costs, while using an unreliable one (like the classic Wald interval) can lead to a false sense of confidence and significant compliance risk.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Validation Scientist.
+    1.  Use the top two sliders to simulate a validation run with a specific number of samples and successes.
+    2.  Pay close attention to the **"Failure Scenarios"**—what happens when you have **few samples** and **zero or one failures**. This is where the methods differ most dramatically.
+    3.  Use the **Bayesian Prior** sliders to see how prior knowledge (e.g., from R&D) can be formally incorporated to produce a more informed interval.
+    """)
+
+    with st.sidebar:
+        st.subheader("Confidence Interval Controls")
+        st.markdown("**Experimental Results**")
+        n_samples_slider = st.slider("Number of Validation Samples (n)", 10, 200, 50, 5, help="The total number of samples tested in your validation run. Note how interval widths shrink as you increase n.")
+        n_failures_slider = st.slider("Number of Failures Observed", 0, n_samples_slider, 1, 1, help="The number of non-conforming or failing results. Scenarios with 0 or 1 failures are common and where the choice of CI method is most critical.")
+        n_successes = n_samples_slider - n_failures_slider
+        
+        st.markdown("**Bayesian Prior Belief**")
+        st.write("Simulate prior knowledge (e.g., from R&D studies).")
+        prior_successes = st.slider("Prior Successes (α)", 0, 100, 10, 1, help="The number of successes in your 'imaginary' prior data. A higher number represents a stronger prior belief in a high success rate.")
+        prior_failures = st.slider("Prior Failures (β)", 0, 100, 1, 1, help="The number of failures in your 'imaginary' prior data. Even a small number here can make the model more conservative.")
+
+    fig, metrics = plot_proportion_cis(n_samples_slider, n_successes, prior_successes, prior_failures)
+    
+    col1, col2 = st.columns([0.6, 0.4])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Key Interval Results")
+        st.metric("Observed Success Rate", f"{n_successes/n_samples_slider if n_samples_slider > 0 else 0:.2%}")
+        st.markdown(f"**Wilson Score CI:** `[{metrics['Wilson Score'][0]:.3f}, {metrics['Wilson Score'][1]:.3f}]`")
+        st.markdown(f"**Clopper-Pearson (Exact) CI:** `[{metrics['Clopper–Pearson (Exact)'][0]:.3f}, {metrics['Clopper–Pearson (Exact)'][1]:.3f}]`")
+        st.markdown(f"**Custom Bayesian CI:** `[{metrics['Bayesian with Custom Prior'][0]:.3f}, {metrics['Bayesian with Custom Prior'][1]:.3f}]`")
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Comparison:**
+        - **The Wald Interval's Failure:** Set the "Number of Failures" to 0. Notice that the Wald interval (red) collapses to a width of zero. This is a nonsensical result that falsely claims perfect certainty from a finite sample. This is why it is blacklisted in modern statistical practice.
+        - **Conservatism vs. Accuracy:** The **Clopper-Pearson** interval is often the widest. It is guaranteed to meet the 95% confidence level, but this guarantee makes it conservative (less powerful). The **Wilson Score** interval is slightly narrower and has better average performance, making it a common "best practice" choice for frequentist analysis.
+        - **The Power of Priors:** Adjust the **Bayesian Prior** sliders. If you have a strong prior belief in a high success rate (e.g., 99 successes, 1 failure), notice how the "Bayesian with Custom Prior" interval is "pulled" towards that high rate, resulting in a higher lower bound than other methods. This can be a powerful way to reduce sample sizes, provided the prior is well-justified.
+        
+        **The Strategic Insight:** The choice of interval method directly impacts your ability to meet a pre-defined acceptance criterion. For a result of 49/50 successes (98%), the lower bound of the Wilson interval is 0.888. If your acceptance criterion is ">90% success," you fail. But for the same data, if you had a strong prior, the Bayesian lower bound might be >0.90, allowing you to pass.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of CI Methods for Proportions
+        - **Wald Interval:** The simplest method, based on the normal approximation. **Known to perform very poorly** with small `n` or extreme proportions and should be avoided in GxP settings.
+        - **Wilson Score Interval:** A more complex method also based on the normal approximation, but it inverts the score test, giving it excellent performance across all conditions. Often the recommended default for frequentist analysis.
+        - **Agresti–Coull Interval:** A simplified version of the Wilson interval that is easier to compute by hand (it adds 2 successes and 2 failures before calculating a Wald interval). Performs similarly to Wilson but is slightly more conservative.
+        - **Clopper–Pearson (Exact) Interval:** A method based directly on the binomial distribution. It guarantees that the true coverage will be *at least* 95%, but is often too wide (conservative), making it harder to pass acceptance criteria.
+        - **Jeffreys Interval (Bayesian):** A Bayesian credible interval using a non-informative prior (`Beta(0.5, 0.5)`). It has excellent frequentist properties and is a good choice when no prior knowledge is available.
+        - **Bayesian Credible Interval:** An interval derived from the posterior distribution. It represents a range where there is a 95% probability that the true parameter lies. Its location and width are influenced by both the data and the chosen prior.
+        - **Bootstrapped CI:** A computational method that simulates thousands of new datasets by resampling from the original data. It does not rely on statistical assumptions, but can be unstable with very small sample sizes.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Textbook Default" Fallacy**
+An analyst uses the simple Wald interval because it's the first one taught in many introductory statistics courses. When validating a process with a 100% success rate in 50 samples (50/50), the Wald interval is `[1.0, 1.0]`, leading them to claim with 95% confidence that the true success rate is exactly 100%.
+- **The Flaw:** This is a statistically indefensible claim of absolute certainty from a finite sample. The Wilson Score interval for the same data is `[0.93, 1.0]`, which correctly communicates that the true rate could plausibly be as low as 93%.""")
+        st.success("""🟢 **THE GOLDEN RULE: Match the Method to the Risk and Justify It**
+The choice of confidence interval method is a risk-based decision that must be pre-specified and justified in the validation protocol.
+1.  **For General Use (Frequentist):** The **Wilson Score interval** is the recommended default, providing the best balance of accuracy and interval width.
+2.  **For Absolute Guarantee:** When you absolutely must guarantee that your confidence level is not underestimated (e.g., for a critical safety claim), the **Clopper-Pearson (Exact) interval** is the most conservative and defensible choice.
+3.  **When Prior Data Exists:** When you have strong, justifiable prior knowledge (e.g., from extensive R&D data), a **Bayesian credible interval** is the most powerful and efficient approach, but the prior must be explicitly defined and justified in the protocol.
+**Never use the Wald interval in a formal validation report.**""")
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: Correcting a Century-Old Problem
+        The problem of estimating an interval for a proportion seems simple, but its history is complex. The standard **Wald interval**, based on the work of Abraham Wald in the 1930s, was easy to teach and compute, so it became the default method in textbooks for decades. However, its poor performance was well-known to statisticians. A famous 1998 paper by Brown, Cai, and DasGupta, titled "Interval Estimation for a Binomial Proportion," systematically exposed the severe flaws of the Wald interval to a wider audience, calling it "persistently chaotic."
+        
+        The irony is that the superior solutions were much older. The **Wilson Score interval** was developed by Edwin Bidwell Wilson in **1927**, and the **Clopper-Pearson interval** was developed in **1934**. For much of the 20th century, these more accurate but computationally intensive methods were overlooked in favor of the simpler Wald interval.
+        
+        The "rediscovery" of these superior methods in the 1990s, driven by increased computing power and influential papers like Brown et al.'s, led to a major shift in statistical practice. Today, modern statistical software and guidelines strongly advocate for the use of Wilson, Clopper-Pearson, or other improved methods, and the simple Wald interval is largely considered obsolete for serious analysis.
+        """)
+    with tabs[4]:
+        st.markdown("""
+        The calculation of a statistically valid confidence interval for a proportion is a fundamental requirement in many validation activities where the outcome is binary (pass/fail, concordant/discordant, etc.).
+        - **FDA Process Validation Guidance (Stage 2 - PPQ):** When validating a process attribute that is pass/fail (e.g., visual inspection for cosmetic defects), a confidence interval on the pass rate is used to demonstrate that the process can consistently produce conforming product. Using a robust interval is critical for making a high-confidence claim.
+        - **Analytical Method Validation (ICH Q2):** For qualitative assays (e.g., a limit test), validation requires demonstrating a high rate of correct detections. For concordance studies comparing a new method to a reference, a confidence interval on the concordance rate is a key performance metric.
+        - **21 CFR 820.250 (Statistical Techniques):** This regulation for medical devices explicitly requires that "Where appropriate, each manufacturer shall establish and maintain procedures for identifying valid statistical techniques..." Using a robust interval like the Wilson Score instead of the flawed Wald interval is a direct fulfillment of this requirement.
+        """)
+
 def render_process_equivalence():
     """Renders the comprehensive, interactive module for Process Transfer Equivalence."""
     st.markdown("""
@@ -9760,7 +9929,7 @@ with st.sidebar:
         ],
         "ACT II: TRANSFER & STABILITY": [
             "Sample Size for Qualification", "Process Stability (SPC)", "Process Capability (Cpk)", "Statistical Equivalence for Process Transfer",
-            "Tolerance Intervals", "Method Comparison", "Bayesian Inference"
+            "Binomial Confidence Interval","Tolerance Intervals", "Method Comparison", "Bayesian Inference"
         ],
         "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
             "Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", 
@@ -9820,8 +9989,9 @@ else:
         # Act II
         "Sample Size for Qualification": render_sample_size_calculator,
         "Process Stability (SPC)": render_spc_charts,
-        "Statistical Equivalence for Process Transfer": render_process_equivalence,
         "Process Capability (Cpk)": render_capability,
+        "Statistical Equivalence for Process Transfer": render_process_equivalence,
+        "Binomial Confidence Interval":render_proportion_cis
         "Tolerance Intervals": render_tolerance_intervals,
         "Method Comparison": render_method_comparison,
         "Bayesian Inference": render_bayesian,

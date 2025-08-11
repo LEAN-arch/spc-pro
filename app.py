@@ -7393,7 +7393,7 @@ def render_capability():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(label="📈 KPI: Process Capability (Cpk)",
                       value=f"{cpk_val:.2f}" if not np.isnan(cpk_val) else "INVALID",
@@ -7411,13 +7411,22 @@ def render_capability():
             - The **'Bimodal'** scenario shows two distinct sub-processes running. This violates the normality assumption of Cpk and requires investigation to find and eliminate the source of the two populations.
             """)
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Capability Terms
+            - **Process Capability:** A measure of the ability of a process to produce output within specification limits.
+            - **Specification Limits (LSL/USL):** The limits that define the acceptable range for a product's characteristic. They are determined by customer requirements or engineering design (the "Voice of the Customer").
+            - **Control Limits:** The limits on a control chart that represent the natural variation of the process (the "Voice of the Process"). **They are completely unrelated to specification limits.**
+            - **Cpk (Process Capability Index):** A statistical measure of process capability that accounts for how well the process is centered within the specification limits. It measures the distance from the process mean to the *nearest* specification limit.
+            - **Cp (Process Potential Index):** A measure of process capability that does not account for centering. It only measures if the process is "narrow" enough to fit within the specifications.
+            """)
+        with tabs[2]:
             st.markdown("These are industry-standard benchmarks. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
             st.markdown("- `Cpk < 1.00`: Process is **not capable**.")
             st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**.")
             st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable** (a '4-sigma' quality level).")
             st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** (approaching 'Six Sigma').")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Six Sigma Revolution
             **The Problem:** In the 1980s, the American electronics manufacturer Motorola was facing a quality crisis. Despite using traditional quality control methods, defect rates were too high to compete globally. They needed a new, more ambitious way to think about quality.
@@ -7432,7 +7441,7 @@ def render_capability():
             st.latex(r"C_p = \frac{\text{USL} - \text{LSL}}{6\hat{\sigma}}")
             st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit, in units of 3-sigma.")
             st.latex(r"C_{pk} = \min \left( \frac{\text{USL} - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - \text{LSL}}{3\hat{\sigma}} \right)")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             Process capability analysis (Cpk) is the key metric used during Stage 2 of the validation lifecycle, Process Performance Qualification (PPQ).
             - **FDA Process Validation Guidance (Stage 2):** The goal of PPQ is to demonstrate that the process, operating under normal conditions, is capable of consistently producing conforming product. A high Cpk is the statistical evidence that this goal has been met.
@@ -7491,7 +7500,7 @@ def render_process_equivalence():
         
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     
     with tabs[0]:
         st.markdown("""
@@ -7502,8 +7511,16 @@ def render_process_equivalence():
         
         **Core Insight:** A tech transfer doesn't just need to produce good product (high Cpk); it needs to produce product that is **statistically consistent** with the original site. This analysis provides the formal proof. Notice how a small `Mean Shift` or an increase in `Variability` at Site B can quickly lead to a failed equivalence test, even if Site B's Cpk is still above 1.33.
         """)
-
     with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Transfer Terms
+        - **Technology Transfer:** The process of transferring skills, knowledge, technologies, and methods of manufacturing among organizations to ensure that scientific and technological developments are accessible to a wider range of users.
+        - **Process Performance Qualification (PPQ):** Stage 2 of the FDA Process Validation lifecycle, where the process design is evaluated to determine if it is capable of reproducible commercial manufacturing.
+        - **Cpk (Process Capability Index):** A key performance indicator for a manufacturing process. A high Cpk (>1.33) indicates a capable process.
+        - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference in performance between two processes (e.g., the original and transferred site) is smaller than a pre-specified, practically meaningless amount.
+        - **Bootstrap Simulation:** A computer-intensive statistical method that uses resampling of the original data to estimate the sampling distribution and confidence intervals of a statistic (like the difference in Cpk).
+        """)
+    with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "Cpk is Cpk" Fallacy**
 A manager reviews the Site B PPQ data, sees a Cpk of 1.40 (which is > 1.33), and declares the transfer a success, even though the original site's Cpk was 1.80.
 - **The Flaw:** This significant drop in performance is ignored, introducing a new, hidden level of risk into the manufacturing network. The process is now less robust and more likely to fail in the future. They have proven capability, but not comparability.""")
@@ -7512,7 +7529,7 @@ A robust tech transfer plan treats equivalence as a formal acceptance criterion.
 1.  **Define the Margin:** Before the transfer, stakeholders must agree on the equivalence margin for a key performance metric (like Cpk). This is a risk-based decision: how much of a performance drop are we willing to accept?
 2.  **Prove You're Inside:** Conduct the PPQ runs and perform the equivalence test. The burden of proof is on the receiving site to demonstrate that their process performance is statistically indistinguishable from the sending site, within the pre-defined margin.""")
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown("""
         #### Historical Context: A Modern Synthesis
         This tool represents a modern synthesis of two powerful statistical ideas that both came to prominence in the 1980s but in different industries:
@@ -7522,7 +7539,7 @@ A robust tech transfer plan treats equivalence as a formal acceptance criterion.
         **The Impact:** In modern tech transfer and lifecycle management, these two ideas are fused. By applying the rigorous logic of equivalence testing to a key performance indicator like Cpk, we create a powerful, modern tool for validating process transfers, scale-up, and other post-approval changes. The use of computer-intensive **bootstrapping** to calculate the confidence interval for a complex metric like Cpk is a distinctly 21st-century statistical technique that makes this analysis possible.
         """)
         
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         This analysis is a best-practice implementation for several key regulatory activities that require demonstrating comparability.
         - **FDA Process Validation Guidance:** This tool is ideal for **Stage 2 (Process Qualification)** when transferring a process. It provides objective evidence that the receiving site has successfully reproduced the performance of the sending site.
@@ -7530,6 +7547,7 @@ A robust tech transfer plan treats equivalence as a formal acceptance criterion.
         - **Technology Transfer (ICH Q10):** A robust tech transfer protocol should have pre-defined acceptance criteria. Proving statistical equivalence of process capability is a state-of-the-art criterion.
         - **SUPAC (Scale-Up and Post-Approval Changes):** When making a change to a validated process, this analysis can be used to prove that the change has not adversely impacted process performance.
         """)
+        
 def render_tolerance_intervals():
     """Renders the INTERACTIVE module for Tolerance Intervals."""
     st.markdown("""
@@ -7566,7 +7584,7 @@ def render_tolerance_intervals():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="🎯 Desired Coverage", value=f"{coverage_slider:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
@@ -7577,8 +7595,16 @@ def render_tolerance_intervals():
             - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
             - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Statistical Intervals
+            - **Confidence Interval (CI):** An interval estimate for a population **parameter** (like the mean). A 95% CI provides a plausible range for the *average* of the process.
+            - **Tolerance Interval (TI):** An interval estimate for a specified **proportion of a population**. A 95%/99% TI provides a plausible range for where 99% of all *individual units* from the process will fall.
+            - **Prediction Interval (PI):** An interval estimate for a **single future observation**. A 95% PI provides a plausible range for the *very next* data point.
+            - **Coverage:** The proportion of the population that the tolerance interval is intended to contain (e.g., 99%).
+            - **Confidence:** The probability that a given interval, constructed from a random sample, will actually contain the true value it is intended to estimate.
+            """)
+        with tabs[2]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: The Confidence Interval Fallacy**
             - A manager sees that the 95% **Confidence Interval** for the mean is [99.9, 100.1] and their product specification is [95, 105]. They declare victory, believing all their product is in spec.
@@ -7594,7 +7620,7 @@ def render_tolerance_intervals():
             Never use a confidence interval to make a statement about where individual values are expected to fall.
             """)
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Surviving Bomber Problem
             The development of tolerance intervals is credited to the brilliant mathematician **Abraham Wald** during World War II. He is famous for the "surviving bombers" problem: when analyzing bullet holes on returning planes, the military wanted to reinforce the most-hit areas. Wald's revolutionary insight was that they should reinforce the areas with **no bullet holes**—because planes hit there never made it back.
@@ -7607,7 +7633,7 @@ def render_tolerance_intervals():
             st.markdown("""
             - **`k`**: The **k-factor** is the magic ingredient. It is a special value that depends on **three** inputs: the sample size (`n`), the desired population coverage (e.g., 99%), and the desired confidence level (e.g., 95%). This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             Tolerance intervals are a statistically rigorous method for setting acceptance criteria and release specifications based on validation data.
             - **FDA Process Validation Guidance (Stage 2):** PPQ runs are used to demonstrate that the process can reliably produce product meeting its Critical Quality Attributes (CQAs). A tolerance interval calculated from PPQ data provides a high-confidence range where a large proportion of all future production will fall.
@@ -7658,7 +7684,7 @@ def render_method_comparison():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference.")
@@ -7671,8 +7697,17 @@ def render_method_comparison():
             - **Add `Proportional Bias`:** The Deming line *rotates* away from the identity line. The Bland-Altman and %Bias plots now show a clear trend, a major red flag.
             - **Increase `Random Error`:** The points scatter more widely. This has little effect on the average bias but dramatically **widens the Limits of Agreement**, making the methods less interchangeable.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Comparison Terms
+            - **Agreement:** The degree to which two different methods produce the same result for the same sample. This is different from correlation.
+            - **Constant Bias:** A systematic error where one method consistently reads higher or lower than the other by a fixed amount across the entire measurement range.
+            - **Proportional Bias:** A systematic error where the difference between the two methods is concentration-dependent, typically increasing as the concentration increases.
+            - **Passing-Bablok Regression:** A robust, non-parametric regression method that is insensitive to outliers and assumes error in both methods. It is superior to OLS for method comparison.
+            - **Bland-Altman Plot:** A graphical method to plot the difference between two measurements against their average. It is the gold standard for visualizing agreement and identifying bias.
+            - **Limits of Agreement (LoA):** On a Bland-Altman plot, the interval `[mean_diff ± 1.96 * std_diff]` within which 95% of future differences are expected to fall.
+            """)
+        with tabs[2]:
             st.markdown("Acceptance criteria must be pre-defined and clinically/technically justified.")
             st.markdown("- **Deming Regression:** The 95% confidence interval for the **slope must contain 1.0**, and the 95% CI for the **intercept must contain 0**.")
             st.markdown(f"- **Bland-Altman:** The primary criterion is that the **95% Limits of Agreement (`{la:.2f}` to `{ua:.2f}`) must be clinically or technically acceptable**.")
@@ -7680,7 +7715,7 @@ def render_method_comparison():
             **The Correlation Catastrophe:** Never use the correlation coefficient (R²) to assess agreement. Two methods can be perfectly correlated (R²=1.0) but have a huge bias (e.g., one method always reads twice as high).
             """)
 
-        with tabs[2]:
+        with tabs[3]:
             # FIX: Restored the full, detailed content for this tab
             st.markdown("""
             #### Historical Context & Origin
@@ -7697,7 +7732,7 @@ def render_method_comparison():
             """)
             st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
             st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             Method comparison studies are essential for method transfer, validation of a new method against a standard, or bridging studies.
             - **ICH Q2(R1) - Validation of Analytical Procedures:** The principles of comparing methods fall under the assessment of **Accuracy** and **Intermediate Precision**.
@@ -7747,7 +7782,7 @@ def render_bayesian():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         with tabs[0]:
             st.metric(
                 label="🎯 Primary KPI: Prob(Pass Rate > 90%)",
@@ -7767,13 +7802,21 @@ def render_bayesian():
             st.markdown("---")
             st.metric(label="Prior Mean Rate", value=f"{prior_mean:.1%}", help="The initial belief *before* seeing the new QC data.")
             st.metric(label="Data-only Estimate (k/n)", value=f"{mle:.1%}", help="The evidence from the new QC data alone (the frequentist result).")
-            
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Bayesian Terms
+            - **Prior Distribution:** A probability distribution that represents one's belief about a parameter *before* seeing the new data.
+            - **Likelihood:** The probability of observing the new data, given a specific value of the parameter. This is the information contained in the new experiment.
+            - **Posterior Distribution:** The updated probability distribution for the parameter *after* combining the prior belief with the likelihood from the new data. `Posterior ∝ Likelihood × Prior`.
+            - **Credible Interval:** The Bayesian equivalent of a confidence interval. A 95% credible interval `[X, Y]` means there is a 95% probability that the true value of the parameter lies within that range.
+            - **Conjugate Prior:** A prior distribution that, when combined with a given likelihood, results in a posterior distribution from the same family (e.g., Beta prior for binomial likelihood results in a Beta posterior).
+            """)
+        with tabs[2]:
             st.markdown("- The acceptance criterion is framed in terms of the **posterior distribution** and is probabilistic.")
             st.markdown("- **Example Criterion 1 (Probability Statement):** 'There must be at least a 95% probability that the true pass rate is greater than 90%.'")
             st.markdown("- **Example Criterion 2 (Credible Interval):** 'The lower bound of the **95% Credible Interval** must be above the target of 90%.'")
             st.warning("**The Prior is Critical:** In a regulated setting, the prior must be transparent, justified by historical data, and pre-specified in the validation protocol. An unsubstantiated, overly optimistic prior is a major red flag.")
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The 200-Year Winter
             **The Problem:** The underlying theorem was conceived by the Reverend **Thomas Bayes** in the 1740s and published posthumously. However, for nearly 200 years, Bayesian inference remained a philosophical curiosity, largely overshadowed by the Frequentist school of Neyman and Fisher. There were two huge barriers:
@@ -7796,7 +7839,7 @@ def render_bayesian():
             For binomial data (pass/fail), the **Beta distribution** is a **conjugate prior**. This means if you start with a Beta prior and have a binomial likelihood, your posterior is also a simple, updated Beta distribution.
             """)
             st.latex(r"\text{Posterior} \sim \text{Beta}(\alpha_{prior} + k, \beta_{prior} + n - k)")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             While less common than frequentist methods, Bayesian statistics are explicitly accepted and even encouraged by regulators in certain contexts, particularly where prior information is valuable.
             - **FDA Guidance on Adaptive Designs for Clinical Trials:** This guidance openly discusses and accepts the use of Bayesian methods for modifying trial designs based on accumulating data.

@@ -944,93 +944,73 @@ def plot_dfx_dashboard(efforts):
     """
     Generates a professional-grade DfX dashboard comparing a baseline design to an improved design.
     """
-    # 1. --- Define the Baseline ("Before DfX") Product ---
-    base = {
-        'part_count': 8, 'material_cost': 1.50, 'mfg_complexity': 9, 'assembly_steps': 15,
-        'fastener_count': 4, 'test_points': 1, 'test_time': 90, 'reliability_score': 5,
-        'service_time': 120, 'recyclability': 20, 'ux_score': 4
-    }
+    base = {'part_count': 8, 'material_cost': 1.50, 'mfg_complexity': 9, 'assembly_steps': 15, 'fastener_count': 4, 'test_points': 1, 'test_time': 90, 'reliability_score': 5, 'service_time': 120, 'recyclability': 20, 'ux_score': 4}
     
-    # 2. --- Calculate the Improved ("After DfX") Product based on effort sliders ---
     improved = base.copy()
-    
-    # Core Manufacturing & Production
-    imp_mfg = efforts['mfg'] / 10.0
+    imp_mfg, imp_qual, imp_sus, imp_ux = efforts['mfg']/10.0, efforts['quality']/10.0, efforts['sustainability']/10.0, efforts['ux']/10.0
     improved['part_count'] = int(base['part_count'] * (1 - imp_mfg * 0.6))
     improved['fastener_count'] = int(base['fastener_count'] * (1 - imp_mfg * 0.8))
     improved['mfg_complexity'] = base['mfg_complexity'] * (1 - imp_mfg * 0.7)
     improved['assembly_steps'] = int(base['assembly_steps'] * (1 - imp_mfg * 0.6))
-    
-    # Quality, Reliability & Safety
-    imp_qual = efforts['quality'] / 10.0
     improved['reliability_score'] = base['reliability_score'] * (1 + imp_qual * 1.0)
     improved['test_points'] = base['test_points'] + int(imp_qual * 2)
     improved['test_time'] = base['test_time'] * (1 - imp_qual * 0.5)
-
-    # Sustainability & End-of-Life
-    imp_sus = efforts['sustainability'] / 10.0
     improved['recyclability'] = base['recyclability'] + imp_sus * 70
-    improved['material_cost'] = base['material_cost'] * (1 - imp_sus * 0.15) # DFE can lead to cheaper materials
-
-    # Service, Maintenance & User Experience
-    imp_ux = efforts['ux'] / 10.0
+    improved['material_cost'] = base['material_cost'] * (1 - imp_sus * 0.15)
     improved['service_time'] = base['service_time'] * (1 - imp_ux * 0.6)
     improved['ux_score'] = base['ux_score'] * (1 + imp_ux * 1.0)
 
-    # 3. --- Calculate Final KPIs for both designs ---
     def calculate_kpis(d):
         mfg_cost = d['mfg_complexity'] * 0.15
         assembly_cost = d['assembly_steps'] * 0.05 + d['fastener_count'] * 0.02
         qc_cost = d['test_time'] * 0.01
-        total_cost = d['material_cost'] + mfg_cost + assembly_cost + qc_cost
+        service_cost = d['service_time'] * 0.005
+        total_cost = d['material_cost'] + mfg_cost + assembly_cost + qc_cost + service_cost
         yield_pct = 99.5 - (d['mfg_complexity'] * 1.5)
-        return {"Total Cost ($)": total_cost, "Mfg. Yield (%)": yield_pct, 
-                "Reliability Score": d['reliability_score'], "UX Score": d['ux_score'],
-                "cost_breakdown": [d['material_cost'], mfg_cost, assembly_cost, qc_cost, d['service_time']*0.005]}
+        return {"Total Cost ($)": total_cost, "Mfg. Yield (%)": yield_pct, "Reliability Score": d['reliability_score'], "UX Score": d['ux_score'],
+                "cost_breakdown": [d['material_cost'], mfg_cost, assembly_cost, qc_cost, service_cost]}
 
     kpis_base = calculate_kpis(base)
     kpis_improved = calculate_kpis(improved)
     
-    # --- PLOTTING ---
-    fig = make_subplots(
-        rows=2, cols=3,
-        specs=[[{}, {}, {"rowspan": 2}], [{}, {}, None]],
-        subplot_titles=("<b>1. Baseline Design</b>", "<b>2. DfX Optimized Design</b>", "<b>3. Cost Structure Breakdown</b>", 
-                        "<b>4. Manufacturing KPIs</b>", "<b>5. Product Quality KPIs</b>"),
-        vertical_spacing=0.25, horizontal_spacing=0.1
+    # --- FIGURE 1: PIE CHARTS for Cost Structure ---
+    fig_pies = make_subplots(rows=1, cols=2, specs=[[{'type':'domain'}, {'type':'domain'}]],
+                             subplot_titles=['<b>Baseline Cost</b>', '<b>Optimized Cost</b>'])
+    pie_labels = ['Material', 'Manufacturing', 'Assembly', 'QC', 'Service']
+    fig_pies.add_trace(go.Pie(labels=pie_labels, values=kpis_base['cost_breakdown'], name="Base"), 1, 1)
+    fig_pies.add_trace(go.Pie(labels=pie_labels, values=kpis_improved['cost_breakdown'], name="Optimized"), 1, 2)
+    fig_pies.update_traces(hole=.4, hoverinfo="label+percent+value")
+    fig_pies.update_layout(title_text="<b>Cost Structure Breakdown</b>", showlegend=False)
+
+    # --- FIGURE 2: SUBPLOTS for Product Visuals and KPIs ---
+    fig_main = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=("<b>1. Baseline Design</b>", "<b>2. DfX Optimized Design</b>", "<b>Manufacturing KPIs</b>", "<b>Product Quality KPIs</b>"),
+        vertical_spacing=0.25
     )
+    fig_main.add_shape(type="rect", x0=1, y0=1, x1=4, y1=2, fillcolor='lightgrey', line_color='black', row=1, col=1)
+    fig_main.add_shape(type="rect", x0=1.2, y0=1.2, x1=3.8, y1=1.8, fillcolor='white', line_color='black', row=1, col=1)
+    for x in [0.8, 4.2]: fig_main.add_shape(type="circle", x0=x, y0=1.4, x1=x+0.2, y1=1.6, fillcolor='grey', row=1, col=1)
+    fig_main.add_annotation(x=2.5, y=0.5, text=f"{base['part_count']} Parts, {base['fastener_count']} Fasteners", showarrow=False, row=1, col=1)
 
-    # Plot 1 & 2: Product Visualizations
-    fig.add_shape(type="rect", x0=1, y0=1, x1=4, y1=2, fillcolor='lightgrey', line_color='black', row=1, col=1)
-    fig.add_shape(type="rect", x0=1.2, y0=1.2, x1=3.8, y1=1.8, fillcolor='white', line_color='black', row=1, col=1)
-    for x in [0.8, 4.2]: fig.add_shape(type="circle", x0=x, y0=1.4, x1=x+0.2, y1=1.6, fillcolor='grey', row=1, col=1)
-    fig.add_annotation(x=2.5, y=0.5, text=f"{base['part_count']} Parts, {base['fastener_count']} Fasteners", showarrow=False, row=1, col=1)
-
-    fig.add_shape(type="rect", x0=1, y0=1, x1=4, y1=2, fillcolor='lightgrey', line_color='black', row=1, col=2)
-    fig.add_shape(type="rect", x0=1.2, y0=1.2, x1=3.8, y1=1.8, fillcolor='white', line_color='black', row=1, col=2)
-    fig.add_shape(type="circle", x0=3.7, y0=1.0, x1=3.9, y1=1.2, line_color='blue', line_width=2, row=1, col=2)
-    fig.add_annotation(x=2.5, y=0.5, text=f"{improved['part_count']} Parts, {improved['fastener_count']} Fasteners (Snap-Fit)", showarrow=False, row=1, col=2)
+    fig_main.add_shape(type="rect", x0=1, y0=1, x1=4, y1=2, fillcolor='lightgrey', line_color='black', row=1, col=2)
+    fig_main.add_shape(type="rect", x0=1.2, y0=1.2, x1=3.8, y1=1.8, fillcolor='white', line_color='black', row=1, col=2)
+    fig_main.add_shape(type="circle", x0=3.7, y0=1.0, x1=3.9, y1=1.2, line_color='blue', line_width=2, row=1, col=2)
+    fig_main.add_annotation(x=2.5, y=0.5, text=f"{improved['part_count']} Parts, {improved['fastener_count']} Fasteners (Snap-Fit)", showarrow=False, row=1, col=2)
     
     for r,c in [(1,1), (1,2)]:
-        fig.update_xaxes(visible=False, range=[0,5], row=r, col=c); fig.update_yaxes(visible=False, range=[0,3], row=r, col=c)
+        fig_main.update_xaxes(visible=False, range=[0,5], row=r, col=c); fig_main.update_yaxes(visible=False, range=[0,3], row=r, col=c)
 
-    # Plot 3: Cost Breakdown
-    pie_labels = ['Material', 'Manufacturing', 'Assembly', 'QC', 'Service']
-    fig.add_trace(go.Pie(labels=pie_labels, values=kpis_base['cost_breakdown'], name="Base", domain={'x': [0, 0.48]}), row=1, col=3)
-    fig.add_trace(go.Pie(labels=pie_labels, values=kpis_improved['cost_breakdown'], name="Optimized", domain={'x': [0.52, 1.0]}), row=1, col=3)
-    fig.add_annotation(x=0.22, y=1.05, text="<b>Baseline</b>", showarrow=False, font_size=14, row=1, col=3)
-    fig.add_annotation(x=0.8, y=1.05, text="<b>Optimized</b>", showarrow=False, font_size=14, row=1, col=3)
-    
-    # Plot 4 & 5: KPI Bars
     mfg_kpis = ["Total Cost ($)", "Mfg. Yield (%)"]
     qual_kpis = ["Reliability Score", "UX Score"]
-    fig.add_trace(go.Bar(name='Baseline', x=mfg_kpis, y=[kpis_base[k] for k in mfg_kpis], marker_color='grey'), row=2, col=1)
-    fig.add_trace(go.Bar(name='Optimized', x=mfg_kpis, y=[kpis_improved[k] for k in mfg_kpis], marker_color=SUCCESS_GREEN), row=2, col=2)
-    fig.add_trace(go.Bar(name='Baseline', x=qual_kpis, y=[kpis_base[k] for k in qual_kpis], marker_color='grey'), row=2, col=2)
-    fig.add_trace(go.Bar(name='Optimized', x=qual_kpis, y=[kpis_improved[k] for k in qual_kpis], marker_color=SUCCESS_GREEN), row=2, col=1)
+    fig_main.add_trace(go.Bar(name='Baseline', x=mfg_kpis, y=[kpis_base[k] for k in mfg_kpis], marker_color='grey'), row=2, col=1)
+    fig_main.add_trace(go.Bar(name='Optimized', x=mfg_kpis, y=[kpis_improved[k] for k in mfg_kpis], marker_color=SUCCESS_GREEN), row=2, col=2)
+    fig_main.add_trace(go.Bar(name='Baseline', x=qual_kpis, y=[kpis_base[k] for k in qual_kpis], marker_color='grey'), row=2, col=2)
+    fig_main.add_trace(go.Bar(name='Optimized', x=qual_kpis, y=[kpis_improved[k] for k in qual_kpis], marker_color=SUCCESS_GREEN), row=2, col=1)
+    
+    fig_main.update_layout(height=600, showlegend=True, barmode='group', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
 
-    fig.update_layout(height=800, margin=dict(t=50, b=20), showlegend=False, barmode='group')
-    return fig, kpis_base, kpis_improved
+    return fig_pies, fig_main, kpis_base, kpis_improved
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
 
@@ -5662,7 +5642,13 @@ def render_dfx_dashboard():
     fig, kpis_base, kpis_improved = plot_dfx_dashboard(efforts)
 
     st.header("Design Comparison Dashboard")
-    st.plotly_chart(fig, use_container_width=True)
+    
+       # --- NEW, CORRECTED LAYOUT ---
+    col1, col2 = st.columns([0.6, 0.4])
+    with col1:
+        st.plotly_chart(fig_main, use_container_width=True)
+    with col2:
+        st.plotly_chart(fig_pies, use_container_width=True)
     
     st.divider()
     st.subheader("Deeper Dive")

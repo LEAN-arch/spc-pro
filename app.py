@@ -4996,7 +4996,9 @@ def render_atp_builder():
         - **Trade-offs:** Notice that it's difficult to create a method that excels on all axes simultaneously. For example, a method with an extremely wide **Range** may have to sacrifice some **Precision** at the lowest levels. The ATP makes these trade-offs a conscious, documented decision.
         """)
     with tabs[1]:
-        st.success("🟢 **THE GOLDEN RULE:** Define "Fit for Purpose" Before You Begin. The ATP is the formal definition of "fit for purpose." It transforms a vague goal ('we need a potency assay') into a set of concrete, measurable, and testable acceptance criteria. All subsequent method development and validation activities should be designed to prove that the criteria in the ATP have been met.")
+        # --- THIS IS THE CORRECTED LINE ---
+        st.success("🟢 **THE GOLDEN RULE:** Define 'Fit for Purpose' Before You Begin. The ATP is the formal definition of 'fit for purpose.' It transforms a vague goal ('we need a potency assay') into a set of concrete, measurable, and testable acceptance criteria. All subsequent method development and validation activities should be designed to prove that the criteria in the ATP have been met.")
+        # --- END OF CORRECTION ---
     with tabs[2]:
         st.markdown("The concept of the Analytical Target Profile (ATP) is a direct application of the **Quality by Design (QbD)** principles to the lifecycle of an analytical method. It was formally introduced and championed by the FDA and in publications from scientific bodies like the AAPS in the 2010s. It parallels the **Target Product Profile (TPP)**, but instead of defining the goals for a drug product, it defines the goals for the measurement system used to test that product. It represents a shift from a reactive, checklist-based validation to a proactive, lifecycle-based approach to analytical method quality.")
     with tabs[3]:

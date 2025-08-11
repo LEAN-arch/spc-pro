@@ -4906,7 +4906,7 @@ def render_introduction_content():
         # Right-align the contact information
         st.markdown(
             """
-            <div style='text-align: right; color: grey; margin-bottom: 0;'>
+            <div style='text-align: left; color: grey; margin-bottom: 0;'>
             <b>Contact Information</b><br>
             📧 jbautistads@gmail.com<br>
             🔗 linkedin.com/in/josebautista

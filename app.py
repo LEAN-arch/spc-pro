@@ -605,7 +605,7 @@ def create_toolkit_conceptual_map():
 #==============================================================================================================================================================================================================
 
 @st.cache_data
-def plot_tpp_cqa_cascade(product_type, target1_val, target2_val, target1_tag, target2_tag):
+def plot_tpp_cqa_cascade(project_type, target1_val, target2_val, target1_tag, target2_tag):
     """
     Generates a professional, interactive Sankey diagram for TPP -> CQA -> CPP cascade for multiple project types.
     """
@@ -632,23 +632,19 @@ def plot_tpp_cqa_cascade(product_type, target1_val, target2_val, target1_tag, ta
         }
     }
     
-    data = cascade_data[product_type]
+    data = cascade_data[project_type]
     
-    # Create nodes for Sankey
     labels = [f"<b>TPP:</b><br>{data['TPP']}"]
     labels.extend([f"<b>CQA:</b> {cqa}" for cqa in data['CQAs']])
     labels.extend([f"<b>CPP:</b> {cpp}" for cpp in data['CPPs']])
-    
     node_colors = [PRIMARY_COLOR] + [SUCCESS_GREEN]*len(data['CQAs']) + ['#636EFA']*len(data['CPPs'])
 
-    # More robust highlighting logic
     for i, (key, props) in enumerate(data['CQAs'].items()):
         is_active = (target1_tag in props['link'] and target1_val) or \
                     (target2_tag in props['link'] and target2_val)
         if is_active:
-            node_colors[i + 1] = '#FFBF00' # Highlight color
+            node_colors[i + 1] = '#FFBF00'
             
-    # Create links for Sankey
     sources, targets, values = [], [], []
     tpp_idx = 0
     for i, cqa in enumerate(data['CQAs']):
@@ -656,7 +652,6 @@ def plot_tpp_cqa_cascade(product_type, target1_val, target2_val, target1_tag, ta
         sources.append(tpp_idx)
         targets.append(cqa_idx)
         values.append(1)
-
     for cpp, cqa_links in data['CPPs'].items():
         cpp_idx = labels.index(f"<b>CPP:</b> {cpp}")
         for link in cqa_links:

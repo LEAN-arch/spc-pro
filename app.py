@@ -5767,7 +5767,7 @@ def render_diagnostic_validation_suite():
         - **Likelihood Ratios (LR+ / LR-):** How much does a positive/negative result increase/decrease the odds of having the disease? They are powerful because, unlike PPV/NPV, they are independent of prevalence.
         - **MCC & Kappa:** These are advanced accuracy metrics that are robust to imbalanced data (unlike simple Accuracy). A score of +1 is perfect, 0 is random, and -1 is perfectly wrong. **MCC** is generally considered one of the most robust and informative single-number scores for a classifier.
         """)
-        with tabs[1]:
+    with tabs[1]:
         st.markdown("""
         ##### Glossary of Diagnostic Metrics
         - **Sensitivity (TPR):** The ability of the test to correctly identify individuals who *have* the disease. `TPR = TP / (TP + FN)`

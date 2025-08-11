@@ -4902,7 +4902,7 @@ def render_introduction_content():
             unsafe_allow_html=True
         )
 
-    with col2:
+
         # Right-align the contact information
         st.markdown(
             """

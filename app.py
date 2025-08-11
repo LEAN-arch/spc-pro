@@ -887,45 +887,43 @@ def plot_vmp_flow(project_type):
 @st.cache_data
 def plot_rtm_sankey(project_type, scenario):
     """
-    Generates a professional-grade Sankey diagram for an RTM, simulating different audit scenarios across all project types.
+    Generates a professional-grade, high-complexity Sankey diagram for an RTM, simulating different audit scenarios.
     """
     rtm_data = {
-        "Analytical Method (Assay)": {
-            "title": "RTM for Assay Validation",
-            "nodes": ['ATP: Accuracy 98-102%', 'ATP: Precision < 2% CV', 'VAL-P-01: Accuracy Study', 'VAL-P-02: Precision Study', 'DEV-01: Extra Robustness Test'],
-            "links": [('ATP: Accuracy 98-102%', 'VAL-P-01: Accuracy Study', 1), ('ATP: Precision < 2% CV', 'VAL-P-02: Precision Study', 1)],
-            "scenarios": {
-                "Untested Requirement": {'remove': [('ATP: Precision < 2% CV', 'VAL-P-02: Precision Study', 1)], 'add': [], 'finding': "❌ GAP: The 'Precision' requirement in the ATP was not verified by a validation study."},
-                "Untraced Test ('Orphan')": {'remove': [], 'add': [('ATP: Accuracy 98-102%', 'DEV-01: Extra Robustness Test', 1)], 'finding': "⚠️ WARNING: The 'Extra Robustness Test' does not trace back to a pre-defined ATP requirement."}
-            }
-        },
-        "Instrument Qualification": {
-            "title": "RTM for Instrument Qualification",
-            "nodes": ['URS-01: Dispense 10-100uL', 'URS-02: Temp Control 37C', 'OQ-01: Dispense Test', 'OQ-02: Temp Mapping', 'PQ-01: Gage R&R', 'ENG-01: Unspecified Speed Test'],
-            "links": [('URS-01: Dispense 10-100uL', 'OQ-01: Dispense Test', 1), ('OQ-01: Dispense Test', 'PQ-01: Gage R&R', 1), ('URS-02: Temp Control 37C', 'OQ-02: Temp Mapping', 1)],
-            "scenarios": {
-                "Untested Requirement": {'remove': [('OQ-01: Dispense Test', 'PQ-01: Gage R&R', 1)], 'add': [], 'finding': "❌ GAP: URS-01 ('Dispense Volume') was verified in OQ but was not confirmed under real-world conditions in PQ."},
-                "Untraced Test ('Orphan')": {'remove': [], 'add': [('URS-01: Dispense 10-100uL', 'ENG-01: Unspecified Speed Test', 1)], 'finding': "⚠️ WARNING: The 'Unspecified Speed Test' was performed but does not trace back to a URS requirement."}
-            }
-        },
         "Software System (CSV)": {
-            "title": "RTM for Computer System Validation",
-            "nodes": ['URS-01: Part 11 Compliant', 'URS-02: Calculate Purity', 'FS-01: Audit Trails', 'FS-02: Area % Calculation', 'OQ-01: Audit Trail Test', 'PQ-01: Purity Calc Test', 'DEV-01: Unlinked Feature Test'],
-            "links": [('URS-01: Part 11 Compliant', 'FS-01: Audit Trails', 1), ('FS-01: Audit Trails', 'OQ-01: Audit Trail Test', 1),
-                      ('URS-02: Calculate Purity', 'FS-02: Area % Calculation', 1), ('FS-02: Area % Calculation', 'PQ-01: Purity Calc Test', 1)],
+            "title": "RTM for Computer System Validation (LIMS)",
+            "nodes": {
+                "URS-01": "System must be 21 CFR Part 11 Compliant", "URS-02": "System must calculate % Purity", "URS-03": "System must ensure data integrity",
+                "FS-1.1": "Provide secure audit trails", "FS-1.2": "Implement electronic signatures", "FS-2.1": "Use Area % calculation algorithm", "FS-3.1": "Implement database backup/recovery",
+                "DS-1.1.1": "Audit trail database schema", "DS-2.1.1": "Algorithm specification",
+                "OQ-1.1.1": "Test audit trail creation", "OQ-1.2.1": "Test e-signature lockout", "PQ-2.1.1": "Verify purity calculation vs. spreadsheet", "PQ-3.1.1": "Perform server recovery test",
+                "DEV-01": "Untraced developer test"
+            },
+            "links": [
+                ('URS-01', 'FS-1.1'), ('URS-01', 'FS-1.2'), ('URS-03', 'FS-1.1'), ('URS-03', 'FS-3.1'),
+                ('URS-02', 'FS-2.1'),
+                ('FS-1.1', 'DS-1.1.1'), ('FS-2.1', 'DS-2.1.1'),
+                ('DS-1.1.1', 'OQ-1.1.1'), ('FS-1.2', 'OQ-1.2.1'), ('DS-2.1.1', 'PQ-2.1.1'), ('FS-3.1', 'PQ-3.1.1')
+            ],
             "scenarios": {
-                "Untested Requirement": {'remove': [('FS-02: Area % Calculation', 'PQ-01: Purity Calc Test', 1)], 'add': [], 'finding': "❌ GAP DETECTED: URS-02 ('Calculate Purity') is not fully traced to a final validation test."},
-                "Untraced Test ('Orphan')": {'remove': [], 'add': [('FS-02: Area % Calculation', 'DEV-01: Unlinked Feature Test', 1)], 'finding': "⚠️ WARNING: 'Unlinked Feature Test' does not trace back to an approved user requirement."}
+                "Partial Trace": {'remove': [('FS-1.2', 'OQ-1.2.1')], 'add': [], 'finding': "❌ GAP: URS-01 ('Part 11 Compliant') is only partially tested. The audit trail function is verified, but the electronic signature function is not."},
+                "Untraced Test ('Orphan')": {'remove': [], 'add': [('DS-2.1.1', 'DEV-01')], 'finding': "⚠️ WARNING: 'DEV-01' is an 'orphan' test that does not trace back to an approved user requirement. This represents un-requested work."}
             }
         },
         "Pharma Process (PPQ)": {
             "title": "RTM for Process Performance Qualification",
-            "nodes": ['CQA: Purity > 99%', 'CQA: Yield > 5 g/L', 'CPP: Column Load', 'CPP: Bioreactor pH', 'QC-01: Release Purity Test', 'IPC-01: pH Monitoring', 'MKT-01: Uncontrolled Process Change'],
-            "links": [('CQA: Purity > 99%', 'CPP: Column Load', 1), ('CPP: Column Load', 'QC-01: Release Purity Test', 1),
-                      ('CQA: Yield > 5 g/L', 'CPP: Bioreactor pH', 1), ('CPP: Bioreactor pH', 'IPC-01: pH Monitoring', 1)],
+            "nodes": {
+                "CQA-01": "Purity > 99%", "CQA-02": "Potency 80-120%",
+                "CPP-01": "Column Load Ratio", "CPP-02": "Bioreactor pH", "CMA-01": "Media Lot",
+                "TEST-01": "QC Release Purity Test", "TEST-02": "QC Release Potency Bioassay", "TEST-03": "In-Process pH Monitoring"
+            },
+            "links": [
+                ('CQA-01', 'CPP-01'), ('CPP-01', 'TEST-01'),
+                ('CQA-02', 'CPP-02'), ('CQA-02', 'CMA-01'), ('CPP-02', 'TEST-03'), ('CMA-01', 'TEST-02')
+            ],
             "scenarios": {
-                "Untested Requirement": {'remove': [('CPP: Column Load', 'QC-01: Release Purity Test', 1)], 'add': [], 'finding': "❌ GAP: The control of the 'Purity' CQA via the 'Column Load' CPP was not verified by a final QC test."},
-                "Untraced Test ('Orphan')": {'remove': [], 'add': [('CQA: Yield > 5 g/L', 'MKT-01: Uncontrolled Process Change', 1)], 'finding': "⚠️ WARNING: An 'Uncontrolled Process Change' was made that traces to the Yield CQA but not to a controlled CPP."}
+                "Partial Trace": {'remove': [('CMA-01', 'TEST-02')], 'add': [], 'finding': "❌ GAP: CQA-02 ('Potency') is only partially verified. The controlling CPP (pH) is monitored, but the impact of the critical material (Media Lot) is not confirmed by the final potency test."},
+                "Untraced Test ('Orphan')": {'remove': [], 'add': [], 'finding': "⚠️ WARNING: This RTM is complete, but an orphan test scenario would involve a test (e.g. 'extra impurity test') that does not link to a pre-defined CQA."}
             }
         }
     }
@@ -941,23 +939,32 @@ def plot_rtm_sankey(project_type, scenario):
         links.extend(s.get('add', []))
         audit_finding = s['finding']
 
-    all_nodes = data['nodes']
-    source_indices = [all_nodes.index(link[0]) for link in links]
-    target_indices = [all_nodes.index(link[1]) for link in links]
-    values = [link[2] for link in links]
+    all_nodes_ids = list(data['nodes'].keys())
+    all_nodes_labels = [f"<b>{k}</b><br>{v}" for k, v in data['nodes'].items()]
+
+    source_indices = [all_nodes_ids.index(link[0]) for link in links]
+    target_indices = [all_nodes_ids.index(link[1]) for link in links]
     
     colors = []
-    for label in all_nodes:
+    for label in all_nodes_ids:
         if any(prefix in label for prefix in ['URS', 'ATP', 'CQA']): colors.append(PRIMARY_COLOR)
-        elif any(prefix in label for prefix in ['FS', 'CPP']): colors.append(SUCCESS_GREEN)
+        elif any(prefix in label for prefix in ['FS', 'DS', 'CPP', 'CMA']): colors.append(SUCCESS_GREEN)
         else: colors.append('#636EFA')
 
     fig = go.Figure(data=[go.Sankey(
-        node=dict(pad=25, thickness=20, line=dict(color="black", width=0.5), label=all_nodes, color=colors),
-        link=dict(source=source_indices, target=target_indices, value=values, color='rgba(200,200,200,0.5)')
+        arrangement='snap',
+        node=dict(
+            pad=25, thickness=20, line=dict(color="black", width=0.5),
+            label=[k for k in all_nodes_ids], # Use short IDs for labels
+            hoverlabel=dict(bgcolor='white', font_size=12),
+            hovertemplate='%{label}<extra></extra>', # Use full label for hover
+            customdata=all_nodes_labels,
+            color=colors
+        ),
+        link=dict(source=source_indices, target=target_indices, value=[1]*len(links), color='rgba(200,200,200,0.5)')
     )])
     
-    fig.update_layout(title_text=f"<b>{data['title']} - Scenario: {scenario}</b>", font_size=12, height=500)
+    fig.update_layout(title_text=f"<b>{data['title']} - Scenario: {scenario}</b>", font_size=12, height=600)
     return fig, audit_finding
 
 #==================================================================ACT 0 END ==============================================================================================================================
@@ -5371,19 +5378,19 @@ def render_rtm_builder():
     """Renders the comprehensive, interactive module for the Requirements Traceability Matrix."""
     st.markdown("""
     #### Purpose & Application: The Auditor's Golden Thread
-    **Purpose:** To be the **"Auditor's Golden Thread."** The RTM is a master document that links every high-level requirement (like a URS or CQA) to the specific design elements and, most critically, to the specific Test Case(s) (IQ, OQ, PQ) that prove it was met.
+    **Purpose:** To be the **"Auditor's Golden Thread."** The RTM is a master document that links every high-level requirement (like a URS or CQA) to the specific design elements and, most critically, to the specific Test Case(s) that prove it was met.
     
-    **Strategic Application:** The RTM provides irrefutable, traceable proof that **everything that was asked for was built, and everything that was built was tested.** It is the ultimate tool for ensuring completeness in complex projects and is often the very first document an auditor will ask for. A gap in the RTM is a major compliance failure.
+    **Strategic Application:** The RTM provides irrefutable, traceable proof that **everything that was asked for was built, and everything that was built was tested.** It is the ultimate tool for ensuring completeness in complex projects and is often the very first document an auditor will ask to see. A gap in the RTM is a major compliance failure.
     """)
     
     st.info("""
     **Interactive Demo: The Audit Simulation**
-    You are the Quality Auditor. Your task is to review the RTM for different project types. Select a project and then a scenario to see how compliance issues are detected.
+    You are the Quality Auditor. Your task is to review the RTM for different project types. Select a project and then an audit scenario to see how different compliance issues are detected. Hover over the nodes for full descriptions.
     """)
 
     project_type = st.selectbox(
         "Select a Project Type to view a sample RTM:",
-        ["Software System (CSV)", "Instrument Qualification", "Analytical Method (Assay)", "Pharma Process (PPQ)"],
+        ["Software System (CSV)", "Pharma Process (PPQ)"],
         help="Choose the type of validation project to simulate. The diagram and scenarios will update accordingly."
     )
     
@@ -5391,13 +5398,13 @@ def render_rtm_builder():
         st.subheader("RTM Audit Simulation")
         scenario = st.radio(
             f"Select a Scenario for the {project_type} RTM:",
-            ("Traceability Complete", "Untested Requirement", "Untraced Test ('Orphan')"),
+            ("Traceability Complete", "Partial Trace", "Untraced Test ('Orphan')"),
             captions=[
                 "The ideal, fully-compliant RTM.",
-                "Simulates a critical validation gap.",
+                "Simulates a subtle but critical validation gap.",
                 "Simulates scope creep or an unnecessary test."
             ],
-            key=project_type, # This key is crucial to reset the radio button when the project changes
+            key=project_type,
             help="Choose a scenario to see how different types of common compliance issues appear in a traceability matrix."
         )
         
@@ -5417,10 +5424,10 @@ def render_rtm_builder():
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown(f"""
-        **Interpreting the Audit Scenarios for an {project_type}:**
-        - **Traceability Complete:** This is the goal. Every high-level requirement (blue nodes on the left) has an unbroken "golden thread" all the way to a final verification test (purple nodes on the right). This is an auditable and compliant RTM.
+        **Interpreting the Audit Scenarios:**
+        - **Traceability Complete:** This is the goal. Every high-level requirement (blue nodes on the left) has an unbroken "golden thread" through the design/control elements (green) all the way to a final verification test (purple).
         
-        - **Untested Requirement:** In this scenario, you will see a requirement (blue) or a design element (green) that is a "dead end"—it has no forward connections to a test. This is a **critical validation gap** and would be a major audit finding.
+        - **Partial Trace:** This is a subtle but critical failure. A high-level requirement (like `URS-01` or `CQA-02`) branches into multiple sub-requirements or design elements. In this scenario, one of those branches is a "dead end," meaning the high-level requirement is only **partially tested**. An auditor would flag this as a major gap, as the full scope of the requirement has not been verified.
 
         - **Untraced Test ('Orphan'):** Here, a test case (purple) appears that does not trace back to an original, approved requirement. This "orphan" test raises a key question for the auditor: Was this feature added without proper approval (**scope creep**), or is it an engineering test that was incorrectly included in the validation package (**wasted effort**)?
         """)

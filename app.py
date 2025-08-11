@@ -4796,8 +4796,8 @@ def render_introduction_content():
 def render_tpp_cqa_cascade():
     """Renders the comprehensive, interactive module for TPP & CQA Cascade, including a full QbD introduction."""
     st.markdown("""
-    #### Purpose & Application: The "Golden Thread" of Quality by Design (QbD)
-    **Purpose:** To be the **"North Star" of the entire project.** This tool visualizes the "golden thread" of QbD. It starts with the high-level patient or business needs (the **Target Product Profile**), translates them into measurable product requirements (the **Critical Quality Attributes**), and finally links those to the specific process parameters and material attributes that must be controlled.
+    #### Purpose & Application: The "Golden Thread" of QbD
+    **Purpose:** To be the **"North Star" of the entire project.** This tool visualizes the "golden thread" of Quality by Design (QbD). It starts with the high-level patient or business needs (the **Target Product Profile**), translates them into measurable product requirements (the **Critical Quality Attributes**), and finally links those to the specific process parameters and material attributes that must be controlled.
     
     **Strategic Application:** This cascade is the first and most important document in a modern, science- and risk-based validation program. It provides a clear, traceable line of sight from the needs of the patient all the way down to the specific dial a process engineer needs to turn. This is the essence of **ICH Q8**.
     """)
@@ -4851,17 +4851,16 @@ def render_tpp_cqa_cascade():
     st.divider()
     st.subheader("Deeper Dive into Quality by Design (QbD)")
     
-    # --- THIS IS THE NEW, SUBSTANTIALLY EXTENDED TABS SECTION ---
-    tabs = st.tabs(["💡 Key Insights", "📖 Introduction to QbD", "📋 QbD Glossary", "✅ The Golden Rule", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📖 Introduction to QbD", "📋 QbD Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     
     with tabs[0]:
         st.markdown("""
         **Reading the Cascade:**
         - **TPP (Left Node):** This is the contract with the patient and the business. It defines what the product, process, or system must do.
-        - **CQAs (Middle Nodes):** These are the measurable, scientific properties the *product* must possess (or performance attributes the *system* must have) to fulfill the TPP. For example, to be "effective," the product must have high "Potency."
-        - **CPPs (Right Nodes):** These are the measurable, controllable knobs on the *process* or *design* that influence the CQAs. For example, "Bioreactor pH" is a CPP that is known to affect the final "Potency" of a MAb.
+        - **CQAs (Middle Nodes):** These are the measurable, scientific properties the *product* must possess (or performance attributes the *system* must have) to fulfill the TPP.
+        - **CPPs (Right Nodes):** These are the measurable, controllable knobs on the *process* or *design* that influence the CQAs.
 
-        **The Interactive Connection:** As you move the sliders in the sidebar to set more ambitious TPP targets, the CQAs directly impacted by your decision are highlighted in yellow. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be understood and controlled.
+        **The Interactive Connection:** As you move the sliders, the CQAs directly impacted by your decision are highlighted in yellow. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be designed and controlled.
         """)
     
     with tabs[1]:
@@ -4908,12 +4907,22 @@ def render_tpp_cqa_cascade():
         st.success("""
         🟢 **THE GOLDEN RULE: Begin with the End in Mind, and Document the Links.**
         
-        A validation program that does not start with a clearly defined Target Product Profile is a project without a destination. The TPP is the formal document that prevents 'scope creep' and ensures all development and validation activities are focused on delivering a product that meets the specific, pre-defined needs of the patient.
+        A validation program that does not start with a clearly defined Target Product Profile is a project without a destination. The TPP is the formal document that prevents 'scope creep' and ensures that all development and validation activities are focused on delivering a product that meets the specific, pre-defined needs of the patient.
         
         Furthermore, the entire cascade—from TPP down to CPPs—must be a living, documented "golden thread" that provides the scientific and risk-based rationale for your entire control strategy.
         """)
 
     with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From Juran's Trilogy to ICH
+        **The Problem:** For much of the 20th century, the pharmaceutical industry operated on a "quality by testing" paradigm. Processes were developed, locked down, and then extensively tested at the end to prove they worked. This was inefficient and led to a poor understanding of *why* processes sometimes failed.
+        
+        **The 'Aha!' Moment:** The core ideas of QbD were articulated by the quality pioneer **Joseph M. Juran** in his "Quality Trilogy" (Quality Planning, Quality Control, Quality Improvement). He argued that quality must be *planned* and *designed* into a product from the very beginning. While these ideas were adopted by other industries like automotive and electronics, the pharmaceutical industry was slower to change due to its rigid regulatory structure.
+            
+        **The Impact (The ICH Revolution):** In the early 2000s, the FDA and other global regulators recognized that the traditional approach was stifling innovation. They launched the **"Pharmaceutical cGMPs for the 21st Century"** initiative to encourage a modern, science- and risk-based approach. This culminated in the **ICH Q8(R2) Guideline on Pharmaceutical Development** in 2009. This guideline formally adopted Juran's philosophy, introducing the concepts of the **Target Product Profile (TPP)** and **Critical Quality Attributes (CQA)** to the industry. It marked a major philosophical shift away from a prescriptive, "cookbook" approach to a flexible, understanding-based framework, with the TPP/CQA cascade as its central pillar.
+        """)
+        
+    with tabs[5]:
         st.markdown("""
         This entire framework is defined and championed by the International Council for Harmonisation (ICH) and adopted by global regulators like the FDA.
         - **ICH Q8(R2) - Pharmaceutical Development:** This is the primary guideline. It explicitly defines the **Target Product Profile (TPP)**, **Critical Quality Attributes (CQA)**, and **Critical Process Parameters (CPP)** as the foundational elements of QbD. It introduces the concepts of the **Design Space** and **Control Strategy**.

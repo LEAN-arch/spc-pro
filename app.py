@@ -600,6 +600,371 @@ def create_toolkit_conceptual_map():
         paper_bgcolor='#f0f2f6'
     )
     return fig
+#==============================================================================================================================================================================================================
+#=========================================================================================== ACT 0 BEGGINNG ===================================================================================================
+#==============================================================================================================================================================================================================
+
+@st.cache_data
+def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
+    """
+    Generates a professional, interactive cascade diagram for TPP -> CQA -> CPP.
+    """
+    # Define the data structure for different product types
+    cascade_data = {
+        "Monoclonal Antibody": {
+            "TPP": "A safe, effective, and stable MAb therapeutic for IV administration.",
+            "CQAs": {
+                "Purity (SEC) > 99%": {"link": "Efficacy"},
+                "Aggregate < 1%": {"link": "Safety"},
+                "Potency (ELISA) 80-120%": {"link": "Efficacy"},
+                "Charge Variant Profile": {"link": "Efficacy"},
+                "Stability (24 months)": {"link": "Shelf-Life"}
+            },
+            "CPPs": {
+                "Bioreactor pH": ["Potency (ELISA) 80-120%", "Charge Variant Profile"],
+                "Column Load Density": ["Purity (SEC) > 99%", "Aggregate < 1%"],
+                "Formulation Buffer": ["Stability (24 months)"]
+            }
+        },
+        "IVD Kit": {
+            "TPP": "A reliable and accurate diagnostic kit for early disease detection.",
+            "CQAs": {
+                "Clinical Sensitivity > 98%": {"link": "Efficacy"},
+                "Clinical Specificity > 99%": {"link": "Efficacy"},
+                "Assay Precision (CV < 15%)": {"link": "Reliability"},
+                "Shelf-Life (18 months)": {"link": "Shelf-Life"}
+            },
+            "CPPs": {
+                "Antibody Concentration": ["Clinical Sensitivity > 98%"],
+                "Blocking Buffer Composition": ["Clinical Specificity > 99%"],
+                "Lyophilization Cycle": ["Shelf-Life (18 months)"]
+            }
+        }
+    }
+    
+    data = cascade_data[product_type]
+    
+    fig = go.Figure()
+
+    # Node positions
+    nodes = {'TPP': {'x': 0.5, 'y': 0.9}}
+    cqa_keys = list(data['CQAs'].keys())
+    for i, key in enumerate(cqa_keys):
+        nodes[key] = {'x': 0.2 + 0.6 * (i / (len(cqa_keys)-1)), 'y': 0.5}
+    cpp_keys = list(data['CPPs'].keys())
+    for i, key in enumerate(cpp_keys):
+        nodes[key] = {'x': 0.2 + 0.6 * (i / (len(cpp_keys)-1)), 'y': 0.1}
+        
+    # Draw Edges (Arrows)
+    for cqa, links in data['CQAs'].items():
+        fig.add_annotation(x=nodes[cqa]['x'], y=nodes[cqa]['y']+0.08, ax=nodes['TPP']['x'], ay=nodes['TPP']['y']-0.08,
+                           xref='paper', yref='paper', axref='paper', ayref='paper',
+                           showarrow=True, arrowhead=2, arrowcolor='grey')
+    for cpp, cqa_links in data['CPPs'].items():
+        for link in cqa_links:
+            fig.add_annotation(x=nodes[cpp]['x'], y=nodes[cpp]['y']+0.08, ax=nodes[link]['x'], ay=nodes[link]['y']-0.08,
+                               xref='paper', yref='paper', axref='paper', ayref='paper',
+                               showarrow=True, arrowhead=2, arrowcolor='grey')
+
+    # Draw Nodes (Boxes)
+    # TPP
+    is_highlighted = data['CQAs'].get(f"Efficacy > {efficacy_target}%") or data['CQAs'].get(f"Shelf-Life ({shelf_life_target} months)")
+    tpp_color = SUCCESS_GREEN if is_highlighted else PRIMARY_COLOR
+    fig.add_shape(type="rect", x0=0.2, y0=0.82, x1=0.8, y1=0.98, xref='paper', yref='paper',
+                  fillcolor=tpp_color, line=dict(width=2, color='black'))
+    fig.add_annotation(x=0.5, y=0.9, text=f"<b>Target Product Profile (TPP)</b><br>{data['TPP']}",
+                       showarrow=False, font=dict(color='white', size=14), xref='paper', yref='paper')
+
+    # CQAs
+    for key, props in data['CQAs'].items():
+        is_active = (("Efficacy" in props['link'] and efficacy_target > 80) or ("Shelf-Life" in props['link'] and shelf_life_target > 12))
+        cqa_color = SUCCESS_GREEN if is_active else PRIMARY_COLOR
+        x_pos = nodes[key]['x']
+        fig.add_shape(type="rect", x0=x_pos-0.12, y0=0.42, x1=x_pos+0.12, y1=0.58, xref='paper', yref='paper', fillcolor=cqa_color, line=dict(width=2, color='black'))
+        fig.add_annotation(x=x_pos, y=0.5, text=f"<b>CQA</b><br>{key.replace(' (', '<br>(')}", showarrow=False, font=dict(color='white'), xref='paper', yref='paper')
+
+    # CPPs
+    for key in data['CPPs'].keys():
+        x_pos = nodes[key]['x']
+        fig.add_shape(type="rect", x0=x_pos-0.12, y0=0.02, x1=x_pos+0.12, y1=0.18, xref='paper', yref='paper', fillcolor=PRIMARY_COLOR, line=dict(width=2, color='black'))
+        fig.add_annotation(x=x_pos, y=0.1, text=f"<b>CPP</b><br>{key}", showarrow=False, font=dict(color='white'), xref='paper', yref='paper')
+    
+    fig.update_layout(height=600, margin=dict(t=30, b=30),
+                      xaxis=dict(visible=False, range=[0,1]), yaxis=dict(visible=False, range=[0,1]))
+    
+    return fig
+
+@st.cache_data
+def plot_atp_radar_chart(assay_type, atp_values):
+    """
+    Generates a professional-grade radar chart for an Analytical Target Profile.
+    """
+    # Define the axes and typical performance for different assay types
+    profiles = {
+        "HPLC Purity Assay": {
+            'categories': ['Accuracy (%R)', 'Precision (%CV)', 'Linearity (R²)', 'Range (Turn-down)', 'LOD/LOQ (S/N)'],
+            'typical_performance': [99, 99, 99.9, 95, 90], # Scaled 0-100
+            'direction': [1, -1, 1, 1, 1] # 1=higher is better, -1=lower is better
+        },
+        "ELISA Potency Assay": {
+            'categories': ['Accuracy (%R)', 'Precision (%CV)', 'Linearity (R²)', 'Range (Turn-down)', 'Sensitivity'],
+            'typical_performance': [90, 85, 99, 80, 90],
+            'direction': [1, -1, 1, 1, 1]
+        }
+    }
+    
+    profile = profiles[assay_type]
+    categories = profile['categories']
+    
+    # Normalize user inputs to a 0-100 scale where 100 is always best
+    scaled_values = []
+    for i, key in enumerate(atp_values):
+        val = atp_values[key]
+        if profile['direction'][i] == -1: # Lower is better (like %CV)
+            scaled_val = 100 - (val * 4) # Simple scaling for visual effect
+        elif 'R²' in categories[i]:
+            scaled_val = (val - 0.95) / (1.0 - 0.95) * 100
+        else:
+            scaled_val = val
+        scaled_values.append(np.clip(scaled_val, 0, 100))
+        
+    fig = go.Figure()
+
+    # Layer 1: Typical Performance (Reference)
+    fig.add_trace(go.Scatterpolar(
+        r=profile['typical_performance'],
+        theta=categories,
+        fill='toself',
+        name='Typical Validated Method',
+        line=dict(color='grey'),
+        fillcolor='rgba(128,128,128,0.2)'
+    ))
+    
+    # Layer 2: User-defined Target Profile
+    fig.add_trace(go.Scatterpolar(
+        r=scaled_values,
+        theta=categories,
+        fill='toself',
+        name='Your Target Profile (ATP)',
+        line=dict(color=PRIMARY_COLOR),
+        fillcolor='rgba(0, 104, 201, 0.4)'
+    ))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 100], showticklabels=False, ticks=''),
+            angularaxis=dict(tickfont=dict(size=14))
+        ),
+        showlegend=True,
+        legend=dict(yanchor="bottom", y=-0.2, xanchor="center", x=0.5, orientation="h"),
+        title=f"<b>Analytical Target Profile for {assay_type}</b>"
+    )
+    
+    return fig
+
+@st.cache_data
+def plot_fmea_dashboard(fmea_data):
+    """
+    Generates a professional-grade FMEA dashboard with a Risk Matrix and Pareto Chart.
+    """
+    df = pd.DataFrame(fmea_data)
+    df['RPN_Initial'] = df['S'] * df['O_Initial'] * df['D_Initial']
+    df['RPN_Final'] = df['S'] * df['O_Final'] * df['D_Final']
+    
+    # --- Plot 1: Professional Risk Matrix ---
+    fig_matrix = go.Figure()
+    # Add colored background cells for risk levels
+    risk_levels = {
+        'Low': {'color': 'rgba(44, 160, 44, 0.2)', 'range_s': [1, 3], 'range_o': [1, 3]},
+        'Medium': {'color': 'rgba(255, 193, 7, 0.2)', 'range_s': [[1, 5], [4, 5], [1, 2]], 'range_o': [[4, 5], [1, 3], [1, 3]]},
+        'High': {'color': 'rgba(239, 83, 80, 0.3)', 'range_s': [4, 5], 'range_o': [4, 5]}
+    }
+    for level, props in risk_levels.items():
+        if isinstance(props['range_s'][0], list):
+            for s_range, o_range in zip(props['range_s'], props['range_o']):
+                fig_matrix.add_shape(type="rect", x0=s_range[0]-0.5, y0=o_range[0]-0.5, x1=s_range[1]+0.5, y1=o_range[1]+0.5,
+                                      fillcolor=props['color'], line_width=0, layer='below')
+        else:
+            fig_matrix.add_shape(type="rect", x0=props['range_s'][0]-0.5, y0=props['range_o'][0]-0.5, x1=props['range_s'][1]+0.5, y1=props['range_o'][1]+0.5,
+                                  fillcolor=props['color'], line_width=0, layer='below')
+
+    # Add risk points
+    fig_matrix.add_trace(go.Scatter(
+        x=df['S'], y=df['O_Initial'], mode='markers+text', text=df['ID'], textposition='top center',
+        marker=dict(color='black', size=15, symbol='circle'), name='Initial Risk'
+    ))
+    fig_matrix.add_trace(go.Scatter(
+        x=df['S'], y=df['O_Final'], mode='markers+text', text=df['ID'], textposition='bottom center',
+        marker=dict(color=PRIMARY_COLOR, size=15, symbol='diamond-open'), name='Final (Mitigated) Risk'
+    ))
+    # Add arrows showing mitigation
+    for i in df.index:
+        if df.loc[i, 'O_Initial'] != df.loc[i, 'O_Final'] or df.loc[i, 'D_Initial'] != df.loc[i, 'D_Final']:
+            fig_matrix.add_annotation(x=df.loc[i, 'S'], y=df.loc[i, 'O_Final'], ax=df.loc[i, 'S'], ay=df.loc[i, 'O_Initial'],
+                                      xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowcolor=PRIMARY_COLOR, arrowwidth=2)
+
+    fig_matrix.update_layout(title='<b>1. Risk Matrix (Severity vs. Occurrence)</b>',
+                             xaxis_title='Severity (S)', yaxis_title='Occurrence (O)',
+                             xaxis=dict(tickvals=list(range(1,6)), range=[0.5, 5.5]),
+                             yaxis=dict(tickvals=list(range(1,6)), range=[0.5, 5.5]),
+                             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+
+    # --- Plot 2: RPN Pareto Chart ---
+    df_pareto = df[['Failure Mode', 'RPN_Initial', 'RPN_Final']].copy().sort_values('RPN_Initial', ascending=False)
+    df_pareto = df_pareto.melt(id_vars='Failure Mode', var_name='Stage', value_name='RPN')
+    df_pareto['Stage'] = df_pareto['Stage'].replace({'RPN_Initial': 'Initial', 'RPN_Final': 'Final'})
+    
+    fig_pareto = px.bar(df_pareto, x='Failure Mode', y='RPN', color='Stage', barmode='group',
+                        title='<b>2. Risk Priority Number (RPN) Pareto</b>',
+                        labels={'RPN': 'Risk Priority Number (S x O x D)'},
+                        color_discrete_sequence=['grey', PRIMARY_COLOR])
+    fig_pareto.add_hline(y=50, line_dash="dash", line_color="red", annotation_text="Action Threshold")
+    
+    return fig_matrix, fig_pareto
+
+@st.cache_data
+def plot_vmp_flow(project_type):
+    """
+    Generates a dynamic V-Model or flowchart for a selected validation project type.
+    """
+    plans = {
+        "New Analytical Method Validation": {
+            'title': "V-Model for Analytical Method Validation",
+            'stages': {
+                'URS': {'name': 'Assay Requirements', 'tools': 'TPP & CQA Cascade'},
+                'FS': {'name': 'Performance Specs', 'tools': 'Core Validation Parameters, LOD & LOQ'},
+                'DS': {'name': 'Method Design', 'tools': 'Assay Robustness (DOE)'},
+                'BUILD': {'name': 'Method Development', 'tools': 'Linearity & Range, Non-Linear Regression'},
+                'IQOQ': {'name': 'Reagent & Inst. Qual', 'tools': 'Gage R&R / VCA'},
+                'PQ': {'name': 'Method Performance Qual', 'tools': 'Comprehensive Diagnostic Validation, Attribute Agreement Analysis'},
+                'VAL': {'name': 'Final Validation Report', 'tools': 'Method Comparison, Equivalence Testing (TOST)'}
+            }
+        },
+        "Process Performance Qualification (PPQ)": {
+            'title': "Workflow for Process Performance Qualification",
+            'stages': {
+                'PLAN': {'name': 'PPQ Protocol', 'tools': 'Quality Risk Management (FMEA), Sample Size for Qualification'},
+                'EXEC': {'name': 'Execute PPQ Runs', 'tools': 'Process Stability (SPC)'},
+                'EVAL': {'name': 'Assess Capability', 'tools': 'Process Capability (Cpk), Tolerance Intervals'},
+                'REPORT': {'name': 'Final PPQ Report', 'tools': 'Statistical Equivalence for Process Transfer'}
+            },
+            'type': 'flowchart'
+        },
+        "Computer System Validation (CSV)": {
+            'title': "V-Model for GxP Software Validation",
+            'stages': {
+                'URS': {'name': 'User Requirements', 'tools': 'TPP & CQA Cascade'},
+                'FS': {'name': 'Functional Specs', 'tools': 'Quality Risk Management (FMEA)'},
+                'DS': {'name': 'Design Specs', 'tools': 'Advanced AI Concepts'},
+                'BUILD': {'name': 'Coding & Configuration', 'tools': 'Explainable AI (XAI)'},
+                'IQOQ': {'name': 'Installation & Unit Test', 'tools': 'Anomaly Detection'},
+                'PQ': {'name': 'Performance Testing (UAT)', 'tools': 'Predictive QC (Classification)'},
+                'VAL': {'name': 'Final Validation Summary', 'tools': 'Clustering (Unsupervised)'}
+            }
+        }
+    }
+    
+    plan = plans[project_type]
+    fig = go.Figure()
+
+    if plan.get('type') == 'flowchart':
+        keys = list(plan['stages'].keys())
+        for i, key in enumerate(keys):
+            stage = plan['stages'][key]
+            fig.add_shape(type="rect", x0=i*2, y0=0.4, x1=i*2+1.5, y1=0.6, fillcolor=PRIMARY_COLOR, line=dict(color='black'))
+            fig.add_annotation(x=i*2+0.75, y=0.5, text=f"<b>{stage['name']}</b>", font=dict(color='white'), showarrow=False)
+            fig.add_annotation(x=i*2+0.75, y=0.3, text=f"<i>Key Tools:<br>{stage['tools']}</i>", showarrow=False)
+            if i < len(keys) - 1:
+                fig.add_annotation(x=i*2+1.75, y=0.5, text="►", font=dict(size=30, color='grey'), showarrow=False)
+        fig.update_layout(title=f'<b>{plan["title"]}</b>', xaxis=dict(visible=False), yaxis=dict(visible=False, range=[0,1]))
+    else: # V-Model
+        v_model_stages = plan['stages']
+        path_keys = list(v_model_stages.keys())
+        path_x = [0, 1, 2, 3, 4, 5, 6]
+        path_y = [5, 4, 3, 2, 3, 4, 5]
+        fig.add_trace(go.Scatter(x=path_x, y=path_y, mode='lines', line=dict(color='lightgrey', width=5), hoverinfo='none'))
+        for i in range(3):
+            fig.add_shape(type="line", x0=path_x[i], y0=path_y[i], x1=path_x[-(i+1)], y1=path_y[-(i+1)], line=dict(color="darkgrey", width=2, dash="dot"))
+        for i, key in enumerate(path_keys):
+            stage = v_model_stages[key]
+            fig.add_shape(type="rect", x0=path_x[i]-0.6, y0=path_y[i]-0.4, x1=path_x[i]+0.6, y1=path_y[i]+0.4, fillcolor=PRIMARY_COLOR, line=dict(color="black"))
+            fig.add_annotation(x=path_x[i], y=path_y[i], text=f"<b>{stage['name']}</b>", font=dict(color='white'), showarrow=False)
+            fig.add_annotation(x=path_x[i], y=path_y[i]-0.6, text=f"<i>Key Tool: {stage['tools']}</i>", showarrow=False)
+        fig.update_layout(title=f'<b>{plan["title"]}</b>', xaxis=dict(visible=False), yaxis=dict(visible=False, range=[1, 6]))
+        
+    fig.update_layout(height=500)
+    return fig
+
+@st.cache_data
+def plot_rtm_sankey(selected_urs):
+    """
+    Generates a professional-grade Sankey diagram for a Requirements Traceability Matrix.
+    """
+    # Master data for the entire RTM
+    all_data = {
+        'URS': ['URS-01: Must be Part 11 Compliant', 'URS-02: Must Calculate Purity', 'URS-03: Must be Easy to Use'],
+        'FS': ['FS-01: Audit Trails', 'FS-02: E-Signatures', 'FS-03: Area % Calculation', 'FS-04: Intuitive UI'],
+        'Tests': ['IQ-01: Server OS Patches', 'OQ-01: Audit Trail Test', 'OQ-02: Signature Lockout', 'PQ-01: Purity Calculation Test', 'PQ-02: Usability Study'],
+        'Links': [
+            # URS-01 Links
+            ('URS-01: Must be Part 11 Compliant', 'FS-01: Audit Trails', 1),
+            ('URS-01: Must be Part 11 Compliant', 'FS-02: E-Signatures', 1),
+            ('FS-01: Audit Trails', 'IQ-01: Server OS Patches', 1),
+            ('FS-01: Audit Trails', 'OQ-01: Audit Trail Test', 1),
+            ('FS-02: E-Signatures', 'OQ-02: Signature Lockout', 1),
+            # URS-02 Links
+            ('URS-02: Must Calculate Purity', 'FS-03: Area % Calculation', 1),
+            ('FS-03: Area % Calculation', 'PQ-01: Purity Calculation Test', 1),
+            # URS-03 Links
+            ('URS-03: Must be Easy to Use', 'FS-04: Intuitive UI', 1),
+            ('FS-04: Intuitive UI', 'PQ-02: Usability Study', 1)
+        ]
+    }
+    
+    # Filter links based on selected URS
+    filtered_sources = set(selected_urs)
+    filtered_links = []
+    
+    # First pass: URS to FS
+    for source, target, value in all_data['Links']:
+        if source in selected_urs:
+            filtered_links.append((source, target, value))
+            filtered_sources.add(target)
+    
+    # Second pass: FS to Tests
+    for source, target, value in all_data['Links']:
+        if source in filtered_sources:
+            filtered_links.append((source, target, value))
+
+    if not filtered_links:
+        return go.Figure(layout={'title': '<b>Select a User Requirement to see its traceability</b>'})
+
+    # Create Sankey Diagram
+    all_nodes = all_data['URS'] + all_data['FS'] + all_data['Tests']
+    source_indices = [all_nodes.index(link[0]) for link in filtered_links]
+    target_indices = [all_nodes.index(link[1]) for link in filtered_links]
+    values = [link[2] for link in filtered_links]
+    
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=25, thickness=20,
+            line=dict(color="black", width=0.5),
+            label=all_nodes,
+            color=PRIMARY_COLOR
+        ),
+        link=dict(
+            source=source_indices,
+            target=target_indices,
+            value=values,
+            color='rgba(200,200,200,0.5)'
+        )
+    )])
+    
+    fig.update_layout(title_text="<b>Requirements Traceability Matrix (RTM) Flow</b>", font_size=12)
+    return fig
+
+#==================================================================ACT 0 END ==============================================================================================
+#===========================================================================================================================================================================
 
 @st.cache_data
 def plot_ci_concept(n=30):
@@ -4519,7 +4884,335 @@ def render_introduction_content():
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================
+
+#===================================================================================================== ACT 0 Render=================================================================================================================
+#===================================================================================================================================================================================================================================
+def render_tpp_cqa_cascade():
+    """Renders the comprehensive, interactive module for TPP & CQA Cascade."""
+    st.markdown("""
+    #### Purpose & Application: The "Golden Thread" of QbD
+    **Purpose:** To be the **"North Star" of the entire project.** This tool visualizes the "golden thread" of Quality by Design (QbD). It starts with the high-level patient or business needs (the **Target Product Profile**), translates them into measurable engineering and scientific requirements (the **Critical Quality Attributes**), and finally links those to the specific process parameters that must be controlled (**Critical Process Parameters**).
+    
+    **Strategic Application:** This cascade is the first and most important document in a modern, science- and risk-based validation program. It provides a clear, traceable line of sight from the needs of the patient all the way down to the specific dial a process engineer needs to turn. This is the essence of **ICH Q8**.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Head of Product Development.
+    1.  Select a **Product Type** to see its unique quality cascade.
+    2.  Use the **TPP Target Sliders** to define your product's ambition. Notice how increasing a target (e.g., higher Efficacy) highlights the specific CQAs that are critical to achieving that goal.
+    """)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        product_type = st.selectbox("Select Product Type", ["Monoclonal Antibody", "IVD Kit"])
+    
+    efficacy_target, shelf_life_target = 80, 12
+    with st.sidebar:
+        st.subheader("TPP Target Controls")
+        if product_type == "Monoclonal Antibody":
+            efficacy_target = st.slider("Desired Efficacy Target (%)", 80, 120, 95, 1, help="The target for the product's biological activity. Higher targets place more pressure on potency and purity CQAs.")
+            shelf_life_target = st.slider("Required Shelf-Life (Months)", 12, 36, 24, 1, help="The required stability of the final product. Longer shelf-life places more pressure on formulation CQAs.")
+        elif product_type == "IVD Kit":
+            efficacy_target = st.slider("Desired Clinical Sensitivity (%)", 90, 100, 98, 1, help="The target for correctly identifying true positives. Higher targets place more pressure on reagent concentration and quality.")
+            shelf_life_target = st.slider("Required Shelf-Life (Months)", 6, 24, 18, 1, help="The required stability of the diagnostic kit components.")
+            
+    fig = plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Reading the Cascade:**
+        - **TPP (Top):** This is the contract with the patient and the business. It defines what the product must do.
+        - **CQAs (Middle):** These are the measurable, scientific properties the *product* must possess to fulfill the TPP. For example, to be "effective," the product must have high "Potency."
+        - **CPPs (Bottom):** These are the measurable, controllable knobs on the *process* that influence the CQAs. For example, "Bioreactor pH" is a CPP that is known to affect the final "Potency" of a MAb.
+
+        **The Interactive Connection:** As you move the sliders, the CQAs directly impacted by your decision are highlighted in green. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be controlled.
+        """)
+    with tabs[1]:
+        st.success("🟢 **THE GOLDEN RULE:** Begin with the End in Mind. A validation program that does not start with a clearly defined Target Product Profile is a project without a destination. The TPP is the formal document that prevents 'scope creep' and ensures that all development and validation activities are focused on delivering a product that meets the specific, pre-defined needs of the patient and the business.")
+    with tabs[2]:
+        st.markdown("The concepts of TPP and CQA were not invented by regulators, but were adopted from best practices in engineering and product development. However, they were formally introduced into the pharmaceutical lexicon and popularized by the **ICH Q8(R2) Guideline on Pharmaceutical Development** in 2009. This guideline marked a major philosophical shift by the FDA and other global regulators away from a rigid, prescriptive approach to validation towards a more scientific, flexible, and risk-based framework known as **Quality by Design (QbD)**. The TPP/CQA cascade is the central pillar of the QbD philosophy.")
+    with tabs[3]:
+        st.markdown("""
+        - **ICH Q8(R2) - Pharmaceutical Development:** This is the primary guideline. It explicitly defines the **Target Product Profile (TPP)** as the starting point and the **Critical Quality Attributes (CQA)** as the foundation for product and process development.
+        - **FDA Guidance on Process Validation (2011):** The entire lifecycle approach is built on this foundation. **Stage 1 (Process Design)** is the activity of translating the CQAs into a robust manufacturing process by identifying and controlling the CPPs.
+        """)
+
+def render_atp_builder():
+    """Renders the comprehensive, interactive module for the Analytical Target Profile builder."""
+    st.markdown("""
+    #### Purpose & Application: The Method's "Contract"
+    **Purpose:** To serve as the **"Design Specification" or "Contract" for a new analytical method.** Before a single experiment is run, the ATP formally documents the performance characteristics the method *must* achieve to be suitable for its intended purpose.
+    
+    **Strategic Application:** The ATP is the formal translation of a high-level CQA into a concrete set of statistical acceptance criteria for the lab. It is the objective scorecard against which all method development and validation activities are measured, preventing "goalpost moving" and ensuring the final method is truly fit-for-purpose.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Analytical Development Lead.
+    1.  Select the **Assay Type** you need to develop.
+    2.  Use the **Performance Requirement Sliders** to define the "contract" for this new method.
+    3.  The **Radar Chart** visualizes your ATP (blue) against the performance of a typical, well-validated method (grey). This helps you see if your requirements are reasonable, too stringent, or too lenient.
+    """)
+
+    col1, col2 = st.columns([0.4, 0.6])
+    
+    with col1:
+        st.subheader("ATP Requirements")
+        assay_type = st.selectbox("Select Assay Type", ["HPLC Purity Assay", "ELISA Potency Assay"])
         
+        atp_values = {}
+        if assay_type == "HPLC Purity Assay":
+            st.markdown("##### Performance Criteria")
+            atp_values['accuracy'] = st.slider("Required Accuracy (%Recovery)", 95.0, 105.0, 98.0, 0.5, help="How close must the average measurement be to the true value? Target is 100%.")
+            atp_values['precision'] = st.slider("Required Precision (%CV)", 0.5, 5.0, 2.0, 0.1, help="How much random variability is acceptable? Lower is better.")
+            atp_values['linearity'] = st.slider("Required Linearity (R²)", 0.99, 1.0, 0.999, 0.0001, format="%.4f", help="How well does the signal correlate with concentration? Higher is better.")
+            atp_values['range'] = st.slider("Required Range (Turn-down)", 10, 100, 50, 5, help="How wide must the accurate measurement range be? E.g., a value of 50 means the highest point is 50x the lowest point.")
+            atp_values['lod_loq'] = st.slider("Required Sensitivity (LOD)", 1, 100, 20, 1, help="How low must the method be able to detect? (Represented qualitatively)")
+        
+        elif assay_type == "ELISA Potency Assay":
+            st.markdown("##### Performance Criteria")
+            atp_values['accuracy'] = st.slider("Required Accuracy (%Recovery)", 80.0, 120.0, 90.0, 1.0)
+            atp_values['precision'] = st.slider("Required Precision (%CV)", 5.0, 30.0, 15.0, 1.0)
+            atp_values['linearity'] = st.slider("Required Linearity (R²)", 0.95, 1.0, 0.99, 0.001, format="%.3f")
+            atp_values['range'] = st.slider("Required Range (Turn-down)", 5, 50, 10, 1)
+            atp_values['sensitivity'] = st.slider("Required Sensitivity", 1, 100, 80, 1)
+
+    with col2:
+        st.subheader("ATP Visualization")
+        fig = plot_atp_radar_chart(assay_type, atp_values)
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Radar Chart:**
+        - The chart provides an immediate, holistic view of the method's required performance. The goal is to develop and validate a method whose performance polygon **fully encompasses** the blue ATP polygon.
+        - **Comparing to the Grey Zone:** The grey polygon represents a typical, high-quality method. If your blue ATP is much smaller, your requirements may be too lenient. If it's much larger, your requirements may be unrealistic or "gold-plated," potentially leading to significant development delays and costs.
+        - **Trade-offs:** Notice that it's difficult to create a method that excels on all axes simultaneously. For example, a method with an extremely wide **Range** may have to sacrifice some **Precision** at the lowest levels. The ATP makes these trade-offs a conscious, documented decision.
+        """)
+    with tabs[1]:
+        st.success("🟢 **THE GOLDEN RULE:** Define "Fit for Purpose" Before You Begin. The ATP is the formal definition of "fit for purpose." It transforms a vague goal ('we need a potency assay') into a set of concrete, measurable, and testable acceptance criteria. All subsequent method development and validation activities should be designed to prove that the criteria in the ATP have been met.")
+    with tabs[2]:
+        st.markdown("The concept of the Analytical Target Profile (ATP) is a direct application of the **Quality by Design (QbD)** principles to the lifecycle of an analytical method. It was formally introduced and championed by the FDA and in publications from scientific bodies like the AAPS in the 2010s. It parallels the **Target Product Profile (TPP)**, but instead of defining the goals for a drug product, it defines the goals for the measurement system used to test that product. It represents a shift from a reactive, checklist-based validation to a proactive, lifecycle-based approach to analytical method quality.")
+    with tabs[3]:
+        st.markdown("""
+        The ATP is a modern best-practice that directly supports several key regulatory guidelines:
+        - **ICH Q8(R2) - Pharmaceutical Development:** The ATP is the starting point for applying QbD principles to analytical methods, ensuring they are suitable for measuring the CQAs of the product.
+        - **ICH Q14 - Analytical Procedure Development (Draft):** This emerging guideline is expected to formalize the concept of the ATP as the foundation for a more flexible, performance-based approach to analytical method validation and lifecycle management.
+        - **USP Chapter <1220> - Analytical Procedure Lifecycle:** This new chapter champions a holistic, lifecycle approach to method management, for which the ATP is a foundational element.
+        """)
+
+def render_fmea():
+    """Renders the comprehensive, interactive module for FMEA."""
+    st.markdown("""
+    #### Purpose & Application: The Blueprint for Validation
+    **Purpose:** To serve as the **Master Blueprint for your entire Validation Plan**. A Failure Mode and Effects Analysis (FMEA) is a systematic, proactive method for identifying and mitigating potential risks in a process *before they happen*. It answers the foundational questions: "What could go wrong?", "How bad would it be?", and "How would we know?".
+    
+    **Strategic Application:** This is the embodiment of Quality Risk Management (ICH Q9). The output of the FMEA directly justifies which parameters require rigorous characterization (using DOE), which require tight monitoring (using SPC), and which require procedural controls. It is the auditable, documented rationale for your entire validation strategy.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Validation Risk Lead.
+    1.  Use the sliders to score the **initial risk** for three potential failure modes based on their likely Occurrence and Detectability.
+    2.  Use the **Mitigation Toggles** to simulate implementing process improvements.
+    3.  Observe how the mitigations lower the RPN in the **Pareto Chart** and move the risks to a safer zone in the **Risk Matrix**.
+    """)
+
+    fmea_data_initial = {
+        'ID': ['A', 'B', 'C'],
+        'Failure Mode': ['Incorrect Buffer Formulation', 'Instrument Calibration Drift', 'Operator Handling Error'],
+        'S': [5, 4, 3] # Severity is usually fixed as it relates to patient/product impact
+    }
+    
+    with st.sidebar:
+        st.subheader("FMEA Controls")
+        st.markdown("**Initial Risk Assessment**")
+        fmea_data_initial['O_Initial'] = [
+            st.slider("Occurrence (Buffer Error)", 1, 5, 4, help="How frequently is an incorrect buffer formulation likely to occur? 1=Very Rare, 5=Very Frequent."),
+            st.slider("Occurrence (Cal Drift)", 1, 5, 2, help="How frequently does the instrument drift out of calibration?"),
+            st.slider("Occurrence (Handling Error)", 1, 5, 3, help="How frequently do operators make handling errors?")
+        ]
+        fmea_data_initial['D_Initial'] = [
+            st.slider("Detection (Buffer Error)", 1, 5, 5, help="How likely are we to DETECT a bad buffer before it causes a failure? 1=Very Likely, 5=Very Unlikely."),
+            st.slider("Detection (Cal Drift)", 1, 5, 2, help="How likely are we to DETECT calibration drift?"),
+            st.slider("Detection (Handling Error)", 1, 5, 3, help="How likely are we to DETECT an operator handling error?")
+        ]
+        
+        st.markdown("**Proposed Mitigations**")
+        mitigate_buffer = st.toggle("Implement Automated Buffer Prep", value=False, help="Reduces the Occurrence of formulation errors.")
+        mitigate_cal = st.toggle("Increase Calibration Frequency", value=False, help="Improves the Detection of calibration drift.")
+        mitigate_handling = st.toggle("Enhance Operator Training & Poka-Yoke", value=False, help="Reduces Occurrence and improves Detection of handling errors.")
+        
+        fmea_data_initial['O_Final'] = fmea_data_initial['O_Initial'].copy()
+        fmea_data_initial['D_Final'] = fmea_data_initial['D_Initial'].copy()
+        if mitigate_buffer: fmea_data_initial['O_Final'][0] = 1
+        if mitigate_cal: fmea_data_initial['D_Final'][1] = 1
+        if mitigate_handling:
+            fmea_data_initial['O_Final'][2] = 1
+            fmea_data_initial['D_Final'][2] = 1
+
+    fig_matrix, fig_pareto = plot_fmea_dashboard(fmea_data_initial)
+    
+    st.header("Risk Assessment Dashboard")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig_matrix, use_container_width=True)
+    with col2:
+        st.plotly_chart(fig_pareto, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Assess Initial Risk (Black Circles):** The team first scores the Severity (S), Occurrence (O), and Detectability (D) of each potential failure. The **Risk Matrix** visualizes the most dangerous risks in the top-right (high severity, high occurrence).
+        2.  **Prioritize (Pareto Chart):** The **Risk Priority Number (RPN)** is calculated as `S x O x D`. The initial RPN values (grey bars) are plotted on the Pareto chart. The team must focus on all risks above the action threshold (red dashed line).
+        3.  **Mitigate:** For each high-priority risk, the team proposes and implements mitigation actions. Notice how a mitigation can either reduce **Occurrence** (making the failure less likely, moving a point down on the matrix) or improve **Detection** (making it easier to catch, which lowers the RPN but doesn't move the point on the S vs. O matrix).
+        4.  **Re-assess Final Risk (Blue Diamonds):** The team calculates the final RPN (blue bars). The arrows on the Risk Matrix provide a powerful visual summary of the risk reduction. The goal is to move all RPNs below the action threshold.
+        """)
+        
+    with tabs[1]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "RPN is Everything" Fallacy**
+A team focuses obsessively on lowering the RPN number, even for low-severity risks. They spend months implementing a complex detection system for a failure mode with a Severity of 1, ignoring a higher-severity risk because its initial RPN was slightly lower.
+- **The Flaw:** RPN is a prioritization tool, not the goal itself. **Severity is the most important factor.** A high-severity risk (S=5), even if rare, can never be truly "low risk" and always requires robust controls.""")
+        st.success("""🟢 **THE GOLDEN RULE: Risk Assessment Drives Validation Effort**
+The FMEA is not a standalone document; it is the strategic driver for the entire validation plan.
+1.  **First, Address High Severity:** Any failure mode with high Severity must be addressed, regardless of its RPN.
+2.  **Then, Use RPN to Prioritize:** For the remaining risks, use the RPN to prioritize resources, tackling the highest RPNs first.
+3.  **Link to Validation:** The FMEA provides the rationale for your validation activities. A high-risk failure mode justifies a rigorous DOE to characterize it; a medium-risk one might justify adding a parameter to your SPC monitoring plan. This creates a clear, auditable trail from risk to action.""")
+
+    with tabs[2]:
+        st.markdown("""
+        #### Historical Context: From Munitions to Minivans
+        **The Problem:** In the late 1940s, the U.S. military was grappling with the unreliability of complex new systems. Failures were common, costly, and often catastrophic. They needed a structured, proactive way to think about and prevent failures before they happened.
+        
+        **The 'Aha!' Moment:** The methodology now known as **FMEA** was formalized in military procedures like **MIL-P-1629**. The key insight was to shift from a reactive "find and fix" model to a proactive, "predict and prevent" model by systematically asking three questions:
+        1.  What is the **effect** of this failure? (Severity)
+        2.  What is the **cause** and how often will it happen? (Occurrence)
+        3.  How can we **detect** it? (Detection)
+            
+        **The Impact:** The methodology was famously adopted and refined by **NASA** during the Apollo program to ensure astronaut safety and mission success. Later, facing a quality crisis in the 1970s, the **automotive industry**, led by Ford, championed FMEA as a core tool for improving vehicle safety and reliability. They introduced the **Risk Priority Number (RPN)** as a simple way to prioritize risks. Today, FMEA is a universal quality planning tool used in virtually every high-reliability industry.
+        """)
+        
+    with tabs[3]:
+        st.markdown("""
+        FMEA is the primary tool for implementing the principles of **ICH Q9 - Quality Risk Management**, which is a cornerstone of a modern Pharmaceutical Quality System.
+        - **ICH Q9:** This guideline explicitly lists FMEA as a potential risk management tool. The FMEA process directly addresses the key elements of QRM:
+            - **Risk Identification:** Brainstorming potential failure modes.
+            - **Risk Analysis:** Estimating the Severity, Occurrence, and Detectability.
+            - **Risk Evaluation:** Comparing the identified risk (via RPN or the Risk Matrix) against given risk criteria (the action threshold).
+            - **Risk Control:** Proposing and implementing mitigation actions to reduce the risk.
+        - **FDA Process Validation Guidance:** The guidance emphasizes a lifecycle approach based on risk. An FMEA performed during **Stage 1 (Process Design)** is the perfect way to identify Critical Process Parameters (CPPs) and Critical Quality Attributes (CQAs) that will require intensive study and control in **Stage 2 (Process Qualification)** and **Stage 3 (Continued Process Verification)**.
+        """)
+
+
+
+ def render_vmp_builder():
+    """Renders the comprehensive, interactive module for the Validation Master Plan Builder."""
+    st.markdown("""
+    #### Purpose & Application: The Project's Master Plan
+    **Purpose:** To act as the **interactive project manager and compliance checklist** for any validation activity. The Validation Master Plan (VMP) is the highest-level strategic document outlining the scope, responsibilities, and methodologies for the entire validation effort.
+    
+    **Strategic Application:** This tool connects the strategic "why" (from the TPP and FMEA) to the tactical "how" (the specific analytical tools). It provides a clear roadmap for the project, showing which tools from this toolkit are deployed at each phase of a validation project. This is essential for project planning, resource allocation, and demonstrating a structured approach to regulators.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Validation Manager. Select a **Project Type** from the dropdown menu. The diagram below will dynamically update to show the standard workflow for that project, highlighting which tools from this application are used at each critical stage.
+    """)
+
+    project_type = st.selectbox(
+        "Select a Validation Project Type to Plan:",
+        ("New Analytical Method Validation", "Process Performance Qualification (PPQ)", "Computer System Validation (CSV)"),
+        index=0
+    )
+
+    fig = plot_vmp_flow(project_type)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Connecting Strategy to Execution:**
+        This tool demonstrates how all the other modules in the toolkit fit together to form a complete, compliant validation project.
+        - The **Analytical Method Validation** workflow follows the classic V-Model, showing the direct link between defining performance specifications (like Linearity) and later qualifying them.
+        - The **PPQ Workflow** is a linear process, moving from planning (using FMEA and Sample Size) to execution and final analysis (using SPC and Capability).
+        - The **Computer System Validation (CSV)** workflow shows how modern AI/ML tools can be integrated into the GAMP 5 V-Model. For example, **Explainable AI (XAI)** is a key activity during the "Build" phase to ensure the model is transparent and understandable.
+        """)
+    with tabs[1]:
+        st.success("🟢 **THE GOLDEN RULE:** If it isn't written down, it didn't happen. The VMP is the single source of truth that defines the scope, strategy, and acceptance criteria for a validation project *before it begins*. It is the most important document for preventing 'validation on the fly' and is the first thing an auditor will ask to see.")
+    with tabs[2]:
+        st.markdown("The concept of a formal, high-level planning document for validation grew out of the need to manage increasingly complex projects in the pharmaceutical industry. The idea was codified in the 1990s and early 2000s, heavily influenced by project management principles and the **GAMP (Good Automated Manufacturing Practice)** guidelines, which pioneered the V-Model approach for computer systems. Regulators quickly adopted the expectation for a VMP across all types of validation to ensure projects were well-planned, structured, and documented.")
+    with tabs[3]:
+        st.markdown("""
+        - **FDA 21 CFR 211.100 (Written procedures; deviations):** Requires that "there shall be written procedures for production and process control designed to assure that the drug products have the identity, strength, quality, and purity they purport or are represented to possess." The VMP is the highest-level document in this procedural hierarchy.
+        - **EU Annex 15: Qualification and Validation:** Explicitly requires a **Validation Master Plan (VMP)**. It states that the VMP should contain the key elements of the validation program and is a key document in the quality management system.
+        - **GAMP 5:** The V-Model shown for Computer System Validation is the core model of the GAMP 5 framework.
+        """)
+
+def render_rtm_builder():
+    """Renders the comprehensive, interactive module for the Requirements Traceability Matrix."""
+    st.markdown("""
+    #### Purpose & Application: The Auditor's Golden Thread
+    **Purpose:** To be the **"Auditor's Golden Thread."** The RTM is a master table that links every single User Requirement (URS) to its corresponding Functional Specification (FS), Design Specification (DS), and, most critically, to the specific Test Case(s) (IQ, OQ, PQ) that prove it was met.
+    
+    **Strategic Application:** The RTM provides irrefutable, traceable proof that **everything that was asked for was built, and everything that was built was tested.** It is the ultimate tool for ensuring completeness in complex projects like Computer System Validation (CSV) and is often the very first document an auditor will ask to see. A gap in the RTM is a major compliance failure.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Validation Lead for a new software system.
+    1.  Use the multiselect box in the sidebar to choose which User Requirements you want to trace.
+    2.  The **Sankey Diagram** will dynamically update to show the "golden thread" for those requirements, flowing from the initial request (URS) through the design (FS) to the final verification tests (IQ/OQ/PQ).
+    """)
+
+    with st.sidebar:
+        st.subheader("RTM Controls")
+        urs_options = ['URS-01: Must be Part 11 Compliant', 'URS-02: Must Calculate Purity', 'URS-03: Must be Easy to Use']
+        selected_urs = st.multiselect(
+            "Select User Requirements to Trace:",
+            options=urs_options,
+            default=urs_options,
+            help="Choose one or more requirements to see their complete traceability path from request to test."
+        )
+        
+    fig = plot_rtm_sankey(selected_urs)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Reading the Sankey Diagram:**
+        - The diagram shows the flow of logic from left to right, following the V-Model.
+        - **URS (User Requirement Spec):** The 'what'—the high-level need from the user.
+        - **FS (Functional Spec):** The 'how'—the specific functions the system must perform to meet the URS.
+        - **Tests (IQ/OQ/PQ):** The 'proof'—the specific validation tests that verify the FS functions correctly.
+        
+        **The Power of Traceability:** The diagram's main power is in visually identifying gaps. If a URS on the left has no path leading to a Test on the right, it means that requirement has not been tested. This traceability is the cornerstone of a defensible validation package.
+        """)
+    with tabs[1]:
+        st.success("🟢 **THE GOLDEN RULE:** Test What You Build, Build What Was Asked For. The RTM is the master document that enforces this discipline. It should be created at the beginning of the project and updated at every stage. A complete, bi-directional RTM (where you can trace from a requirement to a test, and from a test back to a requirement) is the hallmark of a mature and compliant validation program.")
+    with tabs[2]:
+        st.markdown("The concept of a Requirements Traceability Matrix has its roots in **systems engineering and software development**. As systems became more complex in the 1970s and 80s, projects were often plagued by "scope creep" and mismatches between user expectations and the final product. The RTM was developed as a formal project management tool to ensure all requirements were tracked and verified. Its value was immediately recognized for regulated software, and it was formally adopted as a core principle of **GAMP (Good Automated Manufacturing Practice)**, becoming the global standard for Computer System Validation (CSV) in the pharmaceutical and medical device industries.")
+    with tabs[3]:
+        st.markdown("""
+        The RTM is the primary document used to demonstrate compliance with a variety of regulations governing complex systems.
+        - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** The RTM is a foundational document in the GAMP 5 framework, providing the traceability that underpins the entire V-Model approach.
+        - **FDA 21 CFR Part 11 (Electronic Records; Electronic Signatures):** When validating a system for Part 11 compliance, the RTM must clearly trace requirements like "audit trail generation" or "e-signature security" to the specific OQ and PQ test cases that challenge and verify those functions.
+        - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing.
+        """)
+#====================================================================================================================================================================================================================================
+#=====================================================================================================ACT 0 RENDER END ==============================================================================================================
+#====================================================================================================================================================================================================================================
 def render_ci_concept():
     """Renders the interactive module for Confidence Intervals."""
     st.markdown("""
@@ -8508,6 +9201,13 @@ with st.sidebar:
     # FIX: The all_tools dictionary is updated to treat the diagram and table as separate items.
     # Replace the old all_tools dictionary with this one.
     all_tools = {
+        "ACT 0: PLANNING & STRATEGY": [
+            "TPP & CQA Cascade",
+            "Analytical Target Profile (ATP) Builder",
+            "Quality Risk Management (FMEA)",
+            "Validation Master Plan (VMP) Builder"
+            "Requirements Traceability Matrix (RTM)" 
+        ],
         "ACT I: FOUNDATION & CHARACTERIZATION": [
             "Confidence Interval Concept", "Core Validation Parameters", "Comprehensive Diagnostic Validation", "Attribute Agreement Analysis",
             "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", 
@@ -8550,6 +9250,12 @@ else:
 
     # --- THIS DICTIONARY NOW CONTAINS ALL RENDER FUNCTIONS ---
     PAGE_DISPATCHER = {
+        # Act 0
+        "TPP & CQA Cascade": render_tpp_cqa_cascade,
+        "Analytical Target Profile (ATP) Builder": render_atp_builder,
+        "Quality Risk Management (FMEA)": render_fmea,
+        "Validation Master Plan (VMP) Builder": render_vmp_builder,
+        "Requirements Traceability Matrix (RTM)": render_rtm_builder,
         # Act I
         "Confidence Interval Concept": render_ci_concept,
         "Core Validation Parameters": render_core_validation_params,

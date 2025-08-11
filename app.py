@@ -5191,6 +5191,7 @@ def render_rtm_builder():
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
     with tabs[0]:
         st.markdown("""
         **Reading the Sankey Diagram:**
@@ -5201,10 +5202,16 @@ def render_rtm_builder():
         
         **The Power of Traceability:** The diagram's main power is in visually identifying gaps. If a URS on the left has no path leading to a Test on the right, it means that requirement has not been tested. This traceability is the cornerstone of a defensible validation package.
         """)
+        
     with tabs[1]:
         st.success("🟢 **THE GOLDEN RULE:** Test What You Build, Build What Was Asked For. The RTM is the master document that enforces this discipline. It should be created at the beginning of the project and updated at every stage. A complete, bi-directional RTM (where you can trace from a requirement to a test, and from a test back to a requirement) is the hallmark of a mature and compliant validation program.")
+        
     with tabs[2]:
-        st.markdown("The concept of a Requirements Traceability Matrix has its roots in **systems engineering and software development**. As systems became more complex in the 1970s and 80s, projects were often plagued by "scope creep" and mismatches between user expectations and the final product. The RTM was developed as a formal project management tool to ensure all requirements were tracked and verified. Its value was immediately recognized for regulated software, and it was formally adopted as a core principle of **GAMP (Good Automated Manufacturing Practice)**, becoming the global standard for Computer System Validation (CSV) in the pharmaceutical and medical device industries.")
+        st.markdown("""
+        #### Historical Context: From Systems Engineering to Pharma
+        The concept of a Requirements Traceability Matrix has its roots in **systems engineering and software development**. As systems became more complex in the 1970s and 80s, projects were often plagued by "scope creep" and mismatches between user expectations and the final product. The RTM was developed as a formal project management tool to ensure all requirements were tracked and verified. Its value was immediately recognized for regulated software, and it was formally adopted as a core principle of **GAMP (Good Automated Manufacturing Practice)**, becoming the global standard for Computer System Validation (CSV) in the pharmaceutical and medical device industries.
+        """)
+        
     with tabs[3]:
         st.markdown("""
         The RTM is the primary document used to demonstrate compliance with a variety of regulations governing complex systems.
@@ -5212,6 +5219,7 @@ def render_rtm_builder():
         - **FDA 21 CFR Part 11 (Electronic Records; Electronic Signatures):** When validating a system for Part 11 compliance, the RTM must clearly trace requirements like "audit trail generation" or "e-signature security" to the specific OQ and PQ test cases that challenge and verify those functions.
         - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing.
         """)
+        
 #====================================================================================================================================================================================================================================
 #=====================================================================================================ACT 0 RENDER END ==============================================================================================================
 #====================================================================================================================================================================================================================================

@@ -607,81 +607,89 @@ def create_toolkit_conceptual_map():
 @st.cache_data
 def plot_tpp_cqa_cascade(product_type, efficacy_target, shelf_life_target):
     """
-    Generates a professional, interactive cascade diagram for TPP -> CQA -> CPP.
+    Generates a professional, interactive Sankey diagram for TPP -> CQA -> CPP cascade.
     """
     cascade_data = {
         "Monoclonal Antibody": {
-            "TPP": "A safe, effective, and stable MAb therapeutic for IV administration.",
+            "TPP": "A safe, effective, and stable MAb therapeutic.",
             "CQAs": {
-                "Purity (SEC) > 99%": {"link": "Efficacy"}, "Aggregate < 1%": {"link": "Safety"},
-                "Potency (ELISA) 80-120%": {"link": "Efficacy"}, "Charge Variant Profile": {"link": "Efficacy"},
-                "Stability (24 months)": {"link": "Shelf-Life"}
+                "Purity > 99%": {"link": "Efficacy"}, "Aggregate < 1%": {"link": "Safety"},
+                "Potency 80-120%": {"link": "Efficacy"}, "Charge Variants": {"link": "Efficacy"},
+                "Stability": {"link": "Shelf-Life"}
             },
             "CPPs": {
-                "Bioreactor pH": ["Potency (ELISA) 80-120%", "Charge Variant Profile"],
-                "Column Load Density": ["Purity (SEC) > 99%", "Aggregate < 1%"],
-                "Formulation Buffer": ["Stability (24 months)"]
+                "Bioreactor pH": ["Potency 80-120%", "Charge Variants"],
+                "Column Load": ["Purity > 99%", "Aggregate < 1%"],
+                "Formulation Buffer": ["Stability"]
             }
         },
         "IVD Kit": {
-            "TPP": "A reliable and accurate diagnostic kit for early disease detection.",
+            "TPP": "A reliable and accurate diagnostic kit.",
             "CQAs": {
-                "Clinical Sensitivity > 98%": {"link": "Efficacy"}, "Clinical Specificity > 99%": {"link": "Efficacy"},
-                "Assay Precision (CV < 15%)": {"link": "Reliability"}, "Shelf-Life (18 months)": {"link": "Shelf-Life"}
+                "Sensitivity > 98%": {"link": "Efficacy"}, "Specificity > 99%": {"link": "Efficacy"},
+                "Precision < 15% CV": {"link": "Reliability"}, "Shelf-Life": {"link": "Shelf-Life"}
             },
             "CPPs": {
-                "Antibody Concentration": ["Clinical Sensitivity > 98%"],
-                "Blocking Buffer Composition": ["Clinical Specificity > 99%"],
-                "Lyophilization Cycle": ["Shelf-Life (18 months)"]
+                "Antibody Conc.": ["Sensitivity > 98%"],
+                "Blocking Buffer": ["Specificity > 99%"],
+                "Lyophilization Cycle": ["Shelf-Life"]
             }
         }
     }
     
     data = cascade_data[product_type]
-    fig = go.Figure()
-
-    nodes = {'TPP': {'x': 0.5, 'y': 0.9}}
-    cqa_keys = list(data['CQAs'].keys())
-    for i, key in enumerate(cqa_keys):
-        nodes[key] = {'x': 0.2 + 0.6 * (i / (len(cqa_keys)-1)), 'y': 0.5}
-    cpp_keys = list(data['CPPs'].keys())
-    for i, key in enumerate(cpp_keys):
-        nodes[key] = {'x': 0.2 + 0.6 * (i / (len(cpp_keys)-1)), 'y': 0.1}
-        
-    # Draw Edges (Arrows) with the corrected axref/ayref properties
-    for cqa in data['CQAs']:
-        fig.add_annotation(ax=nodes['TPP']['x'], ay=nodes['TPP']['y']-0.08,
-                           x=nodes[cqa]['x'], y=nodes[cqa]['y']+0.08,
-                           xref='paper', yref='paper', axref='paper', ayref='paper',
-                           showarrow=True, arrowhead=2, arrowcolor='grey')
-    for cpp, cqa_links in data['CPPs'].items():
-        for link in cqa_links:
-            fig.add_annotation(ax=nodes[link]['x'], ay=nodes[link]['y']-0.08,
-                               x=nodes[cpp]['x'], y=nodes[cpp]['y']+0.08,
-                               xref='paper', yref='paper', axref='paper', ayref='paper',
-                               showarrow=True, arrowhead=2, arrowcolor='grey')
-
-    # Draw Nodes (Boxes)
-    is_highlighted = data['CQAs'].get(f"Efficacy > {efficacy_target}%") or data['CQAs'].get(f"Shelf-Life ({shelf_life_target} months)")
-    tpp_color = SUCCESS_GREEN if is_highlighted else PRIMARY_COLOR
-    fig.add_shape(type="rect", x0=0.2, y0=0.82, x1=0.8, y1=0.98, xref='paper', yref='paper',
-                  fillcolor=tpp_color, line=dict(width=2, color='black'))
-    fig.add_annotation(x=0.5, y=0.9, text=f"<b>Target Product Profile (TPP)</b><br>{data['TPP']}",
-                       showarrow=False, font=dict(color='white', size=14), xref='paper', yref='paper')
-    for key, props in data['CQAs'].items():
-        is_active = (("Efficacy" in props['link'] and efficacy_target > 90) or ("Shelf-Life" in props['link'] and shelf_life_target > 12) or ("Sensitivity" in key and efficacy_target > 95))
-        cqa_color = SUCCESS_GREEN if is_active else PRIMARY_COLOR
-        x_pos = nodes[key]['x']
-        fig.add_shape(type="rect", x0=x_pos-0.12, y0=0.42, x1=x_pos+0.12, y1=0.58, xref='paper', yref='paper', fillcolor=cqa_color, line=dict(width=2, color='black'))
-        fig.add_annotation(x=x_pos, y=0.5, text=f"<b>CQA</b><br>{key.replace(' (', '<br>(')}", showarrow=False, font=dict(color='white'), xref='paper', yref='paper')
-    for key in data['CPPs'].keys():
-        x_pos = nodes[key]['x']
-        fig.add_shape(type="rect", x0=x_pos-0.12, y0=0.02, x1=x_pos+0.12, y1=0.18, xref='paper', yref='paper', fillcolor=PRIMARY_COLOR, line=dict(width=2, color='black'))
-        fig.add_annotation(x=x_pos, y=0.1, text=f"<b>CPP</b><br>{key}", showarrow=False, font=dict(color='white'), xref='paper', yref='paper')
     
-    fig.update_layout(height=600, margin=dict(t=30, b=30),
-                      xaxis=dict(visible=False, range=[0,1]), yaxis=dict(visible=False, range=[0,1]))
+    # Create nodes for Sankey
+    labels = [f"<b>TPP:</b><br>{data['TPP']}"]
+    labels.extend([f"<b>CQA:</b> {cqa}" for cqa in data['CQAs']])
+    labels.extend([f"<b>CPP:</b> {cpp}" for cpp in data['CPPs']])
+    
+    node_colors = [PRIMARY_COLOR] + [SUCCESS_GREEN]*len(data['CQAs']) + ['#636EFA']*len(data['CPPs'])
+
+    # Highlight nodes based on slider inputs
+    for i, (key, props) in enumerate(data['CQAs'].items()):
+        is_active = (("Efficacy" in props['link'] and efficacy_target > 90) or 
+                     ("Shelf-Life" in props['link'] and shelf_life_target > 12) or 
+                     ("Sensitivity" in key and efficacy_target > 95))
+        if is_active:
+            node_colors[i + 1] = '#FFBF00' # Highlight color
+            
+    # Create links for Sankey
+    sources, targets, values = [], [], []
+    tpp_idx = 0
+    for i, cqa in enumerate(data['CQAs']):
+        cqa_idx = labels.index(f"<b>CQA:</b> {cqa}")
+        sources.append(tpp_idx)
+        targets.append(cqa_idx)
+        values.append(1)
+
+    for cpp, cqa_links in data['CPPs'].items():
+        cpp_idx = labels.index(f"<b>CPP:</b> {cpp}")
+        for link in cqa_links:
+            cqa_idx = labels.index(f"<b>CQA:</b> {link}")
+            sources.append(cqa_idx)
+            targets.append(cpp_idx)
+            values.append(1)
+
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=25,
+            thickness=20,
+            line=dict(color="black", width=0.5),
+            label=labels,
+            color=node_colors
+        ),
+        link=dict(
+            source=sources,
+            target=targets,
+            value=values,
+            color='rgba(200,200,200,0.5)'
+        )
+    )])
+    
+    fig.update_layout(title_text="<b>The 'Golden Thread': TPP → CQA → CPP Cascade</b>", font_size=12, height=600)
     return fig
+    
 @st.cache_data
 def plot_atp_radar_chart(assay_type, atp_values):
     """
@@ -4887,14 +4895,14 @@ def render_tpp_cqa_cascade():
     st.info("""
     **Interactive Demo:** You are the Head of Product Development.
     1.  Select a **Product Type** to see its unique quality cascade.
-    2.  Use the **TPP Target Sliders** to define your product's ambition. Notice how increasing a target (e.g., higher Efficacy) highlights the specific CQAs that are critical to achieving that goal.
+    2.  Use the **TPP Target Sliders** to define your product's ambition. Notice how increasing a target (e.g., higher Efficacy) highlights the specific CQAs (in yellow) that are critical to achieving that goal.
     """)
     
     col1, col2 = st.columns(2)
     with col1:
         product_type = st.selectbox("Select Product Type", ["Monoclonal Antibody", "IVD Kit"])
     
-    efficacy_target, shelf_life_target = 80, 12
+    efficacy_target, shelf_life_target = 90, 12
     with st.sidebar:
         st.subheader("TPP Target Controls")
         if product_type == "Monoclonal Antibody":
@@ -4913,11 +4921,11 @@ def render_tpp_cqa_cascade():
     with tabs[0]:
         st.markdown("""
         **Reading the Cascade:**
-        - **TPP (Top):** This is the contract with the patient and the business. It defines what the product must do.
+        - **TPP (Left):** This is the contract with the patient and the business. It defines what the product must do.
         - **CQAs (Middle):** These are the measurable, scientific properties the *product* must possess to fulfill the TPP. For example, to be "effective," the product must have high "Potency."
-        - **CPPs (Bottom):** These are the measurable, controllable knobs on the *process* that influence the CQAs. For example, "Bioreactor pH" is a CPP that is known to affect the final "Potency" of a MAb.
+        - **CPPs (Right):** These are the measurable, controllable knobs on the *process* that influence the CQAs. For example, "Bioreactor pH" is a CPP that is known to affect the final "Potency" of a MAb.
 
-        **The Interactive Connection:** As you move the sliders, the CQAs directly impacted by your decision are highlighted in green. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be controlled.
+        **The Interactive Connection:** As you move the sliders, the CQAs directly impacted by your decision are highlighted in yellow. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be controlled.
         """)
     with tabs[1]:
         st.success("🟢 **THE GOLDEN RULE:** Begin with the End in Mind. A validation program that does not start with a clearly defined Target Product Profile is a project without a destination. The TPP is the formal document that prevents 'scope creep' and ensures that all development and validation activities are focused on delivering a product that meets the specific, pre-defined needs of the patient and the business.")

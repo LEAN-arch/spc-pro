@@ -4927,11 +4927,12 @@ def render_tpp_cqa_cascade():
     with tabs[0]:
         st.markdown("""
         **Reading the Cascade:**
-        - **TPP (Left Node):** This is the contract with the patient and the business. It defines what the product, process, or system must do.
-        - **CQAs (Middle Nodes):** These are the measurable, scientific properties the *product* must possess (or performance attributes the *system* must have) to fulfill the TPP.
-        - **CPPs (Right Nodes):** These are the measurable, controllable knobs on the *process* or *design* that influence the CQAs.
+        - **TPP (Left Node):** This is the contract with the patient and the business. It defines *what* the product, process, or system must do.
+        - **CQAs (Middle Nodes):** These are the measurable properties the *product* must possess or performance attributes the *system* must have to fulfill the TPP. This is the translation of the "what" into the "how."
+        - **CPPs/CMAs (Right Nodes):** These are the specific, controllable "knobs" on the *process* or *design* that have a direct impact on the CQAs. This is where science and engineering meet the quality target.
 
-        **The Interactive Connection:** As you move the sliders, the CQAs directly impacted by your decision are highlighted in yellow. This visually demonstrates the traceable link from a high-level business requirement down to a specific technical attribute that must be designed and controlled.
+        **The Strategic Insight: From 'What' to 'Why' to 'How'**
+        The Sankey diagram doesn't just show a list of items; it shows a **traceable chain of logic**. As you adjust the TPP sliders, the highlighted CQAs (yellow) show the immediate impact of a strategic business decision on technical requirements. This cascade is the core of a science- and risk-based approach because it forces the team to formally document the scientific evidence that links a specific process parameter to a critical product attribute, which in turn ensures patient safety and efficacy.
         """)
     
     with tabs[1]:
@@ -4940,12 +4941,12 @@ def render_tpp_cqa_cascade():
         Quality by Design (QbD) represents a fundamental shift in the philosophy of manufacturing and validation, championed by global regulators.
 
         **The Traditional Approach (Quality by Testing):**
-        - The process is a "black box." We follow a fixed recipe and then perform extensive testing on the final product to see if it's acceptable.
-        - **Analogy:** Baking a cake by following a recipe from a very old cookbook without understanding why it works. If the cake comes out badly, your only option is to throw it away and try again. You have tested quality *into* the product at the end.
+        - The process is a "black box." A fixed recipe is followed, and quality is ensured by performing extensive testing on the *final product*.
+        - **Analogy:** Baking a cake by rigidly following an old recipe without understanding *why* it works. If the cake comes out badly, the only option is to throw it away (reject the batch) and try again. Quality is "inspected in" at the end.
 
         **The Modern Approach (Quality by Design):**
-        - The process is a "glass box." We use science and risk management to gain a deep understanding of how raw materials (CMAs) and process parameters (CPPs) interact to affect the final product quality (CQAs).
-        - **Analogy:** Being a master baker who understands the chemistry of baking. You know exactly how adjusting the oven temperature (a CPP) will affect the cake's moistness (a CQA). You design the recipe and process so perfectly that you *know* the cake will be good every single time, with minimal final testing required. You have designed quality *into* the product from the beginning.
+        - The process is a "glass box." We use scientific investigation (like DOE) and risk management (like FMEA) to gain a deep, predictive understanding of how raw materials (CMAs) and process parameters (CPPs) impact the final product quality (CQAs).
+        - **Analogy:** Being a master baker who understands the chemistry of baking. You know exactly how adjusting the oven temperature (a CPP) will affect the cake's moistness (a CQA). You design a robust recipe and process, and you monitor the critical parameters in real-time. You *know* the cake will be good every time, with minimal final testing required. Quality is "designed in" from the beginning.
         
         The TPP/CQA/CPP cascade is the central tool that documents this deep understanding.
         """)
@@ -4954,54 +4955,64 @@ def render_tpp_cqa_cascade():
         st.markdown("""
         ##### The Language of Quality by Design
         - **Target Product Profile (TPP):**
-          - **Definition:** A prospective summary of the quality characteristics of a drug product that ideally will be achieved to ensure the desired quality, taking into account safety and efficacy.
-          - **In Simple Terms:** What does this product need to do for the patient?
-          - **Example (MAb):** "A sterile, injectable liquid that safely and effectively treats rheumatoid arthritis with a 24-month shelf life."
+          - **Definition (ICH Q8):** A prospective summary of the quality characteristics of a drug product that ideally will be achieved to ensure the desired quality, taking into account safety and efficacy.
+          - **SME Translation:** What does this product need to do for the patient? What is our contract with them?
+          - **Example:** "A sterile, injectable liquid that safely and effectively treats rheumatoid arthritis with a 24-month shelf life."
 
         - **Critical Quality Attribute (CQA):**
-          - **Definition:** A physical, chemical, biological, or microbiological property or characteristic that should be within an appropriate limit, range, or distribution to ensure the desired product quality.
-          - **In Simple Terms:** What measurable property must the *product* have to meet the TPP?
-          - **Example (MAb):** "Purity must be > 99%" (to ensure safety and efficacy).
+          - **Definition (ICH Q8):** A physical, chemical, biological, or microbiological property that should be within an appropriate limit to ensure the desired product quality.
+          - **SME Translation:** What measurable property must the *product* have to meet the TPP?
+          - **Example:** "Purity must be > 99%" (to ensure safety and efficacy).
 
         - **Critical Material Attribute (CMA):**
-          - **Definition:** A physical, chemical, biological or microbiological property of an input material that should be within an appropriate limit, range, or distribution to ensure the desired quality of the output product.
-          - **In Simple Terms:** What property of a *raw material* must be controlled?
-          - **Example (MAb):** "The pH of the cell culture media must be between 6.9 and 7.3."
+          - **Definition (ICH Q8):** A property of an input material that should be within an appropriate limit to ensure the desired quality of the output product.
+          - **SME Translation:** What property of a *raw material* must be controlled?
+          - **Example:** "The pH of the cell culture media must be between 6.9 and 7.3."
 
         - **Critical Process Parameter (CPP):**
-          - **Definition:** A process parameter whose variability has an impact on a critical quality attribute and therefore should be monitored or controlled to ensure the process produces the desired quality.
-          - **In Simple Terms:** What "knob" on the *process* must be controlled?
-          - **Example (MAb):** "The bioreactor temperature must be maintained at 37.0 ± 0.5 °C."
+          - **Definition (ICH Q8):** A process parameter whose variability has an impact on a CQA and therefore should be monitored or controlled.
+          - **SME Translation:** What "knob" on the *process* must be controlled?
+          - **Example:** "The bioreactor temperature must be maintained at 37.0 ± 0.5 °C."
+
+        - **Design Space:**
+          - **Definition (ICH Q8):** The multidimensional combination of input variables (e.g., CMAs) and process parameters (e.g., CPPs) that have been demonstrated to provide assurance of quality.
+          - **SME Translation:** The "safe operating zone" or the proven "recipe for success."
+
+        - **Control Strategy:**
+          - **Definition (ICH Q10):** A planned set of controls, derived from product and process understanding, that assures process performance and product quality.
+          - **SME Translation:** The complete police force for your process: the combination of raw material specifications (for CMAs), in-process controls (for CPPs), and final product tests (for CQAs) that guarantee quality.
         """)
         
     with tabs[3]:
-        st.success("""
-        🟢 **THE GOLDEN RULE: Begin with the End in Mind, and Document the Links.**
-        
-        A validation program that does not start with a clearly defined Target Product Profile is a project without a destination. The TPP is the formal document that prevents 'scope creep' and ensures that all development and validation activities are focused on delivering a product that meets the specific, pre-defined needs of the patient.
-        
-        Furthermore, the entire cascade—from TPP down to CPPs—must be a living, documented "golden thread" that provides the scientific and risk-based rationale for your entire control strategy.
-        """)
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Test, Fail, and Repeat" Cycle**
+A team develops a process based on a few successful runs. When a batch fails during validation, a lengthy investigation begins with no clear starting point. The process is a 'black box,' and troubleshooting is reactive guesswork.
+- **The Flaw:** There is no documented, scientific understanding of the process. The team doesn't know *which* parameters are critical, so they can't effectively control them or troubleshoot them.""")
+        st.success("""🟢 **THE GOLDEN RULE: Begin with the End in Mind, and Document the Links**
+A compliant and robust QbD approach is a disciplined, multi-stage process.
+1.  **Define the Goal (TPP):** First, formally document the "contract" with the patient.
+2.  **Identify What Matters (CQAs):** Translate the TPP into a set of measurable, scientific targets for the product.
+3.  **Link the Chain of Knowledge (FMEA & DOE):** Use risk assessment and designed experiments to discover and prove the links between the process/materials (CPPs/CMAs) and the product quality (CQAs).
+4.  **Establish the Control Strategy:** Implement controls on the critical parameters and attributes you identified to ensure that every batch meets the CQAs and, by extension, the TPP. This cascade is the documented proof of this entire logical chain.""")
 
     with tabs[4]:
         st.markdown("""
         #### Historical Context: From Juran's Trilogy to ICH
-        **The Problem:** For much of the 20th century, the pharmaceutical industry operated on a "quality by testing" paradigm. Processes were developed, locked down, and then extensively tested at the end to prove they worked. This was inefficient and led to a poor understanding of *why* processes sometimes failed.
+        **The Problem:** For much of the 20th century, the pharmaceutical industry operated on a "quality by testing" paradigm. Processes were developed, locked down, and then extensively tested at the end to prove they worked. This was inefficient, costly, and led to a poor understanding of *why* processes sometimes failed, making continuous improvement difficult.
         
-        **The 'Aha!' Moment:** The core ideas of QbD were articulated by the quality pioneer **Joseph M. Juran** in his "Quality Trilogy" (Quality Planning, Quality Control, Quality Improvement). He argued that quality must be *planned* and *designed* into a product from the very beginning. While these ideas were adopted by other industries like automotive and electronics, the pharmaceutical industry was slower to change due to its rigid regulatory structure.
+        **The 'Aha!' Moment:** The core ideas of QbD were articulated by the legendary quality pioneer **Joseph M. Juran** in his "Quality Trilogy" (Quality Planning, Quality Control, Quality Improvement). He argued forcefully that quality must be *planned* and *designed* into a product from the very beginning, not inspected in at the end. While these ideas were adopted by other high-tech industries like automotive and electronics, the pharmaceutical industry was slower to change due to its rigid regulatory structure.
             
-        **The Impact (The ICH Revolution):** In the early 2000s, the FDA and other global regulators recognized that the traditional approach was stifling innovation. They launched the **"Pharmaceutical cGMPs for the 21st Century"** initiative to encourage a modern, science- and risk-based approach. This culminated in the **ICH Q8(R2) Guideline on Pharmaceutical Development** in 2009. This guideline formally adopted Juran's philosophy, introducing the concepts of the **Target Product Profile (TPP)** and **Critical Quality Attributes (CQA)** to the industry. It marked a major philosophical shift away from a prescriptive, "cookbook" approach to a flexible, understanding-based framework, with the TPP/CQA cascade as its central pillar.
+        **The Impact (The ICH Revolution):** In the early 2000s, the FDA and other global regulators recognized that the traditional approach was stifling innovation and hindering process improvement. They launched the **"Pharmaceutical cGMPs for the 21st Century"** initiative to encourage a modern, science- and risk-based approach. This culminated in the landmark **ICH Q8(R2) Guideline on Pharmaceutical Development** in 2009. This guideline formally adopted Juran's philosophy, introducing the concepts of the **Target Product Profile (TPP)** and **Critical Quality Attributes (CQA)** to the industry. It marked a major philosophical shift away from a prescriptive, "cookbook" approach to a flexible, understanding-based framework, with the TPP/CQA cascade as its central pillar.
         """)
         
     with tabs[5]:
         st.markdown("""
         This entire framework is defined and championed by the International Council for Harmonisation (ICH) and adopted by global regulators like the FDA.
         - **ICH Q8(R2) - Pharmaceutical Development:** This is the primary guideline. It explicitly defines the **Target Product Profile (TPP)**, **Critical Quality Attributes (CQA)**, and **Critical Process Parameters (CPP)** as the foundational elements of QbD. It introduces the concepts of the **Design Space** and **Control Strategy**.
-        - **ICH Q9 - Quality Risk Management:** The process of identifying which attributes and parameters are "critical" (i.e., identifying CQAs and CPPs) is a formal risk assessment activity that must be documented according to the principles of ICH Q9.
+        - **ICH Q9 - Quality Risk Management:** The process of identifying which attributes and parameters are "critical" (i.e., identifying CQAs and CPPs) is a formal risk assessment activity that must be documented according to the principles of ICH Q9. The FMEA tool in this app is a direct implementation of this.
         - **FDA Guidance on Process Validation (2011):** The entire lifecycle approach is built on this foundation. **Stage 1 (Process Design)** is the activity of translating the CQAs into a robust manufacturing process by identifying and controlling the CPPs and CMAs.
-        - **GAMP 5:** For instruments and software, the TPP is analogous to the **User Requirement Specification (URS)**, and the CQAs are analogous to the high-level **Functional Specifications (FS)**.
+        - **GAMP 5:** For instruments and software, the TPP is analogous to the **User Requirement Specification (URS)**, and the CQAs are analogous to the high-level **Functional Specifications (FS)**. This cascade provides the direct link between user needs and system design.
         """)
-
+        
 
 def render_atp_builder():
     """Renders the comprehensive, interactive module for building a Target Profile."""
@@ -5029,7 +5040,7 @@ def render_atp_builder():
         
         atp_values = []
         achieved_values = None
-        show_results = False # Initialize show_results
+        show_results = False
         
         with st.sidebar:
             st.subheader(f"Controls for {project_type}")
@@ -5045,7 +5056,7 @@ def render_atp_builder():
             elif project_type == "IVD Kit (ELISA)":
                 atp_values.append(st.slider("Clinical Sensitivity (%)", 90.0, 100.0, 98.0, 0.5, help="Ability to correctly identify true positives."))
                 atp_values.append(st.slider("Clinical Specificity (%)", 90.0, 100.0, 99.0, 0.5, help="Ability to correctly identify true negatives."))
-                atp_values.append(st.slider("Precision (%CV)", 10.0, 20.0, 15.0, 1.0, help="Assay repeatability. Lower is better."))
+                atp_values.append(st.slider("Precision (%CV)", 10.0, 20.0, 15.0, 1.0, help="Assay repeatability. Lower is better for consistent results."))
                 atp_values.append(st.slider("Robustness Score", 1, 10, 7, 1, help="Qualitative score for performance across different lots, users, and sites."))
                 atp_values.append(st.slider("Shelf-Life (Months)", 6, 24, 18, 1, help="Required stability of the kit at recommended storage."))
                 show_results = st.toggle("Simulate Validation Results", value=True, key="ivd_results")
@@ -5054,27 +5065,27 @@ def render_atp_builder():
             elif project_type == "Instrument Qualification":
                 atp_values.append(st.slider("Accuracy (Max Bias %)", 0.1, 5.0, 1.0, 0.1, help="Maximum acceptable systematic error. Lower is better."))
                 atp_values.append(st.slider("Precision (Max %CV)", 0.5, 5.0, 1.5, 0.1, help="Maximum acceptable random error. Lower is better."))
-                atp_values.append(st.slider("Throughput (Samples/hr)", 10, 200, 100, 10, help="Required sample processing speed."))
+                atp_values.append(st.slider("Throughput (Samples/hr)", 10, 200, 100, 10, help="Required sample processing speed to meet business needs."))
                 atp_values.append(st.slider("Uptime (%)", 95.0, 99.9, 99.0, 0.1, format="%.1f", help="Required operational reliability."))
-                atp_values.append(st.slider("Footprint (m²)", 1.0, 5.0, 2.0, 0.5, help="Maximum allowable lab space. Lower is better."))
+                atp_values.append(st.slider("Footprint (m²)", 1.0, 5.0, 2.0, 0.5, help="Maximum allowable lab space. A key logistical constraint. Lower is better."))
                 show_results = st.toggle("Simulate Qualification Results", value=True, key="inst_results")
                 if show_results: achieved_values = [0.8, 1.2, 120, 99.5, 1.8]
 
             elif project_type == "Software System (LIMS)":
                 atp_values.append(st.slider("Reliability (Uptime %)", 99.0, 99.999, 99.9, 0.001, format="%.3f", help="Percentage of time the system must be available."))
-                atp_values.append(st.slider("Performance (Query Time sec)", 0.5, 10.0, 2.0, 0.5, help="Maximum time for a key database query to return. Lower is better."))
-                atp_values.append(st.slider("Security (Compliance Score)", 1, 10, 8, 1, help="Qualitative score for meeting all 21 CFR Part 11 requirements."))
-                atp_values.append(st.slider("Usability (User Satisfaction Score)", 1, 10, 7, 1, help="Score from User Acceptance Testing (UAT)."))
-                atp_values.append(st.slider("Scalability (Concurrent Users)", 50, 5000, 500, 50, help="Maximum number of users the system must support simultaneously."))
+                atp_values.append(st.slider("Performance (Query Time sec)", 0.5, 10.0, 2.0, 0.5, help="Maximum time for a key database query to return. Critical for user experience. Lower is better."))
+                atp_values.append(st.slider("Security (Compliance Score)", 1, 10, 8, 1, help="Qualitative score for meeting all 21 CFR Part 11 requirements (e.g., audit trails, e-signatures)."))
+                atp_values.append(st.slider("Usability (User Sat. Score)", 1, 10, 7, 1, help="Score from User Acceptance Testing (UAT), indicating how intuitive the system is."))
+                atp_values.append(st.slider("Scalability (Concurrent Users)", 50, 5000, 500, 50, help="Maximum number of users the system must support simultaneously without performance degradation."))
                 show_results = st.toggle("Simulate Validation Results", value=True, key="soft_results")
                 if show_results: achieved_values = [99.99, 1.5, 10, 8, 1000]
 
             elif project_type == "Pharma Process (MAb)":
-                atp_values.append(st.slider("Yield (g/L)", 1.0, 10.0, 5.0, 0.5, help="Grams of product per liter of bioreactor volume."))
+                atp_values.append(st.slider("Yield (g/L)", 1.0, 10.0, 5.0, 0.5, help="Grams of product per liter of bioreactor volume. A key economic driver."))
                 atp_values.append(st.slider("Purity (%)", 98.0, 99.9, 99.5, 0.1, help="Final product purity via SEC-HPLC."))
-                atp_values.append(st.slider("Consistency (Inter-batch Cpk)", 1, 10, 8, 1, help="Qualitative score for process predictability and low variability."))
+                atp_values.append(st.slider("Consistency (Inter-batch Cpk)", 1, 10, 8, 1, help="Qualitative score for process predictability and low variability. Higher score means a more consistent process."))
                 atp_values.append(st.slider("Robustness (PAR Size Score)", 1, 10, 6, 1, help="Qualitative score for the size of the proven acceptable range."))
-                atp_values.append(st.slider("Cycle Time (Days)", 10, 20, 14, 1, help="Time from start to finish for a single batch. Lower is better."))
+                atp_values.append(st.slider("Cycle Time (Days)", 10, 20, 14, 1, help="Time from start to finish for a single batch. A key operational efficiency metric. Lower is better."))
                 show_results = st.toggle("Simulate PPQ Results", value=True, key="proc_results")
                 if show_results: achieved_values = [6.5, 99.7, 9, 8, 13]
 
@@ -5087,29 +5098,59 @@ def render_atp_builder():
 
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
         **Interpreting the Radar Chart:**
         - The chart provides an immediate, holistic view of the project's required performance characteristics. The **blue polygon is your 'contract' (the Target Profile)**. The **green polygon is the 'deliverable' (the final validated performance)**.
         - **Success Criteria:** A successful validation project is one where the green "Achieved" polygon **fully encompasses** the blue "Target" polygon.
-        - **Avoiding "Gold-Plating":** This visualization helps teams determine if their requirements are reasonable. If the blue ATP is vastly larger than what is necessary for the intended use, it signals that the project may be "gold-plating" the requirements, leading to excessive development time and cost.
+        - **Identifying Trade-offs:** This visualization makes strategic trade-offs clear. For an instrument, you might see that achieving maximum **Throughput** could require accepting a slightly larger lab **Footprint**. The ATP forces this to be a conscious, documented decision.
+        - **Avoiding "Gold-Plating":** This visualization helps teams determine if their requirements are reasonable. If the blue polygon is vastly larger than what is necessary for the intended use, it signals that the project may be "gold-plating" the requirements, leading to excessive development time and cost.
         """)
     with tabs[1]:
-        # --- THIS IS THE CORRECTED LINE ---
-        st.success("🟢 **THE GOLDEN RULE:** Define 'Fit for Purpose' Before You Begin. The Target Profile is the formal definition of 'fit for purpose.' It transforms a vague goal ('we need a good LIMS') into a set of concrete, measurable, and testable acceptance criteria. All subsequent development and validation activities should be designed to prove that the criteria in the Target Profile have been met.")
-        # --- END OF CORRECTION ---
-    with tabs[2]:
         st.markdown("""
-        #### Historical Context: From Checklist to Lifecycle
-        The concept of a formal, predefined target profile has its roots in systems engineering and was formalized for pharmaceuticals in the **ICH Q8(R2)** guideline as the **Analytical Target Profile (ATP)** and **Target Product Profile (TPP)**. This represents a shift from a reactive, checklist-based validation to a proactive, lifecycle-based approach to quality, a philosophy known as **Quality by Design (QbD)**.
+        ##### Glossary of Performance Attributes
+        - **Accuracy (%Rec / Bias):** The closeness of the measured average to the true or accepted reference value. Measures **systematic error**.
+        - **Precision (%CV):** The closeness of agreement among a series of measurements from the same sample. Measures **random error**.
+        - **Linearity (R²):** The ability to elicit test results that are directly proportional to the concentration of the analyte.
+        - **Range (Turn-down):** The interval between the upper and lower concentration of analyte for which the procedure has been demonstrated to have a suitable level of precision, accuracy, and linearity.
+        - **Sensitivity (LOD):** The lowest amount of analyte in a sample which can be detected but not necessarily quantitated as an exact value.
+        - **Clinical Sensitivity/Specificity:** Metrics for diagnostic tests measuring the rates of true positives and true negatives, respectively.
+        - **Robustness:** A measure of a procedure's capacity to remain unaffected by small, but deliberate variations in method parameters.
+        - **Throughput:** An operational metric, often measured in samples, plates, or units per unit of time.
+        - **Reliability (Uptime):** The percentage of time a system is available for normal operation.
+        - **Performance (Query Time):** A software metric for the time it takes to complete a specific computational task.
+        - **Security:** For software, the ability to meet regulatory requirements for data integrity, such as those in 21 CFR Part 11.
         """)
+        
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: "We'll Know It When We See It"**
+A development team starts working on a new assay with a vague goal like "make a good potency assay." They spend months optimizing, and then present the final data to the QC and Regulatory teams, who then inform them that the precision or range is not sufficient for its intended use in a routine environment.
+- **The Flaw:** The project lacked a pre-defined definition of success. This leads to wasted work, internal friction, and significant project delays when the method is transferred.""")
+        st.success("""🟢 **THE GOLDEN RULE: The Target Profile is a Negotiated Contract**
+The ATP is not just a scientific document; it's a formal **Service Level Agreement (SLA)** between all key stakeholders (Analytical Development, QC, Manufacturing, Regulatory, Quality) that is established *before* significant development work begins.
+1.  **Define "Fit for Purpose" First:** All parties must negotiate and agree on the specific, numerical criteria in the Target Profile.
+2.  **Develop to the Target:** The development team uses the profile as their explicit set of engineering goals.
+3.  **Validate Against the Target:** The final validation protocol uses the profile's criteria as the formal, pre-approved acceptance criteria.
+This ensures alignment from start to finish and guarantees the final deliverable is fit for its intended purpose.""")
+        
     with tabs[3]:
         st.markdown("""
-        The Target Profile is a modern best-practice that directly supports several key regulatory guidelines:
+        #### Historical Context: From Checklist to Lifecycle
+        **The Problem:** For decades, analytical method validation was treated as a one-time, checklist activity performed at the end of development. This often resulted in methods that were technically valid but not practically robust or well-suited for the harsh realities of routine use in a 24/7 QC environment. The common "over-the-wall" transfer from an R&D lab to a QC lab was a frequent source of project delays and failures.
+        
+        **The 'Aha!' Moment:** The **Quality by Design (QbD)** movement, championed by thought leaders like Janet Woodcock at the FDA in the early 2000s, proposed a new paradigm. This was formalized in the **"Pharmaceutical cGMPs for the 21st Century"** initiative. The core idea was to apply a proactive, lifecycle approach to all aspects of manufacturing, including the analytical methods themselves.
+            
+        **The Impact:** The **Analytical Target Profile (ATP)** emerged from this philosophy as a best practice. It was championed by the FDA and scientific bodies like the AAPS in the 2010s. The ATP is the direct application of QbD to method development. It parallels the **Target Product Profile (TPP)**, but instead of defining the goals for a drug product, it defines the goals for the *measurement system* used to test that product. This represents a mature, proactive, and lifecycle-based approach to ensuring analytical method quality.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        The Target Profile is a modern best-practice that directly supports several key regulatory guidelines by providing a clear, a priori definition of what will be validated.
         - **ICH Q8(R2), Q14:** The ATP is the starting point for applying QbD principles to analytical methods.
         - **FDA Process Validation Guidance:** The TPP for a process defines the goals for **Stage 1 (Process Design)**.
         - **GAMP 5:** For instruments and software, the Target Profile is a direct translation of the **User Requirement Specification (URS)** into a set of verifiable performance criteria for OQ and PQ.
+        - **USP Chapter <1220> - The Analytical Procedure Lifecycle:** This new chapter champions a holistic, lifecycle approach to method management. The ATP is the foundational element of **Stage 1 (Procedure Design)**, where the requirements for the method are formally defined.
         """)
         
 def render_fmea():

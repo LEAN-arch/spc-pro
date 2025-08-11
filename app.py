@@ -4816,17 +4816,22 @@ def render_introduction_content():
     st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
     st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
     
-    st.header("📖 The Scientist's/Engineer's Journey: A Three-Act Story")
-    st.markdown("""The journey from a novel idea to a robust, routine process can be viewed as a three-act story, with each act presenting unique analytical challenges. The toolkit is structured to follow that narrative.""")
-    act1, act2, act3 = st.columns(3)
+    st.header("📖 The Scientist's/Engineer's Journey: A Four-Act Story")
+    st.markdown("""The journey from a novel idea to a robust, routine process can be viewed as a four-act story. A successful project is not just about executing tests; it begins with rigorous planning and strategy. The toolkit is structured to follow that complete narrative.""")
+    
+    # --- UPDATED TO A 4-COLUMN LAYOUT ---
+    act0, act1, act2, act3 = st.columns(4)
+    with act0:
+        st.subheader("Act 0: Planning & Strategy")
+        st.markdown("Before a single experiment is run, a successful project is defined. This is the act of creating the project's 'North Star'—defining the goals, assessing the risks, and creating the master plan for validation.")
     with act1: 
-        st.subheader("Act I: Foundation & Characterization")
-        st.markdown("Before a method or process can be trusted, its fundamental capabilities, limitations, and sensitivities must be deeply understood. This is the act of building a solid, data-driven foundation.")
+        st.subheader("Act I: Characterization")
+        st.markdown("With a plan in place, we build a deep, data-driven understanding of the process. This act is about discovering the fundamental capabilities, limitations, and sensitivities of the new method or process.")
     with act2: 
-        st.subheader("Act II: Transfer & Stability")
-        st.markdown("Here, the method faces its crucible. It must prove its performance in a new environment—a new lab, a new scale, a new team. This is about demonstrating stability and equivalence.")
+        st.subheader("Act II: Qualification & Transfer")
+        st.markdown("Here, the method or process faces its crucible. It must prove its performance in a new environment—a new lab, a new scale, a new team. This is about demonstrating stability, equivalence, and capability.")
     with act3: 
-        st.subheader("Act III: The Guardian (Lifecycle Management)")
+        st.subheader("Act III: Lifecycle Management")
         st.markdown("Once live, the journey isn't over. This final act is about continuous guardianship: monitoring process health, detecting subtle drifts, and using advanced analytics to predict and prevent future failures.")
     
     st.divider()
@@ -4837,8 +4842,6 @@ def render_introduction_content():
     st.plotly_chart(fig_v_model, use_container_width=True)
 
     st.markdown("The table below provides a side-by-side comparison of typical documents and activities for each stage of the V-Model across different biotech contexts.")
-    
-    # THIS IS THE KEY CHANGE: We now call the new styling function
     summary_df = create_v_model_summary_table()
     fig_table = create_styled_v_model_table(summary_df)
     st.plotly_chart(fig_table, use_container_width=True)

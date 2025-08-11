@@ -3150,7 +3150,7 @@ def plot_westgard_scenario(scenario='Stable'):
 def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=30, random_seed=42):
     """
     Generates enhanced, more realistic MSPC analysis and plots, including
-    confidence ellipses and a more subtle correlation break.
+    labeled confidence ellipses and a more subtle correlation break.
     """
     if scenario == 'Stable':
         np.random.seed(101)
@@ -3168,37 +3168,31 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=30, random_s
         mean_shift = [25, 165] # Shifted up in Pressure
         df_monitor = pd.DataFrame(np.random.multivariate_normal(mean_shift, cov_train, n_monitor), columns=['Temperature', 'Pressure'])
     elif scenario == 'Correlation Break':
-        # SME Enhancement: More subtle break - correlation weakens but doesn't disappear
+        # More subtle break - correlation weakens but doesn't disappear
         cov_break = [[5, 4], [4, 40]] 
         df_monitor = pd.DataFrame(np.random.multivariate_normal(mean_train, cov_break, n_monitor), columns=['Temperature', 'Pressure'])
 
     df_full = pd.concat([df_train, df_monitor], ignore_index=True)
-
-    # 2. --- MSPC Model Building (PCA on training data) ---
-    pca = PCA(n_components=2).fit(df_train) # Fit on all components for ellipse
-    scores = pca.transform(df_full[['Temperature', 'Pressure']])
-    X_hat = pca.inverse_transform(scores) # This is only for SPE if n_components < p
-
-    # 3. --- Calculate T² and SPE Statistics ---
-    S_inv = np.linalg.inv(df_train.cov())
     mean_vec = df_train.mean().values
+
+    # 2. --- MSPC Calculations (T² and SPE) ---
+    S_inv = np.linalg.inv(df_train.cov())
     diff = df_full[['Temperature', 'Pressure']].values - mean_vec
     df_full['T2'] = [d.T @ S_inv @ d for d in diff]
     
     # SPE is only meaningful if we reduce dimensions (e.g., n_components=1)
     pca_spe = PCA(n_components=1).fit(df_train)
-    scores_spe = pca_spe.transform(df_full[['Temperature', 'Pressure']])
-    X_hat_spe = pca_spe.inverse_transform(scores_spe)
+    X_hat_spe = pca_spe.inverse_transform(pca_spe.transform(df_full[['Temperature', 'Pressure']]))
     residuals = df_full[['Temperature', 'Pressure']].values - X_hat_spe
     df_full['SPE'] = np.sum(residuals**2, axis=1)
 
-    # 4. --- Calculate Control Limits ---
+    # 3. --- Calculate Control Limits ---
     alpha = 0.01
     p = df_train.shape[1]
     t2_ucl = (p * (n_train - 1) / (n_train - p)) * f.ppf(1 - alpha, p, n_train - p)
     spe_ucl = np.percentile(df_full['SPE'].iloc[:n_train], (1 - alpha) * 100)
 
-    # 5. --- OOC Check and Error Type Determination ---
+    # 4. --- OOC Check and Error Type Determination ---
     monitor_data = df_full.iloc[n_train:]
     t2_ooc_points = monitor_data[monitor_data['T2'] > t2_ucl]
     spe_ooc_points = monitor_data[monitor_data['SPE'] > spe_ucl]
@@ -3210,37 +3204,43 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=30, random_s
         error_type_str = "Correct Detection" if alarm_detected else "Type II Error (Missed Signal)"
 
     # --- PLOTTING ---
-    # SME Enhancement: Main plot now shows confidence ellipses
+    # 5. --- Create Process State Space Plot ---
     fig_scatter = go.Figure()
-    # Helper for ellipse
-    def get_ellipse(mean, cov, conf_level):
+    
+    # Helper for ellipse calculation and plotting
+    def get_ellipse_path(mean, cov, conf_level):
         vals, vecs = np.linalg.eigh(cov)
         order = vals.argsort()[::-1]; vals, vecs = vals[order], vecs[:, order]
-        theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-        # Use chi2 distribution for confidence ellipse scaling
+        theta = np.arctan2(*vecs[:, 0][::-1])
         scale_factor = np.sqrt(stats.chi2.ppf(conf_level, df=2))
         width, height = 2 * scale_factor * np.sqrt(vals)
-        return width, height, theta
+        
+        t = np.linspace(0, 2 * np.pi, 100)
+        ellipsis_x_circ = width/2 * np.cos(t)
+        ellipsis_y_circ = height/2 * np.sin(t)
 
-    w99, h99, t99 = get_ellipse(mean_vec, cov_train, 0.99)
-    w95, h95, t95 = get_ellipse(mean_vec, cov_train, 0.95)
+        x_rotated = ellipsis_x_circ * np.cos(theta) - ellipsis_y_circ * np.sin(theta)
+        y_rotated = ellipsis_x_circ * np.sin(theta) + ellipsis_y_circ * np.cos(theta)
+        
+        return x_rotated + mean[0], y_rotated + mean[1]
 
-    # Rotate the ellipse. Plotly shape rotation is angle-based
-    fig_scatter.add_shape(type="circle", x0=-w99/2, y0=-h99/2, x1=w99/2, y1=h99/2, line_color='rgba(239,83,80,0.5)', fillcolor='rgba(239,83,80,0.1)', name='99% Confidence Ellipse')
-    fig_scatter.add_shape(type="circle", x0=-w95/2, y0=-h95/2, x1=w95/2, y1=h95/2, line_color='rgba(0,204,150,0.5)', fillcolor='rgba(0,204,150,0.1)', name='95% Confidence Ellipse')
-    fig_scatter.update_shapes(dict(xref="x", yref="y")) # Ensure shapes are in data coordinates
-    # Apply rotation and translation to all shapes
-    for shape in fig_scatter.layout.shapes:
-        shape.x0 += mean_vec[0]
-        shape.x1 += mean_vec[0]
-        shape.y0 += mean_vec[1]
-        shape.y1 += mean_vec[1]
-    
+    x99, y99 = get_ellipse_path(mean_vec, cov_train, 0.99)
+    x95, y95 = get_ellipse_path(mean_vec, cov_train, 0.95)
+
+    # Plot Ellipses as filled polygons
+    fig_scatter.add_trace(go.Scatter(x=x99, y=y99, fill="toself", fillcolor='rgba(239,83,80,0.1)', line=dict(color='rgba(239,83,80,0.5)'), name='99% CI'))
+    fig_scatter.add_trace(go.Scatter(x=x95, y=y95, fill="toself", fillcolor='rgba(0,204,150,0.1)', line=dict(color='rgba(0,204,150,0.5)'), name='95% CI'))
+
+    # Add annotations
+    fig_scatter.add_annotation(x=np.mean(x95), y=np.max(y95), text="<b>95% CI (Normal Zone)</b>", showarrow=False, font=dict(color='darkgreen'))
+    fig_scatter.add_annotation(x=np.mean(x99), y=np.max(y99) + 2, text="<b>99% CI (Control Limit)</b>", showarrow=False, font=dict(color='darkred'))
+
+    # Add data points
     fig_scatter.add_trace(go.Scatter(x=df_train['Temperature'], y=df_train['Pressure'], mode='markers', marker=dict(color='#636EFA', opacity=0.7), name='In-Control (Training)'))
     fig_scatter.add_trace(go.Scatter(x=df_monitor['Temperature'], y=df_monitor['Pressure'], mode='markers', marker=dict(color='black', size=8, symbol='star'), name=f'Monitoring ({scenario})'))
     fig_scatter.update_layout(title=f"<b>Process State Space: Normal Operating Region</b>", xaxis_title="Temperature (°C)", yaxis_title="Pressure (kPa)", legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
     
-    # Control Charts
+    # 6. --- Create Control Charts Plot ---
     fig_charts = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=("<b>Hotelling's T² Chart (Distance to Center)</b>", "<b>SPE Chart (Distance to Model)</b>"))
     chart_indices = np.arange(1, len(df_full) + 1)
     fig_charts.add_trace(go.Scatter(x=chart_indices, y=df_full['T2'], mode='lines+markers', name='T² Value'), row=1, col=1)
@@ -3254,7 +3254,7 @@ def plot_multivariate_spc(scenario='Stable', n_train=100, n_monitor=30, random_s
     fig_charts.add_vrect(x0=n_train+0.5, x1=n_train+n_monitor+0.5, fillcolor="rgba(255,150,0,0.15)", line_width=0, annotation_text="Monitoring Phase", annotation_position="top left", row='all', col=1)
     fig_charts.update_layout(height=500, title_text="<b>Multivariate Control Charts</b>", showlegend=False, yaxis_title="T² Statistic", yaxis2_title="SPE Statistic", xaxis2_title="Observation Number")
 
-    # Contribution Plots
+    # 7. --- Create Contribution Plot for Diagnosis ---
     fig_contrib = None
     if alarm_detected:
         if not t2_ooc_points.empty:
@@ -8163,19 +8163,21 @@ def render_multivariate_spc():
     #### Purpose & Application: The Process Doctor
     **Purpose:** To monitor the **holistic state of statistical control** for a process with multiple, correlated parameters. Instead of using an array of univariate charts (like individual nurses reading single vital signs), Multivariate SPC (MSPC) acts as the **head physician**, integrating all information into a single, powerful diagnosis.
     
-    **Strategic Application:** This is an essential methodology for modern **Process Analytical Technology (PAT)** and real-time process monitoring. In complex systems like bioreactors or chromatography, parameters like temperature, pH, pressure, and flow rates are interdependent. A small, coordinated deviation across several parameters—a "stealth shift"—can be invisible to individual charts but represents a significant excursion from the normal operating state. MSPC is designed to detect exactly these events.
+    **Strategic Application:** This is an essential methodology for modern **Process Analytical Technology (PAT)** and real-time process monitoring. In complex systems like bioreactors or chromatography, parameters are interdependent. A small, coordinated deviation—a "stealth shift"—can be invisible to individual charts but represents a significant excursion from the normal operating state. MSPC is designed to detect exactly these events.
     """)
     
     st.info("""
-    **Interactive Demo:** Use the **Process Scenario** radio buttons in the sidebar to simulate different types of multivariate process failures. First, observe the **Scatter Plot**, then see which **Control Chart (T² or SPE)** detects the problem, and finally, check the **Contribution Plot** in the 'Key Insights' tab to diagnose the root cause.
+    **Interactive Demo:** You are the Process Engineer. Use the **Process Scenario** radio buttons in the sidebar to simulate different types of multivariate process failures. First, observe the **Process State Space** plot to see how the failure looks visually, then see which **Control Chart (T² or SPE)** detects the problem, and finally, check the **Contribution Plot** in the 'Key Insights' tab to diagnose the root cause.
     """)
 
-    st.sidebar.subheader("Multivariate SPC Controls")
-    scenario = st.sidebar.radio(
-        "Select a Process Scenario to Simulate:",
-        ('Stable', 'Shift in Y Only', 'Correlation Break'),
-        captions=["A normal, in-control process.", "A 'stealth shift' in one variable.", "An unprecedented event breaks the model."]
-    )
+    with st.sidebar:
+        st.subheader("Multivariate SPC Controls")
+        scenario = st.sidebar.radio(
+            "Select a Process Scenario to Simulate:",
+            ('Stable', 'Shift in Y Only', 'Correlation Break'),
+            captions=["A normal, in-control process.", "A 'stealth shift' in one variable.", "An unprecedented event breaks the model."],
+            help="Choose a scenario to see how T² and SPE charts are sensitive to different types of failures."
+        )
 
     fig_scatter, fig_charts, fig_contrib, t2_ooc, spe_ooc, error_type_str = plot_multivariate_spc(scenario=scenario)
     
@@ -8189,133 +8191,87 @@ def render_multivariate_spc():
         tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🔬 SME Analysis", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
-            t2_verdict_str = "Out-of-Control" if t2_ooc else "In-Control"
-            spe_verdict_str = "Out-of-Control" if spe_ooc else "In-Control"
+            st.markdown("""
+            **Understanding the Process State Space Plot:**
+            The top plot is your map of the process's **Normal Operating Region (NOR)**, defined by the two ellipses.
+            -   **Green Ellipse (95% Confidence):** Represents the most common, expected region of operation.
+            -   **Red Ellipse (99% Confidence):** This is the multivariate **control limit**. Any point falling outside this ellipse is a statistical signal of a special cause.
             
-            st.metric("📈 T² Chart Verdict", t2_verdict_str, help="Monitors deviation *within* the normal process model.")
-            st.metric("📈 SPE Chart Verdict", spe_verdict_str, help="Monitors deviation *from* the normal process model.")
-            st.metric(
-                "📊 Error Type Determination",
-                error_type_str,
-                help="Type I Error: A 'false alarm' on a stable process. Type II Error: A 'missed signal' on a known failure. 'Correct' means the charts behaved as expected for the scenario."
-            )
-            
-            st.markdown("---")
-            st.markdown(f"##### Analysis of the '{scenario}' Scenario:")
+            The ellipses are stretched diagonally because the process parameters are **correlated**. The shape is determined by the **Mahalanobis distance**, which accounts for this correlation.
+
+            ---
+            **Analysis of the '{scenario}' Scenario:**
+            """.format(scenario=scenario))
 
             if scenario == 'Stable':
-                st.success("The process is stable and in-control. Both the T² and SPE charts show only common cause variation, confirming the process is operating as expected within its normal, correlated state. No diagnostic plot is needed.")
+                st.success("The process is stable. The monitoring points (black stars) fall within the confidence ellipses, and both the T² and SPE charts show only normal variation.")
             elif scenario == 'Shift in Y Only':
-                st.warning("**Diagnosis: A 'Stealth Shift' has occurred.**")
-                st.markdown("""
-                1.  **Scatter Plot:** The red points have clearly shifted upwards, but because the correlation is strong, they still fall within the horizontal range of the blue points. A univariate chart for Temperature (X-axis) would likely miss this.
-                2.  **T² Chart:** Alarms loudly. It knows the expected Pressure (Y) for a given Temperature (X) and detects this significant deviation from the multivariate mean.
-                3.  **SPE Chart:** Remains in-control. The *relationship* between the variables is still intact; the process has just shifted along that known correlation structure.
-                4.  **Contribution Plot:** This diagnostic tool confirms the root cause: the T² alarm is driven almost entirely by the **Pressure** variable.
-                """)
+                st.warning("**Diagnosis: A 'Stealth Shift' has occurred.** The monitoring points have shifted upwards, falling outside the red ellipse. This is detected by the **T² chart**, which is sensitive to deviations from the process center.")
             elif scenario == 'Correlation Break':
-                st.error("**Diagnosis: An Unprecedented Event has occurred.**")
-                st.markdown("""
-                1.  **Scatter Plot:** The red points have fallen completely *off* the established diagonal correlation line. The average Temperature and Pressure might still be normal, but their relationship is broken.
-                2.  **T² Chart:** May remain in-control. Since the points are still relatively close to the center of the data cloud, the T² (which measures distance *within* the model) does not alarm.
-                3.  **SPE Chart:** Alarms loudly. The SPE measures the distance *to* the model. Since these points are far from the expected correlation line, the SPE signals a major deviation from the model.
-                4.  **Contribution Plot:** This diagnostic tool shows that both variables are contributing to the SPE alarm, confirming the fundamental breakdown of the process model itself.
-                """)
+                st.error("**Diagnosis: An Unprecedented Event.** The monitoring points have fallen off the established correlation line. This is detected by the **SPE chart**, which is sensitive to deviations *from* the process model itself.")
             
             if fig_contrib is not None:
-                st.markdown("---")
-                st.markdown("##### Root Cause Diagnosis")
+                st.markdown("--- \n ##### Root Cause Diagnosis")
                 st.plotly_chart(fig_contrib, use_container_width=True)
-            
-            st.markdown("---")
-            st.info("**Try This:** Switch between the 'Shift in Y Only' and 'Correlation Break' scenarios to see how the two charts are sensitive to completely different types of process failures.")
+        
         with tabs[1]:
             st.markdown("""
             ##### Glossary of MSPC Terms
             - **MSPC (Multivariate SPC):** A method for monitoring the stability of a process with multiple, correlated variables simultaneously.
             - **Mahalanobis Distance:** A measure of the distance between a point and a distribution. Unlike Euclidean distance, it accounts for the correlation between variables, effectively measuring distance in "standard deviations" in a multidimensional space.
-            - **Hotelling's T²:** A multivariate statistic that measures the Mahalanobis distance of a point from the center of a data cloud. It is sensitive to shifts *along* the correlation structure of the data.
+            - **Hotelling's T²:** A multivariate statistic that is the square of the Mahalanobis distance. It measures the distance of a point from the center of a data cloud, adjusted for correlation. It is sensitive to shifts *along* the correlation structure of the data.
             - **SPE (Squared Prediction Error):** Also known as DModX. A statistic that measures the distance of a point *from* the PCA model of the process. It is sensitive to new events or a breakdown in the correlation structure.
             - **PCA (Principal Component Analysis):** An unsupervised machine learning technique used to reduce the dimensionality of a dataset while preserving as much variance as possible. It is the engine for building the MSPC model.
             - **Contribution Plot:** A diagnostic plot used to identify which of the original process variables are responsible for a T² or SPE alarm.
             """)
+            
         with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
-Using dozens of individual charts is doomed to fail due to alarm fatigue and its blindness to "stealth shifts." """)
+Using dozens of individual charts is doomed to fail due to alarm fatigue and its blindness to "stealth shifts." It's like having nurses for each vital sign, but no doctor to interpret the full patient picture. A process can be "out of control" even when every individual parameter is "in control" if their combination is abnormal.""")
             st.success("""🟢 **THE GOLDEN RULE: Detect with T²/SPE, Diagnose with Contributions**
-1.  **Stage 1: Detect.** Use **T² and SPE charts** as your primary health monitors to answer "Is something wrong?"
-2.  **Stage 2: Diagnose.** If a chart alarms, then use **contribution plots** to identify which original variables are responsible for the signal. This is the path to the root cause.""")
+A robust MSPC program is a two-stage process.
+1.  **Stage 1: Detect.** Use the **T² and SPE charts** as your primary, holistic health monitors to answer the simple question: "Is something wrong with my process?"
+2.  **Stage 2: Diagnose.** If either chart alarms, *then* you use **contribution plots** to drill down and identify which of the original process variables are responsible for the signal. This provides a clear, data-driven starting point for the root cause investigation.""")
 
         with tabs[3]:
             st.markdown("""
             #### Historical Context: The Crisis of Dimensionality
-            **The Problem:** In the 1930s, statistics was largely a univariate world. Tools like Student's t-test and Shewhart's control charts were brilliant for analyzing one variable at a time. But scientists and economists were facing increasingly complex problems with dozens of correlated measurements. How could you test if two groups were different, not just on one variable, but across a whole panel of them? A simple t-test on each variable was not only inefficient, it was statistically misleading due to the problem of multiple comparisons.
-
-            **The 'Aha!' Moment (Hotelling):** The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. His genius was in generalization. **Harold Hotelling** solved the problem of analyzing multiple correlated variables at once. He generalized the squared t-statistic, which is a measure of squared distance normalized by variance, into a multivariate framework. His **Hotelling's T-squared statistic** provided a single number representing the "distance" of a point from the center of a multivariate distribution, elegantly solving the problem of testing multiple means at once while accounting for all their correlations. The T² statistic is fundamentally a measure of the **Mahalanobis distance**, which was earlier formulated by P. C. Mahalanobis in 1936. Hotelling recognized that the squared t-statistic, $t^2 = (\\bar{x} - \\mu)^2 / (s^2/n)$, was a measure of squared distance, normalized by variance. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which replaced the univariate terms with their vector and matrix equivalents. It provided a single number that represented the "distance" of a point from the center of a multivariate distribution, elegantly solving the problem of testing multiple means at once while accounting for all their correlations.
+            In the 1930s, statistics was largely a univariate world. Tools like Student's t-test and Shewhart's control charts were brilliant for analyzing one variable at a time. But scientists and economists were facing increasingly complex problems with dozens of correlated measurements. 
+            
+            **The 'Aha!' Moment (Hotelling):** The creator of this powerful technique was **Harold Hotelling**, one of the giants of 20th-century mathematical statistics. His genius was in generalization. He recognized that the squared t-statistic, $t^2 = (\\bar{x} - \\mu)^2 / (s^2/n)$, was a measure of squared distance, normalized by variance. In a 1931 paper, he introduced the **Hotelling's T-squared statistic**, which replaced the univariate terms with their vector and matrix equivalents. It provided a single number that represented the "distance" of a point from the center of a multivariate distribution, elegantly solving the problem of testing multiple means at once while accounting for all their correlations. The T² statistic is fundamentally a measure of the **Mahalanobis distance**, which was earlier formulated by P. C. Mahalanobis in 1936.
             """)
             st.markdown("#### Mathematical Basis")
-            st.markdown("""
-            - **T² (Hotelling's T-Squared):** A measure of the **Mahalanobis distance**. It calculates the squared distance of a point `x` from the center of the data `x̄`, but it first "warps" the space by the inverse of the covariance matrix `S⁻¹` to account for correlations.
-            """)
+            st.markdown("- **T² (Hotelling's T-Squared):** A measure of the **Mahalanobis distance**. It calculates the squared distance of a point `x` from the center of the data `x̄`, but it first 'warps' the space by the inverse of the covariance matrix `S⁻¹` to account for correlations.")
             st.latex(r"T^2 = (\mathbf{x} - \mathbf{\bar{x}})' \mathbf{S}^{-1} (\mathbf{x} - \mathbf{\bar{x}})")
-            st.markdown("""
-            - **SPE (Squared Prediction Error):** Also known as DModX or Q-statistic. It is the sum of squared residuals after projecting a data point onto the principal component model of the process. For a new point **x**, it is the squared distance to the PCA model plane:
-            """)
+            st.markdown("- **SPE (Squared Prediction Error):** The sum of squared residuals after projecting a data point onto the principal component model of the process. For a new point **x**, it is the squared distance to the PCA model plane.")
             st.latex(r"SPE = || \mathbf{x} - \mathbf{P}\mathbf{P}'\mathbf{x} ||^2")
-            st.markdown("where **P** is the matrix of PCA loadings (the model directions).")
 
         with tabs[4]:
             st.markdown("""
             #### SME Analysis: From Raw Data to Actionable Intelligence
-
-            As a Subject Matter Expert (SME) in process validation and tech transfer, this tool isn't just a data science curiosity; it's a powerful diagnostic and risk-management engine. Here’s how we would use this in a real-world GxP environment.
-
-            ---
+            As a Subject Matter Expert (SME), this tool isn't just a data science curiosity; it's a powerful diagnostic and risk-management engine.
 
             ##### How is this data gathered and what are the parameters?
-
-            The data used by this model is a simplified version of what we collect during **late-stage development, process characterization, and tech transfer validation runs**.
-
-            -   **Data Gathering:** Every time an assay run is performed, we log key parameters in a Laboratory Information Management System (LIMS) or an Electronic Lab Notebook (ELN). This includes automated readings from the instrument and manual entries by the technician. The final "Pass/Fail" result of the run is the target we are trying to predict.
-
-            -   **Parameters Considered:**
-                *   **`Operator Experience`**: This is critical, especially during tech transfer. We track this from training records. A junior analyst at a receiving site might follow the SOP perfectly, but their inexperience can be a hidden source of variability.
-                *   **`Reagent Age`**: We track this via lot numbers and expiration dates. Even within its expiry, a reagent that is 90 days old might perform differently than one that is 5 days old. This model helps quantify that risk.
-                *   **`Calibrator Slope`**: This is a direct output from the instrument's software. It's a key health indicator for the assay. A decreasing slope over time often signals a systemic issue.
-                *   **`QC Level 1 Value`**: This is the result for a known Quality Control sample. We monitor this using standard SPC charts (like Westgard Rules), but including it here allows the model to learn complex interactions, like how a slight drop in QC value is more dangerous when reagent age is also high.
-                *   **`Instrument ID`**: In a lab with multiple instruments, we always log which machine was used. They are never perfectly identical, and this model can detect if one instrument is contributing disproportionately to run failures.
-
-            ---
+            The data used by this model is a simplified version of what we collect during **late-stage development and tech transfer validation runs**. Key parameters like `Temperature` and `Pressure` are logged in a LIMS or ELN from instruments.
 
             ##### How do we interpret the plots and gain insights?
-
             The true power here is moving from "what happened" to "why it happened."
-
-            -   **Global Plot (The Big Picture):** The summary plot is our first validation checkpoint for the model itself. As an SME, if I saw that `Instrument ID` was the most important factor and `Calibrator Slope` was irrelevant, I would immediately reject the model. It would mean the model learned a spurious correlation (e.g., our failing instrument is also where we train new operators) rather than the true science. The fact that `Operator Experience` and `Calibrator Slope` are top drivers gives me confidence that the AI's "thinking" aligns with scientific reality.
-
-            -   **Local Plot (The Smoking Gun):** This is our **automated root cause investigation tool**.
-                *   When I select the **"Highest Predicted Failure Risk"** case, the force plot instantly shows me the "root cause narrative." For the selected run, the story is clear: an inexperienced operator combined with a low calibrator slope created a high-risk situation. The fact that the reagent was fresh (a blue, risk-lowering factor) wasn't enough to save it.
-                *   When I select the **"Lowest Predicted Failure Risk"** case, I see the "golden run" profile: an experienced operator, a perfect calibrator slope, and fresh reagents. This confirms what an ideal run looks like.
-
-            ---
+            -   **Process State Space Plot:** This is our primary visualization of the process's "healthy" state, defined by the ellipses. It immediately shows if a deviation is a simple shift or a more complex breakdown of the process model itself.
+            -   **Contribution Plots:** When an alarm sounds, this is our **automated root cause investigation tool**. For a T² alarm, it points to the variable that has shifted. For an SPE alarm, it points to the variables whose relationship has broken down.
 
             ##### How would we implement this?
-
-            Implementation is a phased process moving from monitoring to proactive control.
-
-            1.  **Phase 1 (Silent Monitoring):** The model runs in the background. It predicts the failure risk for every run, and we use SHAP to analyze the reasons for high-risk predictions. This data is reviewed during weekly process monitoring meetings. It helps us spot trends—"Are we seeing more failures driven by `Reagent Age` lately?"—and guides our investigations.
-
-            2.  **Phase 2 (Advisory Mode):** The system is integrated with the LIMS. When an operator starts a run, the model calculates a risk score based on the chosen reagents and their own logged experience. If the risk is high, it could generate an advisory: **"Warning: Reagent Lot XYZ is 85 days old. This significantly increases the risk of run failure. Consider using a newer lot."**
-
-            3.  **Phase 3 (Proactive Control / Real-Time Release):** This is the ultimate goal of PAT. Once the model is fully validated and trusted, its predictions can become part of the official batch record. A run with a very low predicted risk and a favorable SHAP explanation could be eligible for **Real-Time Release Testing (RTRT)**, skipping certain redundant final QC tests. This dramatically accelerates production timelines and reduces costs, all while increasing quality assurance.
+            1.  **Phase 1 (Model Building):** Use data from 20-30 successful, validated runs to build the PCA model and establish the control limits (T² and SPE).
+            2.  **Phase 2 (Monitoring):** Deploy the charts for real-time monitoring as part of Continued Process Verification (CPV).
+            3.  **Phase 3 (Automated Triage):** When an alarm triggers, automatically generate the contribution plot and attach it to an electronic alert sent to the process engineer. This dramatically accelerates the investigation.
             """)
-        with tabs[4]: # Note: this is the 5th tab
+            
+        with tabs[5]:
             st.markdown("""
             These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
             - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
             - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
             - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a Computerized System.
             """)
             
 def render_ewma_cusum():

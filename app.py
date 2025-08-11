@@ -7333,7 +7333,7 @@ def render_spc_charts():
         This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
         - *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
         Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.""")
-                st.success("""🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
+        st.success("""🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
         The control chart's signal dictates one of two paths:
         1.  **Process is IN-CONTROL (only common cause variation):**
             - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).

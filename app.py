@@ -9991,7 +9991,7 @@ else:
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,
         "Statistical Equivalence for Process Transfer": render_process_equivalence,
-        "Binomial Confidence Interval":render_proportion_cis
+        "Binomial Confidence Interval":render_proportion_cis,
         "Tolerance Intervals": render_tolerance_intervals,
         "Method Comparison": render_method_comparison,
         "Bayesian Inference": render_bayesian,

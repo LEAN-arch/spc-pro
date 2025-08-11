@@ -7890,7 +7890,7 @@ def render_multi_rule():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.markdown("##### Detected Violations")
@@ -7918,8 +7918,18 @@ def render_multi_rule():
             - Rules like `4-1s` and `10-x` are weak for large shifts but much more powerful for detecting **small, persistent shifts** (<2σ).
             This is why a multi-rule system is essential.
             """)
-
         with tabs[1]:
+                st.markdown("""
+                ##### Glossary of Westgard Rules
+                - **Systematic Error:** A consistent bias in the measurement process (e.g., a miscalibrated instrument). Detected by rules like `2-2s`, `4-1s`, `10-x`.
+                - **Random Error:** Unpredictable, random fluctuations in the measurement process (e.g., pipetting variability). Detected by rules like `1-3s` and `R-4s`.
+                - **1-3s Rule:** One control measurement exceeds the mean ± 3 standard deviations. Rejection rule, sensitive to large errors.
+                - **2-2s Rule:** Two consecutive control measurements exceed the same mean ± 2 standard deviations. Rejection rule, sensitive to systematic error.
+                - **R-4s Rule:** The range between two consecutive control measurements exceeds 4 standard deviations. Rejection rule, sensitive to random error.
+                - **4-1s Rule:** Four consecutive control measurements exceed the same mean ± 1 standard deviation. Rejection rule, sensitive to small systematic shifts.
+                - **10-x Rule:** Ten consecutive control measurements fall on the same side of the mean. Rejection rule, very sensitive to small systematic shifts.
+                """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
 This operator sees any alarm, immediately discards the run, and starts over without thinking.
 - They don't use the specific rule (`2-2s` vs `R-4s`) to guide their troubleshooting.
@@ -7929,7 +7939,7 @@ The goal is to treat the specific rule violation as the starting point of a targ
 - **Think like a detective:** "The chart shows a `2-2s` violation. This suggests a systematic shift. I should check my calibrators and reagents first, not my pipetting technique."
 - **Document Everything:** The investigation, the root cause, and the corrective action for each rule violation must be documented.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: From the Factory Floor to the Hospital Bed
             **The Problem:** In the 1970s, clinical laboratories were becoming highly automated, but their quality control methods hadn't kept up. They were using Shewhart's simple `1-3s` rule, designed for manufacturing. However, in a clinical setting, the cost of a missed error (a misdiagnosis) is infinitely higher than the cost of a false alarm (re-running a control). The `1-3s` rule was not sensitive enough to catch the small but medically significant drifts that could occur with automated analyzers.
@@ -7944,7 +7954,7 @@ The goal is to treat the specific rule violation as the starting point of a targ
             st.markdown("- A point outside **±2σ** is more common (p ≈ 0.0455). Seeing one is not a strong signal. However, the probability of seeing *two consecutive points* on the same side of the mean purely by chance is much, much lower:")
             st.latex(r"P(\text{2-2s}) \approx \left( \frac{0.0455}{2} \right)^2 \approx 0.0005")
             st.markdown("This makes the **2-2s** rule a powerful and specific detector of systematic shifts with a very low false alarm rate, even though the individual points themselves are not extreme.")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             Westgard Rules are the de facto standard for routine QC run validation in clinical and diagnostic laboratories, and their principles are widely adopted in pharmaceutical QC.
             - **CLIA (Clinical Laboratory Improvement Amendments):** US federal regulations that require clinical laboratories to monitor the accuracy and precision of their testing. Westgard Rules provide a compliant framework for this.
@@ -7981,7 +7991,7 @@ def render_multivariate_spc():
         st.plotly_chart(fig_charts, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🔬 SME Analysis", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🔬 SME Analysis", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             t2_verdict_str = "Out-of-Control" if t2_ooc else "In-Control"
@@ -8024,15 +8034,23 @@ def render_multivariate_spc():
             
             st.markdown("---")
             st.info("**Try This:** Switch between the 'Shift in Y Only' and 'Correlation Break' scenarios to see how the two charts are sensitive to completely different types of process failures.")
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of MSPC Terms
+            - **MSPC (Multivariate SPC):** A method for monitoring the stability of a process with multiple, correlated variables simultaneously.
+            - **Hotelling's T²:** A multivariate statistic that measures the Mahalanobis distance of a point from the center of a data cloud. It is sensitive to shifts *along* the correlation structure of the data.
+            - **SPE (Squared Prediction Error):** Also known as DModX. A statistic that measures the distance of a point *from* the PCA model of the process. It is sensitive to new events or a breakdown in the correlation structure.
+            - **PCA (Principal Component Analysis):** An unsupervised machine learning technique used to reduce the dimensionality of a dataset while preserving as much variance as possible. It is the engine for building the MSPC model.
+            - **Contribution Plot:** A diagnostic plot used to identify which of the original process variables are responsible for a T² or SPE alarm.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
 Using dozens of individual charts is doomed to fail due to alarm fatigue and its blindness to "stealth shifts." """)
             st.success("""🟢 **THE GOLDEN RULE: Detect with T²/SPE, Diagnose with Contributions**
 1.  **Stage 1: Detect.** Use **T² and SPE charts** as your primary health monitors to answer "Is something wrong?"
 2.  **Stage 2: Diagnose.** If a chart alarms, then use **contribution plots** to identify which original variables are responsible for the signal. This is the path to the root cause.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Crisis of Dimensionality
             **The Problem:** In the 1930s, statistics was largely a univariate world. Tools like Student's t-test and Shewhart's control charts were brilliant for analyzing one variable at a time. But scientists and economists were facing increasingly complex problems with dozens of correlated measurements. How could you test if two groups were different, not just on one variable, but across a whole panel of them? A simple t-test on each variable was not only inefficient, it was statistically misleading due to the problem of multiple comparisons.
@@ -8050,7 +8068,7 @@ Using dozens of individual charts is doomed to fail due to alarm fatigue and its
             st.latex(r"SPE = || \mathbf{x} - \mathbf{P}\mathbf{P}'\mathbf{x} ||^2")
             st.markdown("where **P** is the matrix of PCA loadings (the model directions).")
 
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             #### SME Analysis: From Raw Data to Actionable Intelligence
 
@@ -8142,7 +8160,7 @@ def render_ewma_cusum():
 
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
         with tabs[0]:
             st.markdown(f"##### Detection Performance for a **{shift_size_slider}σ** {scenario_slider}")
@@ -8166,8 +8184,16 @@ def render_ewma_cusum():
             **The Core Insight:**
             Try simulating a small (`< 1.5σ`) **Gradual Drift**. The I-Chart is completely blind, giving a false sense of security. The EWMA and CUSUM charts, because they have memory, accumulate the small signals over time and reliably sound the alarm. This demonstrates why relying only on Shewhart charts creates a significant blind spot for modern, high-precision processes.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Small Shift Terms
+            - **Shewhart Chart (e.g., I-Chart):** A "memoryless" control chart that evaluates each data point independently. It is excellent for detecting large shifts but insensitive to small, gradual drifts.
+            - **EWMA (Exponentially Weighted Moving Average):** A "memory-based" chart that computes a weighted average of all past and current observations. The weights decay exponentially over time.
+            - **CUSUM (Cumulative Sum):** A "memory-based" chart that plots the cumulative sum of deviations from a target. It is the fastest possible chart for detecting a shift of a specific, pre-defined magnitude.
+            - **Lambda (λ):** The weighting parameter for an EWMA chart (0 < λ ≤ 1). A small λ gives the chart a long memory, making it sensitive to tiny shifts.
+            - **ARL (Average Run Length):** The average number of points that will be plotted on a control chart before an out-of-control signal occurs.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "One-Chart-Fits-All Fallacy"**
 A manager insists on using only I-MR charts for everything because they are easy to understand.
 - They miss a slow 1-sigma drift for weeks, producing tons of near-spec material.
@@ -8178,7 +8204,7 @@ The goal is to use a combination of charts to create a comprehensive security sy
 - **Use EWMA or CUSUM as your "Sentinels":** Deploy them alongside Shewhart charts to stand guard against the silent, creeping threats that the beat cops will miss.
 This layered approach provides a complete picture of process stability.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown(r"""
             #### Historical Context: The Second Generation of SPC
             **The Problem:** Dr. Walter Shewhart's control charts of the 1920s were a monumental success. However, they were designed like a **smoke detector**—brilliantly effective at detecting large, sudden events ("fires"), but intentionally insensitive to small, slow changes to avoid overreaction to random noise. By the 1950s, industries like chemistry and electronics required higher precision. The critical challenge was no longer just preventing large breakdowns, but detecting subtle, gradual drifts that could slowly degrade quality. A new kind of sensor was needed.
@@ -8203,7 +8229,7 @@ This layered approach provides a complete picture of process stability.""")
             - **`T`**: The process target or historical mean.
             - **`k`**: The **"slack" or "allowance" parameter**, typically set to half the size of the shift you want to detect quickly (e.g., `k = 0.5σ`). This makes the CUSUM chart a highly targeted detector.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
             - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
@@ -8250,7 +8276,7 @@ def render_time_series_analysis():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="⌚ ARIMA Forecast Error (MAE)", value=f"{mae_arima:.2f} units")
@@ -8264,8 +8290,17 @@ def render_time_series_analysis():
 
             **The Core Strategic Insight:** Prophet's main advantage is its automatic flexibility. Introduce a large **Trend Changepoint**, and watch Prophet's forecast adjust while the linear-trending ARIMA model fails to adapt, resulting in a much higher forecast error.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Time Series Terms
+            - **Time Series:** A sequence of data points indexed in time order.
+            - **Trend:** The long-term direction of the series (e.g., increasing, decreasing, or flat).
+            - **Seasonality:** A distinct, repeating pattern in the data that occurs at regular intervals (e.g., daily, weekly, yearly).
+            - **ARIMA (AutoRegressive Integrated Moving Average):** A class of statistical models for analyzing and forecasting time series data. It models the relationships between an observation and its own past values and past forecast errors.
+            - **Prophet:** A forecasting procedure developed by Facebook. It is an additive model that fits non-linear trends with yearly, weekly, and daily seasonality, plus holiday effects.
+            - **ACF (Autocorrelation Function):** A plot that shows the correlation of a time series with its own past values (lags). It is a key tool for diagnosing the fit of an ARIMA model.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
 An analyst takes a column of data, feeds it into `model.fit()` and `model.predict()`, and presents the resulting line without checking the diagnostics.
 - **The Flaw:** They've made no attempt to validate the model's assumptions. The residuals might show a clear pattern or the ACF plot might have significant lags, proving the model is wrong. This "black box" approach produces a forecast that is fragile and untrustworthy.""")
@@ -8275,7 +8310,7 @@ A robust forecasting process is disciplined and applies regardless of the model 
 2.  **Fit and Diagnose:** After fitting a model, **always** analyze its residuals. The residuals must look like random noise. The ACF plot of the residuals is the statistical proof of this.
 3.  **Validate on a Test Set:** The model's true performance is only revealed when it is tested on data it has never seen before.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: Two Cultures of Forecasting
             **The Problem (The Classical Era):** Before the 1970s, forecasting was often an ad-hoc affair. There was no single, rigorous methodology that combined modeling, estimation, and validation into a coherent whole. 
@@ -8299,7 +8334,7 @@ A robust forecasting process is disciplined and applies regardless of the model 
             st.markdown(r"""
             Where `g(t)` is a saturating growth trend with automatic changepoint detection, `s(t)` models complex seasonality using Fourier series, `h(t)` is for holidays, and `ε` is the error.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
             - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
@@ -8342,7 +8377,7 @@ def render_stability_analysis():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Approved Shelf-Life (from Pooled Model)", value=f"{shelf_life}")
@@ -8360,8 +8395,16 @@ def render_stability_analysis():
             - **Black Line:** The average trend across all batches (the pooled model).
             - **Red Dotted Line:** The conservative 95% lower confidence bound on the pooled mean. The shelf-life is where this line crosses the red specification limit.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Stability Terms
+            - **Stability Study:** A formal study to determine the time period during which a drug product remains within its established specifications under defined storage conditions.
+            - **Shelf-Life (Expiration Date):** The time period during which a drug product is expected to remain within the approved specification for use, if stored under defined conditions.
+            - **ANCOVA (Analysis of Covariance):** A statistical test used to compare the slopes of regression lines between different groups (e.g., batches). It is the required test for determining if stability data can be pooled.
+            - **Pooling:** The practice of combining data from multiple batches into a single dataset to estimate a common shelf-life. This is only permissible if the batches are statistically shown to be degrading at the same rate.
+            - **Confidence Interval on the Mean:** The statistical basis for shelf-life. The shelf-life is the time point where the lower 95% confidence bound for the mean degradation trend line intersects the specification limit.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Blind Pooling" Fallacy**
 An analyst takes all stability data, throws it into one regression model, and calculates a shelf-life, without checking if the batches are behaving similarly.
 - **The Flaw:** If one batch is a "fast degrader," its behavior will be masked by the better-performing batches. The pooled model will overestimate the shelf-life, creating a significant risk that some batches of product will fail specification long before their printed expiration date.""")
@@ -8371,7 +8414,7 @@ The ICH Q1E guideline is built on a principle of statistical conservatism to pro
 2.  **If Poolable:** Combine the data and determine the shelf-life from the pooled model's confidence interval.
 3.  **If NOT Poolable:** Analyze batches separately. The overall shelf-life must be based on the shortest shelf-life determined among all the batches.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown(r"""
             #### Historical Context: The ICH Revolution
             **The Problem:** Prior to the 1990s, the requirements for stability testing could differ significantly between major markets like the USA, Europe, and Japan. This forced pharmaceutical companies to run slightly different, redundant, and costly stability programs for each region to gain global approval. The lack of a harmonized statistical approach meant that data might be interpreted differently by different agencies, creating regulatory uncertainty.
@@ -8393,7 +8436,7 @@ The ICH Q1E guideline is built on a principle of statistical conservatism to pro
             -   `H₁`: At least one `(αβ)ᵢ` is not zero (at least one slope is different).
             If the p-value for this test is > 0.25, we fail to reject H₀ and proceed with a simpler, pooled model: `Y = β₀ + β₁X + ε`.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             Stability analysis and shelf-life determination are governed by a specific set of harmonized international guidelines.
             - **ICH Q1E - Evaluation of Stability Data:** This is the primary global guideline that dictates the statistical methodology for analyzing stability data, including the use of regression analysis, confidence intervals, and the rules for pooling data from different batches.
@@ -8442,7 +8485,7 @@ def render_survival_analysis():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(
@@ -8468,8 +8511,17 @@ def render_survival_analysis():
             - **Vertical Ticks:** Censored items (e.g., study ended).
             - **"At Risk" Table:** Shows how many subjects are still being followed at each time point. This provides crucial context for the reliability of the curve estimates.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Survival Terms
+            - **Survival Analysis:** A branch of statistics for analyzing the expected duration of time until one or more events happen (e.g., failure of a component, death of a patient).
+            - **Time-to-Event Data:** Data that consists of a time measurement until an event of interest occurs.
+            - **Censoring:** A key feature of survival data where the event of interest has not occurred for some subjects by the end of the study. Censored data provides valuable information (e.g., "the lifetime is *at least* 24 months").
+            - **Kaplan-Meier Estimator:** A non-parametric statistic used to estimate the survival function from lifetime data. It is the standard method for creating survival curves.
+            - **Log-Rank Test:** A statistical test used to compare the survival distributions of two or more groups.
+            - **Median Survival Time:** The time point at which 50% of the subjects in a group have experienced the event.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Pessimist's Fallacy"**
 This is a catastrophic but common error that leads to dangerously biased results.
 - An analyst wants to know the average lifetime of a component. They take data from a one-year study, **throw away all the censored data** (the units that were still working at one year), and calculate the average time-to-failure for only the units that broke.
@@ -8479,7 +8531,7 @@ The core principle of survival analysis is that censored data is not missing dat
 - A tick on the curve at 24 months is not an unknown. It is a powerful piece of information: **The lifetime of this unit is at least 24 months.**
 - The correct approach is to **always use a method specifically designed to handle censoring**, like the Kaplan-Meier estimator. This method correctly incorporates the information from both the "failures" and the "survivors" to produce an unbiased estimate of the true survival function.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown(r"""
             #### Historical Context: The 1958 Revolution
             **The Problem:** In the mid-20th century, clinical research was booming, but a major statistical hurdle remained. How could you fairly compare two cancer treatments in a trial where, at the end of the study, many patients in both groups were still alive? Or some had moved away and were "lost to follow-up"? Simply comparing the percentage of deaths at the end was inefficient and biased. Researchers needed a way to use the information from every single patient, for the entire duration they were observed.
@@ -8500,7 +8552,7 @@ The core principle of survival analysis is that censored data is not missing dat
             # --- THIS IS THE CORRECTED BLOCK ---
             st.markdown("The confidence interval for the survival probability is often calculated using **Greenwood's formula**, which estimates the variance of `S(t)`:")
             st.latex(r"\hat{Var}(S(t)) \approx S(t)^2 \sum_{t_i \leq t} \frac{d_i}{n_i(n_i - d_i)}")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             Survival analysis is the standard methodology for time-to-event data in clinical trials and is also used for reliability engineering in medical devices.
             - **ICH E9 - Statistical Principles for Clinical Trials:** Discusses the appropriate analysis of time-to-event data, including the handling of censored data, for which Kaplan-Meier is the standard non-parametric method.
@@ -8542,7 +8594,7 @@ def render_mva_pls():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="🎯 Model Q² (Predictive Power)", value=f"{q2:.3f}",
@@ -8553,8 +8605,16 @@ def render_mva_pls():
                       help="The optimal number of hidden factors chosen via cross-validation.")
             st.metric(label="📉 RMSECV", value=f"{rmsecv:.2f} units",
                       help="Root Mean Squared Error of Cross-Validation. The typical prediction error in the original units of Y.")
-            
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of MVA Terms
+            - **MVA (Multivariate Analysis):** A set of statistical techniques used for analysis of data that contain more than one variable.
+            - **PLS (Partial Least Squares) Regression:** A supervised regression technique that is a powerful alternative to standard linear regression, especially when input variables are numerous and highly correlated.
+            - **Latent Variable (LV):** A hidden, underlying variable that is not directly measured but is inferred from the original variables. PLS works by finding LVs that both summarize the X-data and are highly correlated with the Y-data.
+            - **Q² (Cross-Validated R²):** The most important metric for a PLS model. It measures the model's ability to *predict* new data, and is used to select the optimal number of LVs and prevent overfitting.
+            - **VIP (Variable Importance in Projection) Score:** A measure of a variable's importance in the PLS model. Variables with a VIP score > 1 are generally considered important.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Overfitting" Trap**
 - An analyst keeps adding more and more Latent Variables (LVs) to their PLS model. They are thrilled to see the R-squared value (blue line in Plot 2) climb to 0.999.
 - **The Flaw:** They've ignored the Q-squared value (green line), which has started to decrease. The model hasn't learned the true signal; it has simply memorized the noise in the training data. This model will fail when shown new data.""")
@@ -8564,7 +8624,7 @@ A robust chemometric workflow is disciplined:
 2.  **Choose LVs based on Q²:** Select the number of latent variables that **maximizes the Q² (green line)**, not the R² (blue line). This is your best defense against overfitting.
 3.  **Validate on an Independent Test Set:** The ultimate test of the model is its performance on a completely held-out set of samples that were not used in training or cross-validation.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Father-Son Legacy
             **The Problem (The Social Sciences):** In the 1960s, social scientists and economists faced a major modeling challenge. They had complex systems with many correlated input variables and often a small number of observations. Standard multiple linear regression would fail spectacularly in these "data-rich but theory-poor" situations.
@@ -8580,7 +8640,7 @@ A robust chemometric workflow is disciplined:
             st.markdown("""
             The key is how the LVs (`T`) are found. Unlike PCA, which finds LVs that explain the most variance in `X` alone, PLS finds LVs that maximize the **covariance** between `X` and `y`. This means the LVs are constructed not just to summarize the inputs, but to be maximally useful for *predicting the output*. This makes PLS a supervised dimensionality reduction technique, which is why it is often more powerful than PCA followed by regression.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
             - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
@@ -8627,7 +8687,7 @@ def render_clustering():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Optimal 'k' Found by Model", value=f"{optimal_k}",
@@ -8641,8 +8701,16 @@ def render_clustering():
             - **2. Elbow Method:** A heuristic for finding `k`. The "elbow" (often near the true `k`) is the point of diminishing returns where adding more clusters doesn't significantly reduce the total within-cluster variance (Inertia).
             - **3. Silhouette Analysis:** A more robust method. The peak of this curve indicates the value of `k` that results in the most dense and well-separated clusters. This is often a more reliable guide than the Elbow Method.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Clustering Terms
+            - **Unsupervised Learning:** A type of machine learning where the algorithm learns patterns from untagged data, without a pre-defined outcome to predict.
+            - **Clustering:** The task of grouping a set of objects in such a way that objects in the same group (a cluster) are more similar to each other than to those in other groups.
+            - **K-Means:** A popular clustering algorithm that aims to partition `n` observations into `k` clusters in which each observation belongs to the cluster with the nearest mean (cluster centroid).
+            - **Inertia (WCSS):** The sum of squared distances of samples to their closest cluster center. The Elbow Method looks for the "elbow" in the plot of Inertia vs. `k`.
+            - **Silhouette Score:** A metric used to evaluate the quality of clusters. It measures how similar an object is to its own cluster compared to other clusters. Scores range from -1 to +1, with a high value indicating dense and well-separated clusters.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "If It Ain't Broke..." Fallacy**
 - An analyst discovers three distinct clusters of successful batches. A manager responds, *"Interesting, but all of those batches passed QC, so who cares? Let's move on."*
 - **The Flaw:** This treats a treasure map as a doodle. The discovery is important *because* all batches passed! It means there are different-and potentially more or less robust-paths to success. One "regime" might be operating dangerously close to a failure cliff.""")
@@ -8654,7 +8722,7 @@ The discovery of clusters is the **start** of the investigation, not the end.
     - Were the batches in Cluster 3 all run by the night shift?
 This profiling step is what turns a statistical finding into actionable process knowledge.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Dawn of Unsupervised Learning
             **The Problem:** In the 1950s, the field of statistics was almost entirely focused on "supervised" problems-testing pre-defined hypotheses or building models to predict a known outcome. But what if you didn't have a hypothesis? What if you just had a mountain of data and wanted to know if there were any natural structures hidden within it?
@@ -8674,7 +8742,7 @@ This profiling step is what turns a statistical finding into actionable process 
             1.  **Assignment Step:** Assign each data point `x` to the cluster `Cᵢ` with the nearest centroid `μᵢ`.
             2.  **Update Step:** Recalculate the centroid `μᵢ` for each cluster by taking the mean of all points assigned to it.
             """)
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
             - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
@@ -8717,7 +8785,7 @@ def render_classification_models():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Logistic Regression AUC", value=f"{auc_lr:.3f}",
@@ -8734,8 +8802,16 @@ def render_classification_models():
 
             **The Core Strategic Insight:** For complex biological processes, the relationship between parameters and quality is rarely linear. Modern ML models like Random Forest are often required to capture this complexity and build an effective AI Gatekeeper.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Classification Terms
+            - **Classification:** A supervised machine learning task where the goal is to predict a categorical class label (e.g., "Pass" or "Fail").
+            - **Logistic Regression:** A linear model used for binary classification. It models the probability of the default class.
+            - **Random Forest:** A powerful ensemble learning method that operates by constructing a multitude of decision trees at training time. The final prediction is the mode of the classes output by individual trees.
+            - **Decision Boundary:** The line or surface that separates the different classes in the feature space. A linear model can only create a straight-line boundary, while a non-linear model can create a complex, curved boundary.
+            - **AUC (Area Under the Curve):** The primary metric for evaluating a classifier's performance. It represents the model's ability to distinguish between the positive and negative classes.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Garbage In, Garbage Out" Fallacy**
 An analyst takes all 500 available sensor tags, feeds them directly into a model, and trains it.
 - **The Flaw:** With more input variables than batches, the model is likely to find spurious correlations and will fail to generalize to new data. The model hasn't been given any scientific context.""")
@@ -8745,7 +8821,7 @@ The success of a predictive model depends less on the algorithm and more on the 
 2.  **Engineer Smart Features:** Don't just use raw sensor values. Create more informative features, like the *slope* of a temperature profile or the *cumulative* feed volume.
 3.  **Validate on Unseen Data:** The model's true performance is only revealed when it is tested on a hold-out set of batches it has never seen before.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: The Two Cultures
             **The Problem:** For much of the 20th century, the world of statistical modeling was dominated by what statistician Leo Breiman called the **"Data Modeling Culture."** The goal was to use data to infer a simple, interpretable stochastic model (like linear or logistic regression) that could explain the relationship between inputs and outputs. The model's interpretability was paramount.
@@ -8765,7 +8841,7 @@ The success of a predictive model depends less on the algorithm and more on the 
             st.markdown("- **Random Forest:** It is a collection of `N` individual decision tree models. For a new input `x`, the final prediction is the mode (most common vote) of all the individual tree predictions:")
             st.latex(r"\text{Prediction}(x) = \text{mode}\{ \text{Tree}_1(x), \text{Tree}_2(x), \dots, \text{Tree}_N(x) \}")
             st.markdown("Randomness is injected in two ways to ensure the trees are diverse: each tree is trained on a random bootstrap sample of the data, and at each split in a tree, only a random subset of features is considered.")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
             - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
@@ -8808,7 +8884,7 @@ def render_anomaly_detection():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="Total Data Points Scanned", value="215")
@@ -8820,8 +8896,17 @@ def render_anomaly_detection():
             - **2. Example Isolation Tree:** This visualizes how the algorithm thinks. It makes random splits to isolate points. Notice that the leaf nodes at the very top (shallow depth) contain the anomalies, as they are easy to single out.
             - **3. Score Distribution:** This plot shows the result of the isolation process. The true outliers (red histogram) have much higher anomaly scores because they are easy to isolate. The inliers (grey histogram) have lower scores. The black line is the decision threshold controlled by the `Contamination` slider.
             """)
-
         with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Anomaly Terms
+            - **Anomaly Detection:** The identification of rare items, events, or observations which raise suspicions by differing significantly from the majority of the data.
+            - **Unsupervised Learning:** This approach is unsupervised because it does not require pre-labeled examples of "anomalies" to learn. It learns the structure of "normal" and flags anything that deviates.
+            - **Isolation Forest:** An unsupervised anomaly detection algorithm based on the principle that anomalies are "few and different," making them easier to isolate than normal points.
+            - **Isolation Tree:** A random binary tree used to partition the data. The path length from the root to a leaf node represents how easy it was to isolate a point.
+            - **Anomaly Score:** A score derived from the average path length across all trees in the forest. Anomalies will have a short average path length and thus a high anomaly score.
+            - **Contamination:** A user-defined parameter that sets the expected proportion of anomalies in the dataset. It is used to set the decision threshold on the anomaly scores.
+            """)
+        with tabs[2]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Glitch Hunter"**
 When an anomaly is detected, the immediate reaction is to dismiss it as a data error.
 - *"Oh, that's just a sensor glitch. Delete the point and move on."*
@@ -8832,7 +8917,7 @@ The goal is to treat every flagged anomaly as the start of a forensic investigat
 - **The anomaly is the breadcrumb:** When the bouncer flags someone, you ask questions. "What happened in the process at that exact time? Was it a specific operator? A new raw material lot?"
 - **Investigate the weird-but-good:** If a batch that passed all specifications is flagged as an anomaly, it's a golden opportunity. What made it different? Understanding these "good" anomalies is a key to process optimization.""")
 
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("""
             #### Historical Context: Flipping the Problem on its Head
             **The Problem:** For decades, "outlier detection" was a purely statistical affair, often done one variable at a time. This falls apart in high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values. Most methods focused on building a complex model of what "normal" data looks like and then flagging anything that didn't fit. This was often slow and brittle.
@@ -8846,7 +8931,7 @@ The goal is to treat every flagged anomaly as the start of a forensic investigat
             st.markdown("The **path length** `h(x)` for a point `x` is the number of splits required to isolate it. Anomalies, being different, will have a much shorter average path length across all trees in the forest. The final anomaly score `s(x, n)` for a point is calculated based on its average path length `E(h(x))`:")
             st.latex(r"s(x, n) = 2^{-\frac{E(h(x))}{c(n)}}")
             st.markdown("Where `c(n)` is a normalization factor based on the sample size `n`. Scores close to 1 are highly anomalous, while scores much smaller than 0.5 are normal.")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
             - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
@@ -8897,7 +8982,7 @@ def render_xai_shap():
         dependence_feature=dependence_feature_choice
     )
     
-    tab1, tab2, tab3, tab4 = st.tabs(["Global Explanations", "Local Explanation", "Feature Deep Dive", "🔬 SME Analysis" "🏛️ Regulatory & Compliance"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Global Explanations", "Local Explanation", "Feature Deep Dive", "🔬 SME Analysis", "📋 Glossary", "🏛️ Regulatory & Compliance"])
 
     with tab1:
         st.subheader("Global Feature Importance (The Model's General Strategy)")
@@ -8947,7 +9032,17 @@ def render_xai_shap():
         2.  **Phase 2 (Advisory Mode):** The system is integrated with the LIMS. It can generate advisories like: **"Warning: Reagent Lot XYZ is 85 days old. This significantly increases risk. Consider using a newer lot."**
         3.  **Phase 3 (Proactive Control / Real-Time Release):** A fully validated model's predictions can become part of the batch record. A run with a very low predicted risk and a favorable SHAP explanation could be eligible for **Real-Time Release Testing (RTRT)**, accelerating production timelines.
         """)
-    with tabs[4]: # Note: this is the 5th tab
+    with tabs[5]:
+        st.markdown("""
+        ##### Glossary of XAI Terms
+        - **XAI (Explainable AI):** A field of AI dedicated to creating techniques that produce machine learning models that are understandable and trustworthy to human users.
+        - **SHAP (SHapley Additive exPlanations):** A game theory-based approach to explain the output of any machine learning model. It connects optimal credit allocation with local explanations using the classic Shapley values from game theory.
+        - **SHAP Value:** The average marginal contribution of a feature value to the prediction across all possible coalitions of features. It represents the impact of that feature on pushing the model's prediction away from the baseline.
+        - **Global Explanation:** An explanation of the model's overall behavior (e.g., the Beeswarm plot, which shows which features are most important on average).
+        - **Local Explanation:** An explanation for a single, specific prediction (e.g., the Waterfall plot, which shows how each feature contributed to the risk score for one specific batch).
+        - **PDP (Partial Dependence Plot):** A plot that shows the marginal effect of a feature on the predicted outcome of a model.
+        """)
+    with tabs[6]: # Note: this is the 5th tab
         st.markdown("""
         Explainable AI (XAI) is a critical emerging field for the validation of AI/ML models in a regulated environment. It addresses the "black box" problem.
         - **FDA AI/ML Action Plan:** The FDA is actively developing its framework for regulating AI/ML-based software. A key principle is transparency, and XAI methods like SHAP provide the evidence that a model's reasoning is scientifically sound.

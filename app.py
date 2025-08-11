@@ -5291,7 +5291,8 @@ def render_vmp_builder():
     project_type = st.selectbox(
         "Select a Validation Project Type to Plan:",
         ("New Analytical Method Validation", "Process Performance Qualification (PPQ)", "Computer System Validation (CSV)"),
-        index=0
+        index=0,
+        help="Choose the type of project you are planning. The diagram will update to show the standard validation workflow and the key analytical tools used at each stage."
     )
 
     fig = plot_vmp_flow(project_type)
@@ -5299,24 +5300,50 @@ def render_vmp_builder():
     
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
         **Connecting Strategy to Execution:**
         This tool demonstrates how all the other modules in the toolkit fit together to form a complete, compliant validation project.
-        - The **Analytical Method Validation** workflow follows the classic V-Model, showing the direct link between defining performance specifications (like Linearity) and later qualifying them.
-        - The **PPQ Workflow** is a linear process, moving from planning (using FMEA and Sample Size) to execution and final analysis (using SPC and Capability).
-        - The **Computer System Validation (CSV)** workflow shows how modern AI/ML tools can be integrated into the GAMP 5 V-Model. For example, **Explainable AI (XAI)** is a key activity during the "Build" phase to ensure the model is transparent and understandable.
+        - The **Analytical Method Validation** workflow follows the classic V-Model, showing the direct link between defining performance specifications (like Linearity) during design and later qualifying them during PQ.
+        - The **PPQ Workflow** is a linear process, moving from planning (using FMEA and Sample Size) to execution and final analysis (using SPC and Capability). This represents Stage 2 of the FDA's Process Validation lifecycle.
+        - The **Computer System Validation (CSV)** workflow shows how modern AI/ML tools can be integrated into the GAMP 5 V-Model. For example, **Explainable AI (XAI)** is a key activity during the "Build" phase to ensure the model is transparent, and **Anomaly Detection** can be used during OQ to test the system's error handling.
         """)
     with tabs[1]:
-        st.success("🟢 **THE GOLDEN RULE:** If it isn't written down, it didn't happen. The VMP is the single source of truth that defines the scope, strategy, and acceptance criteria for a validation project *before it begins*. It is the most important document for preventing 'validation on the fly' and is the first thing an auditor will ask to see.")
+        st.markdown("""
+        ##### Glossary of VMP & V-Model Terms
+        - **Validation Master Plan (VMP):** A high-level document that describes an organization's overall philosophy, intention, and approach to validation. It governs all validation activities at a site.
+        - **Validation Protocol (VP):** A detailed, written plan stating how a specific validation will be conducted, including test parameters, product characteristics, and pre-approved acceptance criteria.
+        - **User Requirement Specification (URS):** Defines what the user needs the system to do, from a business perspective.
+        - **Functional Specification (FS):** Translates the URS into a detailed description of what the system *must do* (its functions).
+        - **Design Specification (DS):** Describes *how* the system will be built to meet the FS.
+        - **Installation Qualification (IQ):** Documented verification that the system is installed correctly according to specifications and vendor recommendations.
+        - **Operational Qualification (OQ):** Documented verification that the system operates as intended throughout its specified operating ranges. It is often called "testing against the Functional Spec."
+        - **Performance Qualification (PQ):** Documented verification that the system, as installed and operated, can consistently perform its intended function and meet pre-determined acceptance criteria under real-world conditions. It is often called "testing against the User Requirement Spec."
+        """)
     with tabs[2]:
-        st.markdown("The concept of a formal, high-level planning document for validation grew out of the need to manage increasingly complex projects in the pharmaceutical industry. The idea was codified in the 1990s and early 2000s, heavily influenced by project management principles and the **GAMP (Good Automated Manufacturing Practice)** guidelines, which pioneered the V-Model approach for computer systems. Regulators quickly adopted the expectation for a VMP across all types of validation to ensure projects were well-planned, structured, and documented.")
+        st.error("""🔴 **THE INCORRECT APPROACH: "Validation on the Fly"**
+A project team begins executing test scripts for a new instrument without a pre-approved protocol or a VMP. When a test fails, they change the acceptance criteria so it will pass.
+- **The Flaw:** This is not validation; it is "testing into compliance." The acceptance criteria were not pre-defined, and the changes are undocumented. This entire activity would be invalidated during an audit.""")
+        st.success("""🟢 **THE GOLDEN RULE:** If it isn't written down, it didn't happen. The VMP is the single source of truth that defines the scope, strategy, and acceptance criteria for a validation project *before it begins*. It is the most important document for preventing ad-hoc decision making and is the first thing an auditor will ask to see.""")
     with tabs[3]:
         st.markdown("""
-        - **FDA 21 CFR 211.100 (Written procedures; deviations):** Requires that "there shall be written procedures for production and process control designed to assure that the drug products have the identity, strength, quality, and purity they purport or are represented to possess." The VMP is the highest-level document in this procedural hierarchy.
-        - **EU Annex 15: Qualification and Validation:** Explicitly requires a **Validation Master Plan (VMP)**. It states that the VMP should contain the key elements of the validation program and is a key document in the quality management system.
-        - **GAMP 5:** The V-Model shown for Computer System Validation is the core model of the GAMP 5 framework.
+        #### Historical Context: From Chaos to Control
+        The concept of a formal, high-level planning document for validation grew out of the need to manage increasingly complex projects in the pharmaceutical industry in the 1980s and 90s. As systems became more integrated and regulations more stringent, the old model of simple, standalone equipment qualification was no longer sufficient.
+        
+        The idea was heavily influenced by project management principles and was codified by two major forces:
+        1.  **Regulatory Expectation:** The FDA and other global bodies began to expect a more holistic, planned approach to validation, looking for a "master plan" that governed all qualification activities at a site.
+        2.  **GAMP Guidelines:** The **GAMP (Good Automated Manufacturing Practice)** Forum, a consortium of pharmaceutical and engineering professionals, pioneered the V-Model approach for computer systems. A core part of their philosophy was the necessity of high-level planning documents, like the VMP, to manage the complexity of software validation.
+        
+        Regulators quickly adopted the expectation for a VMP across all types of validation to ensure projects were well-planned, structured, and auditable from the top down.
+        """)
+    with tabs[4]:
+        st.markdown("""
+        The VMP is a key document for demonstrating a compliant and well-managed quality system.
+        - **EU Annex 15: Qualification and Validation:** This is one of the most explicit regulations. It states that "A Validation Master Plan (VMP) or equivalent document should be established... providing an overview of the company’s validation strategy."
+        - **FDA 21 CFR 211.100 (Written procedures; deviations):** Requires that "there shall be written procedures for production and process control..." The VMP is the highest-level document in this procedural hierarchy, governing all subordinate validation protocols and reports.
+        - **GAMP 5:** The VMP is a foundational document in the GAMP 5 framework, outlining the plan for validating all GxP computerized systems.
+        - **PIC/S Guide to GMP (PE 009-16):** This influential international guideline, adopted by dozens of regulatory agencies worldwide, also describes the expectation for a VMP to manage the overall validation effort.
         """)
 
 def render_rtm_builder():
@@ -5341,7 +5368,7 @@ def render_rtm_builder():
             "Select User Requirements to Trace:",
             options=urs_options,
             default=urs_options,
-            help="Choose one or more requirements to see their complete traceability path from request to test."
+            help="Choose one or more requirements to see their complete traceability path from request to test. This simulates filtering a large, complex RTM."
         )
         
     fig = plot_rtm_sankey(selected_urs)
@@ -5349,8 +5376,7 @@ def render_rtm_builder():
 
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
         **Reading the Sankey Diagram:**
@@ -5359,24 +5385,44 @@ def render_rtm_builder():
         - **FS (Functional Spec):** The 'how'—the specific functions the system must perform to meet the URS.
         - **Tests (IQ/OQ/PQ):** The 'proof'—the specific validation tests that verify the FS functions correctly.
         
-        **The Power of Traceability:** The diagram's main power is in visually identifying gaps. If a URS on the left has no path leading to a Test on the right, it means that requirement has not been tested. This traceability is the cornerstone of a defensible validation package.
+        **The Power of Traceability:** The diagram's main power is in visually identifying gaps. If a URS on the left has no path leading to a Test on the right, it means that requirement has not been tested. This traceability is the cornerstone of a defensible validation package. The ability to trace both forwards (from requirement to test) and backwards (from a test result back to the original requirement) is the hallmark of a robust RTM.
         """)
-        
     with tabs[1]:
-        st.success("🟢 **THE GOLDEN RULE:** Test What You Build, Build What Was Asked For. The RTM is the master document that enforces this discipline. It should be created at the beginning of the project and updated at every stage. A complete, bi-directional RTM (where you can trace from a requirement to a test, and from a test back to a requirement) is the hallmark of a mature and compliant validation program.")
-        
-    with tabs[2]:
         st.markdown("""
-        #### Historical Context: From Systems Engineering to Pharma
-        The concept of a Requirements Traceability Matrix has its roots in **systems engineering and software development**. As systems became more complex in the 1970s and 80s, projects were often plagued by "scope creep" and mismatches between user expectations and the final product. The RTM was developed as a formal project management tool to ensure all requirements were tracked and verified. Its value was immediately recognized for regulated software, and it was formally adopted as a core principle of **GAMP (Good Automated Manufacturing Practice)**, becoming the global standard for Computer System Validation (CSV) in the pharmaceutical and medical device industries.
+        ##### Glossary of RTM & V-Model Terms
+        - **Requirement:** A condition or capability needed by a user to solve a problem or achieve an objective.
+        - **URS (User Requirement Specification):** The document that specifies what the user needs the system to do.
+        - **FS (Functional Specification):** Translates the URS into a detailed description of what the system *must do* (its functions).
+        - **DS (Design Specification):** Describes *how* the system will be built to meet the FS.
+        - **Test Case:** A set of conditions under which a tester will determine whether an application or software system is working correctly.
+        - **Traceability:** The ability to trace a requirement both forwards to its implementation and testing, and backwards to its origin.
+        - **V-Model:** A graphical representation of the system development lifecycle. It highlights the relationships between each phase of development and its associated phase of testing.
         """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Back-filled" Matrix**
+A project team completes all testing and then, just before the final report is due, they are asked to create an RTM. They hastily try to map their completed tests back to the original requirements document.
+- **The Flaw:** This almost always reveals gaps—requirements that were never tested, and tests that were run for no clear requirement. The RTM is treated as a bureaucratic afterthought, not the living project management tool it's meant to be.""")
+        st.success("""🟢 **THE GOLDEN RULE: Test What You Build, Build What Was Asked For**
+The RTM is the master document that enforces this discipline.
+1.  **Start at the Beginning:** The RTM is created during the planning phase, alongside the URS.
+2.  **Update at Every Stage:** As each FS, DS, and test protocol is written, it is immediately added to the RTM and linked to its parent requirement.
+3.  **Use it as a Checklist:** Before project closure, the RTM is reviewed to ensure every single requirement has a link all the way through to a completed test case with a "Pass" result.
+This makes the RTM a living document that guarantees completeness and compliance.""")
         
     with tabs[3]:
         st.markdown("""
-        The RTM is the primary document used to demonstrate compliance with a variety of regulations governing complex systems.
-        - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** The RTM is a foundational document in the GAMP 5 framework, providing the traceability that underpins the entire V-Model approach.
+        #### Historical Context: From Systems Engineering to Pharma
+        The concept of a Requirements Traceability Matrix has its roots in **systems engineering and software development**. As systems became more complex in the 1970s and 80s, projects were often plagued by "scope creep" and mismatches between user expectations and the final product. The RTM was developed as a formal project management tool to ensure all requirements were tracked and verified.
+        
+        Its value was immediately recognized for regulated software, where proof of completeness is non-negotiable. The **GAMP (Good Automated Manufacturing Practice)** Forum, a consortium of pharmaceutical and engineering professionals, formally adopted traceability as a core principle. The RTM became the de facto standard method for achieving and documenting this traceability, making it a cornerstone of modern Computer System Validation (CSV) in the pharmaceutical and medical device industries.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        The RTM is the primary document used to demonstrate compliance with a variety of regulations governing complex systems, particularly software and computerized systems.
+        - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** The RTM is a foundational document in the GAMP 5 framework. The entire V-Model validation approach relies on the traceability provided by a well-maintained RTM.
         - **FDA 21 CFR Part 11 (Electronic Records; Electronic Signatures):** When validating a system for Part 11 compliance, the RTM must clearly trace requirements like "audit trail generation" or "e-signature security" to the specific OQ and PQ test cases that challenge and verify those functions.
-        - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing.
+        - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing. It is a critical component of the Design History File (DHF).
         """)
         
 #====================================================================================================================================================================================================================================
@@ -9374,7 +9420,7 @@ with st.sidebar:
             "TPP & CQA Cascade",
             "Analytical Target Profile (ATP) Builder",
             "Quality Risk Management (FMEA)",
-            "Validation Master Plan (VMP) Builder"
+            "Validation Master Plan (VMP) Builder",
             "Requirements Traceability Matrix (RTM)" 
         ],
         "ACT I: FOUNDATION & CHARACTERIZATION": [

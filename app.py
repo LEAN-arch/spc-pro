@@ -4813,41 +4813,39 @@ def render_tpp_cqa_cascade():
         ["Monoclonal Antibody", "IVD Kit", "Pharma Process (Small Molecule)", "Instrument Qualification", "Computer System Validation"]
     )
     
-    # Initialize generic target values and tags
     target1_val, target2_val = None, None
     target1_tag, target2_tag = "", ""
 
     with st.sidebar:
         st.subheader("TPP Target Controls")
-        if product_type == "Monoclonal Antibody":
+        if project_type == "Monoclonal Antibody":
             target1_val = st.slider("Desired Efficacy Target (%)", 80, 120, 95, 1, help="Why > 100%? Potency is often measured *relative* to a Reference Standard (defined as 100%). A process improvement could yield a more potent drug.")
             target1_tag = "Efficacy"
             target2_val = st.slider("Required Shelf-Life (Months)", 12, 36, 24, 1)
             target2_tag = "Shelf-Life"
-        elif product_type == "IVD Kit":
+        elif project_type == "IVD Kit":
             target1_val = st.slider("Desired Clinical Sensitivity (%)", 90, 100, 98, 1)
             target1_tag = "Efficacy"
             target2_val = st.slider("Required Shelf-Life (Months)", 6, 24, 18, 1)
             target2_tag = "Shelf-Life"
-        elif product_type == "Pharma Process (Small Molecule)":
+        elif project_type == "Pharma Process (Small Molecule)":
             target1_val = st.slider("Target Process Yield (%)", 75, 95, 85, 1, help="Higher yield is a key business driver.")
             target1_tag = "Yield"
             target2_val = st.slider("Target Purity Level (%)", 99.0, 99.9, 99.5, 0.1, format="%.1f", help="Higher purity is critical for patient safety.")
             target2_tag = "Purity"
-        elif product_type == "Instrument Qualification":
+        elif project_type == "Instrument Qualification":
             target1_val = st.slider("Target Throughput (Plates/hr)", 10, 100, 50, 5, help="Higher throughput is a key performance requirement.")
             target1_tag = "Throughput"
             target2_val = st.slider("Target Reliability (Uptime %)", 95.0, 99.9, 99.0, 0.1, format="%.1f", help="Higher uptime is critical for operational efficiency.")
             target2_tag = "Reliability"
-        elif product_type == "Computer System Validation":
+        elif project_type == "Computer System Validation":
             target1_val = st.slider("Target Performance (Report Time in sec)", 1, 10, 5, 1, help="Faster performance is a key user requirement. Lower is better.")
-            target1_tag = "Performance" # Note: Highlighting logic in plot is for 'greater than'
-            # To make the slider highlight, we invert the value
-            target1_val = 11 - target1_val # Now a higher slider value means better performance
+            target1_tag = "Performance"
+            target1_val = 11 - target1_val # Invert so higher on slider is better
             target2_val = st.checkbox("Full 21 CFR Part 11 Compliance Required", value=True)
             target2_tag = "Compliance"
 
-    fig = plot_tpp_cqa_cascade(product_type, target1_val, target2_val, target1_tag, target2_tag)
+    fig = plot_tpp_cqa_cascade(project_type, target1_val, target2_val, target1_tag, target2_tag)
     st.plotly_chart(fig, use_container_width=True)
     
     st.divider()
@@ -4872,6 +4870,7 @@ def render_tpp_cqa_cascade():
         - **FDA Guidance on Process Validation (2011):** The entire lifecycle approach is built on this foundation. **Stage 1 (Process Design)** is the activity of translating the CQAs into a robust manufacturing process by identifying and controlling the CPPs.
         - **GAMP 5:** For instruments and software, the TPP is analogous to the **User Requirement Specification (URS)**, and the CQAs are analogous to the high-level **Functional Specifications (FS)**.
         """)
+
 
 def render_atp_builder():
     """Renders the comprehensive, interactive module for the Analytical Target Profile builder."""

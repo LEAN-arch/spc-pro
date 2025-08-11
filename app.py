@@ -898,6 +898,76 @@ def plot_diagnostic_dashboard(sensitivity, specificity, prevalence, n_total=1000
     }
     
     return fig_cm, fig_roc, fig_pv, metrics, other_concepts
+@st.cache_data
+def plot_mixture_design(a_effect, b_effect, c_effect, ab_interaction, ac_interaction, bc_interaction, noise_sd, response_threshold):
+    """
+    Generates a professional-grade ternary plot for a mixture design of experiments.
+    """
+    # 1. Define the experimental design points (Simplex-Lattice Design)
+    points = [
+        [1, 0, 0], [0, 1, 0], [0, 0, 1],  # Vertices
+        [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5],  # Midpoints
+        [1/3, 1/3, 1/3]  # Centroid
+    ]
+    df = pd.DataFrame(points, columns=['A', 'B', 'C'])
+
+    # 2. Simulate the response using the Scheffé quadratic model
+    a, b, c = df['A'], df['B'], df['C']
+    true_response = (a_effect * a) + (b_effect * b) + (c_effect * c) + \
+                    (ab_interaction * a * b) + (ac_interaction * a * c) + (bc_interaction * b * c)
+    df['Response'] = true_response + np.random.normal(0, noise_sd, len(df))
+
+    # 3. Fit the model
+    model = ols('Response ~ A + B + C + A:B + A:C + B:C - 1', data=df).fit() # No intercept in Scheffe model
+    
+    # 4. Create a grid of points for the ternary plot surface
+    @st.cache_data
+    def generate_ternary_grid(n=50):
+        from itertools import combinations_with_replacement
+        s = combinations_with_replacement(range(n + 1), 3)
+        points = np.array(list(s))
+        points = points[points.sum(axis=1) == n] / n
+        return pd.DataFrame(points, columns=['A', 'B', 'C'])
+        
+    grid = generate_ternary_grid()
+    grid['Predicted_Response'] = model.predict(grid)
+    
+    # 5. Generate the Plot
+    fig = px.treemap(path=[]) # Dummy figure to use px colors
+    fig.data = [] # Clear the dummy data
+
+    # Layer 1: The filled contour surface
+    fig.add_trace(go.Contourternary(
+        a=grid['A'], b=grid['B'], c=grid['C'], z=grid['Predicted_Response'],
+        colorscale='Viridis', showscale=True,
+        colorbar=dict(title='Response<br>(e.g., Solubility)'),
+        contours=dict(coloring='fill', showlabels=True, labelfont=dict(color='white'))
+    ))
+    # Layer 2: The "Sweet Spot" / Design Space
+    grid['Design_Space'] = (grid['Predicted_Response'] >= response_threshold).astype(int)
+    fig.add_trace(go.Contourternary(
+        a=grid['A'], b=grid['B'], c=grid['C'], z=grid['Design_Space'],
+        colorscale=[[0, 'rgba(0,0,0,0)'], [1, 'rgba(44, 160, 44, 0.5)']],
+        showscale=False, line_width=0
+    ))
+    # Layer 3: The experimental points
+    fig.add_trace(go.Scatterternary(
+        a=df['A'], b=df['B'], c=df['C'], mode='markers',
+        marker=dict(symbol='circle', color='red', size=12, line=dict(width=2, color='black')),
+        text=[f'Run {i+1}<br>Response: {r:.1f}' for i, r in enumerate(df['Response'])],
+        hoverinfo='text'
+    ))
+    
+    fig.update_layout(
+        title='<b>Formulation Design Space (Ternary Plot)</b>',
+        ternary_sum=1,
+        ternary_aaxis_title_text='<b>Component A (%)</b>',
+        ternary_baxis_title_text='<b>Component B (%)</b>',
+        ternary_caxis_title_text='<b>Component C (%)</b>',
+        margin=dict(l=40, r=40, b=40, t=60)
+    )
+    
+    return fig, model
 
 @st.cache_data    
 def plot_gage_rr(part_sd=5.0, repeatability_sd=1.5, operator_sd=0.75, interaction_sd=0.5):
@@ -1535,6 +1605,97 @@ def plot_doe_robustness(ph_effect=2.0, temp_effect=5.0, interaction_effect=0.0, 
     return fig_contour, fig_3d, fig_pareto, anova_summary, opt_ph_real, opt_temp_real, max_response
 
 @st.cache_data
+def plot_attribute_agreement(n_parts, n_inspectors, n_replicates, prevalence, inspector_accuracy, inspector_bias):
+    """
+    Generates a professional-grade dashboard for Attribute Agreement Analysis.
+    """
+    np.random.seed(42)
+    # 1. Create the "gold standard" reference parts
+    n_defective = int(n_parts * prevalence)
+    n_good = n_parts - n_defective
+    reference = np.array([1] * n_defective + [0] * n_good) # 1=Defective, 0=Good
+    np.random.shuffle(reference)
+    
+    # 2. Simulate inspector assessments with error
+    assessments = []
+    for i in range(n_inspectors):
+        inspector_name = f'Inspector {chr(65+i)}'
+        for part_idx, true_status in enumerate(reference):
+            for rep in range(n_replicates):
+                # Did the inspector get it right?
+                is_correct = np.random.rand() < inspector_accuracy
+                
+                if is_correct:
+                    assessment = true_status
+                else: # They got it wrong, now apply bias
+                    if true_status == 1: # True defect, they missed it
+                        assessment = 0
+                    else: # True good, they made a false call
+                        # Bias: >0.5 means more likely to call good parts bad
+                        assessment = 1 if np.random.rand() < inspector_bias else 0
+                
+                assessments.append([inspector_name, f'Part_{part_idx+1}', true_status, assessment])
+
+    df = pd.DataFrame(assessments, columns=['Inspector', 'Part', 'Reference', 'Assessment'])
+
+    # 3. Calculate Key Metrics
+    # Fleiss' Kappa for overall agreement
+    # Create a contingency table: rows are parts, columns are Good/Defective ratings
+    table = df.pivot_table(index='Part', columns='Assessment', values='Inspector', aggfunc='count', fill_value=0)
+    if 0 not in table.columns: table[0] = 0
+    if 1 not in table.columns: table[1] = 0
+    n, k = table.shape[0], table.iloc[0].sum()
+    p_j = table.sum() / (n * k)
+    P_i = ((table**2).sum(axis=1) - k) / (k * (k - 1))
+    P_bar = P_i.mean()
+    P_e_bar = (p_j**2).sum()
+    kappa = (P_bar - P_e_bar) / (1 - P_e_bar) if (1 - P_e_bar) != 0 else 0
+
+    # Individual inspector effectiveness
+    effectiveness = {}
+    for name in df['Inspector'].unique():
+        sub = df[df['Inspector'] == name]
+        cm = pd.crosstab(sub['Reference'], sub['Assessment'])
+        tn = cm.loc[0,0] if 0 in cm.index and 0 in cm.columns else 0
+        fp = cm.loc[0,1] if 0 in cm.index and 1 in cm.columns else 0
+        fn = cm.loc[1,0] if 1 in cm.index and 0 in cm.columns else 0
+        tp = cm.loc[1,1] if 1 in cm.index and 1 in cm.columns else 0
+        
+        miss_rate = fn / (fn + tp) if (fn + tp) > 0 else 0
+        false_alarm_rate = fp / (fp + tn) if (fp + tn) > 0 else 0
+        effectiveness[name] = {'Miss Rate': miss_rate, 'False Alarm Rate': false_alarm_rate}
+    
+    df_eff = pd.DataFrame(effectiveness).T.reset_index().rename(columns={'index':'Inspector'})
+
+    # 4. Generate Plots
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("<b>1. Inspector Effectiveness Report</b>", "<b>2. Inspector vs. Standard Agreement</b>"),
+        column_widths=[0.6, 0.4]
+    )
+
+    # Plot 1: Effectiveness Bubble Chart
+    fig.add_trace(go.Scatter(
+        x=df_eff['False Alarm Rate'], y=df_eff['Miss Rate'],
+        mode='markers+text', text=df_eff['Inspector'], textposition='top center',
+        marker=dict(size=30, color=df_eff['Miss Rate'] + df_eff['False Alarm Rate'], colorscale='Reds', showscale=True, colorbar_title='Total Error'),
+    ), row=1, col=1)
+    fig.add_shape(type="rect", x0=0, y0=0, x1=0.05, y1=0.1, fillcolor='rgba(44, 160, 44, 0.2)', line_width=0, layer='below', row=1, col=1)
+    fig.add_annotation(x=0.025, y=0.05, text="<b>Ideal<br>Zone</b>", showarrow=False, row=1, col=1)
+    
+    # Plot 2: Agreement Bar Chart
+    df_agree_std = df.groupby('Inspector').apply(lambda x: (x['Assessment'] == x['Reference']).mean()).reset_index(name='Agreement')
+    fig.add_trace(go.Bar(x=df_agree_std['Agreement'], y=df_agree_std['Inspector'], orientation='h'), row=1, col=2)
+    fig.add_vline(x=0.9, line=dict(dash='dash', color='red'), row=1, col=2, annotation_text="90% Target")
+    
+    fig.update_layout(showlegend=False)
+    fig.update_xaxes(title_text="False Alarm Rate (Good parts called Bad)", range=[-0.02, max(0.2, df_eff['False Alarm Rate'].max()*1.1)], row=1, col=1)
+    fig.update_yaxes(title_text="Miss Rate (Bad parts called Good)", range=[-0.02, max(0.2, df_eff['Miss Rate'].max()*1.1)], row=1, col=1)
+    fig.update_xaxes(title_text="Agreement with Standard (%)", tickformat=".0%", row=1, col=2)
+    
+    return fig, kappa
+
+@st.cache_data
 def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_quad_effect, temp_quad_effect, asymmetry_effect, noise_sd, yield_threshold):
     """
     Generates a full suite of professional-grade plots: Pareto, 3D RSM, 2D RSM Map, and 2D ML PDP.
@@ -2065,7 +2226,76 @@ def plot_capability(scenario='Ideal'):
 
     fig.update_layout(height=700, showlegend=False, xaxis2_title="Measured Value")
     return fig, cpk_val
+
+@st.cache_data
+def plot_process_equivalence(cpk_site_a, mean_shift, var_change_factor, n_samples, margin):
+    """
+    Generates a dashboard for demonstrating statistical equivalence between two processes.
+    """
+    np.random.seed(42)
+    lsl, usl = 90, 110
     
+    # 1. Define Site A (Original Process) from its Cpk
+    mean_a = 100
+    std_a = (usl - lsl) / (6 * cpk_site_a)
+    data_a = np.random.normal(mean_a, std_a, n_samples)
+    
+    # 2. Define Site B (New Process) based on shifts
+    mean_b = mean_a + mean_shift
+    std_b = std_a * var_change_factor
+    data_b = np.random.normal(mean_b, std_b, n_samples)
+    
+    # 3. Calculate Cpk for both samples
+    def calculate_cpk(data, lsl, usl):
+        m, s = np.mean(data), np.std(data, ddof=1)
+        return min((usl - m) / (3 * s), (m - lsl) / (3 * s))
+    
+    cpk_a_sample = calculate_cpk(data_a, lsl, usl)
+    cpk_b_sample = calculate_cpk(data_b, lsl, usl)
+    diff_cpk = cpk_b_sample - cpk_a_sample
+
+    # 4. Perform Equivalence Test (Bootstrap CI for Cpk difference)
+    @st.cache_data
+    def bootstrap_cpk_diff(d1, d2, l, u, n_boot=1000):
+        boot_diffs = []
+        for _ in range(n_boot):
+            s1 = np.random.choice(d1, len(d1), replace=True)
+            s2 = np.random.choice(d2, len(d2), replace=True)
+            boot_cpk1 = calculate_cpk(s1, l, u)
+            boot_cpk2 = calculate_cpk(s2, l, u)
+            boot_diffs.append(boot_cpk2 - boot_cpk1)
+        return np.percentile(boot_diffs, [5, 95]) # 90% CI for TOST
+
+    ci_lower, ci_upper = bootstrap_cpk_diff(data_a, data_b, lsl, usl)
+    is_equivalent = (ci_lower >= -margin) and (ci_upper <= margin)
+
+    # 5. Generate Plots
+    fig = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=("<b>1. Process Capability Comparison</b>", "<b>2. Equivalence Test on Cpk</b>"),
+        row_heights=[0.7, 0.3], vertical_spacing=0.15
+    )
+    
+    # Plot 1: Capability Histograms
+    x_range = np.linspace(lsl-5, usl+5, 200)
+    fig.add_trace(go.Histogram(x=data_a, name=f'Site A (Cpk={cpk_a_sample:.2f})', marker_color=PRIMARY_COLOR, histnorm='probability density'), row=1, col=1)
+    fig.add_trace(go.Histogram(x=data_b, name=f'Site B (Cpk={cpk_b_sample:.2f})', marker_color=SUCCESS_GREEN, histnorm='probability density'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=stats.norm.pdf(x_range, mean_a, std_a), mode='lines', line=dict(color=PRIMARY_COLOR)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=stats.norm.pdf(x_range, mean_b, std_b), mode='lines', line=dict(color=SUCCESS_GREEN)), row=1, col=1)
+    fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1)
+    fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
+    fig.update_layout(barmode='overlay', showlegend=False)
+    fig.update_traces(opacity=0.6)
+
+    # Plot 2: Equivalence Verdict
+    ci_color = SUCCESS_GREEN if is_equivalent else '#EF553B'
+    fig.add_vrect(x0=-margin, x1=margin, fillcolor="rgba(44,160,44,0.1)", layer="below", line_width=0, row=2, col=1)
+    fig.add_trace(go.Scatter(x=[ci_lower, ci_upper], y=[1, 1], mode='lines', line=dict(color=ci_color, width=10)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=[diff_cpk], y=[1], mode='markers', marker=dict(color='white', size=10, line=dict(color='black', width=2))), row=2, col=1)
+    fig.update_yaxes(showticklabels=False, row=2, col=1)
+    fig.update_xaxes(title_text="Difference in Cpk (Site B - Site A)", range=[-margin*2, margin*2], row=2, col=1)
+    
+    return fig, is_equivalent, diff_cpk
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Tolerance Intervals) - SME ENHANCED
 # ==============================================================================
@@ -4559,7 +4789,67 @@ A robust diagnostic validation always considers the clinical context.
         - **CLSI Guidelines (Clinical & Laboratory Standards Institute):** Documents like **EP12-A2** provide detailed protocols for user-based evaluation of qualitative test performance, including the calculation of sensitivity, specificity, and predictive values.
         - **GAMP 5:** If the test's result is generated by software (e.g., an algorithm that analyzes an image), that software must be validated (CSV) to ensure its calculations are correct and reliable.
         """)
-            
+
+def render_mixture_design():
+    """Renders the comprehensive, interactive module for Mixture DOE."""
+    st.markdown("""
+    #### Purpose & Application: The Formulation Scientist's GPS
+    **Purpose:** To act as a **Formulation Scientist's GPS**. While a standard DOE maps a process, a Mixture DOE is specifically designed to navigate the complex world of formulations where components must sum to 100%. It answers questions like: "What is the optimal blend of three excipients to maximize drug solubility?"
+    
+    **Strategic Application:** This is an essential tool for developing stable drug products, buffers, or cell culture media. The resulting ternary plot provides an intuitive map of all possible formulations, instantly highlighting the "sweet spot" of optimal performance.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sidebar controls to define the "true" properties of your formulation components.
+    - **Component Effects:** Define the baseline performance of each pure component.
+    - **Interaction Effects:** A positive value indicates **synergy** (components work better together), while a negative value indicates **antagonism** (they interfere with each other).
+    - **Response Threshold:** This slider draws the green "sweet spot" (Design Space) on the map.
+    """)
+
+    with st.sidebar:
+        st.subheader("Mixture Design Controls")
+        st.markdown("**Component Main Effects**")
+        a_slider = st.slider("Component A Effect", 0, 100, 60, 5)
+        b_slider = st.slider("Component B Effect", 0, 100, 80, 5)
+        c_slider = st.slider("Component C Effect", 0, 100, 50, 5)
+        st.markdown("**Component Interactions (Synergy/Antagonism)**")
+        ab_slider = st.slider("A x B Interaction", -50, 50, 20, 5)
+        ac_slider = st.slider("A x C Interaction", -50, 50, 0, 5)
+        bc_slider = st.slider("B x C Interaction", -50, 50, -30, 5)
+        st.markdown("**Experimental & Quality Controls**")
+        noise_slider = st.slider("Experimental Noise (SD)", 0.1, 10.0, 2.0, 0.5)
+        threshold_slider = st.slider("Min. Acceptable Response", 20, 100, 75, 5)
+
+    fig, model = plot_mixture_design(
+        a_effect=a_slider, b_effect=b_slider, c_effect=c_slider,
+        ab_interaction=ab_slider, ac_interaction=ac_slider, bc_interaction=bc_slider,
+        noise_sd=noise_slider, response_threshold=threshold_slider
+    )
+
+    col1, col2 = st.columns([0.6, 0.4])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        with tabs[0]:
+            st.metric("Model R-squared", f"{model.rsquared_adj:.3f}", help="How well the statistical model fits the experimental data.")
+            st.markdown("""
+            **Reading the Map:**
+            - **Vertices (Corners):** Represent pure (100%) components.
+            - **Edges:** Represent blends of two components.
+            - **Center:** Represents a blend of all components.
+            - **Color Contours:** Show the predicted response. The "hottest" color indicates the region of optimal performance.
+            - **Green Shaded Area:** This is your **Design Space** or "sweet spot"—the set of all formulations predicted to meet your acceptance criteria.
+            - **Red Dots:** The actual experimental runs performed to build the model.
+            """)
+        with tabs[1]:
+            st.success("🟢 **THE GOLDEN RULE:** Use a dedicated mixture design when your factors are proportions of a whole. Analyzing formulation data with a standard factorial DOE is statistically invalid and will lead to nonsensical conclusions.")
+        with tabs[2]:
+            st.markdown("Developed by **Henry Scheffé** in 1958, mixture designs solved a problem that had plagued chemists and food scientists for decades. Scheffé's key insight was to create a new type of statistical model (the **Scheffé polynomial**) and specialized experimental designs (like the **simplex-lattice design**) that respect the mathematical constraint that all components must sum to one.")
+        with tabs[3]:
+            st.markdown("Mixture DOE is a specialized tool for establishing a **Design Space** for formulation parameters, a core concept of **ICH Q8(R2) Pharmaceutical Development**. It provides the objective evidence required to define the acceptable ranges for the proportions of different components in a formulation.")
+
 def render_gage_rr():
     """Renders the INTERACTIVE module for Gage R&R."""
     st.markdown("""
@@ -5250,7 +5540,61 @@ By testing factors in combination using a dedicated design (like a Central Compo
         - **ICH Q2(R1) - Validation of Analytical Procedures:** Requires the assessment of **Robustness**, which is typically evaluated through a DOE by making small, deliberate variations in method parameters.
         - **FDA Guidance on Process Validation:** Emphasizes a lifecycle approach and process understanding, which are best achieved through the systematic study of process parameters using DOE.
         """)
-        
+
+def render_attribute_agreement():
+    """Renders the comprehensive, interactive module for Attribute Agreement Analysis."""
+    st.markdown("""
+    #### Purpose & Application: Validating Human Judgment
+    **Purpose:** To validate your **human measurement systems**. It answers the critical question: "Can our inspectors consistently and accurately distinguish good product from bad?" This is the counterpart to Gage R&R, but for subjective, pass/fail, or categorical assessments.
+    
+    **Strategic Application:** This analysis is essential for validating any process that relies on human visual inspection or go/no-go gauges. A failed study indicates that inspectors are either missing true defects (a risk to the patient/customer) or rejecting good product (a risk to the business), and that retraining or improved inspection aids are required.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sidebar controls to create a challenging inspection scenario.
+    - **Inspector Accuracy:** Controls the overall skill of the inspectors.
+    - **Inspector Bias:** A value > 0.5 makes inspectors more likely to "play it safe" and fail borderline parts.
+    - The **Effectiveness Plot** (left) is the key diagnostic. The goal is to have all inspectors in the bottom-left "Ideal Zone."
+    """)
+
+    with st.sidebar:
+        st.subheader("Attribute Agreement Controls")
+        n_parts_slider = st.slider("Number of Parts in Study", 20, 100, 50, 5, help="The total number of unique parts (both good and bad) that will be assessed.")
+        n_inspectors_slider = st.slider("Number of Inspectors", 2, 5, 3, 1, help="The number of people participating in the study.")
+        prevalence_slider = st.slider("True Defect Rate in Parts (%)", 10, 50, 20, 5, help="The percentage of parts in the study that are known to be defective. A good study has a high prevalence of defects.")
+        accuracy_slider = st.slider("Inspector Accuracy (%)", 70, 100, 95, 1, help="The base probability that an inspector will correctly classify any given part.")
+        bias_slider = st.slider("Inspector 'Safe Play' Bias", 0.0, 1.0, 0.6, 0.1, help="When an inspector is unsure about a GOOD part, what is the probability they will fail it to be safe? 0.5 is no bias.")
+
+    fig, kappa = plot_attribute_agreement(
+        n_parts=n_parts_slider, n_inspectors=n_inspectors_slider, n_replicates=3,
+        prevalence=prevalence_slider/100.0, inspector_accuracy=accuracy_slider/100.0, inspector_bias=bias_slider
+    )
+
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        with tabs[0]:
+            st.metric("Fleiss' Kappa (Overall Agreement)", f"{kappa:.3f}", help="Measures agreement between all inspectors, corrected for chance. >0.7 is considered substantial agreement.")
+            st.markdown("""
+            **Reading the Dashboard:**
+            - **Effectiveness Plot (Left):** This is your main diagnostic. It visualizes two types of critical errors:
+                - **Miss Rate:** Inspectors letting bad parts pass (Consumer's Risk).
+                - **False Alarm Rate:** Inspectors failing good parts (Producer's Risk).
+            - **Agreement Plot (Right):** Shows the simple percentage of time each inspector agreed with the known standard. This is useful but can be misleading if the defect rate is very low.
+            """)
+        with tabs[1]:
+            st.markdown("Acceptance criteria are based on the AIAG's MSA Manual:")
+            st.markdown("- **Agreement with Standard:** All inspectors should agree with the reference standard on at least **90%** of assessments.")
+            st.markdown("- **Fleiss' Kappa:** A Kappa value > **0.75** indicates good to excellent agreement among all inspectors.")
+            st.markdown("- **Effectiveness:** Both the Miss Rate and False Alarm Rate should ideally be below **5%**.")
+        with tabs[2]:
+            st.markdown("While Gage R&R handled continuous data, a separate methodology was needed for attribute data. In 1971, **Joseph L. Fleiss** developed a statistical measure to assess the reliability of agreement between a fixed number of raters when assigning categorical ratings. **Fleiss' Kappa** became the standard for multi-rater agreement, extending an earlier idea (Cohen's Kappa) to more than two raters. The AIAG later incorporated these statistical techniques into their **Measurement Systems Analysis (MSA)** manual, codifying them as the industry-standard approach.")
+        with tabs[3]:
+            st.markdown("This analysis is a key part of **Measurement Systems Analysis (MSA)**, which is required by the **FDA's Process Validation Guidance** and quality system regulations like **21 CFR 820**. It provides objective evidence that your inspection process, including the human element, is validated and fit for purpose.")
+
 def render_process_optimization_suite():
     """Renders the comprehensive, interactive module for the full optimization workflow."""
     st.markdown("""
@@ -5898,7 +6242,66 @@ def render_capability():
             - **FDA Process Validation Guidance (Stage 2):** The goal of PPQ is to demonstrate that the process, operating under normal conditions, is capable of consistently producing conforming product. A high Cpk is the statistical evidence that this goal has been met.
             - **Global Harmonization Task Force (GHTF):** For medical devices, guidance on process validation similarly requires demonstrating that the process output consistently meets predetermined requirements.
             """)
-            
+
+def render_process_equivalence():
+    """Renders the comprehensive, interactive module for Process Transfer Equivalence."""
+    st.markdown("""
+    #### Purpose & Application: Statistical Proof of Transfer Success
+    **Purpose:** To provide **objective, statistical proof** that a manufacturing process transferred to a new site, scale, or equipment set performs equivalently to the original, validated process.
+    
+    **Strategic Application:** This is a high-level validation activity that goes beyond simply showing the new site is "in control." It formally proves that the new process is **statistically indistinguishable** from the original, providing powerful evidence for regulatory filings and ensuring consistent product quality across a global network. It is the final exam of a technology transfer.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Head of Tech Transfer. Use the sidebar controls to simulate the performance of the new manufacturing site (Site B).
+    - **Mean Shift & Variability Change:** Simulate potential transfer problems.
+    - **Equivalence Margin:** Define how "close" is close enough for the processes to be considered the same.
+    - **The Goal:** Achieve a "PASS" verdict on the Equivalence Test (Plot 2) by ensuring the performance difference is within the margin.
+    """)
+    
+    with st.sidebar:
+        st.subheader("Process Equivalence Controls")
+        cpk_a_slider = st.slider("Original Site A Performance (Cpk)", 1.33, 2.5, 1.67, 0.01)
+        st.markdown("---")
+        st.markdown("**New Site B Performance vs. Site A**")
+        mean_shift_slider = st.slider("Mean Shift at Site B", -2.0, 2.0, 0.5, 0.1)
+        var_change_slider = st.slider("Variability Change Factor at Site B", 0.8, 1.5, 1.1, 0.05, help="1.0 = same variability. >1.0 = more variable. <1.0 = less variable.")
+        st.markdown("---")
+        st.markdown("**Acceptance Criteria**")
+        n_samples_slider = st.slider("Samples per Site (n)", 30, 200, 50, 10)
+        margin_slider = st.slider("Equivalence Margin for Cpk (±)", 0.1, 0.5, 0.2, 0.05)
+
+    fig, is_equivalent, diff_cpk = plot_process_equivalence(
+        cpk_site_a=cpk_a_slider, mean_shift=mean_shift_slider,
+        var_change_factor=var_change_slider, n_samples=n_samples_slider,
+        margin=margin_slider
+    )
+
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        with tabs[0]:
+            if is_equivalent:
+                st.success("### Verdict: ✅ PASS - Processes are Equivalent")
+            else:
+                st.error("### Verdict: ❌ FAIL - Processes are NOT Equivalent")
+            st.metric("Observed Difference in Cpk", f"{diff_cpk:.3f}", help="A positive value means Site B performed better in this sample.")
+            st.markdown("""
+            **Reading the Dashboard:**
+            - **Plot 1:** Shows how the two processes compare visually. Small shifts in the mean or increases in variability at Site B can dramatically lower its Cpk.
+            - **Plot 2:** The final verdict. It shows the 90% confidence interval for the true difference in Cpk. To pass, this entire bar must fall within the light green "Equivalence Zone" defined by your margin.
+            """)
+        with tabs[1]:
+            st.error("🔴 **THE INCORRECT APPROACH:** The 'Looks Good Enough' Fallacy. A manager reviews the Site B PPQ data, sees a Cpk of 1.40 (which is > 1.33), and declares the transfer a success, even though the original site's Cpk was 1.80. This significant drop in performance is ignored.")
+            st.success("🟢 **THE GOLDEN RULE:** Pre-Define Equivalence, Then Prove It. The tech transfer plan must pre-specify how Site B's performance will be compared to Site A's. An equivalence test on a key performance metric like Cpk is the most rigorous way to do this. It forces the team to prove that the new process has not significantly degraded in performance.")
+        with tabs[2]:
+            st.markdown("This tool represents a modern synthesis of two powerful statistical ideas: **Process Capability (Cpk)**, which was popularized by the Six Sigma movement at Motorola in the 1980s, and **Equivalence Testing (TOST)**, which was championed by the FDA in the 1980s for generic drug approvals. By applying the rigorous logic of equivalence testing to a key performance indicator like Cpk, we create a powerful, modern tool for validating process transfers and changes.")
+        with tabs[3]:
+            st.markdown("This analysis is a best-practice implementation for several key regulatory activities: **Technology Transfer** between sites, **Scale-Up and Post-Approval Changes (SUPAC)**, and **Stage 2 Process Performance Qualification (PPQ)** as defined in the **FDA's Process Validation Guidance**. It provides the objective evidence that a change has not adversely impacted process performance or product quality.")
+
 def render_tolerance_intervals():
     """Renders the INTERACTIVE module for Tolerance Intervals."""
     st.markdown("""
@@ -7945,14 +8348,14 @@ with st.sidebar:
     # Replace the old all_tools dictionary with this one.
     all_tools = {
         "ACT I: FOUNDATION & CHARACTERIZATION": [
-            "Confidence Interval Concept", "Core Validation Parameters", "Comprehensive Diagnostic Validation",
-            "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", 
+            "Confidence Interval Concept", "Core Validation Parameters", "Comprehensive Diagnostic Validation", "Attribute Agreement Analysis",
+            "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", "Mixture Design (Formulations)",
             "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Process Optimization: From DOE to AI",
             "Split-Plot Designs", "Causal Inference"
         ],
         "ACT II: TRANSFER & STABILITY": [
-            "Sample Size for Qualification", "Process Stability (SPC)", "Process Capability (Cpk)", "Tolerance Intervals", 
-            "Method Comparison", "Bayesian Inference"
+            "Sample Size for Qualification", "Process Stability (SPC)", "Process Capability (Cpk)", "Statistical Equivalence for Process Transfer",
+            "Tolerance Intervals", "Method Comparison", "Bayesian Inference"
         ],
         "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
             "Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", 
@@ -7990,6 +8393,7 @@ else:
         "Confidence Interval Concept": render_ci_concept,
         "Core Validation Parameters": render_core_validation_params,
         "Comprehensive Diagnostic Validation": render_diagnostic_validation_suite,
+        "Attribute Agreement Analysis": render_attribute_agreement,
         "Gage R&R / VCA": render_gage_rr,
         "LOD & LOQ": render_lod_loq,
         "Linearity & Range": render_linearity,
@@ -7997,6 +8401,7 @@ else:
         "ROC Curve Analysis": render_roc_curve,
         "Equivalence Testing (TOST)": render_tost,
         "Assay Robustness (DOE)": render_assay_robustness_doe,
+        "Mixture Design (Formulations)": render_mixture_design,
         "Process Optimization: From DOE to AI": render_process_optimization_suite,
         "Split-Plot Designs": render_split_plot,
         "Causal Inference": render_causal_inference,
@@ -8004,6 +8409,7 @@ else:
         # Act II
         "Sample Size for Qualification": render_sample_size_calculator,
         "Process Stability (SPC)": render_spc_charts,
+        "Statistical Equivalence for Process Transfer": render_process_equivalence,
         "Process Capability (Cpk)": render_capability,
         "Tolerance Intervals": render_tolerance_intervals,
         "Method Comparison": render_method_comparison,

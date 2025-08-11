@@ -885,88 +885,84 @@ def plot_vmp_flow(project_type):
     return fig
 
 @st.cache_data
-def plot_rtm_sankey(project_type, scenario):
+def plot_rtm_sankey(completed_streams):
     """
-    Generates a professional-grade, high-complexity Sankey diagram for an RTM, simulating different audit scenarios.
+    Generates a professional-grade, multi-stream Sankey diagram simulating a complex tech transfer project.
     """
-    rtm_data = {
-        "Software System (CSV)": {
-            "title": "RTM for Computer System Validation (LIMS)",
-            "nodes": {
-                "URS-01": "System must be 21 CFR Part 11 Compliant", "URS-02": "System must calculate % Purity", "URS-03": "System must ensure data integrity",
-                "FS-1.1": "Provide secure audit trails", "FS-1.2": "Implement electronic signatures", "FS-2.1": "Use Area % calculation algorithm", "FS-3.1": "Implement database backup/recovery",
-                "DS-1.1.1": "Audit trail database schema", "DS-2.1.1": "Algorithm specification",
-                "OQ-1.1.1": "Test audit trail creation", "OQ-1.2.1": "Test e-signature lockout", "PQ-2.1.1": "Verify purity calculation vs. spreadsheet", "PQ-3.1.1": "Perform server recovery test",
-                "DEV-01": "Untraced developer test"
-            },
-            "links": [
-                ('URS-01', 'FS-1.1'), ('URS-01', 'FS-1.2'), ('URS-03', 'FS-1.1'), ('URS-03', 'FS-3.1'),
-                ('URS-02', 'FS-2.1'),
-                ('FS-1.1', 'DS-1.1.1'), ('FS-2.1', 'DS-2.1.1'),
-                ('DS-1.1.1', 'OQ-1.1.1'), ('FS-1.2', 'OQ-1.2.1'), ('DS-2.1.1', 'PQ-2.1.1'), ('FS-3.1', 'PQ-3.1.1')
-            ],
-            "scenarios": {
-                "Partial Trace": {'remove': [('FS-1.2', 'OQ-1.2.1')], 'add': [], 'finding': "❌ GAP: URS-01 ('Part 11 Compliant') is only partially tested. The audit trail function is verified, but the electronic signature function is not."},
-                "Untraced Test ('Orphan')": {'remove': [], 'add': [('DS-2.1.1', 'DEV-01')], 'finding': "⚠️ WARNING: 'DEV-01' is an 'orphan' test that does not trace back to an approved user requirement. This represents un-requested work."}
-            }
-        },
-        "Pharma Process (PPQ)": {
-            "title": "RTM for Process Performance Qualification",
-            "nodes": {
-                "CQA-01": "Purity > 99%", "CQA-02": "Potency 80-120%",
-                "CPP-01": "Column Load Ratio", "CPP-02": "Bioreactor pH", "CMA-01": "Media Lot",
-                "TEST-01": "QC Release Purity Test", "TEST-02": "QC Release Potency Bioassay", "TEST-03": "In-Process pH Monitoring"
-            },
-            "links": [
-                ('CQA-01', 'CPP-01'), ('CPP-01', 'TEST-01'),
-                ('CQA-02', 'CPP-02'), ('CQA-02', 'CMA-01'), ('CPP-02', 'TEST-03'), ('CMA-01', 'TEST-02')
-            ],
-            "scenarios": {
-                "Partial Trace": {'remove': [('CMA-01', 'TEST-02')], 'add': [], 'finding': "❌ GAP: CQA-02 ('Potency') is only partially verified. The controlling CPP (pH) is monitored, but the impact of the critical material (Media Lot) is not confirmed by the final potency test."},
-                "Untraced Test ('Orphan')": {'remove': [], 'add': [], 'finding': "⚠️ WARNING: This RTM is complete, but an orphan test scenario would involve a test (e.g. 'extra impurity test') that does not link to a pre-defined CQA."}
-            }
-        }
+    # Master data structure for the entire project
+    nodes_data = {
+        # ID: [Label, Stream, x-pos]
+        'GOAL': ["Project Goal:<br>Successful Tech Transfer", "Project", 0],
+        'PROC-CQA': ["CQA: Purity > 99%", "Process", 1],
+        'PROC-CPP': ["CPP: Column Load", "Process", 2],
+        'PROC-TEST': ["PPQ Run Results", "Process", 3],
+        'ASSAY-ATP': ["ATP: Accuracy 98-102%", "Assay", 1],
+        'ASSAY-VAL': ["Assay Validation Report", "Assay", 2],
+        'INST-URS': ["URS: HPLC Throughput", "Instrument", 1],
+        'INST-OQ': ["Instrument OQ", "Instrument", 2],
+        'INST-PQ': ["Instrument PQ", "Instrument", 3],
+        'SOFT-URS': ["URS: LIMS Data Integrity", "Software", 1],
+        'SOFT-FS': ["FS: Audit Trail Spec", "Software", 2],
+        'SOFT-TEST': ["CSV Test Scripts", "Software", 3],
     }
     
-    data = rtm_data[project_type]
-    links = data['links'].copy()
-    
-    audit_finding = "✅ Traceability Complete: All requirements are fully traced to verification tests."
-    if scenario != "Traceability Complete":
-        s = data['scenarios'][scenario]
-        for link_to_remove in s.get('remove', []):
-            if link_to_remove in links: links.remove(link_to_remove)
-        links.extend(s.get('add', []))
-        audit_finding = s['finding']
+    links_data = [
+        # Source, Target, Stream
+        ('GOAL', 'PROC-CQA', 'Process'),
+        ('PROC-CQA', 'PROC-CPP', 'Process'),
+        ('PROC-CPP', 'PROC-TEST', 'Process'),
+        ('PROC-CQA', 'ASSAY-ATP', 'Cross-Stream'), # Dependency: Process CQA requires an assay
+        ('ASSAY-ATP', 'ASSAY-VAL', 'Assay'),
+        ('ASSAY-VAL', 'PROC-TEST', 'Cross-Stream'), # Dependency: Process test relies on validated assay
+        ('ASSAY-VAL', 'INST-URS', 'Cross-Stream'), # Dependency: Assay validation requires a qualified instrument
+        ('INST-URS', 'INST-OQ', 'Instrument'),
+        ('INST-OQ', 'INST-PQ', 'Instrument'),
+        ('PROC-TEST', 'SOFT-URS', 'Cross-Stream'), # Dependency: Process results must be stored in LIMS
+        ('SOFT-URS', 'SOFT-FS', 'Software'),
+        ('SOFT-FS', 'SOFT-TEST', 'Software')
+    ]
 
-    all_nodes_ids = list(data['nodes'].keys())
-    all_nodes_labels = [f"<b>{k}</b><br>{v}" for k, v in data['nodes'].items()]
-
-    source_indices = [all_nodes_ids.index(link[0]) for link in links]
-    target_indices = [all_nodes_ids.index(link[1]) for link in links]
+    all_nodes_ids = list(nodes_data.keys())
+    all_nodes_labels = [v[0] for v in nodes_data.values()]
     
-    colors = []
-    for label in all_nodes_ids:
-        if any(prefix in label for prefix in ['URS', 'ATP', 'CQA']): colors.append(PRIMARY_COLOR)
-        elif any(prefix in label for prefix in ['FS', 'DS', 'CPP', 'CMA']): colors.append(SUCCESS_GREEN)
-        else: colors.append('#636EFA')
+    # --- Interactivity Logic ---
+    link_colors = []
+    for source, target, stream in links_data:
+        if stream in completed_streams or nodes_data[source][1] in completed_streams:
+            link_colors.append(SUCCESS_GREEN)
+        else:
+            link_colors.append('rgba(200,200,200,0.5)')
+
+    node_colors = []
+    for node_id, values in nodes_data.items():
+        if values[1] in completed_streams:
+            node_colors.append(SUCCESS_GREEN)
+        else:
+            node_colors.append(PRIMARY_COLOR)
 
     fig = go.Figure(data=[go.Sankey(
         arrangement='snap',
         node=dict(
             pad=25, thickness=20, line=dict(color="black", width=0.5),
-            label=[k for k in all_nodes_ids], # Use short IDs for labels
-            hoverlabel=dict(bgcolor='white', font_size=12),
-            hovertemplate='%{label}<extra></extra>', # Use full label for hover
-            customdata=all_nodes_labels,
-            color=colors
+            label=[k for k in all_nodes_ids], # Use short IDs
+            hovertemplate='%{customdata}<extra></extra>',
+            customdata=all_nodes_labels, # Full labels on hover
+            color=node_colors,
+            x=[v[2] / 3 for v in nodes_data.values()], # Force horizontal position for swimlanes
+            y=[['Project', 'Process', 'Assay', 'Instrument', 'Software'].index(v[1]) * 0.22 for v in nodes_data.values()]
         ),
-        link=dict(source=source_indices, target=target_indices, value=[1]*len(links), color='rgba(200,200,200,0.5)')
+        link=dict(
+            source=[all_nodes_ids.index(l[0]) for l in links_data],
+            target=[all_nodes_ids.index(l[1]) for l in links_data],
+            value=[1]*len(links_data),
+            color=link_colors
+        )
     )])
     
-    fig.update_layout(title_text=f"<b>{data['title']} - Scenario: {scenario}</b>", font_size=12, height=600)
-    return fig, audit_finding
-
+    fig.update_layout(
+        title_text="<b>Integrated RTM for Technology Transfer Project</b>", font_size=12, height=600
+    )
+    return fig, links_data, nodes_data
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
 
@@ -5378,58 +5374,63 @@ def render_rtm_builder():
     """Renders the comprehensive, interactive module for the Requirements Traceability Matrix."""
     st.markdown("""
     #### Purpose & Application: The Auditor's Golden Thread
-    **Purpose:** To be the **"Auditor's Golden Thread."** The RTM is a master document that links every high-level requirement (like a URS or CQA) to the specific design elements and, most critically, to the specific Test Case(s) that prove it was met.
+    **Purpose:** To be the **"Auditor's Golden Thread."** The RTM is a master document that links every high-level requirement (like a URS or CQA) to the specific design elements and, most critically, to the specific Test Case(s) that prove it was met, even across different validation streams.
     
-    **Strategic Application:** The RTM provides irrefutable, traceable proof that **everything that was asked for was built, and everything that was built was tested.** It is the ultimate tool for ensuring completeness in complex projects and is often the very first document an auditor will ask to see. A gap in the RTM is a major compliance failure.
+    **Strategic Application:** The RTM provides irrefutable, traceable proof that **everything that was asked for was built, and everything that was tested was required.** It is the ultimate tool for managing and ensuring the completeness of complex, multi-faceted projects like a full technology transfer.
     """)
     
     st.info("""
-    **Interactive Demo: The Audit Simulation**
-    You are the Quality Auditor. Your task is to review the RTM for different project types. Select a project and then an audit scenario to see how different compliance issues are detected. Hover over the nodes for full descriptions.
+    **Interactive Demo: The Project Management Simulation**
+    You are the Validation Project Manager for a major Tech Transfer. Your goal is to achieve 100% traceability.
+    1.  The diagram shows the four validation streams (Process, Assay, Instrument, Software) required to meet the main Project Goal.
+    2.  Use the **"Validation Stream Completion" toggles** in the sidebar to simulate the completion of each sub-project.
+    3.  As you complete each stream, watch the links turn from grey to green, and see the overall project completeness KPI update.
     """)
 
-    project_type = st.selectbox(
-        "Select a Project Type to view a sample RTM:",
-        ["Software System (CSV)", "Pharma Process (PPQ)"],
-        help="Choose the type of validation project to simulate. The diagram and scenarios will update accordingly."
-    )
-    
     with st.sidebar:
-        st.subheader("RTM Audit Simulation")
-        scenario = st.radio(
-            f"Select a Scenario for the {project_type} RTM:",
-            ("Traceability Complete", "Partial Trace", "Untraced Test ('Orphan')"),
-            captions=[
-                "The ideal, fully-compliant RTM.",
-                "Simulates a subtle but critical validation gap.",
-                "Simulates scope creep or an unnecessary test."
-            ],
-            key=project_type,
-            help="Choose a scenario to see how different types of common compliance issues appear in a traceability matrix."
-        )
+        st.subheader("RTM Project Simulation")
+        st.markdown("Simulate the completion of each validation sub-project:")
+        completed_streams = []
+        if st.toggle("Complete Instrument Qualification", key="inst_complete"):
+            completed_streams.append("Instrument")
+        if st.toggle("Complete Assay Validation", key="assay_complete"):
+            completed_streams.append("Assay")
+        if st.toggle("Complete Software Validation (CSV)", key="soft_complete"):
+            completed_streams.append("Software")
+        if st.toggle("Complete Process Validation (PPQ)", key="proc_complete"):
+            completed_streams.append("Process")
         
-    fig, audit_finding = plot_rtm_sankey(project_type, scenario)
-    st.plotly_chart(fig, use_container_width=True)
+    fig, links_data, nodes_data = plot_rtm_sankey(completed_streams)
+    
+    # Calculate KPIs
+    total_links = len(links_data)
+    completed_links = sum(1 for s, t, stream in links_data if stream in completed_streams or nodes_data[s][1] in completed_streams)
+    completeness_pct = (completed_links / total_links) * 100
+    
+    col1, col2 = st.columns([0.75, 0.25])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Project Status")
+        st.progress(int(completeness_pct))
+        st.metric("Traceability Completeness", f"{completeness_pct:.0f}%",
+                  help="Percentage of all traceability links that have been completed and verified.")
+        if completeness_pct < 100:
+            st.warning("Project is incomplete. Some requirements have not been fully verified.")
+        else:
+            st.success("Project is 100% traceable and ready for final approval.")
 
-    st.subheader("Audit Finding")
-    if "✅" in audit_finding:
-        st.success(audit_finding)
-    elif "❌" in audit_finding:
-        st.error(audit_finding)
-    elif "⚠️" in audit_finding:
-        st.warning(audit_finding)
     st.divider()
-
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
-        st.markdown(f"""
-        **Interpreting the Audit Scenarios:**
-        - **Traceability Complete:** This is the goal. Every high-level requirement (blue nodes on the left) has an unbroken "golden thread" through the design/control elements (green) all the way to a final verification test (purple).
+        st.markdown("""
+        **Reading the Integrated RTM:**
+        - **Swimlanes:** The diagram is organized into vertical "swimlanes" representing the different, parallel validation projects that must all succeed.
+        - **Intra-Stream Traceability:** The horizontal links within a single swimlane (e.g., `INST-URS` → `INST-OQ`) show the standard V-Model traceability for that specific system.
+        - **Inter-Stream Dependencies (The Critical Links):** The diagonal links show the crucial dependencies *between* projects. For example, you cannot complete the `PROC-TEST` (PPQ) until the `ASSAY-VAL` (the QC test method) and the `INST-PQ` (the lab instrument) are both complete and validated.
         
-        - **Partial Trace:** This is a subtle but critical failure. A high-level requirement (like `URS-01` or `CQA-02`) branches into multiple sub-requirements or design elements. In this scenario, one of those branches is a "dead end," meaning the high-level requirement is only **partially tested**. An auditor would flag this as a major gap, as the full scope of the requirement has not been verified.
-
-        - **Untraced Test ('Orphan'):** Here, a test case (purple) appears that does not trace back to an original, approved requirement. This "orphan" test raises a key question for the auditor: Was this feature added without proper approval (**scope creep**), or is it an engineering test that was incorrectly included in the validation package (**wasted effort**)?
+        **The Strategic Insight:** This visualization reveals that a validation project is a **network of dependencies**. A delay or failure in one stream (like the Instrument Qualification) can have a direct, cascading impact on the critical path of the main process validation. The RTM is the master tool for managing these complex relationships.
         """)
     with tabs[1]:
         st.markdown("""
@@ -5438,19 +5439,16 @@ def render_rtm_builder():
         - **Specification:** A document that specifies, in a complete, precise, verifiable manner, the requirements, design, behavior, or other characteristics of a system. (e.g., FS, DS).
         - **Verification:** The process of evaluating a system to determine whether the products of a given development phase satisfy the conditions imposed at the start of that phase. (Are we building the system right?)
         - **Validation:** The process of evaluating a system during or at the end of the development process to determine whether it satisfies the user requirements. (Are we building the right system?)
-        - **Traceability:** The ability to trace a requirement both forwards to its implementation and testing, and backwards to its origin.
-        - **V-Model:** A graphical representation of the system development lifecycle, linking development phases to testing phases.
+        - **Traceability:** The ability to trace a requirement both forwards to its implementation and testing, and backwards to its origin, even across system boundaries.
         """)
     with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: The "Back-filled" Matrix**
-A project team completes all testing and then, just before the final report is due, they are asked to create an RTM. They hastily try to map their completed tests back to the original requirements document.
-- **The Flaw:** This almost always reveals gaps—requirements that were never tested, and tests that were run for no clear requirement. The RTM is treated as a bureaucratic afterthought, not the living project management tool it's meant to be.""")
-        st.success("""🟢 **THE GOLDEN RULE: Test What You Build, Build What Was Asked For**
-The RTM is the master document that enforces this discipline.
-1.  **Start at the Beginning:** The RTM is created during the planning phase, alongside the URS/ATP/CQA.
-2.  **Update at Every Stage:** As each specification and test protocol is written, it is immediately added to the RTM and linked to its parent requirement.
-3.  **Use it as a Checklist:** Before project closure, the RTM is reviewed to ensure every single requirement has a link all the way through to a completed test case with a "Pass" result.
-This makes the RTM a living document that guarantees completeness and compliance.""")
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Siloed Validation" Fallacy**
+The Instrument team validates their HPLC, the Assay team validates their purity method, and the Process team validates the manufacturing run, all as separate projects. They only discover at the end that the validated assay cannot achieve the required precision on the newly qualified instrument.
+- **The Flaw:** The teams operated in silos, ignoring the critical interdependencies between their systems. The project lacked a holistic RTM to manage these cross-stream links.""")
+        st.success("""🟢 **THE GOLDEN RULE: One Project, One Trace Matrix**
+A complex project like a tech transfer should be governed by a single, integrated Validation Master Plan (VMP) and a single, integrated Requirements Traceability Matrix (RTM).
+- The RTM must capture not only the vertical traceability within each system (the V-Model) but also the **horizontal traceability between systems.**
+- This integrated RTM becomes the master checklist for the entire project, ensuring that dependencies are managed, no gaps exist, and the final integrated system is truly validated as a whole.""")
         
     with tabs[3]:
         st.markdown("""
@@ -5463,8 +5461,8 @@ This makes the RTM a living document that guarantees completeness and compliance
     with tabs[4]:
         st.markdown("""
         The RTM is the primary document used to demonstrate compliance with a variety of regulations governing complex systems.
-        - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** The RTM is a foundational document in the GAMP 5 framework. The entire V-Model validation approach relies on the traceability provided by a well-maintained RTM.
-        - **FDA 21 CFR Part 11 (Electronic Records; Electronic Signatures):** When validating a system for Part 11 compliance, the RTM must clearly trace requirements like "audit trail generation" or "e-signature security" to the specific OQ and PQ test cases that challenge and verify those functions.
+        - **ICH Q10 - Pharmaceutical Quality System:** This guideline emphasizes a holistic approach to quality management, including the management of outsourced activities and tech transfers. An integrated RTM is the key document for demonstrating control over these complex, multi-faceted projects.
+        - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** The RTM is a foundational document in the GAMP 5 framework, providing the traceability that underpins the entire V-Model validation approach.
         - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing. It is a critical component of the Design History File (DHF).
         """)
         

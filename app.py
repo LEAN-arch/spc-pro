@@ -776,7 +776,7 @@ def plot_fmea_dashboard(fmea_data):
     ))
     # Add arrows showing mitigation
     for i in df.index:
-        if df.loc[i, 'O_Initial'] != df.loc[i, 'O_Final'] or df.loc[i, 'D_Initial'] != df.loc[i, 'D_Final']:
+        if df.loc[i, 'O_Initial'] != df.loc[i, 'O_Final']: # Only draw arrow if Occurrence changes
             fig_matrix.add_annotation(x=df.loc[i, 'S'], y=df.loc[i, 'O_Final'], ax=df.loc[i, 'S'], ay=df.loc[i, 'O_Initial'],
                                       xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowcolor=PRIMARY_COLOR, arrowwidth=2)
 
@@ -798,7 +798,7 @@ def plot_fmea_dashboard(fmea_data):
     fig_pareto.add_hline(y=50, line_dash="dash", line_color="red", annotation_text="Action Threshold")
     
     return fig_matrix, fig_pareto
-
+    
 @st.cache_data
 def plot_vmp_flow(project_type):
     """
@@ -5184,15 +5184,15 @@ def render_fmea():
             st.slider("Occurrence (Handling Error)", 1, 5, 3, help="How frequently do operators make handling errors?")
         ]
         fmea_data_initial['D_Initial'] = [
-            st.slider("Detection (Buffer Error)", 1, 5, 5, help="How likely are we to DETECT a bad buffer before it causes a failure? 1=Very Likely, 5=Very Unlikely."),
+            st.slider("Detection (Buffer Error)", 1, 5, 5, help="How likely are we to DETECT a bad buffer before it causes a failure? 1=Very Likely, 5=Very Unlikely. (A high score is bad)."),
             st.slider("Detection (Cal Drift)", 1, 5, 2, help="How likely are we to DETECT calibration drift?"),
             st.slider("Detection (Handling Error)", 1, 5, 3, help="How likely are we to DETECT an operator handling error?")
         ]
         
         st.markdown("**Proposed Mitigations**")
-        mitigate_buffer = st.toggle("Implement Automated Buffer Prep", value=False, help="Reduces the Occurrence of formulation errors.")
-        mitigate_cal = st.toggle("Increase Calibration Frequency", value=False, help="Improves the Detection of calibration drift.")
-        mitigate_handling = st.toggle("Enhance Operator Training & Poka-Yoke", value=False, help="Reduces Occurrence and improves Detection of handling errors.")
+        mitigate_buffer = st.toggle("Implement Automated Buffer Prep", value=False, help="This engineering control is designed to reduce the Occurrence of formulation errors.")
+        mitigate_cal = st.toggle("Increase Calibration Frequency", value=False, help="This procedural control is designed to improve the Detection of calibration drift.")
+        mitigate_handling = st.toggle("Enhance Operator Training & Poka-Yoke", value=False, help="This combined control reduces the Occurrence of errors and improves their Detection.")
         
         fmea_data_initial['O_Final'] = fmea_data_initial['O_Initial'].copy()
         fmea_data_initial['D_Final'] = fmea_data_initial['D_Initial'].copy()
@@ -5213,8 +5213,7 @@ def render_fmea():
 
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
         **A Realistic Workflow & Interpretation:**
@@ -5223,8 +5222,18 @@ def render_fmea():
         3.  **Mitigate:** For each high-priority risk, the team proposes and implements mitigation actions. Notice how a mitigation can either reduce **Occurrence** (making the failure less likely, moving a point down on the matrix) or improve **Detection** (making it easier to catch, which lowers the RPN but doesn't move the point on the S vs. O matrix).
         4.  **Re-assess Final Risk (Blue Diamonds):** The team calculates the final RPN (blue bars). The arrows on the Risk Matrix provide a powerful visual summary of the risk reduction. The goal is to move all RPNs below the action threshold.
         """)
-        
     with tabs[1]:
+        st.markdown("""
+        ##### Glossary of FMEA Terms
+        - **Failure Mode:** The specific way in which a process or component could potentially fail to meet its intended function (e.g., "Incorrect buffer pH").
+        - **Effect:** The consequence of the failure mode on the final product or patient (e.g., "Reduced product efficacy and potential safety risk").
+        - **Severity (S):** A rating of the seriousness of the effect of a potential failure mode. Severity is typically ranked on a 1-5 or 1-10 scale and should not change after mitigation, as the impact of the failure, should it occur, is the same.
+        - **Occurrence (O):** A rating of the likelihood that the cause of the failure mode will occur.
+        - **Detection (D):** A rating of the likelihood that the failure mode will be detected by the current control systems before it reaches the customer. A high D score means detection is unlikely (which is bad).
+        - **Risk Priority Number (RPN):** The product of the three scores: `RPN = S × O × D`. It is a numerical ranking used to prioritize the most significant risks for mitigation.
+        - **Mitigation:** An action taken to reduce the Occurrence or improve the Detection of a failure mode.
+        """)
+    with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "RPN is Everything" Fallacy**
 A team focuses obsessively on lowering the RPN number, even for low-severity risks. They spend months implementing a complex detection system for a failure mode with a Severity of 1, ignoring a higher-severity risk because its initial RPN was slightly lower.
 - **The Flaw:** RPN is a prioritization tool, not the goal itself. **Severity is the most important factor.** A high-severity risk (S=5), even if rare, can never be truly "low risk" and always requires robust controls.""")
@@ -5234,20 +5243,17 @@ The FMEA is not a standalone document; it is the strategic driver for the entire
 2.  **Then, Use RPN to Prioritize:** For the remaining risks, use the RPN to prioritize resources, tackling the highest RPNs first.
 3.  **Link to Validation:** The FMEA provides the rationale for your validation activities. A high-risk failure mode justifies a rigorous DOE to characterize it; a medium-risk one might justify adding a parameter to your SPC monitoring plan. This creates a clear, auditable trail from risk to action.""")
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown("""
         #### Historical Context: From Munitions to Minivans
         **The Problem:** In the late 1940s, the U.S. military was grappling with the unreliability of complex new systems. Failures were common, costly, and often catastrophic. They needed a structured, proactive way to think about and prevent failures before they happened.
         
-        **The 'Aha!' Moment:** The methodology now known as **FMEA** was formalized in military procedures like **MIL-P-1629**. The key insight was to shift from a reactive "find and fix" model to a proactive, "predict and prevent" model by systematically asking three questions:
-        1.  What is the **effect** of this failure? (Severity)
-        2.  What is the **cause** and how often will it happen? (Occurrence)
-        3.  How can we **detect** it? (Detection)
+        **The 'Aha!' Moment:** The methodology now known as **FMEA** was formalized in military procedures like **MIL-P-1629**. The key insight was to shift from a reactive "find and fix" model to a proactive, "predict and prevent" model by systematically asking three questions: What is the **effect**? What is the **cause**? How can we **detect** it?
             
         **The Impact:** The methodology was famously adopted and refined by **NASA** during the Apollo program to ensure astronaut safety and mission success. Later, facing a quality crisis in the 1970s, the **automotive industry**, led by Ford, championed FMEA as a core tool for improving vehicle safety and reliability. They introduced the **Risk Priority Number (RPN)** as a simple way to prioritize risks. Today, FMEA is a universal quality planning tool used in virtually every high-reliability industry.
         """)
         
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         FMEA is the primary tool for implementing the principles of **ICH Q9 - Quality Risk Management**, which is a cornerstone of a modern Pharmaceutical Quality System.
         - **ICH Q9:** This guideline explicitly lists FMEA as a potential risk management tool. The FMEA process directly addresses the key elements of QRM:

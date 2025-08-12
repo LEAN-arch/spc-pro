@@ -5730,19 +5730,23 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
 
 # This function is now also cached. It will only rerun if the DATA from the simulation changes.
 @st.cache_data
-def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, context):
+def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, _context): # <-- UNDERSCORE ADDED HERE
     """
     Creates the Plotly figure from simple data types. Caching this prevents the figure object
     from being recreated on every single UI interaction, breaking the rerun loop.
     """
+    # Use the underscored variable inside the function
+    context = _context 
+    
     contour_trace = go.Contour(z=zz, x=x_range, y=y_range, colorscale='Inferno', colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)'))
     star_trace = go.Scatter(x=[gbest_position[0]], y=[gbest_position[1]], mode='markers', marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), name='Highest-Risk Condition Found')
     initial_particle_trace = go.Scatter(x=history[0][:, 0], y=history[0][:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'), name='PSO Particles')
 
     frames = []
     for step_positions in history:
-        frame = go.Frame(data=[go.Scatter(x=step_positions[:, 0], y=step_positions[:, 1], mode='markers')], name=f"frame_{len(frames)}")
-        frames.append(frame)
+        # Create a new trace for each frame's data
+        frame_trace = go.Scatter(x=step_positions[:, 0], y=step_positions[:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'))
+        frames.append(go.Frame(data=[frame_trace], name=f"frame_{len(frames)}", traces=[2])) # Reference the 3rd trace
 
     fig = go.Figure(
         data=[contour_trace, star_trace, initial_particle_trace],
@@ -5758,9 +5762,6 @@ def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, c
         frames=frames
     )
     
-    # Use a more efficient animation update method
-    fig.update(frames=[go.Frame(data=[go.Scatter(x=h[:, 0], y=h[:, 1])], traces=[2]) for h in history])
-
     return fig
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
@@ -12146,25 +12147,22 @@ def render_pso_autoencoder():
         cognition = st.slider("Cognition (Personal Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to their own best-found location.")
         social = st.slider("Social (Global Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to the swarm's overall best-found location.")
 
-    # --- THIS IS THE NEW, STABLE LOGIC ---
-    # 1. Run the expensive, cached simulation. This only reruns when sliders change.
+    # 1. Run the expensive, cached simulation to get the raw data
     zz, x_range, y_range, history, gbest_position, best_score, context = run_pso_simulation(
-    n_particles, n_iterations, inertia, cognition, social, project_context_name
+        n_particles, n_iterations, inertia, cognition, social, project_context_name
     )
     context['name'] = project_context_name
     
-    # 2. Create the figure from the cached data. This also only reruns when the simulation data changes.
+    # 2. Create the figure from the cached data. Pass the unhashable 'context' dict with a leading underscore.
     fig = create_pso_figure_from_data(zz, tuple(x_range), tuple(y_range), history, tuple(gbest_position), context)
-    # --- END OF NEW LOGIC ---
-    
     
     col1, col2 = st.columns([0.7, 0.35])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        st.metric(f"Worst-Case {context['x_label']}", f"{best_params[0]:.2f}")
-        st.metric(f"Worst-Case {context['y_label']}", f"{best_params[1]:.2f}")
+        st.metric(f"Worst-Case {context['x_label']}", f"{gbest_position[0]:.2f}")
+        st.metric(f"Worst-Case {context['y_label']}", f"{gbest_position[1]:.2f}")
         st.metric("Maximum Anomaly Score", f"{best_score:.3f}")
         st.success("""
         **Actionable Insight:** The simulation has identified the process conditions most likely to cause an anomalous run. The next step is to design a lab experiment that deliberately targets these conditions to confirm the model's prediction and define the true edge of the process's Design Space.

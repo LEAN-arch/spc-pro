@@ -5625,8 +5625,8 @@ def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=2.0):
 
 def render_introduction_content():
     """Renders the complete, all-in-one introduction and framework dashboard."""
-    st.title("🛠️ Biotech V&V Analytics Toolkit")
-    st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
+    st.title("🛠️ V&V Analytics Toolkit")
+    st.markdown("### An Interactive Guide to Biotech/Medical Device Validation, Tech Transfer, and Lifecycle Management")
     
     st.markdown(
         """
@@ -5704,7 +5704,6 @@ def render_introduction_content():
     st.header("🗺️ Conceptual Map of Tools")
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
-
 
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)

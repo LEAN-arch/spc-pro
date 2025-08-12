@@ -5688,9 +5688,6 @@ This ensures alignment from start to finish and guarantees the final deliverable
 #============================================================================== 3. QUALITY RISK MANAGEMENT (FMEA) ========================================================
 def render_qrm_suite():
     """Renders the comprehensive, interactive module for the Quality Risk Management (QRM) Suite."""
-    st.image("https://images.unsplash.com/photo-1581092921442-aa96d19a0a43?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1650&q=80", use_column_width=True)
-    st.title("🛡️ The Interactive QRM Workbench")
-    
     st.markdown("""
     This workbench provides a suite of formal, structured tools for **Quality Risk Management (QRM)**. These tools are used to systematically identify, analyze, evaluate, and control potential risks. The output of a risk assessment is the direct, auditable justification for the entire validation strategy, focusing resources where they matter most.
     """)

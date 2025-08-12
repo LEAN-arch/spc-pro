@@ -1053,34 +1053,55 @@ def plot_rtm_sankey(completed_streams):
     return fig, links_data, nodes_data
 
 # ==============================================================================
-# HELPER & PLOTTING FUNCTION (Design Controls & DHF)
+# REVISED HELPER & PLOTTING FUNCTION (Design Controls & DHF)
 # ==============================================================================
 @st.cache_data
 def plot_design_controls_flow(completed_stages):
     """
-    Generates an interactive flowchart of the Design Controls process,
-    highlighting completed stages.
+    Generates an interactive flowchart of the complete Design Controls process,
+    highlighting completed stages and their relationship to the DHF.
     """
     fig = go.Figure()
 
+    # --- NEW: Expanded stages based on the reference image ---
     stages = {
-        'Inputs': {'label': 'Design Inputs', 'pos': (1, 5), 'docs': 'URS, Risk Analysis (FMEA), Human Factors Report'},
-        'Outputs': {'label': 'Design Outputs', 'pos': (3, 5), 'docs': 'Specifications, Drawings, Source Code, BOM'},
-        'Review': {'label': 'Design Review', 'pos': (5, 5), 'docs': 'Meeting Minutes, Action Items'},
-        'Verification': {'label': 'Design Verification', 'pos': (5, 3), 'docs': 'Test Protocols & Reports (Unit, Integration)'},
-        'Validation': {'label': 'Design Validation', 'pos': (3, 1), 'docs': 'PQ/UAT Protocols & Reports, Clinical Study Data'},
-        'Transfer': {'label': 'Design Transfer', 'pos': (1, 1), 'docs': 'Manufacturing SOPs, QC Test Methods, Training Records'},
-        'DHF': {'label': 'Design History File (DHF)', 'pos': (3, 3), 'docs': 'The complete compilation of all evidence.'}
+        'UserNeeds':    {'label': 'User Needs', 'pos': (0, 6), 'docs': 'User Requirement Specification (URS), Market Research, Clinical Feedback'},
+        'Inputs':       {'label': 'Design Inputs', 'pos': (2, 6), 'docs': 'Functional & Performance Specs (FS), Risk Analysis (FMEA), Human Factors Report'},
+        'Process':      {'label': 'Design Process', 'pos': (4, 6), 'docs': 'Development Plans, Phase Reviews, CAD Models, Code Sprints'},
+        'Outputs':      {'label': 'Design Outputs', 'pos': (6, 6), 'docs': 'Specifications, Drawings, Source Code, Bill of Materials (BOM)'},
+        'Device':       {'label': 'Medical Device', 'pos': (8, 6), 'docs': 'Prototypes, Finished Device, Packaging & Labeling'},
+        'Review':       {'label': 'Design Review', 'pos': (4, 7.5), 'docs': 'Meeting Minutes, Action Items, Phase-Gate Approvals'},
+        'Verification': {'label': 'Design Verification', 'pos': (6, 4), 'docs': 'Test Protocols & Reports (Unit, Integration, System)'},
+        'Validation':   {'label': 'Design Validation', 'pos': (2, 2), 'docs': 'PQ/UAT Protocols & Reports, Clinical/Usability Study Data'},
+        'Transfer':     {'label': 'Design Transfer', 'pos': (8, 4), 'docs': 'Manufacturing SOPs, QC Test Methods, Training Records'},
+        'DHF':          {'label': 'Design History File (DHF)', 'pos': (4, 0.5), 'docs': 'The complete compilation of all evidence from all stages.'}
     }
 
-    edges = [('Inputs', 'Outputs'), ('Outputs', 'Review'), ('Review', 'Verification'), ('Verification', 'DHF'),
-             ('Validation', 'DHF'), ('Transfer', 'DHF'), ('Outputs', 'Validation'), ('Outputs', 'Transfer')]
+    # --- NEW: Expanded edges to create the waterfall and feedback loops ---
+    edges = [
+        # Main Waterfall
+        ('UserNeeds', 'Inputs'), ('Inputs', 'Process'), ('Process', 'Outputs'), ('Outputs', 'Device'),
+        # Verification Loop ("Did we build the product right?")
+        ('Outputs', 'Verification'), ('Verification', 'Inputs'),
+        # Validation Loop ("Did we build the right product?")
+        ('Device', 'Validation'), ('Validation', 'UserNeeds'),
+        # Design Reviews
+        ('Review', 'Inputs'), ('Review', 'Process'), ('Review', 'Outputs'),
+        # Finalization
+        ('Outputs', 'Transfer'), ('Device', 'Transfer'),
+        # DHF Compilation (conceptual arrows)
+        ('Inputs', 'DHF'), ('Outputs', 'DHF'), ('Review', 'DHF'), ('Verification', 'DHF'),
+        ('Validation', 'DHF'), ('Transfer', 'DHF')
+    ]
 
     # Draw edges first
     for start, end in edges:
-        fig.add_shape(type="line", x0=stages[start]['pos'][0], y0=stages[start]['pos'][1],
-                      x1=stages[end]['pos'][0], y1=stages[end]['pos'][1],
-                      line=dict(color="lightgrey", width=2))
+        fig.add_trace(go.Scatter(
+            x=[stages[start]['pos'][0], stages[end]['pos'][0]],
+            y=[stages[start]['pos'][1], stages[end]['pos'][1]],
+            mode='lines', line=dict(color="grey", width=1.5),
+            hoverinfo='none'
+        ))
 
     # Draw nodes
     for name, props in stages.items():
@@ -1090,17 +1111,21 @@ def plot_design_controls_flow(completed_stages):
         if name == 'DHF':
             color = PRIMARY_COLOR
         
-        fig.add_shape(type="rect", x0=props['pos'][0]-0.8, y0=props['pos'][1]-0.4,
-                      x1=props['pos'][0]+0.8, y1=props['pos'][1]+0.4,
+        fig.add_shape(type="rect", x0=props['pos'][0]-1, y0=props['pos'][1]-0.4,
+                      x1=props['pos'][0]+1, y1=props['pos'][1]+0.4,
                       line=dict(color="black", width=2), fillcolor=color)
-        fig.add_annotation(x=props['pos'][0], y=props['pos'][1], text=f"<b>{props['label']}</b>",
-                           showarrow=False, font=dict(color=font_color, size=12))
+        fig.add_annotation(x=props['pos'][0], y=props['pos'][1], text=f"<b>{props['label'].replace(' ', '<br>')}</b>",
+                           showarrow=False, font=dict(color=font_color, size=11))
+
+    # Add V&V annotations
+    fig.add_annotation(x=4, y=4, text="<b>VERIFICATION</b><br><i>(Outputs meet Inputs)</i>", showarrow=False, bgcolor="rgba(240,240,240,0.7)")
+    fig.add_annotation(x=5, y=2, text="<b>VALIDATION</b><br><i>(Device meets User Needs)</i>", showarrow=False, bgcolor="rgba(240,240,240,0.7)")
 
     fig.update_layout(
         title_text="<b>The Design Controls Waterfall & DHF Assembly</b>",
-        xaxis=dict(visible=False, range=[0, 6]),
-        yaxis=dict(visible=False, range=[0, 6]),
-        height=600, margin=dict(l=20, r=20, t=50, b=20)
+        xaxis=dict(visible=False, range=[-1.5, 9.5]),
+        yaxis=dict(visible=False, range=[0, 8.5]),
+        height=700, margin=dict(l=20, r=20, t=50, b=20)
     )
     return fig, stages
 
@@ -1108,11 +1133,12 @@ def plot_design_controls_flow(completed_stages):
 # REVISED HELPER & PLOTTING FUNCTION (FAT/SAT & Qualification)
 # ==============================================================================
 @st.cache_data
-def plot_commissioning_qualification_flow(fat_thoroughness):
+def plot_cq_workflow(executed_strategy):
     """
-    Generates an interactive table comparing the full C&Q workflow based on FAT quality.
+    Generates an interactive table comparing the full C&Q workflow based on the executed strategy.
     """
-    test_plan = {
+    # Define the full set of test activities
+    plan = {
         'Test Category': [
             'Documentation Review', 'Physical & Installation Checks', 
             'Core Functional Tests', 'Safety Interlock Tests',
@@ -1121,45 +1147,59 @@ def plot_commissioning_qualification_flow(fat_thoroughness):
         'FAT (At Vendor)': [
             'Review & redline all docs (manuals, drawings, certs)', 'Verify P&ID, BOM, physical dimensions match spec',
             'Test 100% of core functions per FS', 'Verify 100% of alarms and emergency stops',
-            'Run at max capacity for 2 hours', 'Test edge cases and invalid user inputs'
+            'Run at max capacity for a defined period', 'Test edge cases and invalid user inputs'
         ]
     }
-    
-    # Define the two scenarios for the rest of the workflow
-    if fat_thoroughness == "Comprehensive":
-        sat_plan = [
-            'Confirm receipt of all *finalized* documents', 'Verify physical integrity post-shipping only',
-            'Spot check 2-3 critical functions to confirm no damage', 'Verify 1-2 critical interlocks (e.g., E-stop)',
-            'Confirm performance settings are available', 'Execute User Acceptance Testing (UAT) with real users'
-        ]
-        iqoq_plan = [
-            'Leverage FAT report; verify final docs are in QMS', 'Leverage FAT report for BOM/P&ID check; verify utilities',
-            'Execute reduced OQ protocol; focus on site-specific factors', 'Leverage FAT report; test site-integrated interlocks',
-            'Execute full Performance Qualification (PQ) protocol', 'PQ challenge testing with worst-case conditions'
-        ]
-        timeline_reduction = 45 # in days
-    else: # Minimal FAT
-        sat_plan = [
-            'Perform full review of all documents on-site', 'Perform full IQ component and installation checks',
-            'Perform full Operational Qualification (OQ) dry run', 'Perform full OQ of all safety systems',
-            'Initial performance check before formal PQ', 'Execute User Acceptance Testing (UAT)'
-        ]
-        iqoq_plan = [
-            'Execute full IQ protocol from scratch', 'Execute full IQ protocol from scratch',
-            'Execute full OQ protocol from scratch', 'Execute full OQ protocol from scratch',
-            'Execute full Performance Qualification (PQ) protocol', 'PQ challenge testing'
-        ]
-        timeline_reduction = 0
 
-    df = pd.DataFrame(test_plan)
-    df['SAT (At User Site)'] = sat_plan
-    df['IQ/OQ (Formal Qualification)'] = iqoq_plan
+    # Define the three possible outcomes for the rest of the workflow
+    scenarios = {
+        "Comprehensive": {
+            'sat': [
+                'Confirm receipt of all *finalized* documents', 'Verify physical integrity post-shipping only',
+                'Spot check 2-3 critical functions to confirm no damage', 'Verify 1-2 critical interlocks (e.g., E-stop)',
+                'Confirm performance settings are available', 'Execute User Acceptance Testing (UAT) with real users'
+            ],
+            'iqoq': [
+                'Leverage FAT report; verify final docs are in QMS', 'Leverage FAT report for BOM/P&ID check; verify utilities',
+                'Execute reduced OQ protocol; focus on site-specific factors', 'Leverage FAT report; test site-integrated interlocks',
+                'Execute full Performance Qualification (PQ) protocol', 'PQ challenge testing with worst-case conditions'
+            ]
+        },
+        "Standard": {
+            'sat': [
+                'Review final docs & confirm key certs', 'Verify physical integrity & critical dimensions',
+                'Spot check ~25% of core functions', 'Spot check ~50% of safety systems',
+                'Initial performance check before formal PQ', 'Execute User Acceptance Testing (UAT)'
+            ],
+            'iqoq': [
+                'Execute reduced IQ protocol for documentation', 'Execute full IQ for installation & utilities',
+                'Execute risk-based OQ protocol (~50% re-test)', 'Leverage FAT; re-test all critical interlocks',
+                'Execute full Performance Qualification (PQ) protocol', 'PQ challenge testing'
+            ]
+        },
+        "Minimal": {
+            'sat': [
+                'Perform full review of all documents on-site', 'Perform full IQ component and installation checks',
+                'Perform full Operational Qualification (OQ) dry run', 'Perform full OQ of all safety systems',
+                'Initial performance check before formal PQ', 'Execute User Acceptance Testing (UAT)'
+            ],
+            'iqoq': [
+                'Execute full IQ protocol from scratch', 'Execute full IQ protocol from scratch',
+                'Execute full OQ protocol from scratch', 'Execute full OQ protocol from scratch',
+                'Execute full Performance Qualification (PQ) protocol', 'PQ challenge testing'
+            ]
+        }
+    }
+    
+    df = pd.DataFrame(plan)
+    df['SAT (At User Site)'] = scenarios[executed_strategy]['sat']
+    df['IQ/OQ (Formal Qualification)'] = scenarios[executed_strategy]['iqoq']
 
     # Create a styled Plotly Table
     def get_cell_style(value):
         if 'Leverage' in value: return 'rgba(44, 160, 44, 0.2)' # Green
         if 'Full' in value or 'scratch' in value: return 'rgba(239, 83, 80, 0.2)' # Red
-        if 'Spot check' in value: return 'rgba(255, 193, 7, 0.2)' # Yellow
+        if 'Spot check' in value or 'reduced' in value: return 'rgba(255, 193, 7, 0.2)' # Yellow
         return 'white'
     
     sat_colors = [get_cell_style(val) for val in df['SAT (At User Site)']]
@@ -1171,13 +1211,13 @@ def plot_commissioning_qualification_flow(fat_thoroughness):
                     fill_color=PRIMARY_COLOR, font=dict(color='white', size=14),
                     align='left', height=40),
         cells=dict(values=[df[col] for col in df.columns],
-                   fill_color=[['white']*len(df), ['white']*len(df), sat_colors, iqoq_colors],
-                   align='left', font_size=12, height=60)
+                   fill_color=[['#F8F9FA']*len(df), ['#F8F9FA']*len(df), sat_colors, iqoq_colors],
+                   align='left', font_size=12, height=60, line_color='darkslategray')
     )])
     
     fig.update_layout(title_text="<b>Commissioning & Qualification (C&Q) Workflow</b>", margin=dict(l=10, r=10, t=50, b=10))
-    return fig, timeline_reduction
-
+    return fig
+    
 @st.cache_data
 def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort):
     """

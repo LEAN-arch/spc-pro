@@ -435,39 +435,70 @@ def plot_chronological_timeline():
         {'name': 'TCN + CUSUM', 'year': 2018, 'inventor': 'Bai, Kolter & Koltun', 'reason': 'A need for a faster, more effective deep learning architecture for sequence modeling to rival LSTMs.'},
         {'name': 'Causal Inference', 'year': 2018, 'inventor': 'Judea Pearl et al.', 'reason': 'The limitations of purely predictive models spurred a "causal revolution" to answer "why" questions.'},
     ]
-    all_tools_data.sort(key=lambda x: x['year'])
-    y_offsets = [3.0, -3.0, 3.5, -3.5, 2.5, -2.5, 4.0, -4.0, 2.0, -2.0, 4.5, -4.5, 1.5, -1.5]
+]
+    all_tools_data.sort(key=lambda x: (x['act'], x['year']))
+    
+    # --- THIS IS THE FIX: Expanded ranges to give each tool more horizontal space ---
+    act_ranges = {
+        0: (-5, 30),    # Was (-5, 20) -> More space for 8 tools
+        1: (35, 85),    # Was (25, 65) -> More space for 16 tools
+        2: (90, 115),   # Was (70, 90) -> More space for 10 tools
+        3: (120, 180)   # Was (95, 140) -> More space for 19 tools
+    }
+    # --- END OF FIX ---
+    
+    tools_by_act = {0: [], 1: [], 2: [], 3: []}
+    for tool in all_tools_data: tools_by_act[tool['act']].append(tool)
+    for act_num, tools_in_act in tools_by_act.items():
+        start, end = act_ranges[act_num]
+        x_coords = np.linspace(start, end, len(tools_in_act))
+        for i, tool in enumerate(tools_in_act):
+            tool['x'] = x_coords[i]
+            
+    # --- THIS IS A SUBTLE FIX: Added more vertical levels to reduce density ---
+    y_offsets = [3.0, -3.0, 3.8, -3.8, 2.5, -2.5, 4.5, -4.5, 2.0, -2.0, 5.0, -5.0, 1.5, -1.5]
+    # --- END OF FIX ---
+    
     for i, tool in enumerate(all_tools_data):
         tool['y'] = y_offsets[i % len(y_offsets)]
     
     fig = go.Figure()
-    eras = {
-        'The Foundations (1920-1949)': {'color': 'rgba(0, 128, 128, 0.7)', 'boundary': (1920, 1949)},
-        'Post-War & Industrial Boom (1950-1979)': {'color': 'rgba(0, 104, 201, 0.7)', 'boundary': (1950, 1979)},
-        'The Quality Revolution (1980-1999)': {'color': 'rgba(100, 0, 100, 0.7)', 'boundary': (1980, 1999)},
-        'The AI & Data Era (2000-Present)': {'color': 'rgba(214, 39, 40, 0.7)', 'boundary': (2000, 2025)}
-    }
     
-    for era_name, era_info in eras.items():
-        x0, x1 = era_info['boundary']
-        fig.add_shape(type="rect", x0=x0, y0=-5.5, x1=x1, y1=5.5, line=dict(width=0), fillcolor=era_info['color'], opacity=0.15, layer='below')
-        fig.add_annotation(x=(x0 + x1) / 2, y=6.5, text=f"<b>{era_name}</b>", showarrow=False, font=dict(size=18, color=era_info['color']))
+    # --- THIS IS THE FIX: Updated boundaries to match the new act_ranges ---
+    acts = {
+        0: {'name': 'Act 0: Planning & Strategy', 'color': 'rgba(128, 128, 128, 0.9)', 'boundary': (-10, 33)},
+        1: {'name': 'Act I: Characterization', 'color': 'rgba(0, 128, 128, 0.9)', 'boundary': (33, 88)},
+        2: {'name': 'Act II: Qualification & Transfer', 'color': 'rgba(0, 104, 201, 0.9)', 'boundary': (88, 118)},
+        3: {'name': 'Act III: Lifecycle Management', 'color': 'rgba(100, 0, 100, 0.9)', 'boundary': (118, 185)}
+    }
+    # --- END OF FIX ---
+    
+    for act_info in acts.values():
+        x0, x1 = act_info['boundary']
+        fig.add_shape(type="rect", x0=x0, y0=-6.0, x1=x1, y1=6.0, line=dict(width=0), fillcolor='rgba(230, 230, 230, 0.7)', layer='below')
+        fig.add_annotation(x=(x0 + x1) / 2, y=7.0, text=f"<b>{act_info['name']}</b>", showarrow=False, font=dict(size=20, color="#555"))
 
-    fig.add_shape(type="line", x0=1920, y0=0, x1=2025, y1=0, line=dict(color="black", width=3), layer='below')
+    # --- THIS IS THE FIX: Expanded the main timeline bar ---
+    fig.add_shape(type="line", x0=-5, y0=0, x1=180, y1=0, line=dict(color="black", width=3), layer='below')
+    # --- END OF FIX ---
+
+    for act_num, act_info in acts.items():
+        act_tools = [tool for tool in all_tools_data if tool['act'] == act_num]
+        fig.add_trace(go.Scatter(x=[tool['x'] for tool in act_tools], y=[tool['y'] for tool in act_tools], mode='markers',
+                                 marker=dict(size=12, color=act_info['color'], symbol='circle', line=dict(width=2, color='black')),
+                                 hoverinfo='text', text=[f"<b>{tool['name']} ({tool['year']})</b><br><i>{tool['desc']}</i>" for tool in act_tools], name=act_info['name']))
 
     for tool in all_tools_data:
-        x_coord, y_coord = tool['year'], tool['y']
-        tool_color = next((era['color'] for era in eras.values() if era['boundary'][0] <= x_coord <= era['boundary'][1]), 'grey')
-        fig.add_trace(go.Scatter(x=[x_coord], y=[y_coord], mode='markers', marker=dict(size=12, color=tool_color, line=dict(width=2, color='black')),
-                                 hoverinfo='text', text=f"<b>{tool['name']} ({tool['year']})</b><br><i>Inventor(s): {tool['inventor']}</i><br><br><b>Reason:</b> {tool['reason']}"))
-        fig.add_shape(type="line", x0=x_coord, y0=0, x1=x_coord, y1=y_coord, line=dict(color='grey', width=1))
-        fig.add_annotation(x=x_coord, y=y_coord, text=f"<b>{tool['name']}</b>", showarrow=False, yshift=25 if y_coord > 0 else -25, font=dict(size=11, color=tool_color), align="center")
+        fig.add_shape(type="line", x0=tool['x'], y0=0, x1=tool['x'], y1=tool['y'], line=dict(color='grey', width=1))
+        fig.add_annotation(x=tool['x'], y=tool['y'], text=f"<b>{tool['name'].replace(': ', ':<br>')}</b><br><i>({tool['year']})</i>",
+                           showarrow=False, yshift=40 if tool['y'] > 0 else -40, font=dict(size=11, color=acts[tool['act']]['color']), align="center")
 
-    fig.update_layout(title_text='<b>A Chronological Timeline of V&V Analytics</b>', title_font_size=28, title_x=0.5,
-                      xaxis=dict(range=[1920, 2025], showgrid=True), yaxis=dict(visible=False, range=[-8, 8]),
-                      plot_bgcolor='white', paper_bgcolor='white', height=700, margin=dict(l=20, r=20, t=100, b=20), showlegend=False)
+    fig.update_layout(title_text='<b>The V&V Analytics Toolkit: A Project-Based View</b>', title_font_size=28, title_x=0.5,
+                      xaxis=dict(visible=False), yaxis=dict(visible=False, range=[-8, 8]), plot_bgcolor='white', paper_bgcolor='white',
+                      height=900, margin=dict(l=20, r=20, t=140, b=20), showlegend=True,
+                      legend=dict(title_text="<b>Project Phase</b>", title_font_size=16, font_size=14, orientation="h",
+                                  yanchor="bottom", y=1.02, xanchor="center", x=0.5))
     return fig
-
 # FIX: Replace the entire create_toolkit_conceptual_map function with this new, complete version.
 @st.cache_data
 def create_toolkit_conceptual_map():

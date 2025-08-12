@@ -6066,7 +6066,7 @@ def render_eda_dashboard():
         # --- THIS IS THE CORRECTED BLOCK ---
         st.error("""🔴 **THE INCORRECT APPROACH: "Garbage In, Gospel Out"**
 An analyst receives a new dataset, immediately feeds it into a sophisticated machine learning model, and presents the model's predictions as truth.
-- **The Flaw:** They never checked the data quality. The dataset was riddled with missing values and outliers, which the model interpreted as real patterns. The resulting predictions are statistically invalid and dangerously misleading. This is the definition of \\"Garbage In, Garbage Out.\\"""")
+- **The Flaw:** They never checked the data quality. The dataset was riddled with missing values and outliers, which the model interpreted as real patterns. The resulting predictions are statistically invalid and dangerously misleading. This is the definition of 'Garbage In, Garbage Out.'""")
         # --- END OF CORRECTION ---
         st.success("""🟢 **THE GOLDEN RULE: Trust, but Verify Your Data**
 Before performing any formal statistical analysis or building any model, you must first get to know your data.

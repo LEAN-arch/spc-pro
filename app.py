@@ -5875,7 +5875,142 @@ def render_qrm_suite():
     # --- Educational Tabs ---
     st.divider()
     st.subheader("A Deeper Dive into QRM Strategy")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **A validation leader must choose the right risk tool for the right question.** While all these tools analyze risk, they do so from fundamentally different perspectives. Using the wrong tool for your situation can be inefficient at best and dangerously misleading at worst.
+    
+        ---
+        ##### A Medical Analogy for Risk Tools
+        Think of your process or system as a patient, and you are the lead physician.
+    
+        - **PHA is the Annual Physical:** Broad, high-level, and performed early to identify the "big rock" hazards.
+        - **FMEA is the Full Body System Review:** Detailed, systematic, and **bottom-up**. It asks, "What are all the ways each part could fail?"
+        - **FTA is the Specialist's Diagnosis:** Forensic, focused, and **top-down (deductive)**. It asks, "For this critical symptom to occur, what must have gone wrong?"
+        - **ETA is the Emergency Room Triage:** Forward-looking, sequential, and **bottom-up (inductive)**. It asks, "Now that this trauma has occurred, what are the possible outcomes?"
+        
+        ---
+        ##### Understanding the Analytical Directions
+        - **Bottom-Up (Inductive):** Start with individual **causes** and reason forward to their potential **effects**. (FMEA & ETA).
+        - **Top-Down (Deductive):** Start with a known **effect** (the failure) and reason backward to deduce the potential **causes**. (FTA).
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of QRM Terms
+        - **Risk:** The combination of the probability of occurrence of harm and the severity of that harm.
+        - **Hazard:** A potential source of harm.
+        - **PHA (Preliminary Hazard Analysis):** A tool to identify and prioritize hazards early in the design process.
+        - **FMEA (Failure Mode and Effects Analysis):** A systematic, bottom-up method for identifying potential failure modes, their causes, and their effects.
+        - **FTA (Fault Tree Analysis):** A top-down, deductive failure analysis where an undesired state is analyzed using boolean logic to combine a series of lower-level events.
+        - **ETA (Event Tree Analysis):** A bottom-up, inductive logical model that explores the responses of a system to a particular initiating event.
+        - **RPN (Risk Priority Number):** The product of Severity, Occurrence, and Detection scores from an FMEA, used to prioritize risks.
+        """)
+    with tabs[2]:
+        st.success("""🟢 **THE GOLDEN RULE:** Risk Assessment is Not a One-Time Event. Quality Risk Management is a continuous lifecycle activity. An initial PHA should inform a more detailed FMEA. The FMEA identifies critical failure modes that might warrant a deep-dive FTA. The effectiveness of the controls identified in the FMEA and FTA should be monitored throughout the product lifecycle, and the risk assessments should be updated whenever new information (e.g., from a deviation or a process change) becomes available.""")
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: From Rockets and Reactors to Pharma
+        These advanced risk management tools were born out of high-consequence industries where failure was not an option.
+        - **FTA** was developed in the early 1960s at Bell Labs for the U.S. Air Force to evaluate the safety of the Minuteman intercontinental ballistic missile (ICBM) launch control system.
+        - **ETA** also has its roots in nuclear and chemical process safety, where it was used to analyze the sequence of events following a critical failure.
+        - **FMEA** originated in the U.S. military in the 1940s and was heavily used by NASA.
+        
+        The pharmaceutical industry formally adopted these proven engineering techniques as part of the **ICH Q9** guideline in 2005, integrating the proactive risk management culture of high-hazard industries into the core of pharmaceutical quality systems.
+        """)
+    with tabs[4]:
+        st.markdown("""
+        This suite of tools is the direct implementation of the principles outlined in **ICH Q9 - Quality Risk Management**.
+        - **ICH Q9:** This guideline provides a framework for risk management and lists PHA, FMEA, FTA, and ETA as examples of appropriate tools.
+        - **FDA Process Validation Guidance:** The guidance requires a risk-based approach. These tools provide the documented evidence for how risks were identified and controlled.
+        - **ISO 14971 (Application of risk management to medical devices):** This is the international standard for risk management for medical devices, and it requires the use of a systematic process like FMEA or PHA.
+        """)
+
+def render_dfx_dashboard():
+    """Renders the comprehensive, interactive module for Design for Excellence (DfX)."""
+    st.markdown("""
+    #### Purpose & Application: Designing for the Entire Lifecycle
+    **Purpose:** To demonstrate the strategic and economic impact of **Design for Excellence (DfX)**, a proactive engineering philosophy that focuses on optimizing a product's design for its entire lifecycle, from manufacturing to disposal.
+    
+    **Strategic Application:** DfX is the practical implementation of "shifting left"—addressing downstream problems (like manufacturing costs, test time, or reliability) during the earliest stages of design, where changes are exponentially cheaper. For a validation leader, promoting DfX principles is a key strategy for ensuring that new products are not only effective but also robust, scalable, and profitable.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Head of Engineering or Validation.
+    1.  Select the **Project Type** you are leading.
+    2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
+    3.  Observe the impact in real-time on the **KPI Dashboard**, including the critical **Risk-Adjusted Cost**.
+    """)
+    
+    profiles = {
+        "Pharma Assay (ELISA)": {
+            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost (RCU)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1], 'reliability_idx': 0,
+            'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
+        },
+        "Instrument (Liquid Handler)": {
+            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>(RCU/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1], 'reliability_idx': 1,
+            'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
+        },
+        "Software (LIMS)": {
+            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost (RCU)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1], 'reliability_idx': 2,
+            'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
+        },
+        "Pharma Process (MAb)": {
+            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS (RCU/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1], 'reliability_idx': 4,
+            'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
+        }
+    }
+    
+    project_type = st.selectbox("Select a Project Type to Simulate DfX Impact:", list(profiles.keys()))
+    selected_profile = profiles[project_type]
+
+    with st.sidebar:
+        st.subheader("DfX Effort Allocation")
+        mfg_effort = st.slider("Manufacturing & Assembly Effort", 0, 10, 5, 1, help="DFM/DFA: Focus on part count reduction, standard components, and automation.")
+        quality_effort = st.slider("Quality & Reliability Effort", 0, 10, 5, 1, help="DFR/DFT/DFQ: Focus on reliability, robust performance, and fast, accurate QC testing.")
+        sustainability_effort = st.slider("Sustainability & Supply Chain Effort", 0, 10, 5, 1, help="DFE/DFS: Focus on standard/recyclable materials, energy use, and easy disassembly.")
+        ux_effort = st.slider("Service & User Experience Effort", 0, 10, 5, 1, help="DFS/DFUX: Focus on ease of use, service, and maintenance.")
+
+    fig_radar, fig_cost, kpis, categories, base_costs, optimized_costs = plot_dfx_dashboard(
+        project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort
+    )
+
+    st.header("Project KPI Dashboard")
+    reliability_idx = selected_profile['reliability_idx']
+    base_reliability = kpis['baseline'][reliability_idx]
+    opt_reliability = kpis['optimized'][reliability_idx]
+    
+    base_total_cost = sum(base_costs)
+    opt_total_cost = sum(optimized_costs)
+
+    base_risk_premium = 1 + (10 - base_reliability) * 0.05 if "Score" in categories[reliability_idx] else 1 + (100 - base_reliability) * 0.02
+    opt_risk_premium = 1 + (10 - opt_reliability) * 0.05 if "Score" in categories[reliability_idx] else 1 + (100 - opt_reliability) * 0.02
+
+    base_risk_adjusted_cost = base_total_cost * base_risk_premium
+    opt_risk_adjusted_cost = opt_total_cost * opt_risk_premium
+
+    col1, col2 = st.columns(2)
+    col1.metric("Total Cost (RCU)", f"{opt_total_cost:,.0f}", f"{opt_total_cost - base_total_cost:,.0f}")
+    col2.metric("Risk-Adjusted Total Cost (RCU)", f"{opt_risk_adjusted_cost:,.0f}", f"{opt_risk_adjusted_cost - base_risk_adjusted_cost:,.0f}",
+                help="Total Cost including a 'risk premium'. A less reliable or robust design is penalized more heavily, reflecting the long-term cost of potential failures.")
+    
+    st.markdown("##### Performance Profile")
+    kpi_cols = st.columns(len(kpis['baseline']))
+    for i, col in enumerate(kpi_cols):
+        base_val = kpis['baseline'][i]
+        opt_val = kpis['optimized'][i]
+        delta = opt_val - base_val
+        col.metric(categories[i].replace('<br>', ' '), f"{opt_val:.1f}", f"{delta:.1f}")
+
+    st.header("Design Comparison Visualizations")
+    col_radar, col_cost = st.columns(2)
+    with col_radar:
+        st.plotly_chart(fig_radar, use_container_width=True)
+    with col_cost:
+        st.plotly_chart(fig_cost, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
         **Interpreting the Dashboard:**

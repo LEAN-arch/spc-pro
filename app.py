@@ -5996,32 +5996,46 @@ def render_eda_dashboard():
     #### Purpose & Application: The Data Scientist's First Look
     **Purpose:** To perform a thorough **Exploratory Data Analysis (EDA)**. Before any formal modeling or hypothesis testing, EDA is essential to understand the data's structure, identify potential quality issues, and form initial hypotheses.
     
-    **Strategic Application:** This is the most critical first step in any data-driven project. Skipping EDA is like a surgeon operating without looking at the patient's chart—it's professional malpractice. This tool automates the creation of a comprehensive EDA report, allowing a validation leader or scientist to quickly assess the quality of a new dataset (e.g., from a tech transfer or a new instrument) and to discover hidden relationships that warrant formal investigation.
+    **Strategic Application:** This is the most critical first step in any data-driven project. Skipping EDA is like a surgeon operating without looking at the patient's chart—it's professional malpractice. This tool automates the creation of a comprehensive EDA report, allowing a validation leader or scientist to quickly assess the quality of a new dataset and discover hidden relationships that warrant formal investigation.
     """)
     
     st.info("""
     **Interactive Demo:** You are a Data Scientist receiving a new dataset.
-    1.  **Upload your own CSV file** or use the provided sample data from a simulated pharma process.
-    2.  The dashboard automatically generates a full EDA report.
-    3.  Review the **Data Quality KPIs** to check for problems like missing data.
-    4.  Analyze the plots to understand the data's structure and relationships.
+    1.  **Select a sample dataset** from the dropdown menu to simulate a real-world analysis scenario.
+    2.  The dashboard automatically generates a full EDA report for that dataset.
+    3.  Review the **Data Quality KPIs** to check for problems, then analyze the plots to understand the data's structure and relationships.
     """)
 
-    uploaded_file = st.file_uploader("Upload a CSV file for analysis", type="csv")
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-    else:
-        # Use a realistic sample dataset if no file is uploaded
+    # --- NEW: Sample Dataset Selector ---
+    @st.cache_data
+    def load_datasets():
         np.random.seed(42)
-        data = {
+        pharma_data = pd.DataFrame({
             'Yield': np.random.normal(85, 5, 100),
             'Purity': 100 - np.random.beta(2, 20, 100) * 5,
             'pH': np.random.normal(7.1, 0.1, 100),
             'Temperature': np.random.normal(37, 0.5, 100),
             'Raw_Material_Lot': np.random.choice(['Lot A', 'Lot B', 'Lot C'], 100, p=[0.5, 0.3, 0.2])
+        })
+        pharma_data.loc[5:10, 'Purity'] = np.nan # Introduce missing data
+
+        instrument_data = pd.DataFrame({
+            'Dispense_Volume': np.random.normal(50, 0.5, 150),
+            'Pressure': np.random.normal(10, 0.2, 150) + (np.random.normal(50, 0.5, 150) - 50) * 0.1,
+            'Run_Time_sec': np.random.gamma(20, 2, 150),
+            'Operator': np.random.choice(['Alice', 'Bob', 'Charlie'], 150)
+        })
+        instrument_data.loc[20, 'Pressure'] = 25 # Introduce an outlier
+        
+        return {
+            "Pharma Manufacturing Process": pharma_data,
+            "Instrument Performance Data": instrument_data
         }
-        df = pd.DataFrame(data)
-        df.loc[5:10, 'Purity'] = np.nan # Introduce some missing data
+
+    datasets = load_datasets()
+    dataset_choice = st.selectbox("Select a Sample Dataset to Analyze:", list(datasets.keys()))
+    df = datasets[dataset_choice]
+    # --- END OF NEW SECTION ---
 
     st.header("Exploratory Data Analysis Report")
     st.dataframe(df.head())
@@ -6066,11 +6080,9 @@ def render_eda_dashboard():
         - **Missing Values:** Data points for which no value is stored (often represented as `NaN`).
         """)
     with tabs[2]:
-        # --- THIS IS THE CORRECTED BLOCK ---
         st.error("""🔴 **THE INCORRECT APPROACH: "Garbage In, Gospel Out"**
 An analyst receives a new dataset, immediately feeds it into a sophisticated machine learning model, and presents the model's predictions as truth.
 - **The Flaw:** They never checked the data quality. The dataset was riddled with missing values and outliers, which the model interpreted as real patterns. The resulting predictions are statistically invalid and dangerously misleading. This is the definition of 'Garbage In, Garbage Out.'""")
-        # --- END OF CORRECTION ---
         st.success("""🟢 **THE GOLDEN RULE: Trust, but Verify Your Data**
 Before performing any formal statistical analysis or building any model, you must first get to know your data.
 1.  **Inspect for Quality:** Always begin by checking for fundamental issues like missing values, duplicates, and obvious errors.
@@ -6093,6 +6105,7 @@ EDA is the step that turns raw data into actionable scientific inquiry.""")
         - **Data Integrity (ALCOA+):** A core principle of data integrity is that data must be **Complete** and **Accurate**. The Data Quality KPIs in this dashboard are a direct check on these principles. An EDA report is often a key part of the evidence package for a new dataset, demonstrating that the data has been reviewed for quality before being used in formal GxP analysis.
         - **ICH Q9 (Quality Risk Management):** EDA is a powerful tool for risk identification. Discovering a strong, unexpected correlation in your data during EDA can highlight a previously unknown process risk that needs to be formally assessed with a tool like FMEA.
         """)
+        
 # ======================================== 2. CONFIDENCE INTERVAL CONCEPT ===============================================================
 def render_ci_concept():
     """Renders the interactive module for Confidence Intervals."""

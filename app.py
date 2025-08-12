@@ -5619,6 +5619,98 @@ def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=2.0):
     )
     
     return fig, first_ewma_ooc, first_bocpd_ooc
+
+#=============================================================== PSO and AUTOENCODER FINAL ========================================================================================================
+@st.cache_data
+def plot_pso_autoencoder(n_particles, n_iterations, inertia, cognition, social, project_context):
+    """
+    Simulates Particle Swarm Optimization finding the worst-case process parameters
+    based on a simulated autoencoder reconstruction error surface for various contexts.
+    """
+    np.random.seed(42)
+
+    # --- NEW: Context-specific anomaly landscapes ---
+    contexts = {
+        'Pharma Process': {
+            'x_label': 'Metabolic Shift Point (Day)', 'x_range': [4, 9],
+            'y_label': 'Peak VCD (x10⁶ cells/mL)', 'y_range': [80, 140],
+            'surface_func': lambda x, y: 0.5 * (x - 6.5)**2 + 0.01 * (y - 115)**2 + 10 * np.exp(-((x - 5.0)**2 * 2 + (y - 130)**2 * 0.1))
+        },
+        'Assay': {
+            'x_label': 'Incubation Time (min)', 'x_range': [25, 35],
+            'y_label': 'Antibody Concentration (µg/mL)', 'y_range': [0.8, 1.2],
+            'surface_func': lambda x, y: 2 * (x - 30)**2 + 800 * (y - 1.0)**2 + 12 * np.exp(-((x - 34)**2 * 0.5 + (y - 0.85)**2 * 100))
+        },
+        'Instrument': {
+            'x_label': 'Flow Rate (mL/min)', 'x_range': [0.8, 1.2],
+            'y_label': 'Column Temperature (°C)', 'y_range': [35, 45],
+            'surface_func': lambda x, y: 300 * (x - 1.0)**2 + 0.8 * (y - 40)**2 + 15 * np.exp(-((x - 1.15)**2 * 150 + (y - 36)**2 * 0.5))
+        },
+        'Software': {
+            'x_label': 'Database Queries / Sec', 'x_range': [50, 500],
+            'y_label': 'Concurrent API Calls', 'y_range': [10, 100],
+            'surface_func': lambda x, y: 0.001 * (x - 100)**2 + 0.01 * (y - 20)**2 + 10 * np.exp(-(((x - 450)/50)**2 + ((y - 90)/10)**2))
+        },
+        'IVD': {
+            'x_label': 'Sample Volume (µL)', 'x_range': [8, 12],
+            'y_label': 'Reagent Age (Days)', 'y_range': [1, 90],
+            'surface_func': lambda x, y: 150 * (x - 10)**2 + 0.002 * (y - 20)**2 + 18 * np.exp(-((x - 8.5)**2 * 5 + ((y-80)/10)**2))
+        }
+    }
+    context = contexts[project_context]
+    
+    def reconstruction_error_surface(x, y):
+        return context['surface_func'](x, y) + np.random.uniform(0, 0.5, size=x.shape if hasattr(x, 'shape') else 1)
+
+    x_range = np.linspace(context['x_range'][0], context['x_range'][1], 100)
+    y_range = np.linspace(context['y_range'][0], context['y_range'][1], 100)
+    xx, yy = np.meshgrid(x_range, y_range)
+    zz = reconstruction_error_surface(xx, yy)
+
+    # Initialize PSO particles
+    positions = np.random.rand(n_particles, 2)
+    positions[:, 0] = positions[:, 0] * (context['x_range'][1] - context['x_range'][0]) + context['x_range'][0]
+    positions[:, 1] = positions[:, 1] * (context['y_range'][1] - context['y_range'][0]) + context['y_range'][0]
+    velocities = np.zeros_like(positions)
+    
+    pbest_positions = positions.copy()
+    pbest_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
+    gbest_idx = np.argmax(pbest_scores)
+    gbest_position = pbest_positions[gbest_idx].copy()
+    gbest_score = pbest_scores[gbest_idx]
+    history = [positions.copy()]
+
+    # Run PSO simulation
+    for _ in range(n_iterations):
+        r1, r2 = np.random.rand(2)
+        velocities = (inertia * velocities + cognition * r1 * (pbest_positions - positions) + social * r2 * (gbest_position - positions))
+        positions += velocities
+        positions[:, 0] = np.clip(positions[:, 0], context['x_range'][0], context['x_range'][1])
+        positions[:, 1] = np.clip(positions[:, 1], context['y_range'][0], context['y_range'][1])
+        history.append(positions.copy())
+        current_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
+        update_mask = current_scores > pbest_scores
+        pbest_positions[update_mask] = positions[update_mask]
+        pbest_scores[update_mask] = current_scores[update_mask]
+        current_best_idx = np.argmax(pbest_scores)
+        if pbest_scores[current_best_idx] > gbest_score:
+            gbest_position = pbest_positions[current_best_idx].copy()
+            gbest_score = pbest_scores[current_best_idx]
+
+    # Create the animated figure
+    fig = go.Figure(
+        data=[go.Contour(z=zz, x=x_range, y=y_range, colorscale='Inferno', colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)'))],
+        layout=go.Layout(
+            title=f"<b>PSO Red Team: Finding Hidden Failure Modes in a {project_context}</b>",
+            xaxis_title=context['x_label'], yaxis_title=context['y_label'],
+            updatemenus=[dict(type="buttons", buttons=[dict(label="► Run Simulation", method="animate", args=[None, {"frame": {"duration": 100, "redraw": False}, "fromcurrent": True, "transition": {"duration": 0}}]),
+                                                       dict(label="❚❚ Pause", method="animate", args=[[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate", "transition": {"duration": 0}}])])]
+        ),
+        frames=[go.Frame(data=[go.Scatter(x=h[:, 0], y=h[:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'))]) for h in history]
+    )
+    fig.add_trace(go.Scatter(x=[gbest_position[0]], y=[gbest_position[1]], mode='markers', marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), name='Highest-Risk Condition Found'))
+                             
+    return fig, gbest_position, gbest_score, context
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================
@@ -11863,6 +11955,105 @@ Different types of process failures leave different signatures in the data. A ro
         - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML model to provide diagnostic information for a GxP process, the model and the software it runs on would need to be validated as a Computerized System.
         """)
 
+
+#======================================================================== PSO and AUTOENCODER FINAL UI =============================================================
+# ==============================================================================
+# UI RENDERING FUNCTION (PSO + Autoencoder)
+# ==============================================================================
+def render_pso_autoencoder():
+    """Renders the PSO + Autoencoder for worst-case analysis module."""
+    st.markdown("""
+    #### Purpose & Application: The AI-Powered "Red Team"
+    **Purpose:** To deploy an **AI-powered "Red Team"** that relentlessly searches for the hidden weaknesses in your process. This hybrid model uses a **Particle Swarm Optimization (PSO)** algorithm to find the specific combination of process parameters that cause the most "surprise" or deviation from normal, as measured by the reconstruction error of a pre-trained **LSTM Autoencoder**.
+    
+    **Strategic Application:** This is a state-of-the-art method for **AI-driven robustness testing and Design Space definition**. Instead of randomly picking points for worst-case analysis, you are using an intelligent swarm to find the true "edges of failure" for high-value systems.
+    - **Define a Robust Design Space:** Identify not just the optimal operating point, but also the "cliffs" or high-risk zones to avoid.
+    - **Proactive Risk Assessment:** Discover unexpected interactions between parameters that could lead to a novel failure mode.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Head of Process Robustness.
+    1.  **Select a Project Context** to see a realistic "anomaly landscape" learned by a pre-trained Autoencoder. Hotter colors are more abnormal.
+    2.  Use the **PSO Parameters** in the sidebar to control how the swarm (cyan crosses) searches this landscape.
+    3.  Click **"► Run Simulation"** to watch the swarm converge on the worst-case condition (the green star), which becomes your primary target for a lab-based robustness study.
+    """)
+
+    # --- NEW: Context Selector ---
+    project_context = st.selectbox(
+        "Select a Project Context to Simulate:",
+        ['Pharma Process', 'Assay', 'Instrument', 'Software', 'IVD'],
+        help="The anomaly landscape and parameter names will change to match a realistic scenario for the selected context."
+    )
+
+    with st.sidebar:
+        st.subheader("PSO Algorithm Controls")
+        n_particles = st.slider("Number of Particles (Swarm Size)", 10, 100, 30, 5, help="How many 'virtual experiments' are searching the space at once.")
+        n_iterations = st.slider("Number of Iterations", 20, 100, 50, 5, help="How many 'generations' the swarm has to learn and search.")
+        inertia = st.slider("Inertia (Momentum)", 0.4, 0.9, 0.7, 0.1, help="Controls how much the particles tend to keep flying in the same direction, promoting exploration.")
+        cognition = st.slider("Cognition (Personal Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to their own best-found location.")
+        social = st.slider("Social (Global Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to the swarm's overall best-found location.")
+
+    fig, best_params, best_score, context = plot_pso_autoencoder(n_particles, n_iterations, inertia, cognition, social, project_context)
+    
+    col1, col2 = st.columns([0.7, 0.35])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        st.metric(f"Worst-Case {context['x_label']}", f"{best_params[0]:.2f}")
+        st.metric(f"Worst-Case {context['y_label']}", f"{best_params[1]:.2f}")
+        st.metric("Maximum Anomaly Score", f"{best_score:.3f}")
+        st.success("""
+        **Actionable Insight:** The simulation has identified the process conditions most likely to cause an anomalous run. The next step is to design a lab experiment that deliberately targets these conditions to confirm the model's prediction and define the true edge of the process's Design Space.
+        """)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown(f"""
+        **Interpreting the Simulation for a {project_context}:**
+        - **The Landscape:** The heatmap represents the "process health" as understood by an Autoencoder trained on normal data. For the **{project_context}**, the "golden valley" of cool colors is the normal operating region. The peaks (hot colors) are regions where the process behaves in unexpected ways, leading to high reconstruction error. These are the hidden cliffs of failure.
+        - **The Swarm's Journey:** When you press "Play," you are watching an optimization algorithm in action. The particles start randomly, but they communicate and learn. They are collectively pulled towards the area of highest anomaly score, efficiently finding the peak of the risk landscape.
+        - **The Strategic Insight:** This approach automates and supercharges worst-case analysis. Instead of relying on engineers to guess at high-risk conditions for your **{project_context}**, you deploy an AI agent to find them for you. The result is a data-driven, highly defensible candidate for your robustness challenge studies (ICH Q8/Q14).
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Autoencoder (AE):** An unsupervised neural network that learns a compressed representation of data. Its `reconstruction error`—how well it can recreate the original input—is a powerful anomaly score. In this case, it learns the "fingerprint" of a golden batch.
+        - **Particle Swarm Optimization (PSO):** A population-based optimization algorithm inspired by the social behavior of bird flocking or fish schooling.
+        - **Particle:** An individual agent in the swarm, representing a potential solution (a set of process parameters like `Metabolic Shift Day` and `Peak VCD`).
+        - **pbest (Personal Best):** The best position (highest anomaly score) a single particle has discovered so far.
+        - **gbest (Global Best):** The best position discovered by *any* particle in the entire swarm so far.
+        - **Adversarial Testing:** A technique for testing a system by actively trying to find inputs that cause it to fail. Here, PSO acts as the adversary against the process model.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: One-Factor-at-a-Time (OFAT) Robustness**
+An engineer tests robustness by running one batch at the low end of the pH range, another at the high end, and repeats for temperature.
+- **The Flaw:** This method is guaranteed to miss failures caused by *interactions*. The true "cliff of failure" might be at a specific *combination* of normal pH and high temperature that OFAT would never test.""")
+        st.success("""🟢 **THE GOLDEN RULE: Use Intelligent Search to Find Your Weaknesses**
+A modern, AI-driven approach to robustness testing treats the problem as a formal optimization search.
+1.  **Model Normalcy:** First, build a model (like an Autoencoder) that learns the "fingerprint" of your ideal, "golden" process from historical data.
+2.  **Define the Objective:** Frame the goal not as finding the *best* outcome, but as finding the inputs that produce the *worst* outcome (i.e., maximize the anomaly score from your model).
+3.  **Deploy an Optimizer:** Use a powerful search algorithm like PSO to intelligently and efficiently explore the parameter space and find this worst-case condition. This provides a data-driven, highly defensible candidate for your robustness studies.""")
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: A Powerful Synthesis of AI
+        This module represents a cutting-edge fusion of two powerful AI concepts from different eras.
+        - **The Autoencoder:** This concept has roots in the early days of neural networks and was popularized by figures like Geoffrey Hinton in the 1980s as a method for unsupervised feature learning. The idea of using its reconstruction error for anomaly detection became prominent in the 2010s with the rise of deep learning.
+        - **Particle Swarm Optimization (PSO):** In 1995, social psychologist James Kennedy and electrical engineer Russell Eberhart had a brilliant insight. Inspired by simulations of bird flocking, they realized they could create a simple yet remarkably effective optimization algorithm. The core idea was that individual "particles" could find optimal solutions by balancing their own experience (`pbest`) with the collective wisdom of the group (`gbest`). It was a foundational algorithm in the field of **swarm intelligence**.
+        
+        **The Modern Fusion:** This tool demonstrates a modern synthesis. We use a sophisticated deep learning model (the Autoencoder) to create a complex, data-driven "landscape" of our process health. Then, we deploy a classic swarm intelligence algorithm (PSO) to efficiently search that landscape for its highest peaks. This combination allows us to solve complex robustness and optimization problems that would be intractable with either method alone.
+        """)
+    with tabs[4]:
+        st.markdown("""
+        This advanced hybrid system is a state-of-the-art implementation of the principles of modern process understanding and robustness testing.
+        - **ICH Q8(R2) - Pharmaceutical Development:** This tool provides a powerful, data-driven method for exploring the **Design Space** and identifying the "edges of failure," which is a core activity in process characterization. The worst-case conditions it identifies are prime candidates for robustness studies.
+        - **FDA Process Validation Guidance (Stage 1 - Process Design):** This approach provides a deep level of "process understanding" that the guidance emphasizes.
+        - **ICH Q9 (Quality Risk Management):** This is a form of proactive risk discovery. Instead of just assessing known risks, this system actively searches for new, unknown risk scenarios (combinations of parameters that lead to anomalous states).
+        - **GAMP 5 & 21 CFR Part 11:** As this system uses AI/ML models to inform critical decisions about the process operating range, the models themselves would require a robust validation lifecycle to be used in a GxP environment.
+        """)
+    
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
 # ==============================================================================
@@ -11944,6 +12135,7 @@ with st.sidebar:
             "RL for Chart Tuning",
             "TCN + CUSUM",
             "LSTM Autoencoder + Hybrid Monitoring"
+            "PSO + Autoencoder"
         ]
     }
 
@@ -12025,6 +12217,7 @@ else:
         "RL for Chart Tuning": render_rl_tuning,
         "TCN + CUSUM": render_tcn_cusum,
         "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
+        "PSO + Autoencoder": render_pso_autoencoder,
     }
     
     # --- FIX: This block is now correctly indented to be at the same level as the PAGE_DISPATCHER dictionary ---

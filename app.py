@@ -435,7 +435,7 @@ def plot_chronological_timeline():
         {'name': 'TCN + CUSUM', 'year': 2018, 'inventor': 'Bai, Kolter & Koltun', 'reason': 'A need for a faster, more effective deep learning architecture for sequence modeling to rival LSTMs.'},
         {'name': 'Causal Inference', 'year': 2018, 'inventor': 'Judea Pearl et al.', 'reason': 'The limitations of purely predictive models spurred a "causal revolution" to answer "why" questions.'},
     ]
-    all_tools_data.sort(key=lambda x: (x['act'], x['year']))
+    all_tools_data.sort(key=lambda x: x['year'])
     
     # --- THIS IS THE FIX: Expanded ranges to give each tool more horizontal space ---
     act_ranges = {

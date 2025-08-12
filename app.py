@@ -1132,8 +1132,11 @@ def plot_design_controls_flow(completed_stages):
 # ==============================================================================
 # REVISED HELPER & PLOTTING FUNCTION (FAT/SAT & Qualification)
 # ==============================================================================
+# ==============================================================================
+# REVISED HELPER & PLOTTING FUNCTION (FAT/SAT & Qualification)
+# ==============================================================================
 @st.cache_data
-def plot_cq_workflow(executed_strategy):
+def plot_commissioning_qualification_flow(executed_strategy): # <-- THIS NAME IS NOW CORRECT
     """
     Generates an interactive table comparing the full C&Q workflow based on the executed strategy.
     """
@@ -1216,7 +1219,7 @@ def plot_cq_workflow(executed_strategy):
     )])
     
     fig.update_layout(title_text="<b>Commissioning & Qualification (C&Q) Workflow</b>", margin=dict(l=10, r=10, t=50, b=10))
-    return fig
+    return fig, timeline_reduction
     
 @st.cache_data
 def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort):

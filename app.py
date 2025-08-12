@@ -1132,11 +1132,8 @@ def plot_design_controls_flow(completed_stages):
 # ==============================================================================
 # REVISED HELPER & PLOTTING FUNCTION (FAT/SAT & Qualification)
 # ==============================================================================
-# ==============================================================================
-# REVISED HELPER & PLOTTING FUNCTION (FAT/SAT & Qualification)
-# ==============================================================================
 @st.cache_data
-def plot_commissioning_qualification_flow(executed_strategy): # <-- THIS NAME IS NOW CORRECT
+def plot_cq_workflow(executed_strategy):
     """
     Generates an interactive table comparing the full C&Q workflow based on the executed strategy.
     """
@@ -1219,7 +1216,7 @@ def plot_commissioning_qualification_flow(executed_strategy): # <-- THIS NAME IS
     )])
     
     fig.update_layout(title_text="<b>Commissioning & Qualification (C&Q) Workflow</b>", margin=dict(l=10, r=10, t=50, b=10))
-    return fig, timeline_reduction
+    return fig
     
 @st.cache_data
 def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort):
@@ -6380,27 +6377,72 @@ def render_fat_sat():
     """)
     
     st.info("""
-    **Interactive Demo:** You are the Project Engineer responsible for a new HPLC system.
-    1.  Use the **"Thoroughness of FAT"** control in the sidebar to simulate two different project strategies.
-    2.  Observe how a **Comprehensive FAT** allows you to "Leverage" (green) many tests during the SAT and IQ/OQ, dramatically reducing the on-site workload and project timeline.
-    3.  A **Minimal FAT** forces you to "Full Retest" (red) everything on-site, a much riskier and slower approach.
+    **Interactive Demo:** You are the Project Manager.
+    1.  Use the **C&Q Strategy Workbench** below to define the context of your project.
+    2.  Review the **SME Recommendation** that is generated based on your inputs.
+    3.  Make your **Final Decision** on the FAT strategy and see the immediate impact on the project timeline, cost risk, and the detailed on-site test plan.
     """)
 
-    with st.sidebar:
-        st.subheader("FAT/SAT Strategy")
-        fat_thoroughness = st.radio(
-            "Thoroughness of FAT",
-            ["Comprehensive", "Minimal"],
-            index=0,
-            help="**Comprehensive:** Invest time upfront at the vendor's site. **Minimal:** Save time upfront but accept more risk and work during on-site installation."
-        )
+    # --- NEW: C&Q Strategy Workbench ---
+    with st.expander("🔬 C&Q Strategy Workbench", expanded=True):
+        risk_score = 0
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            complexity = st.select_slider("System Complexity", 
+                options=['Low (Off-the-shelf)', 'Medium (Configured)', 'High (Custom-built)'], 
+                value='Medium (Configured)',
+                help="How complex is the system? A simple, standard instrument carries less risk than a fully custom-designed manufacturing skid.")
+            risk_score += {'Low': 1, 'Medium': 3, 'High': 5}[complexity.split(' ')[0]]
+        with col2:
+            vendor_maturity = st.select_slider("Vendor Maturity & Trust",
+                options=['New Vendor', 'Known Vendor', 'Strategic Partner'],
+                value='Known Vendor',
+                help="What is your relationship with the vendor? A long-term strategic partner with a great track record is lower risk than a brand-new, unproven supplier.")
+            risk_score += {'New': 4, 'Known': 2, 'Strategic': 1}[vendor_maturity.split(' ')[0]]
+        with col3:
+            schedule_pressure = st.select_slider("Project Schedule Pressure",
+                options=['Relaxed', 'Standard', 'Aggressive'],
+                value='Standard',
+                help="What are the external pressures on the project timeline? Aggressive schedules often tempt teams into making riskier decisions, like skimping on the FAT.")
+            risk_score -= {'Relaxed': 1, 'Standard': 0, 'Aggressive': -2}[schedule_pressure.split(' ')[0]]
 
-    fig, timeline_reduction = plot_commissioning_qualification_flow(fat_thoroughness)
+        # Determine SME Recommendation
+        if risk_score >= 7:
+            recommended_strategy = "Comprehensive"
+            recommendation_text = "🔴 **Very High Risk:** A Comprehensive FAT is strongly recommended to de-risk the project."
+        elif risk_score >= 4:
+            recommended_strategy = "Standard"
+            recommendation_text = "🟡 **Moderate Risk:** A Standard FAT is appropriate. Ensure all critical functions are tested."
+        else:
+            recommended_strategy = "Minimal"
+            recommendation_text = "🟢 **Low Risk:** A Minimal FAT may be acceptable, focusing only on critical checks."
+        
+        st.info(f"**SME Recommendation:** {recommendation_text}")
+
+        pm_decision = st.radio("Your Final Decision (as Project Manager):",
+                               ["Comprehensive", "Standard", "Minimal"],
+                               index=["Comprehensive", "Standard", "Minimal"].index(recommended_strategy),
+                               horizontal=True,
+                               help="Select the final FAT strategy you will execute. Choosing a less thorough strategy than recommended increases project risk.")
+
+    # Calculate final KPIs based on the PM's decision
+    if pm_decision == "Comprehensive":
+        timeline_impact = -45  # Savings
+        cost_risk = "Low"
+    elif pm_decision == "Standard":
+        timeline_impact = -15
+        cost_risk = "Medium"
+    else: # Minimal
+        timeline_impact = 0
+        cost_risk = "High"
+
+    fig = plot_cq_workflow(pm_decision)
     
-    st.header("FAT, SAT & Qualification Plan & Outcome")
-    col1, col2 = st.columns(2)
-    col1.metric("Project Timeline Savings", f"{timeline_reduction} Days")
-    col2.metric("On-Site Qualification Risk Level", "Low (Leveraged)" if fat_thoroughness == "Comprehensive" else "High (Full Retest)")
+    st.header("Project Outcome Dashboard")
+    kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+    kpi_col1.metric("Project Timeline Impact", f"{timeline_impact} Days", help="Estimated days saved (-) or added (+) to the on-site qualification timeline compared to a minimal FAT strategy.")
+    kpi_col2.metric("On-Site Cost Overrun Risk", cost_risk, help="The likelihood of facing significant, unplanned costs during on-site installation and qualification due to issues that could have been found at the FAT.")
+    kpi_col3.metric("Executed Strategy", pm_decision)
 
     st.plotly_chart(fig, use_container_width=True)
 
@@ -6410,13 +6452,13 @@ def render_fat_sat():
     with tabs[0]:
         st.markdown("""
         **Interpreting the Dashboard:**
-        - **The Color Code:** The dashboard visually represents the core principle of leveraging. 
+        - **The C&Q Workbench:** This gadget simulates the real-world trade-offs. Notice how a **High Complexity** system from a **New Vendor** generates a "Very High Risk" recommendation. Ignoring this and choosing a **Minimal** FAT as your final decision results in a high-risk project with no timeline savings.
+        - **The Workflow Table:** This is the core of the module. The color-coding visualizes the concept of leveraging. 
             - **Green (Leverage):** Activities successfully completed at the FAT that only need confirmation during SAT and can be formally referenced to reduce OQ scope.
-            - **Yellow (Spot Check):** A risk-based approach where only a few critical functions are re-tested on-site.
-            - **Red (Full Retest):** Activities that must be performed from scratch at your site, offering no time savings and carrying higher risk.
-        - **The Timeline KPI:** This metric quantifies the direct business benefit of a good FAT. By finding and fixing issues early at the vendor's site, you can significantly de-risk your on-site installation and qualification schedule, which is often on the critical path for a major project.
+            - **Yellow (Risk-Based Reduction):** A spot-check or reduced testing approach is taken on-site.
+            - **Red (Full Retest):** Activities that must be performed from scratch at your site, offering no time savings and carrying the highest risk.
 
-        **The Strategic Insight:** A FAT is not a checkbox exercise; it is the single best investment you can make in ensuring a smooth and fast site qualification. The goal is to **"Leverage, Don't Repeat."** The more thorough your FAT, the more data and evidence you can leverage to reduce the scope and duration of your SAT and the subsequent IQ/OQ, saving both time and money.
+        **The Strategic Insight:** A FAT is not a checkbox exercise; it is the single best investment you can make in ensuring a smooth and fast site qualification. The goal is to **"Leverage, Don't Repeat."** The more thorough your FAT, the more evidence you can leverage to reduce the scope and duration of your SAT and the subsequent IQ/OQ, saving both time and money.
         """)
     with tabs[1]:
         st.markdown("""
@@ -6475,7 +6517,6 @@ A robust acceptance testing plan treats the FAT as a critical, non-negotiable ri
         - **FDA Process Validation Guidance & 21 CFR 211:** While not explicitly mentioning FAT/SAT, these regulations require that equipment be suitable for its intended use and that processes are in a state of control. A robust FAT/SAT program is the industry-standard method for ensuring equipment suitability, which is a prerequisite for a successful process validation.
         - **EU Annex 15: Qualification and Validation:** Emphasizes a risk-based approach and the need for URS to be in place for equipment. FAT and SAT are the activities where the equipment is formally tested against the URS and functional specifications.
         """)
-
 #=============================================================== DfX MODULE ===========================================================================================================
 
 def render_dfx_dashboard():

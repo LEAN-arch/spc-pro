@@ -1056,60 +1056,42 @@ def plot_rtm_sankey(completed_streams):
 # REVISED HELPER & PLOTTING FUNCTION (Design Controls & DHF)
 # ==============================================================================
 @st.cache_data
-def plot_design_controls_flow(completed_stages):
+def plot_design_controls_flow(completed_stages, triggered_change=None):
     """
     Generates an interactive flowchart of the complete Design Controls process,
-    highlighting completed stages and their relationship to the DHF.
+    highlighting completed stages and visually showing change control feedback loops.
     """
     fig = go.Figure()
 
-    # --- NEW: Expanded stages based on the reference image ---
     stages = {
-        'UserNeeds':    {'label': 'User Needs', 'pos': (0, 6), 'docs': 'User Requirement Specification (URS), Market Research, Clinical Feedback'},
-        'Inputs':       {'label': 'Design Inputs', 'pos': (2, 6), 'docs': 'Functional & Performance Specs (FS), Risk Analysis (FMEA), Human Factors Report'},
-        'Process':      {'label': 'Design Process', 'pos': (4, 6), 'docs': 'Development Plans, Phase Reviews, CAD Models, Code Sprints'},
-        'Outputs':      {'label': 'Design Outputs', 'pos': (6, 6), 'docs': 'Specifications, Drawings, Source Code, Bill of Materials (BOM)'},
-        'Device':       {'label': 'Medical Device', 'pos': (8, 6), 'docs': 'Prototypes, Finished Device, Packaging & Labeling'},
-        'Review':       {'label': 'Design Review', 'pos': (4, 7.5), 'docs': 'Meeting Minutes, Action Items, Phase-Gate Approvals'},
-        'Verification': {'label': 'Design Verification', 'pos': (6, 4), 'docs': 'Test Protocols & Reports (Unit, Integration, System)'},
-        'Validation':   {'label': 'Design Validation', 'pos': (2, 2), 'docs': 'PQ/UAT Protocols & Reports, Clinical/Usability Study Data'},
-        'Transfer':     {'label': 'Design Transfer', 'pos': (8, 4), 'docs': 'Manufacturing SOPs, QC Test Methods, Training Records'},
-        'DHF':          {'label': 'Design History File (DHF)', 'pos': (4, 0.5), 'docs': 'The complete compilation of all evidence from all stages.'}
+        'UserNeeds':    {'label': 'User Needs', 'pos': (0, 6), 'docs': 'User Requirement Specification (URS)'},
+        'Inputs':       {'label': 'Design Inputs', 'pos': (2, 6), 'docs': 'Functional & Performance Specs (FS)'},
+        'Process':      {'label': 'Design Process', 'pos': (4, 6), 'docs': 'Development Plans, Phase Reviews'},
+        'Outputs':      {'label': 'Design Outputs', 'pos': (6, 6), 'docs': 'Specifications, Drawings, Source Code'},
+        'Device':       {'label': 'Product/System', 'pos': (8, 6), 'docs': 'Prototypes, Finished Device/Assay/Process'},
+        'Review':       {'label': 'Design Review', 'pos': (4, 7.5), 'docs': 'Meeting Minutes, Action Items'},
+        'Verification': {'label': 'Design Verification', 'pos': (6, 4), 'docs': 'V&V Protocols & Reports (Unit, IQ, OQ)'},
+        'Validation':   {'label': 'Design Validation', 'pos': (2, 2), 'docs': 'V&V Protocols & Reports (PQ, UAT)'},
+        'Transfer':     {'label': 'Design Transfer', 'pos': (8, 4), 'docs': 'Manufacturing SOPs, QC Test Methods'},
+        'DHF':          {'label': 'Design History File', 'pos': (4, 0.5), 'docs': 'The complete compilation of all evidence.'}
     }
+    edges = [('UserNeeds', 'Inputs'), ('Inputs', 'Process'), ('Process', 'Outputs'), ('Outputs', 'Device'),
+             ('Outputs', 'Verification'), ('Verification', 'Inputs'), ('Device', 'Validation'), 
+             ('Validation', 'UserNeeds'), ('Review', 'Inputs'), ('Review', 'Process'), 
+             ('Review', 'Outputs'), ('Outputs', 'Transfer'), ('Device', 'Transfer')]
 
-    # --- NEW: Expanded edges to create the waterfall and feedback loops ---
-    edges = [
-        # Main Waterfall
-        ('UserNeeds', 'Inputs'), ('Inputs', 'Process'), ('Process', 'Outputs'), ('Outputs', 'Device'),
-        # Verification Loop ("Did we build the product right?")
-        ('Outputs', 'Verification'), ('Verification', 'Inputs'),
-        # Validation Loop ("Did we build the right product?")
-        ('Device', 'Validation'), ('Validation', 'UserNeeds'),
-        # Design Reviews
-        ('Review', 'Inputs'), ('Review', 'Process'), ('Review', 'Outputs'),
-        # Finalization
-        ('Outputs', 'Transfer'), ('Device', 'Transfer'),
-        # DHF Compilation (conceptual arrows)
-        ('Inputs', 'DHF'), ('Outputs', 'DHF'), ('Review', 'DHF'), ('Verification', 'DHF'),
-        ('Validation', 'DHF'), ('Transfer', 'DHF')
-    ]
-
-    # Draw edges first
+    # Draw standard edges first
     for start, end in edges:
-        fig.add_trace(go.Scatter(
-            x=[stages[start]['pos'][0], stages[end]['pos'][0]],
-            y=[stages[start]['pos'][1], stages[end]['pos'][1]],
-            mode='lines', line=dict(color="grey", width=1.5),
-            hoverinfo='none'
-        ))
+        fig.add_trace(go.Scatter(x=[stages[start]['pos'][0], stages[end]['pos'][0]],
+                                 y=[stages[start]['pos'][1], stages[end]['pos'][1]],
+                                 mode='lines', line=dict(color="grey", width=1.5), hoverinfo='none'))
 
     # Draw nodes
     for name, props in stages.items():
         is_complete = name in completed_stages
         color = SUCCESS_GREEN if is_complete else DARK_GREY
         font_color = 'white'
-        if name == 'DHF':
-            color = PRIMARY_COLOR
+        if name == 'DHF': color = PRIMARY_COLOR
         
         fig.add_shape(type="rect", x0=props['pos'][0]-1, y0=props['pos'][1]-0.4,
                       x1=props['pos'][0]+1, y1=props['pos'][1]+0.4,
@@ -1117,15 +1099,22 @@ def plot_design_controls_flow(completed_stages):
         fig.add_annotation(x=props['pos'][0], y=props['pos'][1], text=f"<b>{props['label'].replace(' ', '<br>')}</b>",
                            showarrow=False, font=dict(color=font_color, size=11))
 
-    # Add V&V annotations
-    fig.add_annotation(x=4, y=4, text="<b>VERIFICATION</b><br><i>(Outputs meet Inputs)</i>", showarrow=False, bgcolor="rgba(240,240,240,0.7)")
-    fig.add_annotation(x=5, y=2, text="<b>VALIDATION</b><br><i>(Device meets User Needs)</i>", showarrow=False, bgcolor="rgba(240,240,240,0.7)")
+    # --- NEW: Visually represent the active change control loop ---
+    if triggered_change:
+        start_node, end_node, label = triggered_change
+        fig.add_annotation(
+            x=stages[end_node]['pos'][0], y=stages[end_node]['pos'][1],
+            ax=stages[start_node]['pos'][0], ay=stages[start_node]['pos'][1],
+            xref='x', yref='y', axref='x', ayref='y',
+            showarrow=True, arrowhead=3, arrowwidth=4, arrowcolor='red',
+            text=f'<b>{label}</b>', font=dict(color='white'), bgcolor='red', borderpad=4
+        )
 
     fig.update_layout(
         title_text="<b>The Design Controls Waterfall & DHF Assembly</b>",
         xaxis=dict(visible=False, range=[-1.5, 9.5]),
         yaxis=dict(visible=False, range=[0, 8.5]),
-        height=700, margin=dict(l=20, r=20, t=50, b=20)
+        height=600, margin=dict(l=20, r=20, t=50, b=20)
     )
     return fig, stages
 
@@ -6265,6 +6254,7 @@ def render_qrm_suite():
         """)
 
 
+
 # ==============================================================================
 # UI RENDERING FUNCTION (Design Controls & DHF)
 # ==============================================================================
@@ -6272,59 +6262,173 @@ def render_design_controls_dhf():
     """Renders the comprehensive, interactive module for Design Controls & DHF."""
     st.markdown("""
     #### Purpose & Application: The Project's Audit Trail
-    **Purpose:** To provide a clear, systematic framework for **Design Controls**, the formal process required for medical device and complex system development. This module visualizes the "waterfall" of activities, from user needs to a fully validated and transferred design. The **Design History File (DHF)** is the living compilation of records that provides the objective evidence that this process was followed.
+    **Purpose:** To simulate the real-world, iterative nature of a regulated project. This module demonstrates the formal **Design Controls** process and its critical partner, **Change Control**. The **Design History File (DHF)** is the living compilation of records that provides the objective, auditable evidence that this entire process was followed.
     
     **Strategic Application:** This is the master checklist for any regulated product development. For an auditor, the DHF is the single source of truth that proves a design was developed in a state of control. This tool demonstrates how the DHF is not a document you write at the end, but a binder you build concurrently throughout the project.
     """)
     
     st.info("""
     **Interactive Demo:** You are the Project Manager.
-    1. Use the checkboxes in the sidebar to simulate the completion of each stage in the Design Controls process.
-    2. Watch the flowchart update in real-time, showing the project's progress.
-    3. Observe how the "DHF Contents" list below dynamically populates, showing how documentation is generated at each step.
+    1. **Set the Stage:** Use the **Project Simulation Workbench** to define your project's risk profile.
+    2. **Execute:** Click the **"Run..."** buttons to simulate V&V activities. Based on your risk profile, you may encounter a finding.
+    3. **Manage Change:** If a finding occurs, a **Change Control Request** form will appear. Fill it out and submit to see the real-world impact on your project's cost, timeline, and the DHF.
     """)
 
-    with st.sidebar:
-        st.subheader("Design Controls Progress")
-        completed_stages = []
-        if st.checkbox("Design Inputs Defined", value=True): completed_stages.append('Inputs')
-        if st.checkbox("Design Outputs Generated", value=True): completed_stages.append('Outputs')
-        if st.checkbox("Design Review Completed", value=False): completed_stages.append('Review')
-        if st.checkbox("Design Verification Completed", value=False): completed_stages.append('Verification')
-        if st.checkbox("Design Validation Completed", value=False): completed_stages.append('Validation')
-        if st.checkbox("Design Transfer Completed", value=False): completed_stages.append('Transfer')
-        if all(s in completed_stages for s in ['Inputs', 'Outputs', 'Review', 'Verification', 'Validation', 'Transfer']):
-            completed_stages.append('DHF')
+    # Initialize session state variables for the simulation
+    if 'dc_timeline_impact' not in st.session_state:
+        st.session_state.dc_timeline_impact = 0
+        st.session_state.dc_cost_impact = 0
+        st.session_state.dc_change_controls = 0
+        st.session_state.dc_completed = {'UserNeeds'}
+        st.session_state.dc_dhf_docs = {'UserNeeds': ['URS-001: User Requirement Specification']}
+        st.session_state.dc_finding = None
+    
+    # --- Project Simulation Workbench ---
+    with st.expander("🔬 Project Simulation Workbench", expanded=True):
+        risk_score = 0
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            project_context = st.selectbox("Project Context", 
+                ['Assay', 'Instrument', 'Software', 'Pharma Process'],
+                help="Select the type of project. This will tailor the potential findings to be more realistic for the domain.")
+        with col2:
+            team_experience = st.select_slider("Team Experience", 
+                options=['Novice', 'Experienced', 'Expert'], value='Experienced',
+                help="An experienced team is less likely to make fundamental errors in design.")
+            risk_score += {'Novice': 5, 'Experienced': 2, 'Expert': 0}[team_experience]
+        with col3:
+            tech_novelty = st.select_slider("Technical Novelty",
+                options=['Proven Tech', 'New Application', 'Novel Tech'], value='New Application',
+                help="Is the underlying technology well-understood or cutting-edge? 'Novel Tech' significantly increases verification risk.")
+            risk_score += {'Proven Tech': 1, 'New Application': 3, 'Novel Tech': 5}[tech_novelty]
+    
+    # --- Project Risk Dashboard ---
+    st.header("Project Risk & DHF Dashboard")
+    kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+    rework_risk = min(95, 5 + risk_score * 7)
+    audit_readiness = max(5, 100 - risk_score * 7.5)
+    kpi_col1.metric("Timeline Impact", f"+ {st.session_state.dc_timeline_impact} Days", help="Days added to the project due to rework from change controls.")
+    kpi_col2.metric("Cost Impact", f"+ ${st.session_state.dc_cost_impact:,.0f}", help="Estimated cost added to the project from rework and re-testing.")
+    kpi_col3.metric("Change Controls Issued", st.session_state.dc_change_controls, help="Total number of formal change controls executed.")
 
-    fig, stages = plot_design_controls_flow(completed_stages)
-    
-    col1, col2 = st.columns([0.6, 0.4])
-    with col1:
+    # --- Main Simulation Area ---
+    main_col1, dhf_col2 = st.columns([0.6, 0.4])
+    with main_col1:
+        prob_of_finding = min(0.9, risk_score * 0.06)
+        exec_col1, exec_col2, exec_col3 = st.columns(3)
+        
+        if exec_col1.button("Develop Design (Inputs → Outputs)"):
+            st.session_state.dc_completed.update(['Inputs', 'Process', 'Outputs', 'Device', 'Review'])
+            st.session_state.dc_dhf_docs['Inputs'] = ['FS-001: Functional Spec', 'Risk_Assessment-001']
+            st.session_state.dc_dhf_docs['Outputs'] = ['Drawings_RevA', 'BOM_RevA']
+            st.session_state.dc_dhf_docs['Review'] = ['Design_Review_Minutes-01']
+            st.session_state.dc_finding = None
+            st.rerun()
+
+        if exec_col2.button("Run Verification Tests"):
+            if 'Outputs' in st.session_state.dc_completed:
+                if np.random.rand() < prob_of_finding:
+                    findings = {'Assay': "...", 'Instrument': "...", 'Software': "...", 'Pharma Process': "..."} # Truncated for brevity
+                    st.session_state.dc_finding = findings.get(project_context, "Generic Verification Failure.")
+                else:
+                    st.session_state.dc_completed.add('Verification')
+                    st.session_state.dc_dhf_docs['Verification'] = ['VER-001_Report_PASS']
+                    st.session_state.dc_finding = "PASS"
+                st.rerun()
+            else: st.warning("Cannot run Verification until Design Outputs are generated.")
+        
+        if exec_col3.button("Run Validation Tests"):
+            if 'Device' in st.session_state.dc_completed:
+                if np.random.rand() < prob_of_finding * 0.75:
+                    findings = {'Assay': "...", 'Instrument': "...", 'Software': "...", 'Pharma Process': "..."} # Truncated for brevity
+                    st.session_state.dc_finding = findings.get(project_context, "Generic Validation Failure.")
+                else:
+                    st.session_state.dc_completed.add('Validation')
+                    st.session_state.dc_dhf_docs['Validation'] = ['VAL-001_Report_PASS']
+                    st.session_state.dc_finding = "PASS"
+                st.rerun()
+            else: st.warning("Cannot run Validation until the Product/System is built.")
+
+        if st.session_state.dc_finding:
+            if st.session_state.dc_finding == "PASS":
+                st.success("✅ V&V Testing Passed with no findings!")
+            else:
+                st.error(f"**Finding Detected!** {st.session_state.dc_finding}")
+                with st.form("change_control_form"):
+                    st.write("**Change Control Request (CCR)**")
+                    cc_desc = st.text_area("Description of Change", "Modify design specification (DS-001) to increase tolerance on component X to improve precision.")
+                    cc_impact = st.multiselect("Impact Assessment", ["Specifications", "Drawings", "Code", "Risk Analysis", "Validation Plan"], default=["Specifications", "Drawings"])
+                    submitted = st.form_submit_button("Submit & Approve CCR")
+                    if submitted:
+                        st.session_state.dc_change_controls += 1
+                        st.session_state.dc_timeline_impact += 30
+                        st.session_state.dc_cost_impact += 50000
+                        if 'Changes' not in st.session_state.dc_dhf_docs: st.session_state.dc_dhf_docs['Changes'] = []
+                        st.session_state.dc_dhf_docs['Changes'].append(f'CCR-{st.session_state.dc_change_controls:03d}_Report')
+                        if "Verification" in st.session_state.dc_finding:
+                            st.session_state.dc_completed.discard('Outputs'); st.session_state.dc_completed.discard('Verification')
+                        if "Validation" in st.session_state.dc_finding:
+                            st.session_state.dc_completed.discard('Outputs'); st.session_state.dc_completed.discard('Verification'); st.session_state.dc_completed.discard('Validation')
+                        st.session_state.dc_finding = None
+                        st.rerun()
+        
+        triggered_change_info = None
+        if st.session_state.dc_finding and st.session_state.dc_finding != "PASS":
+            if "Verification" in st.session_state.dc_finding: triggered_change_info = ('Verification', 'Inputs', 'CHANGE<br>CONTROL')
+            elif "Validation" in st.session_state.dc_finding: triggered_change_info = ('Validation', 'UserNeeds', 'CHANGE<br>CONTROL')
+        
+        fig, stages = plot_design_controls_flow(st.session_state.dc_completed, triggered_change_info)
         st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.subheader("Design History File (DHF) Contents")
-        st.markdown("This list represents the documents and records compiled as each stage is completed.")
-        for stage_key, props in stages.items():
-            if stage_key in completed_stages and stage_key != 'DHF':
-                st.success(f"**{props['label']}:** *{props['docs']}*")
-            elif stage_key != 'DHF':
-                st.warning(f"**{props['label']}:** *Pending...*")
-    
+
+    with dhf_col2:
+        # --- NEW: Structured DHF Table of Contents ---
+        st.subheader("Design History File (DHF)")
+        st.markdown("A compilation of records which describes the design history of a finished device.")
+
+        dhf_sections = {
+            "1. Design & Development Planning": ['UserNeeds'],
+            "2. Design Inputs": ['Inputs'],
+            "3. Design Outputs & Reviews": ['Outputs', 'Review'],
+            "4. Design Verification": ['Verification'],
+            "5. Design Validation": ['Validation'],
+            "6. Design Transfer": ['Transfer'],
+            "7. Design Changes": ['Changes']
+        }
+        
+        for section_title, stage_keys in dhf_sections.items():
+            st.markdown(f"**{section_title}**")
+            found_docs = False
+            for key in stage_keys:
+                if key in st.session_state.dc_dhf_docs:
+                    for doc in st.session_state.dc_dhf_docs[key]:
+                        icon = "📄"
+                        if "PASS" in doc: icon = "✅"
+                        if "CCR" in doc: icon = "🔴"
+                        st.markdown(f"&nbsp;&nbsp;&nbsp;{icon} {doc}")
+                        found_docs = True
+            if not found_docs:
+                st.caption("&nbsp;&nbsp;&nbsp;*No records yet*")
+
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights & Significance", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
-        **Interpreting the Flowchart:**
-        - **The Waterfall:** The process generally flows from top-left (Inputs) to bottom-right (DHF). This represents the logical progression from defining what a product must do to proving it does it.
-        - **Verification vs. Validation Loop:** Notice the critical feedback loop. **Verification** asks "Did we build the product right?" (i.e., do the Outputs meet the Inputs). **Validation** asks "Did we build the right product?" (i.e., do the Outputs meet the *user's needs*).
-        - **The DHF is the Destination:** The Design History File (blue box) is not a single step but the final repository of all the evidence generated by every other step. As you check the boxes, you are simulating the creation of this evidence.
+        **The DHF: More Than Just a Binder**
 
-        **The Strategic Insight:** Design Controls are not a bureaucratic checklist; they are a risk management framework. By forcing a structured process of defining requirements upfront and then rigorously testing against them (V&V), this process minimizes the risk of discovering a fatal design flaw late in development, when it is exponentially more expensive to fix.
+        The Design History File is the single most important deliverable of a regulated development project. Its significance goes far beyond mere compliance; it is a critical business asset.
+
+        1.  **It is the Project's Story.** The DHF is the definitive, chronological narrative of the project, from the initial spark of an idea (`User Needs`) to the final handover to manufacturing (`Design Transfer`). It tells the story of every decision, every test, every failure, and every change. A well-organized DHF proves that the final product was the result of a deliberate, controlled process, not a series of happy accidents.
+
+        2.  **It is the Auditor's Map.** During a regulatory inspection (e.g., by the FDA), the DHF is the primary "map" the auditor will use to navigate your project. Their goal is to test your **traceability**. They will pick a high-level User Need, and you must be able to use the DHF to show them the specific Design Input that captured it, the Design Output that implemented it, the Verification test that proved it was built right, and the Validation test that proved it was the right thing to build. A complete DHF makes this process smooth and painless.
+
+        3.  **It is Corporate Memory.** The original development team will eventually move on to other projects. Years later, when a field issue arises or a product update is needed, the DHF is the only reliable source of truth for a new team to understand *why* certain design decisions were made. Without it, the company is doomed to re-learn old lessons, a costly and inefficient process.
         """)
     with tabs[1]:
         st.markdown("""
-        ##### Glossary of Design Control Terms
+        ##### Glossary of Design & Change Control Terms
+
+        **Core Design Control Terms:**
         - **Design Controls:** A formal, systematic process for medical device development mandated by the FDA to ensure that devices are safe and effective for their intended use.
         - **Design History File (DHF):** A compilation of records which describes the design history of a finished device. It is the complete audit trail of the entire design process.
         - **Design Inputs:** The physical and performance requirements of a device that are used as a basis for device design. (The "What").
@@ -6333,6 +6437,14 @@ def render_design_controls_dhf():
         - **Design Verification:** Confirmation by examination and provision of objective evidence that the design **outputs** meet the design **inputs**.
         - **Design Validation:** Confirmation by examination and provision of objective evidence that the finished device conforms to **user needs and intended uses**.
         - **Design Transfer:** The process by which the device design is correctly translated into production specifications.
+
+        ---
+
+        **Related Change Control Terms:**
+        - **Change Control:** A formal process used to ensure that changes to a product or system are introduced in a controlled and coordinated manner. It is a cornerstone of any GxP quality management system.
+        - **CCR (Change Control Request):** The formal document used to propose a change, describe its justification, and assess its potential impact.
+        - **Impact Assessment:** A critical part of a CCR where a cross-functional team evaluates the potential effects of the proposed change on product quality, safety, regulatory filings, and validated state.
+        - **Traceability Matrix:** A tool used to trace requirements through the design and testing phases. It is essential for assessing the impact of a change, as it shows exactly which specifications and test cases are affected by a change in a requirement.
         """)
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "DHF Archeology"**
@@ -6346,7 +6458,7 @@ The DHF is not a document you *write* at the end of a project; it is the *result
     with tabs[3]:
         st.markdown("""
         #### Historical Context: Learning from Tragedy
-        **The Problem:** In the 1970s and 80s, the medical device industry was plagued by a series of high-profile failures, most notoriously the **Dalkon Shield IUD**, which caused serious injuries to thousands of users. Investigations revealed a common theme: many device failures were not due to manufacturing errors, but were caused by fundamental **flaws in the initial design process**.
+        **The Problem:** In the 1970s and 80s, a series of high-profile failures plagued the medical device industry, most notoriously the **Dalkon Shield IUD**, which caused serious injuries to thousands of users. Investigations revealed a common theme: many device failures were not due to manufacturing errors, but were caused by fundamental **flaws in the initial design process**.
         
         **The 'Aha!' Moment:** Congress and the FDA realized that simply regulating manufacturing (GMPs) was not enough. The design process itself needed to be brought into a state of control. This led to the **Safe Medical Devices Act of 1990**, which gave the FDA the authority to regulate the design process for medical devices.
         
@@ -6359,8 +6471,6 @@ The DHF is not a document you *write* at the end of a project; it is the *result
         - **ISO 13485:2016 - Medical devices — Quality management systems:** This is the international standard for medical device quality systems. Section 7.3, "Design and development," contains requirements that are highly harmonized with 21 CFR 820.30.
         - **GAMP 5:** While not a regulation, the GAMP 5 framework for validating computerized systems is built on the same principles of linking user requirements (Inputs) to specifications (Outputs) and testing (V&V).
         """)
-
-
 # ==============================================================================
 # UI RENDERING FUNCTION (FAT/SAT)
 # ==============================================================================

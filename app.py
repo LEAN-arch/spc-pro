@@ -5682,9 +5682,6 @@ def render_qrm_suite():
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
-    
-    # --- THIS ENTIRE BLOCK IS NOW CORRECTLY INDENTED ---
-    with tabs[0]:
         st.markdown("""
         **A validation leader must choose the right risk tool for the right question.** While all these tools analyze risk, they do so from fundamentally different perspectives. Using the wrong tool for your situation can be inefficient at best and dangerously misleading at worst.
 

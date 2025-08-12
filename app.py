@@ -1120,28 +1120,123 @@ def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
 @st.cache_data
-def plot_eda_dashboard(df, numeric_cols, cat_cols):
-    """
-    Generates a professional-grade, multi-part EDA dashboard from an uploaded dataframe.
-    """
-    # Plot 1: Correlation Heatmap
-    corr_matrix = df[numeric_cols].corr()
-    fig_heatmap = px.imshow(corr_matrix, text_auto=".2f", aspect="auto",
-                            color_continuous_scale='RdBu_r', range_color=[-1,1],
-                            title="<b>1. Correlation Heatmap</b>")
-
-    # Plot 2: Scatter Plot Matrix (Pair Plot)
-    fig_pairplot = px.scatter_matrix(df, dimensions=numeric_cols, color=cat_cols[0] if cat_cols else None,
-                                     title="<b>2. Scatter Plot Matrix (Pair Plot)</b>")
-    fig_pairplot.update_traces(diagonal_visible=False)
-
-    # Plot 3: Univariate Distribution Plots
-    fig_hist = make_subplots(rows=len(numeric_cols), cols=1, subplot_titles=[f"Distribution of {col}" for col in numeric_cols])
-    for i, col in enumerate(numeric_cols):
-        fig_hist.add_trace(go.Histogram(x=df[col], name=col), row=i+1, col=1)
-    fig_hist.update_layout(title_text="<b>3. Univariate Distributions</b>", showlegend=False, height=250*len(numeric_cols))
+def load_datasets():
+    """Generates more realistic sample datasets for EDA."""
+    np.random.seed(42)
+    # --- Pharma Process Data with more structure ---
+    n_pharma = 150
+    # Create a base yield that depends non-linearly on pH
+    base_yield = 85 + 15 * np.sin((np.random.normal(7.1, 0.15, n_pharma) - 6.8) * np.pi)
+    # Add a temperature effect
+    temp_effect = (np.random.normal(37, 0.8, n_pharma) - 37) * -1.5
+    # Add a categorical lot effect
+    lot = np.random.choice(['Lot A', 'Lot B', 'Lot C'], n_pharma, p=[0.5, 0.3, 0.2])
+    lot_effect = np.array([0 if l == 'Lot A' else (-5 if l == 'Lot B' else 3) for l in lot])
+    # Combine effects with noise
+    yield_final = base_yield + temp_effect + lot_effect + np.random.normal(0, 2.5, n_pharma)
+    # Purity is inversely related to yield with some noise
+    purity = 99.5 - (yield_final / 100) + np.random.normal(0, 0.2, n_pharma)
     
-    return fig_heatmap, fig_pairplot, fig_hist
+    pharma_data = pd.DataFrame({
+        'Yield (%)': np.clip(yield_final, 70, 100),
+        'Purity (%)': np.clip(purity, 97, 100),
+        'pH': base_yield / 15 + 6.8 + np.random.normal(0, 0.05, n_pharma), # Recreate pH with noise
+        'Temperature (°C)': (temp_effect / -1.5) + 37 + np.random.normal(0, 0.1, n_pharma),
+        'Raw_Material_Lot': lot
+    })
+    # Add realistic missing data and an outlier
+    pharma_data.loc[np.random.choice(pharma_data.index, 5, replace=False), 'Purity (%)'] = np.nan
+    pharma_data.loc[20, 'Yield (%)'] = 55.0
+
+    # --- Instrument Data with more structure ---
+    n_inst = 200
+    # Simulate wear-and-tear drift over time
+    time_drift = np.linspace(0, -2.5, n_inst)
+    operator = np.random.choice(['Alice', 'Bob', 'Charlie'], n_inst)
+    operator_effect = np.array([0 if o == 'Bob' else (-0.5 if o == 'Alice' else 0.3) for o in operator])
+    dispense_volume = 50 + time_drift + operator_effect + np.random.normal(0, 0.4, n_inst)
+    pressure = 20 + (dispense_volume - 50) * 0.8 + np.random.normal(0, 0.5, n_inst)
+    
+    instrument_data = pd.DataFrame({
+        'Dispense_Volume (µL)': dispense_volume,
+        'Pressure (psi)': pressure,
+        'Run_Time (sec)': np.random.gamma(20, 2, n_inst),
+        'Operator': operator
+    })
+    instrument_data.loc[150, 'Pressure (psi)'] = 45 # Outlier
+        
+    return {
+        "Pharma Manufacturing Process": pharma_data,
+        "Instrument Performance Data": instrument_data
+    }
+
+@st.cache_data
+def plot_eda_dashboard(df, numeric_cols, cat_cols, corr_method='pearson'):
+    """
+    Generates a professional-grade, multi-part EDA dashboard from a dataframe.
+    This version includes richer plots and dedicated categorical analysis.
+    """
+    figs = {}
+
+    # --- Plot 1: Correlation Heatmap (with method selection) ---
+    corr_matrix = df[numeric_cols].corr(method=corr_method)
+    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+    fig_heatmap = px.imshow(corr_matrix.mask(mask), text_auto=".2f", aspect="auto",
+                            color_continuous_scale=px.colors.diverging.RdBu,
+                            range_color=[-1, 1],
+                            title=f"<b>1. {corr_method.capitalize()} Correlation Heatmap</b>")
+    fig_heatmap.update_layout(height=500)
+    figs['heatmap'] = fig_heatmap
+
+    # --- Plot 2: Scatter Plot Matrix (with regression lines) ---
+    fig_pairplot = px.scatter_matrix(df, dimensions=numeric_cols,
+                                     color=cat_cols[0] if cat_cols else None,
+                                     trendline="ols",
+                                     title="<b>2. Scatter Plot Matrix (with Trendlines)</b>")
+    fig_pairplot.update_traces(diagonal_visible=False)
+    fig_pairplot.update_layout(height=700)
+    figs['pairplot'] = fig_pairplot
+
+    # --- Plot 3: Rich Univariate Distributions ---
+    rows = (len(numeric_cols) + 1) // 2
+    fig_dist = make_subplots(rows=rows, cols=2,
+                             subplot_titles=[f"Distribution of {col}" for col in numeric_cols])
+    for i, col in enumerate(numeric_cols):
+        row, c = i // 2 + 1, i % 2 + 1
+        # Histogram
+        fig_dist.add_trace(go.Histogram(x=df[col], name=col, histnorm='probability density',
+                                        marker_color='#636EFA', showlegend=False), row=row, col=c)
+        # KDE Curve
+        try:
+            kde = stats.gaussian_kde(df[col].dropna())
+            x_range = np.linspace(df[col].min(), df[col].max(), 100)
+            fig_dist.add_trace(go.Scatter(x=x_range, y=kde(x_range), mode='lines',
+                                          line=dict(color='darkorange', width=3),
+                                          name='KDE', showlegend=False), row=row, col=c)
+        except Exception:
+            pass # KDE can fail if there's no variance
+    fig_dist.update_layout(title_text="<b>3. Univariate Distributions (Histogram + KDE)</b>",
+                          height=250 * rows, showlegend=False)
+    figs['distributions'] = fig_dist
+    
+    # --- Plot 4: Dedicated Categorical Analysis (NEW) ---
+    if cat_cols:
+        cat_col = cat_cols[0]
+        rows_cat = (len(numeric_cols) + 1) // 2
+        fig_cat = make_subplots(rows=rows_cat, cols=2,
+                                subplot_titles=[f"{num_col} by {cat_col}" for num_col in numeric_cols])
+        for i, num_col in enumerate(numeric_cols):
+            row, c = i // 2 + 1, i % 2 + 1
+            box_traces = px.box(df, x=cat_col, y=num_col, color=cat_col).data
+            for trace in box_traces:
+                fig_cat.add_trace(trace, row=row, col=c)
+        fig_cat.update_layout(title_text=f"<b>4. Group Analysis by {cat_col}</b>",
+                              height=300 * rows_cat, showlegend=False)
+        figs['categorical'] = fig_cat
+    else:
+        figs['categorical'] = go.Figure().update_layout(title_text="<b>4. Group Analysis (No Categorical Variables Found)</b>")
+
+    return figs
 
 @st.cache_data
 def plot_ci_concept(n=30):
@@ -6291,41 +6386,14 @@ def render_eda_dashboard():
     
     st.info("""
     **Interactive Demo:** You are a Data Scientist receiving a new dataset.
-    1.  **Select a sample dataset** from the dropdown menu to simulate a real-world analysis scenario.
-    2.  The dashboard automatically generates a full EDA report for that dataset.
-    3.  Review the **Data Quality KPIs** to check for problems, then analyze the plots to understand the data's structure and relationships.
+    1.  **Select a sample dataset** to simulate a real-world analysis scenario.
+    2.  The dashboard automatically generates a full EDA report.
+    3.  Review the **Data Quality KPIs**, then explore the tabs to understand relationships, distributions, and group differences.
     """)
-
-    # --- NEW: Sample Dataset Selector ---
-    @st.cache_data
-    def load_datasets():
-        np.random.seed(42)
-        pharma_data = pd.DataFrame({
-            'Yield': np.random.normal(85, 5, 100),
-            'Purity': 100 - np.random.beta(2, 20, 100) * 5,
-            'pH': np.random.normal(7.1, 0.1, 100),
-            'Temperature': np.random.normal(37, 0.5, 100),
-            'Raw_Material_Lot': np.random.choice(['Lot A', 'Lot B', 'Lot C'], 100, p=[0.5, 0.3, 0.2])
-        })
-        pharma_data.loc[5:10, 'Purity'] = np.nan # Introduce missing data
-
-        instrument_data = pd.DataFrame({
-            'Dispense_Volume': np.random.normal(50, 0.5, 150),
-            'Pressure': np.random.normal(10, 0.2, 150) + (np.random.normal(50, 0.5, 150) - 50) * 0.1,
-            'Run_Time_sec': np.random.gamma(20, 2, 150),
-            'Operator': np.random.choice(['Alice', 'Bob', 'Charlie'], 150)
-        })
-        instrument_data.loc[20, 'Pressure'] = 25 # Introduce an outlier
-        
-        return {
-            "Pharma Manufacturing Process": pharma_data,
-            "Instrument Performance Data": instrument_data
-        }
 
     datasets = load_datasets()
     dataset_choice = st.selectbox("Select a Sample Dataset to Analyze:", list(datasets.keys()))
     df = datasets[dataset_choice]
-    # --- END OF NEW SECTION ---
 
     st.header("Exploratory Data Analysis Report")
     st.dataframe(df.head())
@@ -6335,17 +6403,34 @@ def render_eda_dashboard():
     col1.metric("Rows", df.shape[0])
     col2.metric("Columns", df.shape[1])
     missing_values = df.isnull().sum().sum()
-    col3.metric("Missing Values", f"{missing_values}", help=f"Total number of empty cells. Found in columns: {', '.join(df.columns[df.isnull().any()].tolist())}")
+    col3.metric("Missing Values", f"{missing_values}", help=f"Total number of empty cells. Found in: {', '.join(df.columns[df.isnull().any()].tolist()) if missing_values > 0 else 'None'}")
     col4.metric("Duplicate Rows", f"{df.duplicated().sum()}")
     
     numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
     cat_cols = df.select_dtypes(exclude=np.number).columns.tolist()
 
     if numeric_cols:
-        fig_heatmap, fig_pairplot, fig_hist = plot_eda_dashboard(df, numeric_cols, cat_cols)
-        st.plotly_chart(fig_heatmap, use_container_width=True)
-        st.plotly_chart(fig_pairplot, use_container_width=True)
-        st.plotly_chart(fig_hist, use_container_width=True)
+        # --- UI for plot generation ---
+        eda_tabs = st.tabs(["📊 Relationships", "📈 Distributions", "🗂️ Group Analysis"])
+
+        with eda_tabs[0]:
+            st.subheader("Bivariate & Multivariate Relationships")
+            corr_method = st.radio("Correlation Method:", ('pearson', 'spearman'), horizontal=True,
+                                   help="Pearson measures linear relationships. Spearman measures monotonic relationships (if one variable goes up, the other goes up, but not necessarily in a straight line).")
+            figs = plot_eda_dashboard(df, numeric_cols, cat_cols, corr_method)
+            st.plotly_chart(figs['heatmap'], use_container_width=True)
+            st.plotly_chart(figs['pairplot'], use_container_width=True)
+        
+        with eda_tabs[1]:
+            st.subheader("Univariate Distributions")
+            st.plotly_chart(figs['distributions'], use_container_width=True)
+
+        with eda_tabs[2]:
+            st.subheader("Analysis by Categorical Factors")
+            if cat_cols:
+                st.plotly_chart(figs['categorical'], use_container_width=True)
+            else:
+                st.warning("No categorical variables were found in this dataset to perform a group analysis.")
 
     st.divider()
     st.subheader("Deeper Dive")

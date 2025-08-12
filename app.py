@@ -939,40 +939,73 @@ def plot_rtm_sankey(completed_streams):
     )
     return fig, links_data, nodes_data
 
-# FIX: Replace the existing plot_dfx_dashboard function with this new, multi-project, SME-grade version.
 @st.cache_data
-def plot_dfx_dashboard(profile, efforts):
+def plot_dfx_dashboard(project_type, efforts):
     """
-    Generates a professional-grade DfX dashboard from a given profile and effort allocation.
+    Generates a professional-grade DfX dashboard with a Performance Radar Chart and a Cost Structure Pie Chart comparison.
     """
-    # 1. --- Calculate the Optimized Profile ---
-    optimized = profile['baseline'].copy()
+    profiles = {
+        "Pharma Assay (ELISA)": {
+            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost ($)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1],
+            'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
+        },
+        "Instrument (Liquid Handler)": {
+            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>($/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1],
+            'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
+        },
+        "Software (LIMS)": {
+            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost ($k)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1],
+            'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
+        },
+        "Pharma Process (MAb)": {
+            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS ($/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1],
+            'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
+        }
+    }
+    
+    profile = profiles[project_type]
+    optimized_kpis = profile['baseline'].copy()
+    
     for i in range(len(profile['categories'])):
         total_impact = sum(efforts[k] * profile['impact'][k][i] for k in efforts)
-        optimized[i] += total_impact * (1 if profile['direction'][i] == 1 else -1)
-        if '%' in profile['categories'][i]: optimized[i] = np.clip(optimized[i], 0, 100)
-        if 'Score' in profile['categories'][i]: optimized[i] = np.clip(optimized[i], 0, 10)
-        
-    kpis = {'baseline': profile['baseline'], 'optimized': optimized}
+        optimized_kpis[i] += total_impact * (1 if profile['direction'][i] == 1 else -1)
 
-    # 2. --- Create Plots ---
+    # Simplified Cost Model for visualization
+    def get_cost_breakdown(kpis, p_type):
+        if p_type == "Pharma Assay (ELISA)": # Cost per run
+            return [kpis[2], 5, 2, kpis[1]*1] # Reagent, Labor, Plastic, Instrument Time
+        elif p_type == "Instrument (Liquid Handler)": # Annual cost
+            return [15000, 2000, kpis[3], 1000] # Capital, PM, Service, Consumables
+        elif p_type == "Software (LIMS)": # Total project cost
+            return [kpis[4], 150, 100, 50] # Development, Hardware, Validation, Training
+        elif p_type == "Pharma Process (MAb)": # Cost per gram
+            return [kpis[2]*0.4, kpis[2]*0.3, kpis[2]*0.2, kpis[2]*0.1] # Materials, Utilities, Labor, QC
+        return [1,1,1,1]
+
+    cost_labels = ['Core Materials/Dev', 'Labor/Manufacturing', 'Service/Validation', 'QC/Consumables']
+    base_costs = get_cost_breakdown(profile['baseline'], project_type)
+    optimized_costs = get_cost_breakdown(optimized_kpis, project_type)
+    
+    # --- Create Plots ---
     # Plot 1: Radar Chart for Performance Profile
     fig_radar = go.Figure()
     fig_radar.add_trace(go.Scatterpolar(r=profile['baseline'], theta=profile['categories'], fill='toself', name='Baseline Design', line=dict(color='grey')))
-    fig_radar.add_trace(go.Scatterpolar(r=optimized, theta=profile['categories'], fill='toself', name='DfX Optimized Design', line=dict(color=SUCCESS_GREEN)))
+    fig_radar.add_trace(go.Scatterpolar(r=optimized_kpis, theta=profile['categories'], fill='toself', name='DfX Optimized Design', line=dict(color=SUCCESS_GREEN)))
     fig_radar.update_layout(title="<b>1. Project Performance Profile</b>", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
 
-    # Plot 2: Cost Breakdown Bar Chart (Simplified representation)
-    base_cost_factors = [profile['baseline'][2]*0.5, profile['baseline'][0]*1.2, profile['baseline'][3]*0.8, profile['baseline'][4]*1.5]
-    optimized_cost_factors = [optimized[2]*0.5, optimized[0]*1.2, optimized[3]*0.8, optimized[4]*1.5]
-    cost_labels = ['Manufacturing', 'Quality (QC/QA)', 'Supply Chain', 'Service & Support']
+    # Plot 2: Cost Structure Pie Charts
+    fig_cost = make_subplots(rows=1, cols=2, specs=[[{'type':'domain'}, {'type':'domain'}]],
+                             subplot_titles=['<b>Baseline Cost Structure</b>', '<b>Optimized Cost Structure</b>'])
+    fig_cost.add_trace(go.Pie(labels=cost_labels, values=base_costs, name="Base", marker_colors=['#636EFA', '#EF553B', '#00CC96', '#AB63FA']), 1, 1)
+    fig_cost.add_trace(go.Pie(labels=cost_labels, values=optimized_costs, name="Optimized", marker_colors=['#636EFA', '#EF553B', '#00CC96', '#AB63FA']), 1, 2)
+    fig_cost.update_traces(hole=.4, hoverinfo="label+percent+value", textinfo='percent', textfont_size=14)
+    fig_cost.update_layout(title_text="<b>2. Lifecycle Cost Breakdown</b>", showlegend=False, annotations=[
+        dict(text=f'${sum(base_costs):,.0f}', x=0.18, y=0.5, font_size=20, showarrow=False),
+        dict(text=f'${sum(optimized_costs):,.0f}', x=0.82, y=0.5, font_size=20, showarrow=False)
+    ])
     
-    fig_cost = go.Figure()
-    fig_cost.add_trace(go.Bar(name='Baseline', x=cost_labels, y=base_cost_factors, marker_color='grey'))
-    fig_cost.add_trace(go.Bar(name='Optimized', x=cost_labels, y=optimized_cost_factors, marker_color=SUCCESS_GREEN))
-    fig_cost.update_layout(title="<b>2. Lifecycle Cost Drivers</b>", yaxis_title="Relative Cost Contribution", barmode='group')
-    
-    return fig_radar, fig_cost, kpis
+    kpis_out = {'baseline': profile['baseline'], 'optimized': optimized_kpis}
+    return fig_radar, fig_cost, kpis_out
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
 
@@ -5581,7 +5614,9 @@ def render_dfx_dashboard():
     """Renders the comprehensive, interactive module for Design for Excellence (DfX)."""
     st.markdown("""
     #### Purpose & Application: Designing for the Entire Lifecycle
-    # ... (introductory markdown is the same) ...
+    **Purpose:** To demonstrate the strategic and economic impact of **Design for Excellence (DfX)**, a proactive engineering philosophy that focuses on optimizing a product's design for its entire lifecycle, from manufacturing to disposal.
+    
+    **Strategic Application:** DfX is the practical implementation of "shifting left"—addressing downstream problems (like manufacturing costs, test time, or reliability) during the earliest stages of design, where changes are exponentially cheaper. For a validation leader, promoting DfX principles is a key strategy for ensuring that new products are not only effective but also robust, scalable, and profitable.
     """)
     
     st.info("""
@@ -5590,29 +5625,12 @@ def render_dfx_dashboard():
     2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
     3.  Observe the impact in real-time on the **KPI Dashboard** and the **Performance Profile** radar chart.
     """)
-
-    # --- THIS IS THE KEY FIX: The data dictionary is now defined in the render function ---
+    
     profiles = {
-        "Pharma Assay (ELISA)": {
-            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost ($)', 'Precision (%CV)', 'Ease of Use'],
-            'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1],
-            'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
-        },
-        "Instrument (Liquid Handler)": {
-            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>($/yr)', 'Precision (%CV)'],
-            'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1],
-            'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
-        },
-        "Software (LIMS)": {
-            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost ($k)'],
-            'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1],
-            'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
-        },
-        "Pharma Process (MAb)": {
-            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS ($/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'],
-            'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1],
-            'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
-        }
+        "Pharma Assay (ELISA)": {'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost ($)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1], 'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}},
+        "Instrument (Liquid Handler)": {'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>($/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1], 'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}},
+        "Software (LIMS)": {'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost ($k)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1], 'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}},
+        "Pharma Process (MAb)": {'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS ($/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1], 'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}}
     }
     
     project_type = st.selectbox(
@@ -5628,7 +5646,6 @@ def render_dfx_dashboard():
         efforts['sustainability'] = st.slider("Sustainability & Supply Chain Effort (DFE)", 0, 10, 5, 1, help="Focus on using standard/recyclable materials, reducing energy use, and designing for easy disassembly.")
         efforts['ux'] = st.slider("Service & User Experience Effort (DFS/DFUX)", 0, 10, 5, 1, help="Focus on making the device easy to use, service, and maintain, reducing long-term operational costs and human error.")
 
-    # Look up the specific profile data and pass it to the plotting function
     selected_profile = profiles[project_type]
     fig_radar, fig_cost, kpis = plot_dfx_dashboard(selected_profile, efforts)
 
@@ -5655,8 +5672,8 @@ def render_dfx_dashboard():
         st.markdown("""
         **Interpreting the Dashboard:**
         - **KPI Dashboard:** This is your executive summary. It quantifies the return on investment for your DfX efforts in terms of cost, quality, and performance. The delta shows the improvement over the baseline.
-        - **Performance Profile (Radar Chart):** This visualizes the multi-dimensional impact of your design choices. The goal is to create an "Optimized" profile (green) that meets or exceeds all performance targets for the project. Notice how different effort allocations change the shape of the profile.
-        - **Cost Drivers (Bar Chart):** This shows *how* you are achieving your goals. For example, a strong DFM/DFA effort will dramatically reduce the "Manufacturing" and "Assembly" cost drivers.
+        - **Performance Profile (Radar Chart):** This visualizes the multi-dimensional impact of your design choices. The goal is to create an "Optimized" profile (green) that meets or exceeds all performance targets for the project.
+        - **Cost Structure (Pie Charts):** This shows *how* you achieved cost savings. A strong DFM/DFA effort will dramatically reduce the proportion of cost attributed to 'Manufacturing' and 'Assembly'. The total cost is displayed in the center of each pie.
         
         **The Strategic Insight:** DfX is a game of strategic trade-offs. You cannot maximize all attributes simultaneously. A disposable, high-volume product will prioritize low cost (DFM/DFA). A complex, reusable capital instrument will prioritize reliability and serviceability (DFR/DFS). This dashboard allows you to simulate these strategic choices and see their quantifiable impact.
         """)
@@ -5677,7 +5694,7 @@ def render_dfx_dashboard():
         """)
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: "Over-the-Wall" Engineering**
-The R&D team designs a product in isolation, focusing only on functionality and performance. They then "throw the design over the wall" to the manufacturing and quality teams, who discover that it is impossibly difficult to build, assemble, or test reliably at scale.
+The R&D team designs a product in isolation, focusing only on functionality. They then "throw the design over the wall" to the manufacturing and quality teams, who discover that it is impossibly difficult to build, assemble, or test reliably at scale.
 - **The Flaw:** This sequential process creates massive rework, delays, and friction between departments. Problems that would have taken minutes to fix on a CAD model now require weeks of expensive re-tooling and re-validation.""")
         st.success("""🟢 **THE GOLDEN RULE: The Cost of a Design Change is Exponential**
 The core principle of DfX is **concurrent engineering**, where design, manufacturing, quality, and other downstream teams work together as a cross-functional unit from the very beginning of the project.
@@ -5702,12 +5719,11 @@ The core principle of DfX is **concurrent engineering**, where design, manufactu
         - **FDA 21 CFR 820.30 (Design Controls):** This regulation for medical devices is the primary driver for DfX in the life sciences. The DfX process is how you fulfill the requirements for:
             - **Design Inputs:** Proactively considering manufacturing, assembly, and testing requirements from the very start.
             - **Design Review:** DfX checklists and scorecards are a key part of formal, documented design reviews.
-            - **Design Verification & Validation:** Ensuring the design outputs meet the design inputs (e.g., proving that DFM changes didn't compromise functionality through testing).
+            - **Design Verification & Validation:** Ensuring the design outputs meet the design inputs.
             - **Design Transfer:** A product designed with DfX principles has a much smoother and more successful design transfer into manufacturing.
-        - **ICH Q8(R2) - Pharmaceutical Development:** The principles of QbD—understanding how product design and process parameters affect quality—are perfectly aligned with DfX. A robust Design Space can only be achieved for a manufacturable product.
+        - **ICH Q8(R2) - Pharmaceutical Development:** The principles of QbD—understanding how product design and process parameters affect quality—are perfectly aligned with DfX.
         - **ISO 13485 (Medical Devices):** This international standard for quality management systems requires a structured design and development process, which is effectively implemented through DfX principles.
         """)
-        
 #====================================================================================================================================================================================================================================
 #=====================================================================================================ACT 0 RENDER END ==============================================================================================================
 #====================================================================================================================================================================================================================================

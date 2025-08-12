@@ -1006,6 +1006,29 @@ def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_
     return fig_radar, fig_cost, kpis, profile['categories'], base_costs, optimized_costs
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
+@st.cache_data
+def plot_eda_dashboard(df, numeric_cols, cat_cols):
+    """
+    Generates a professional-grade, multi-part EDA dashboard from an uploaded dataframe.
+    """
+    # Plot 1: Correlation Heatmap
+    corr_matrix = df[numeric_cols].corr()
+    fig_heatmap = px.imshow(corr_matrix, text_auto=".2f", aspect="auto",
+                            color_continuous_scale='RdBu_r', range_color=[-1,1],
+                            title="<b>1. Correlation Heatmap</b>")
+
+    # Plot 2: Scatter Plot Matrix (Pair Plot)
+    fig_pairplot = px.scatter_matrix(df, dimensions=numeric_cols, color=cat_cols[0] if cat_cols else None,
+                                     title="<b>2. Scatter Plot Matrix (Pair Plot)</b>")
+    fig_pairplot.update_traces(diagonal_visible=False)
+
+    # Plot 3: Univariate Distribution Plots
+    fig_hist = make_subplots(rows=len(numeric_cols), cols=1, subplot_titles=[f"Distribution of {col}" for col in numeric_cols])
+    for i, col in enumerate(numeric_cols):
+        fig_hist.add_trace(go.Histogram(x=df[col], name=col), row=i+1, col=1)
+    fig_hist.update_layout(title_text="<b>3. Univariate Distributions</b>", showlegend=False, height=250*len(numeric_cols))
+    
+    return fig_heatmap, fig_pairplot, fig_hist
 
 @st.cache_data
 def plot_ci_concept(n=30):
@@ -2493,6 +2516,56 @@ def plot_sample_size_curves(confidence_level, reliability, lot_size, calc_method
     return fig
 
 @st.cache_data
+def plot_stability_design_comparison(strengths, containers, design_type):
+    """
+    Generates a professional-grade dashboard comparing full, bracketing, and matrixing stability study designs.
+    """
+    time_points = ["0", "3", "6", "9", "12", "18", "24", "36"]
+    
+    # --- Generate the full design matrix ---
+    full_design = []
+    for s in strengths:
+        for c in containers:
+            full_design.append({'Strength': s, 'Container': c, 'Timepoints': len(time_points)})
+    df_full = pd.DataFrame(full_design)
+    
+    # --- Determine the reduced design based on user selection ---
+    df_reduced = df_full.copy()
+    pulls_saved = 0
+    
+    if design_type == "Bracketing":
+        min_s, max_s = min(strengths), max(strengths)
+        df_reduced = df_full[df_full['Strength'].isin([min_s, max_s])].copy()
+    
+    elif design_type == "Matrixing":
+        # A simple half-matrix design for demonstration
+        df_reduced['Timepoints'] = 0
+        for i, row in df_full.iterrows():
+            if (i % 2) == 0: # Test every other combination at all timepoints
+                df_reduced.loc[i, 'Timepoints'] = len(time_points)
+            else: # For the others, test only at key timepoints
+                df_reduced.loc[i, 'Timepoints'] = 3 # e.g., 0, 12, 36
+    
+    total_pulls_full = df_full['Timepoints'].sum()
+    total_pulls_reduced = df_reduced['Timepoints'].sum()
+    pulls_saved = total_pulls_full - total_pulls_reduced
+
+    # --- Create the Visualization (Heatmap Table) ---
+    def create_heatmap_table(df, title):
+        pivot = df.pivot(index='Container', columns='Strength', values='Timepoints').fillna(0).astype(int)
+        fig = px.imshow(pivot, text_auto=True, aspect="auto",
+                        labels=dict(x="Strength (mg)", y="Container Type", color="Pulls"),
+                        title=f"<b>{title} (Total Pulls: {df['Timepoints'].sum()})</b>",
+                        color_continuous_scale='Greens')
+        fig.update_xaxes(side="top")
+        return fig
+
+    fig_full = create_heatmap_table(df_full, "Full Study Design")
+    fig_reduced = create_heatmap_table(df_reduced, f"Reduced Study Design ({design_type})")
+    
+    return fig_full, fig_reduced, pulls_saved, total_pulls_full, total_pulls_reduced
+
+@st.cache_data
 def plot_spc_charts(scenario='Stable'):
     """
     Generates dynamic SPC charts based on a selected process scenario.
@@ -3227,6 +3300,40 @@ def plot_fty_coq(project_type, improvement_effort):
 ##=================================================================================================================================================================================================
 ##=======================================================================================END ACT II ===============================================================================================
 ##=================================================================================================================================================================================================
+@st.cache_data
+def plot_control_plan_dashboard(control_plan_data):
+    """
+    Generates a professional-grade Control Plan table and OCAP flowchart.
+    """
+    # Plot 1: The Control Plan Table
+    df = pd.DataFrame(control_plan_data)
+    fig_table = go.Figure(data=[go.Table(
+        header=dict(values=list(df.columns), fill_color=PRIMARY_COLOR, font=dict(color='white', size=14), align='left', height=40),
+        cells=dict(values=[df[col] for col in df.columns], fill_color='lavender', align='left', font_size=12, height=30)
+    )])
+    fig_table.update_layout(title_text="<b>1. Process Control Plan Document</b>", margin=dict(l=10, r=10, t=40, b=10))
+
+    # Plot 2: The OCAP Flowchart
+    fig_flowchart = go.Figure(go.Sankey(
+        arrangement = "snap",
+        node = {
+            "label": ["Process In-Control", "Point > 3s?", "Point > 2s?", "Stop Process", "Notify QA", "Continue Process", "Re-sample Immediately"],
+            "x": [0.1, 0.3, 0.3, 0.9, 0.9, 0.9, 0.6],
+            "y": [0.5, 0.2, 0.8, 0.1, 0.3, 0.9, 0.8],
+            'pad':10,
+            'color': [SUCCESS_GREEN, 'orange', 'orange', 'red', 'red', SUCCESS_GREEN, 'lightblue']
+        },
+        link = {
+            "source": [0, 1, 1, 2, 2, 6],
+            "target": [1, 3, 2, 6, 5, 5],
+            "value": [1, 0.2, 0.8, 0.5, 0.5, 1],
+            "label": ["Monitor", "YES", "NO", "YES", "NO", "If OK"]
+        }
+    ))
+    fig_flowchart.update_layout(title_text="<b>2. Out-of-Control Action Plan (OCAP) Flowchart</b>", font_size=12)
+
+    return fig_table, fig_flowchart
+
 @st.cache_data
 def plot_westgard_scenario(scenario='Stable'):
     """
@@ -7712,7 +7819,97 @@ A compliant and statistically sound sampling plan is always derived from pre-def
         st.markdown("""
         Where `M` is Lot Size, `D` is max allowable defects (`floor((1-R) * M)`), and `n` is Sample Size.
         """)
+
+def render_stability_design():
+    """Renders the comprehensive, interactive module for Stability Study Design."""
+    st.markdown("""
+    #### Purpose & Application: Strategic Cost-Savings in Stability
+    **Purpose:** To demonstrate how to apply risk-based, statistically justified strategies (**Bracketing** and **Matrixing**) to reduce the cost and complexity of large-scale stability studies, as outlined in **ICH Q1D**.
+    
+    **Strategic Application:** For a product with many variations (e.g., multiple strengths and container types), testing every combination at every timepoint is prohibitively expensive. This tool provides a powerful way for a validation leader to design and justify a resource-saving validation strategy to management and regulators without compromising compliance or scientific rigor.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Stability Program Manager.
+    1.  Use the **Product Factors** selectors in the sidebar to define the complexity of your product.
+    2.  Select a **Reduced Study Design** to see how it compares to the full study.
+    3.  The **Heatmap Tables** visualize the number of stability pulls required for each design, and the KPIs quantify the cost savings.
+    """)
+
+    with st.sidebar:
+        st.subheader("Stability Design Controls")
+        strengths = st.multiselect("Select Product Strengths (mg)", [10, 25, 50, 100], default=[10, 25, 50, 100],
+            help="The different dosage strengths of the product. The more strengths, the greater the benefit of a reduced design.")
+        containers = st.multiselect("Select Container Types", ["Vial", "Pre-filled Syringe"], default=["Vial", "Pre-filled Syringe"],
+            help="The different primary packaging configurations for the product.")
+        design_type = st.radio("Select Reduced Study Design", ["Bracketing", "Matrixing"],
+            help="**Bracketing:** Tests only the extremes (e.g., lowest and highest strengths). **Matrixing:** Tests a strategic subset of all combinations at specific timepoints.")
+
+    if not strengths or not containers:
+        st.warning("Please select at least one Strength and one Container type.")
+        return
+
+    fig_full, fig_reduced, pulls_saved, total_full, total_reduced = plot_stability_design_comparison(strengths, containers, design_type)
+
+    st.header("Stability Study Design Comparison")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Pulls (Full Study)", f"{total_full}")
+    col2.metric("Total Pulls (Reduced Study)", f"{total_reduced}")
+    col3.metric("Samples Saved (%)", f"{pulls_saved} ({pulls_saved/total_full:.0%})")
+
+    col_full, col_reduced = st.columns(2)
+    with col_full:
+        st.plotly_chart(fig_full, use_container_width=True)
+    with col_reduced:
+        st.plotly_chart(fig_reduced, use_container_width=True)
         
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Designs:**
+        - **Full Study:** This is the baseline, testing every combination of strength and container at every timepoint. It is the most comprehensive but also the most expensive.
+        - **Bracketing:** This design assumes that the stability of the intermediate strengths is represented by the stability at the extremes. It is a powerful cost-saver, but requires strong scientific justification. As you can see, all intermediate strength/container combinations are removed from the study.
+        - **Matrixing:** This design assumes that the stability of the product is similar across all combinations. It reduces the testing burden by, for example, testing only half the samples at each timepoint in a checkerboard pattern. It provides more information about the entire product family than bracketing.
+        
+        **The Strategic Insight:** The choice between these designs is a risk-based decision. **Bracketing** is ideal when the primary stability risk is related to the extremes (e.g., highest strength has a new excipient, lowest strength is more susceptible to degradation). **Matrixing** is ideal when the process and formulation are very consistent across all combinations and you want to reduce the overall testing load.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Stability Design Terms
+        - **Stability Study:** A formal study to determine the time period during which a drug product remains within its specifications under defined storage conditions.
+        - **Full Design:** A study design in which samples for every combination of all design factors (e.g., strength, container size, lot) are tested at all timepoints.
+        - **Reduced Design:** A study design in which samples for every factor combination are not all tested at all timepoints.
+        - **Bracketing:** A reduced design in which only samples on the extremes of certain design factors (e.g., lowest and highest strengths) are tested at all timepoints.
+        - **Matrixing:** A reduced design in which a selected subset of the total number of possible samples is tested at a specified timepoint. At a subsequent timepoint, a different subset of samples is tested.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: "Ad-Hoc Reduction"**
+A team is running over budget and decides to arbitrarily skip testing some samples from their full stability protocol without pre-approval or a statistical justification.
+- **The Flaw:** This invalidates the entire study. The missing data creates unexplainable gaps, and regulators will reject the study, forcing a costly repeat. It introduces unmanaged risk.""")
+        st.success("""🟢 **THE GOLDEN RULE: Justify, Document, and Pre-Approve**
+A reduced stability design is a powerful, compliant strategy *only* if it is handled with formal discipline.
+1.  **Justify:** The choice of a reduced design (and the specific design chosen) must be justified based on scientific knowledge and a formal risk assessment (FMEA).
+2.  **Document:** The justification and the exact bracketing or matrixing plan must be explicitly detailed in the Stability Protocol.
+3.  **Pre-Approve:** The protocol must be reviewed and approved by Quality Assurance *before* the study begins.""")
+        
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: The Cost of Complexity
+        As the pharmaceutical industry grew in the latter half of the 20th century, the complexity of product portfolios exploded. A single drug product might be marketed in five different strengths, three different container sizes, and be manufactured in two different facilities. The traditional expectation of running a full, multi-year stability study on every single combination became an enormous and often scientifically redundant financial burden.
+        
+        Regulators and industry, working through the **International Council for Harmonisation (ICH)**, recognized this challenge. They sought to create a scientifically sound, risk-based framework that would allow companies to reduce their testing burden without compromising patient safety. This led to the development of the **ICH Q1D guideline**, which formally defined and sanctioned the use of Bracketing and Matrixing designs for formal stability studies.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        The design of stability studies is governed by a specific set of harmonized international guidelines.
+        - **ICH Q1D - Bracketing and Matrixing Designs for Stability Testing:** This is the primary global guideline that provides the rationale, definitions, and requirements for implementing and justifying reduced stability study designs.
+        - **ICH Q1A(R2) - Stability Testing of New Drug Substances and Products:** This guideline defines the overall requirements for stability programs, and Q1D serves as a specific appendix to it.
+        - **FDA Guidance for Industry - Q1D Bracketing and Matrixing:** The FDA's formal adoption and implementation of the ICH guideline, making it a regulatory expectation in the United States.
+        """)
+
 def render_spc_charts():
     """Renders the INTERACTIVE module for Statistical Process Control (SPC) charts."""
     st.markdown("""
@@ -8477,6 +8674,97 @@ The goal of a mature quality system is to strategically shift spending from fail
 ##=======================================================================================================================================================================================================
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================
+def render_control_plan_builder():
+    """Renders the comprehensive, interactive module for a Process Control Plan."""
+    st.markdown("""
+    #### Purpose & Application: The Operational Playbook
+    **Purpose:** To create the **Operational Playbook for Process Control.** A Control Plan is a formal, living document that links a process step to its critical parameters (CPPs), the measurement method, the specification, the sample size/frequency, the control chart used, and, most critically, the **Out-of-Control Action Plan (OCAP)**.
+    
+    **Strategic Application:** This tool bridges the gap between the statistical analysis performed by engineers and the on-the-floor reality of operators. It translates the outputs of your validation studies (like CPPs from a DOE and control limits from an SPC chart) into a single, clear, and actionable document that becomes the standard operating procedure for maintaining a process in a validated state.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Process Steward.
+    1.  Use the **Control Strategy** inputs in the sidebar to define how a Critical Process Parameter (CPP) will be monitored.
+    2.  The dashboard automatically generates the two key documents for operators:
+        - The **Control Plan Table**, which is the official reference.
+        - The **OCAP Flowchart**, which is a simple visual guide for what to do if a process alarm occurs.
+    """)
+
+    with st.sidebar:
+        st.subheader("Control Plan Builder")
+        cpp_name = st.text_input("Critical Process Parameter (CPP)", "Granulation Moisture (%)", help="The critical parameter identified in your FMEA or DOE that you need to control.")
+        lsl = st.number_input("Lower Specification Limit (LSL)", value=2.0)
+        usl = st.number_input("Upper Specification Limit (USL)", value=5.0)
+        measurement_method = st.selectbox("Measurement Method", ["NIR Spectroscopy", "Loss on Drying", "Karl Fischer"], help="The validated test method used to measure the CPP.")
+        sample_size = st.number_input("Sample Size (n)", 1, 10, 3, help="How many samples are taken at each measurement point.")
+        frequency = st.selectbox("Sampling Frequency", ["Once per batch", "Every 30 minutes", "Start, middle, and end"], help="How often the CPP is measured.")
+        spc_tool = st.selectbox("SPC Chart to Use", ["I-MR Chart", "Xbar-R Chart", "EWMA Chart"], help="The specific statistical control chart that will be used to monitor this CPP.")
+
+    control_plan_data = {
+        'Process Step': ['Granulation'],
+        'Parameter (CPP)': [cpp_name],
+        'Specification': [f"{lsl} - {usl}"],
+        'Measurement System': [measurement_method],
+        'Sample Size / Freq.': [f"n={sample_size}, {frequency}"],
+        'Control Method': [spc_tool],
+        'Reaction Plan': ['Follow OCAP-001']
+    }
+    
+    fig_table, fig_flowchart = plot_control_plan_dashboard(control_plan_data)
+    
+    st.header("Control Strategy Dashboard")
+    st.plotly_chart(fig_table, use_container_width=True)
+    st.plotly_chart(fig_flowchart, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Dashboard:**
+        - **Control Plan Table:** This is the formal, auditable document. It contains all the critical information for controlling the process parameter in a single place. In a real GMP environment, this would be a controlled document in a system like Veeva.
+        - **OCAP Flowchart:** This is the user-friendly guide for the operator on the manufacturing floor. It provides a simple, unambiguous, visual decision tree for exactly what to do when a process alarm occurs. A good OCAP clearly defines the steps for escalation, investigation, and disposition of potentially non-conforming material.
+        
+        **The Strategic Insight:** A validation program is only as good as its implementation on the factory floor. The most sophisticated SPC chart is useless if the operator doesn't know what to do when it alarms. The Control Plan and OCAP are the critical documents that bridge this gap, ensuring that the process not only *is* in control, but *stays* in control.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Control Strategy Terms
+        - **Control Plan:** A written description of the systems and processes required for controlling a process or product. It is a living document that is updated as the process matures.
+        - **Control Strategy (ICH Q10):** A planned set of controls, derived from product and process understanding, that assures process performance and product quality. It includes controls on material attributes, process parameters, facility conditions, and final product testing.
+        - **OCAP (Out-of-Control Action Plan):** A flowchart or documented procedure that prescribes the sequence of actions an operator must take in response to an out-of-control signal from an SPC chart.
+        - **CPP (Critical Process Parameter):** A process parameter whose variability has an impact on a CQA and therefore should be monitored or controlled.
+        - **In-Process Control (IPC):** Checks performed during production in order to monitor and, if necessary, to adjust the process to ensure that the product conforms to its specification.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Trust the Engineers" Fallacy**
+Engineers install a new SPC system that monitors 50 parameters in real-time. When a chart alarms, the operator is unsure which alarms are important and what to do, so they call the busy engineer, who may not be immediately available.
+- **The Flaw:** The system provides data but no **actionable information**. The lack of a clear Control Plan and OCAP creates confusion, delays, and risk on the manufacturing floor.""")
+        st.success("""🟢 **THE GOLDEN RULE: If It Can Alarm, It Must Have a Plan**
+A compliant and effective control strategy requires that every single monitoring chart has a clear, pre-defined, and operator-friendly action plan.
+1.  **Link Controls to Risks:** The parameters included in the Control Plan should be directly linked to the high-risk items identified in the **FMEA**.
+2.  **Define the Full Strategy:** The Control Plan must specify *all* aspects of the control: the what, how, how much, how often, and who.
+3.  **Create a Simple OCAP:** The OCAP must be a simple, unambiguous flowchart that an operator can follow under pressure without needing to consult an engineer for routine alarms. This empowers operators and ensures consistent, rapid responses to process deviations.""")
+        
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: From Shewhart's Chart to the Control Plan
+        When **Walter Shewhart** invented the control chart in the 1920s, his primary focus was on the statistical tool for *detection*. The reaction to the signal was largely left to the judgment of the on-site engineer.
+        
+        As manufacturing processes became more complex, and as quality principles were adopted more broadly, the need for a more structured response became clear. The **automotive industry**, through its development of the **Advanced Product Quality Planning (APQP)** framework in the late 1980s, formalized the **Control Plan** as a key deliverable. They recognized that a control chart was useless without a documented plan for how it would be used and what actions would be taken in response to a signal.
+        
+        The **Out-of-Control Action Plan (OCAP)** evolved from this as a best practice, translating the formal table of the Control Plan into a simple, visual flowchart that is ideal for use by operators on the factory floor. The combination of SPC, the Control Plan, and the OCAP creates a complete, closed-loop system for process control.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        The Control Plan is a key document that demonstrates a state of control and is a primary focus of regulatory audits.
+        - **ICH Q10 - Pharmaceutical Quality System:** The Control Plan is the operational embodiment of the **Control Strategy**, which is a central concept in ICH Q10. It is the documented proof that product and process understanding has been translated into effective, routine controls.
+        - **FDA Process Validation Guidance (Stage 3 - CPV):** The guidance requires an "ongoing program to collect and analyze product and process data." The Control Plan is the document that formally defines this program.
+        - **21 CFR 211.110 (Sampling and testing of in-process materials and drug products):** This regulation requires written procedures for in-process controls, including "Control procedures shall be established to monitor the output and to validate the performance of those manufacturing processes that may be responsible for causing variability." The Control Plan is this established procedure.
+        """)
+
 def render_multi_rule():
     """Renders the comprehensive, interactive module for Multi-Rule SPC (Westgard Rules)."""
     st.markdown("""
@@ -10295,36 +10583,67 @@ with st.sidebar:
 
     # FIX: The all_tools dictionary is updated to treat the diagram and table as separate items.
     # Replace the old all_tools dictionary with this one.
-    all_tools = {
-        "ACT 0: PLANNING & STRATEGY": [
-            "TPP & CQA Cascade",
-            "Analytical Target Profile (ATP) Builder",
-            "Quality Risk Management (FMEA)",
-            "Validation Master Plan (VMP) Builder",
-            "Requirements Traceability Matrix (RTM)",
-            "Design for Excellence (DfX)"
-        ],
-        "ACT I: FOUNDATION & CHARACTERIZATION": [
-            "Confidence Interval Concept", "Confidence Interval for Proportions", "Core Validation Parameters", "Comprehensive Diagnostic Validation", "Attribute Agreement Analysis",
-            "Gage R&R / VCA", "LOD & LOQ", "Linearity & Range", "Non-Linear Regression (4PL/5PL)", 
-            "ROC Curve Analysis", "Equivalence Testing (TOST)", "Assay Robustness (DOE)", "Mixture Design (Formulations)", "Process Optimization: From DOE to AI",
-            "Split-Plot Designs", "Causal Inference"
-        ],
-        "ACT II: TRANSFER & STABILITY": [
-            "Sample Size for Qualification", "Process Stability (SPC)", "Process Capability (Cpk)", "Statistical Equivalence for Process Transfer",
-            "Tolerance Intervals", "Method Comparison", "Bayesian Inference", "First Time Yield & Cost of Quality"
-        ],
-        "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
-            "Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", 
-            "Time Series Analysis", "Stability Analysis (Shelf-Life)", 
-            "Reliability / Survival Analysis", "Multivariate Analysis (MVA)", 
-            "Clustering (Unsupervised)", "Predictive QC (Classification)", 
-            "Anomaly Detection", "Explainable AI (XAI)", "Advanced AI Concepts", 
-            "MEWMA + XGBoost Diagnostics", "BOCPD + ML Features", 
-            "Kalman Filter + Residual Chart", "RL for Chart Tuning", 
-            "TCN + CUSUM", "LSTM Autoencoder + Hybrid Monitoring"
-        ]
-    }
+all_tools = {
+    "ACT 0: PLANNING & STRATEGY": [
+        "TPP & CQA Cascade",
+        "Analytical Target Profile (ATP) Builder",
+        "Quality Risk Management (FMEA)",
+        "Design for Excellence (DfX)",
+        "Validation Master Plan (VMP) Builder",
+        "Requirements Traceability Matrix (RTM)"
+    ],
+    "ACT I: FOUNDATION & CHARACTERIZATION": [
+        "Exploratory Data Analysis (EDA)",
+        "Confidence Interval Concept",
+        "Confidence Intervals for Proportions",
+        "Core Validation Parameters",
+        "LOD & LOQ",
+        "Linearity & Range",
+        "Non-Linear Regression (4PL/5PL)",
+        "Gage R&R / VCA",
+        "Attribute Agreement Analysis",
+        "Comprehensive Diagnostic Validation",
+        "ROC Curve Analysis",
+        "Assay Robustness (DOE)",
+        "Mixture Design (Formulations)",
+        "Process Optimization: From DOE to AI",
+        "Split-Plot Designs",
+        "Causal Inference"
+    ],
+    "ACT II: TRANSFER & STABILITY": [
+        "Sample Size for Qualification",
+        "Advanced Stability Design",
+        "Method Comparison",
+        "Equivalence Testing (TOST)",
+        "Statistical Equivalence for Process Transfer",
+        "Process Stability (SPC)",
+        "Process Capability (Cpk)",
+        "First Time Yield & Cost of Quality",
+        "Tolerance Intervals",
+        "Bayesian Inference"
+    ],
+    "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
+        "Process Control Plan Builder",
+        "Run Validation (Westgard)",
+        "Small Shift Detection",
+        "Multivariate SPC",
+        "Stability Analysis (Shelf-Life)",
+        "Reliability / Survival Analysis",
+        "Time Series Analysis",
+        "Multivariate Analysis (MVA)",
+        "Predictive QC (Classification)",
+        "Explainable AI (XAI)",
+        "Clustering (Unsupervised)",
+        "Anomaly Detection",
+        "Advanced AI Concepts",
+        "MEWMA + XGBoost Diagnostics",
+        "BOCPD + ML Features",
+        "Kalman Filter + Residual Chart",
+        "RL for Chart Tuning",
+        "TCN + CUSUM",
+        "LSTM Autoencoder + Hybrid Monitoring"
+    ]
+}
 
     # The loop for creating tool buttons remains the same.
     for act_title, act_tools in all_tools.items():
@@ -10345,62 +10664,66 @@ else:
     st.header(f"🔧 {view}")
 
     # --- THIS DICTIONARY NOW CONTAINS ALL RENDER FUNCTIONS ---
-    PAGE_DISPATCHER = {
-        # Act 0
-        "TPP & CQA Cascade": render_tpp_cqa_cascade,
-        "Analytical Target Profile (ATP) Builder": render_atp_builder,
-        "Quality Risk Management (FMEA)": render_fmea,
-        "Validation Master Plan (VMP) Builder": render_vmp_builder,
-        "Requirements Traceability Matrix (RTM)": render_rtm_builder,
-        "Design for Excellence (DfX)": render_dfx_dashboard,
-        # Act I
-        "Confidence Interval Concept": render_ci_concept,
-        "Confidence Intervals for Proportions": render_proportion_cis,
-        "Core Validation Parameters": render_core_validation_params,
-        "Comprehensive Diagnostic Validation": render_diagnostic_validation_suite,
-        "Attribute Agreement Analysis": render_attribute_agreement,
-        "Gage R&R / VCA": render_gage_rr,
-        "LOD & LOQ": render_lod_loq,
-        "Linearity & Range": render_linearity,
-        "Non-Linear Regression (4PL/5PL)": render_4pl_regression,
-        "ROC Curve Analysis": render_roc_curve,
-        "Equivalence Testing (TOST)": render_tost,
-        "Assay Robustness (DOE)": render_assay_robustness_doe,
-        "Mixture Design (Formulations)": render_mixture_design,
-        "Process Optimization: From DOE to AI": render_process_optimization_suite,
-        "Split-Plot Designs": render_split_plot,
-        "Causal Inference": render_causal_inference,
-        
-        # Act II
-        "Sample Size for Qualification": render_sample_size_calculator,
-        "Process Stability (SPC)": render_spc_charts,
-        "Process Capability (Cpk)": render_capability,
-        "Statistical Equivalence for Process Transfer": render_process_equivalence,
-        "Tolerance Intervals": render_tolerance_intervals,
-        "Method Comparison": render_method_comparison,
-        "Bayesian Inference": render_bayesian,
-        "First Time Yield & Cost of Quality": render_fty_coq,
-        
-        # Act III
-        "Run Validation (Westgard)": render_multi_rule,
-        "Multivariate SPC": render_multivariate_spc,
-        "Small Shift Detection": render_ewma_cusum,
-        "Time Series Analysis": render_time_series_analysis,
-        "Stability Analysis (Shelf-Life)": render_stability_analysis,
-        "Reliability / Survival Analysis": render_survival_analysis,
-        "Multivariate Analysis (MVA)": render_mva_pls,
-        "Clustering (Unsupervised)": render_clustering,
-        "Predictive QC (Classification)": render_classification_models,
-        "Anomaly Detection": render_anomaly_detection,
-        "Explainable AI (XAI)": render_xai_shap,
-        "Advanced AI Concepts": render_advanced_ai_concepts,
-        "MEWMA + XGBoost Diagnostics": render_mewma_xgboost,
-        "BOCPD + ML Features": render_bocpd_ml_features,
-        "Kalman Filter + Residual Chart": render_kalman_nn_residual,
-        "RL for Chart Tuning": render_rl_tuning,
-        "TCN + CUSUM": render_tcn_cusum,
-        "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
-    }
+PAGE_DISPATCHER = {
+    # Act 0
+    "TPP & CQA Cascade": render_tpp_cqa_cascade,
+    "Analytical Target Profile (ATP) Builder": render_atp_builder,
+    "Quality Risk Management (FMEA)": render_fmea,
+    "Design for Excellence (DfX)": render_dfx_dashboard,
+    "Validation Master Plan (VMP) Builder": render_vmp_builder,
+    "Requirements Traceability Matrix (RTM)": render_rtm_builder,
+    
+    # Act I
+    "Exploratory Data Analysis (EDA)": render_eda_dashboard,
+    "Confidence Interval Concept": render_ci_concept,
+    "Confidence Intervals for Proportions": render_proportion_cis,
+    "Core Validation Parameters": render_core_validation_params,
+    "LOD & LOQ": render_lod_loq,
+    "Linearity & Range": render_linearity,
+    "Non-Linear Regression (4PL/5PL)": render_4pl_regression,
+    "Gage R&R / VCA": render_gage_rr,
+    "Attribute Agreement Analysis": render_attribute_agreement,
+    "Comprehensive Diagnostic Validation": render_diagnostic_validation_suite,
+    "ROC Curve Analysis": render_roc_curve,
+    "Assay Robustness (DOE)": render_assay_robustness_doe,
+    "Mixture Design (Formulations)": render_mixture_design,
+    "Process Optimization: From DOE to AI": render_process_optimization_suite,
+    "Split-Plot Designs": render_split_plot,
+    "Causal Inference": render_causal_inference,
+    
+    # Act II
+    "Sample Size for Qualification": render_sample_size_calculator,
+    "Advanced Stability Design": render_stability_design,
+    "Method Comparison": render_method_comparison,
+    "Equivalence Testing (TOST)": render_tost,
+    "Statistical Equivalence for Process Transfer": render_process_equivalence,
+    "Process Stability (SPC)": render_spc_charts,
+    "Process Capability (Cpk)": render_capability,
+    "First Time Yield & Cost of Quality": render_fty_coq,
+    "Tolerance Intervals": render_tolerance_intervals,
+    "Bayesian Inference": render_bayesian,
+    
+    # Act III
+    "Process Control Plan Builder": render_control_plan_builder,
+    "Run Validation (Westgard)": render_multi_rule,
+    "Small Shift Detection": render_ewma_cusum,
+    "Multivariate SPC": render_multivariate_spc,
+    "Stability Analysis (Shelf-Life)": render_stability_analysis,
+    "Reliability / Survival Analysis": render_survival_analysis,
+    "Time Series Analysis": render_time_series_analysis,
+    "Multivariate Analysis (MVA)": render_mva_pls,
+    "Predictive QC (Classification)": render_predictive_qc,
+    "Explainable AI (XAI)": render_xai_shap,
+    "Clustering (Unsupervised)": render_clustering,
+    "Anomaly Detection": render_anomaly_detection,
+    "Advanced AI Concepts": render_advanced_ai_concepts,
+    "MEWMA + XGBoost Diagnostics": render_mewma_xgboost,
+    "BOCPD + ML Features": render_bocpd_ml_features,
+    "Kalman Filter + Residual Chart": render_kalman_nn_residual,
+    "RL for Chart Tuning": render_rl_tuning,
+    "TCN + CUSUM": render_tcn_cusum,
+    "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
+}
     
     # FIX: This block is now correctly indented to be at the same level
     # as the PAGE_DISPATCHER dictionary, inside the 'else' block.

@@ -1176,6 +1176,11 @@ def plot_eda_dashboard(df, numeric_cols, cat_cols, corr_method='pearson'):
     Generates a professional-grade, multi-part EDA dashboard from a dataframe.
     This version includes richer plots and dedicated categorical analysis.
     """
+    # --- THIS IS THE FIX: CONVERT TUPLES BACK TO LISTS FOR PANDAS ---
+    numeric_cols = list(numeric_cols)
+    cat_cols = list(cat_cols)
+    # -----------------------------------------------------------------
+    
     figs = {}
 
     # --- Plot 1: Correlation Heatmap (with method selection) ---
@@ -1196,7 +1201,6 @@ def plot_eda_dashboard(df, numeric_cols, cat_cols, corr_method='pearson'):
     fig_pairplot.update_traces(diagonal_visible=False)
     fig_pairplot.update_layout(height=700)
     figs['pairplot'] = fig_pairplot
-
     # --- Plot 3: Rich Univariate Distributions ---
     rows = (len(numeric_cols) + 1) // 2
     fig_dist = make_subplots(rows=rows, cols=2,

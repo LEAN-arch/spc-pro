@@ -5719,19 +5719,61 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
 def create_pso_figure(zz, x_range, y_range, history, gbest_position, context):
     """
     Creates the Plotly figure from the simulation data.
-    This function is NOT cached.
+    This version is corrected to handle animation frames properly.
     """
+    # 1. Define the static, unchanging parts of the plot
+    contour_trace = go.Contour(
+        z=zz, 
+        x=x_range, 
+        y=y_range, 
+        colorscale='Inferno', 
+        colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)')
+    )
+    
+    star_trace = go.Scatter(
+        x=[gbest_position[0]], 
+        y=[gbest_position[1]], 
+        mode='markers', 
+        marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), 
+        name='Highest-Risk Condition Found'
+    )
+
+    # 2. Create the list of frames for the animation
+    # Each frame must contain ALL traces that should be visible
+    frames = []
+    for step_positions in history:
+        particle_trace = go.Scatter(
+            x=step_positions[:, 0], 
+            y=step_positions[:, 1], 
+            mode='markers', 
+            marker=dict(color='cyan', size=10, symbol='cross'),
+            name='PSO Particles'
+        )
+        # Each frame contains the background, the final star, and the particles at one step
+        frames.append(go.Frame(data=[contour_trace, star_trace, particle_trace]))
+
+    # 3. Create the figure, starting with the initial state
     fig = go.Figure(
-        data=[go.Contour(z=zz, x=x_range, y=y_range, colorscale='Inferno', colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)'))],
+        data=[contour_trace, star_trace, frames[0].data[2]], # Initial state is frame 0
         layout=go.Layout(
             title=f"<b>PSO Red Team: Finding Hidden Failure Modes in a {context['name']}</b>",
             xaxis_title=context['x_label'], yaxis_title=context['y_label'],
-            updatemenus=[dict(type="buttons", buttons=[dict(label="► Run Simulation", method="animate", args=[None, {"frame": {"duration": 100, "redraw": False}, "fromcurrent": True, "transition": {"duration": 0}}]),
-                                                       dict(label="❚❚ Pause", method="animate", args=[[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate", "transition": {"duration": 0}}])])]
+            updatemenus=[dict(
+                type="buttons",
+                buttons=[dict(label="► Run Simulation",
+                              method="animate",
+                              args=[None, {"frame": {"duration": 100, "redraw": True}, # Use redraw=True for this method
+                                           "fromcurrent": True, "transition": {"duration": 0}}]),
+                         dict(label="❚❚ Pause",
+                              method="animate",
+                              args=[[None], {"frame": {"duration": 0, "redraw": False},
+                                            "mode": "immediate", "transition": {"duration": 0}}])
+                ]
+            )]
         ),
-        frames=[go.Frame(data=[go.Scatter(x=h[:, 0], y=h[:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'))]) for h in history]
+        frames=frames
     )
-    fig.add_trace(go.Scatter(x=[gbest_position[0]], y=[gbest_position[1]], mode='markers', marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), name='Highest-Risk Condition Found'))
+    
     return fig
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS

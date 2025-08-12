@@ -5987,6 +5987,109 @@ The core principle of DfX is **concurrent engineering**, where design, manufactu
 #====================================================================================================================================================================================================================================
 #=====================================================================================================ACT 0 RENDER END ==============================================================================================================
 #====================================================================================================================================================================================================================================
+def render_eda_dashboard():
+    """Renders the comprehensive, interactive module for Exploratory Data Analysis."""
+    st.markdown("""
+    #### Purpose & Application: The Data Scientist's First Look
+    **Purpose:** To perform a thorough **Exploratory Data Analysis (EDA)**. Before any formal modeling or hypothesis testing, EDA is essential to understand the data's structure, identify potential quality issues, and form initial hypotheses.
+    
+    **Strategic Application:** This is the most critical first step in any data-driven project. Skipping EDA is like a surgeon operating without looking at the patient's chart—it's professional malpractice. This tool automates the creation of a comprehensive EDA report, allowing a validation leader or scientist to quickly assess the quality of a new dataset (e.g., from a tech transfer or a new instrument) and to discover hidden relationships that warrant formal investigation.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are a Data Scientist receiving a new dataset.
+    1.  **Upload your own CSV file** or use the provided sample data from a simulated pharma process.
+    2.  The dashboard automatically generates a full EDA report.
+    3.  Review the **Data Quality KPIs** to check for problems like missing data.
+    4.  Analyze the plots to understand the data's structure and relationships.
+    """)
+
+    uploaded_file = st.file_uploader("Upload a CSV file for analysis", type="csv")
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+    else:
+        # Use a realistic sample dataset if no file is uploaded
+        np.random.seed(42)
+        data = {
+            'Yield': np.random.normal(85, 5, 100),
+            'Purity': 100 - np.random.beta(2, 20, 100) * 5,
+            'pH': np.random.normal(7.1, 0.1, 100),
+            'Temperature': np.random.normal(37, 0.5, 100),
+            'Raw_Material_Lot': np.random.choice(['Lot A', 'Lot B', 'Lot C'], 100, p=[0.5, 0.3, 0.2])
+        }
+        df = pd.DataFrame(data)
+        df.loc[5:10, 'Purity'] = np.nan # Introduce some missing data
+
+    st.header("Exploratory Data Analysis Report")
+    st.dataframe(df.head())
+    
+    # --- Data Quality KPIs ---
+    st.subheader("Data Quality KPIs")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Rows", df.shape[0])
+    col2.metric("Columns", df.shape[1])
+    missing_values = df.isnull().sum().sum()
+    col3.metric("Missing Values", f"{missing_values}", help=f"Total number of empty cells. Found in columns: {', '.join(df.columns[df.isnull().any()].tolist())}")
+    col4.metric("Duplicate Rows", f"{df.duplicated().sum()}")
+    
+    numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+    cat_cols = df.select_dtypes(exclude=np.number).columns.tolist()
+
+    if numeric_cols:
+        fig_heatmap, fig_pairplot, fig_hist = plot_eda_dashboard(df, numeric_cols, cat_cols)
+        st.plotly_chart(fig_heatmap, use_container_width=True)
+        st.plotly_chart(fig_pairplot, use_container_width=True)
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Check Data Quality First:** The KPIs at the top are your first stop. A high number of **Missing Values** or **Duplicate Rows** signals a problem with data collection or integrity that must be fixed before any analysis can be trusted.
+        2.  **Understand Distributions (Histograms):** Review the univariate plots. Are the data normally distributed, or are they skewed? Are there potential outliers? This informs which statistical tests will be appropriate.
+        3.  **Find the Strongest Relationships (Heatmap):** The correlation heatmap is your guide to what matters most. Bright red (strong positive correlation) or bright blue (strong negative correlation) cells highlight the most powerful relationships in your process, which should be investigated further with formal tools like DOE or Regression.
+        4.  **Visualize the Interactions (Pair Plot):** This is the most powerful plot. It shows every bivariate relationship in one graphic. Look for clear trends between variables. If you color by a categorical variable (like `Raw_Material_Lot`), you can often spot group differences, such as Lot A consistently producing higher yields.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of EDA Terms
+        - **EDA (Exploratory Data Analysis):** An approach to analyzing datasets to summarize their main characteristics, often with visual methods.
+        - **Data Quality:** The state of data regarding its accuracy, completeness, consistency, and reliability.
+        - **Univariate Analysis:** The analysis of a single variable at a time (e.g., a histogram).
+        - **Bivariate Analysis:** The analysis of the relationship between two variables (e.g., a scatter plot).
+        - **Correlation:** A statistical measure that expresses the extent to which two variables are linearly related (meaning they change together at a constant rate).
+        - **Outlier:** A data point that differs significantly from other observations.
+        - **Missing Values:** Data points for which no value is stored (often represented as `NaN`).
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: "Garbage In, Gospel Out"**
+An analyst receives a new dataset, immediately feeds it into a sophisticated machine learning model, and presents the model's predictions as truth.
+- **The Flaw:** They never checked the data quality. The dataset was riddled with missing values and outliers, which the model interpreted as real patterns. The resulting predictions are statistically invalid and dangerously misleading. This is the definition of "Garbage In, Garbage Out."""")
+        st.success("""🟢 **THE GOLDEN RULE: Trust, but Verify Your Data**
+Before performing any formal statistical analysis or building any model, you must first get to know your data.
+1.  **Inspect for Quality:** Always begin by checking for fundamental issues like missing values, duplicates, and obvious errors.
+2.  **Visualize the Big Picture:** Use tools like correlation heatmaps and pair plots to understand the overall structure and key relationships in your data.
+3.  **Formulate Hypotheses:** Use the insights from EDA to form specific, testable hypotheses. For example, "It appears that Purity is negatively correlated with Temperature. Let's design a formal DOE to confirm this causal link."
+EDA is the step that turns raw data into actionable scientific inquiry.""")
+        
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: The Father of EDA
+        While data visualization has existed for centuries, the formal discipline of **Exploratory Data Analysis (EDA)** was single-handedly championed by the brilliant American mathematician **John Tukey** in the 1970s. Tukey, a contemporary of the great quality gurus, argued that traditional statistics had become too focused on "confirmatory" analysis (hypothesis testing) and had neglected the critical first step of "exploratory" analysis.
+        
+        He believed that analysts should act as "data detectives," using graphical methods to uncover the hidden stories in their data. He invented several of the core visualization tools we use today, including the **box plot** and the **stem-and-leaf plot**. His 1977 book, *Exploratory Data Analysis*, is a classic that liberated statisticians from rigid formalism and encouraged a more intuitive, interactive, and curiosity-driven approach to data. With modern tools like Python and Plotly, we can now automate the powerful, interactive visualizations that Tukey could only dream of.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        While EDA is an exploratory activity, it is a critical prerequisite for many formal validation activities and is implicitly required by several regulations.
+        - **FDA Guidance on Process Validation (Stage 1 - Process Design):** The guidance states that process knowledge and understanding should be built upon a foundation of "development studies." EDA is the first step in analyzing the data from these studies to build that foundational understanding.
+        - **Data Integrity (ALCOA+):** A core principle of data integrity is that data must be **Complete** and **Accurate**. The Data Quality KPIs in this dashboard are a direct check on these principles. An EDA report is often a key part of the evidence package for a new dataset, demonstrating that the data has been reviewed for quality before being used in formal GxP analysis.
+        - **ICH Q9 (Quality Risk Management):** EDA is a powerful tool for risk identification. Discovering a strong, unexpected correlation in your data during EDA can highlight a previously unknown process risk that needs to be formally assessed with a tool like FMEA.
+        """)
+
 def render_ci_concept():
     """Renders the interactive module for Confidence Intervals."""
     st.markdown("""

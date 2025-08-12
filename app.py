@@ -274,58 +274,66 @@ def create_styled_v_model_table(df):
     return fig
     
 # --- RESTORED PLOTTING FUNCTION 2 ---
+# FIX: Replace the entire plot_act_grouped_timeline function with this new, complete version.
 @st.cache_data
 def plot_act_grouped_timeline():
-    # SME Note: Added all new tools to their appropriate Acts.
+    """Generates the project-based timeline with all tools, including Act 0."""
     all_tools_data = [
         # --- ACT 0 ---
         {'name': 'TPP & CQA Cascade', 'act': 0, 'year': 2009, 'inventor': 'ICH Q8', 'desc': 'Defines the "golden thread" of Quality by Design.'},
         {'name': 'Analytical Target Profile', 'act': 0, 'year': 2012, 'inventor': 'FDA/AAPS', 'desc': 'Creates the "contract" for a new analytical method.'},
-        {'name': 'Quality Risk Management (FMEA)', 'act': 0, 'year': 1949, 'inventor': 'US Military', 'desc': 'Proactively identifies and mitigates process risks.'},
+        {'name': 'Quality Risk Management (QRM) Suite', 'act': 0, 'year': 1949, 'inventor': 'US Military', 'desc': 'Proactively identifies and mitigates process risks (FMEA, FTA, etc.).'},
+        {'name': 'Design for Excellence (DfX)', 'act': 0, 'year': 1980, 'inventor': 'Concurrent Engineering', 'desc': 'Optimizing design for the entire product lifecycle.'},
         {'name': 'Validation Master Plan', 'act': 0, 'year': 1990, 'inventor': 'GAMP Forum', 'desc': 'The master project plan for any validation effort.'},
         {'name': 'Requirements Traceability Matrix', 'act': 0, 'year': 1980, 'inventor': 'Systems Engineering', 'desc': 'Ensures all requirements are built and tested.'},
         # --- ACT I ---
-        {'name': 'Assay Robustness (DOE)', 'act': 1, 'year': 1926, 'inventor': 'R.A. Fisher', 'desc': 'Fisher publishes his work on Design of Experiments.'},
-        {'name': 'Split-Plot Designs', 'act': 1, 'year': 1930, 'inventor': 'R.A. Fisher & F. Yates', 'desc': 'Specialized DOE for factors that are "hard-to-change".'},
-        {'name': 'CI Concept', 'act': 1, 'year': 1937, 'inventor': 'Jerzy Neyman', 'desc': 'Neyman formalizes the frequentist confidence interval.'},
-        {'name': 'ROC Curve Analysis', 'act': 1, 'year': 1945, 'inventor': 'Signal Processing Labs', 'desc': 'Developed for radar, now the standard for diagnostic tests.'},
-        {'name': 'Assay Robustness (RSM)', 'act': 1, 'year': 1951, 'inventor': 'Box & Wilson', 'desc': 'Box & Wilson develop Response Surface Methodology.'},
-        {'name': 'Mixture Designs', 'act': 1, 'year': 1958, 'inventor': 'Henry Scheffé', 'desc': 'Specialized DOE for optimizing formulations and blends.'},
+        {'name': 'Exploratory Data Analysis (EDA)', 'act': 1, 'year': 1977, 'inventor': 'John Tukey', 'desc': 'The critical first step of understanding any dataset.'},
+        {'name': 'Confidence Interval Concept', 'act': 1, 'year': 1937, 'inventor': 'Jerzy Neyman', 'desc': 'Neyman formalizes the frequentist confidence interval.'},
+        {'name': 'Confidence Intervals for Proportions', 'act': 1, 'year': 1927, 'inventor': 'Edwin B. Wilson', 'desc': 'Wilson develops a superior confidence interval for pass/fail data.'},
+        {'name': 'Core Validation Parameters', 'act': 1, 'year': 1980, 'inventor': 'ICH / FDA', 'desc': 'Accuracy, Precision, Specificity codified.'},
         {'name': 'LOD & LOQ', 'act': 1, 'year': 1968, 'inventor': 'Lloyd Currie (NIST)', 'desc': 'Currie at NIST formalizes the statistical basis.'},
-        {'name': 'Non-Linear Regression', 'act': 1, 'year': 1975, 'inventor': 'Bioassay Field', 'desc': 'Models for sigmoidal curves common in immunoassays.'},
-        {'name': 'Core Validation Params', 'act': 1, 'year': 1980, 'inventor': 'ICH / FDA', 'desc': 'Accuracy, Precision, Specificity codified.'},
-        {'name': 'Gage R&R', 'act': 1, 'year': 1982, 'inventor': 'AIAG', 'desc': 'AIAG codifies Measurement Systems Analysis (MSA).'},
-        {'name': 'Equivalence Testing (TOST)', 'act': 1, 'year': 1987, 'inventor': 'Donald Schuirmann', 'desc': 'Schuirmann proposes TOST for bioequivalence.'},
-        {'name': 'Causal Inference', 'act': 1, 'year': 2018, 'inventor': 'Judea Pearl et al.', 'desc': 'Moving beyond correlation to identify root causes.'},
+        {'name': 'Linearity & Range', 'act': 1, 'year': 1805, 'inventor': 'Legendre/Gauss', 'desc': 'Using linear regression to verify proportionality.'},
+        {'name': 'Non-Linear Regression (4PL/5PL)', 'act': 1, 'year': 1975, 'inventor': 'Bioassay Field', 'desc': 'Models for sigmoidal curves common in immunoassays.'},
+        {'name': 'Gage R&R / VCA', 'act': 1, 'year': 1982, 'inventor': 'AIAG', 'desc': 'AIAG codifies Measurement Systems Analysis (MSA).'},
         {'name': 'Attribute Agreement Analysis', 'act': 1, 'year': 1960, 'inventor': 'Cohen/Fleiss', 'desc': 'Validating human inspectors for pass/fail decisions.'},
         {'name': 'Comprehensive Diagnostic Validation', 'act': 1, 'year': 1950, 'inventor': 'Multi-Disciplinary', 'desc': 'A full suite of metrics for validating IVDs.'},
-        {'name': 'Process Optimization: DOE to AI', 'act': 1, 'year': 2017, 'inventor': 'Modern Synthesis', 'desc': 'Combining classic DOE with modern ML for deep optimization.'},
+        {'name': 'ROC Curve Analysis', 'act': 1, 'year': 1945, 'inventor': 'Signal Processing Labs', 'desc': 'Developed for radar, now the standard for diagnostic tests.'},
+        {'name': 'Assay Robustness (DOE)', 'act': 1, 'year': 1926, 'inventor': 'R.A. Fisher', 'desc': 'Fisher publishes his work on Design of Experiments.'},
+        {'name': 'Mixture Design (Formulations)', 'act': 1, 'year': 1958, 'inventor': 'Henry Scheffé', 'desc': 'Specialized DOE for optimizing formulations and blends.'},
+        {'name': 'Process Optimization: From DOE to AI', 'act': 1, 'year': 2017, 'inventor': 'Modern Synthesis', 'desc': 'Combining classic DOE with modern ML for deep optimization.'},
+        {'name': 'Split-Plot Designs', 'act': 1, 'year': 1930, 'inventor': 'R.A. Fisher & F. Yates', 'desc': 'Specialized DOE for factors that are "hard-to-change".'},
+        {'name': 'Causal Inference', 'act': 1, 'year': 2018, 'inventor': 'Judea Pearl et al.', 'desc': 'Moving beyond correlation to identify root causes.'},
         # --- ACT II ---
-        {'name': 'Process Stability', 'act': 2, 'year': 1924, 'inventor': 'Walter Shewhart', 'desc': 'Shewhart invents the control chart at Bell Labs.'},
-        {'name': 'Tolerance Intervals', 'act': 2, 'year': 1942, 'inventor': 'Abraham Wald', 'desc': 'Wald develops intervals to cover a proportion of a population.'},
-        {'name': 'Method Comparison', 'act': 2, 'year': 1986, 'inventor': 'Bland & Altman', 'desc': 'Bland & Altman revolutionize method agreement studies.'},
-        {'name': 'Process Capability', 'act': 2, 'year': 1986, 'inventor': 'Bill Smith (Motorola)', 'desc': 'Motorola popularizes Cpk with the Six Sigma initiative.'},
-        {'name': 'Bayesian Inference', 'act': 2, 'year': 1990, 'inventor': 'Metropolis et al.', 'desc': 'Computational methods (MCMC) make Bayes practical.'},
         {'name': 'Sample Size for Qualification', 'act': 2, 'year': 1940, 'inventor': 'Dodge/Romig', 'desc': 'Statistically justifying the number of samples for validation.'},
+        {'name': 'Advanced Stability Design', 'act': 2, 'year': 2003, 'inventor': 'ICH Q1D', 'desc': 'Using Bracketing & Matrixing to create efficient stability studies.'},
+        {'name': 'Method Comparison', 'act': 2, 'year': 1986, 'inventor': 'Bland & Altman', 'desc': 'Bland & Altman revolutionize method agreement studies.'},
+        {'name': 'Equivalence Testing (TOST)', 'act': 2, 'year': 1987, 'inventor': 'Donald Schuirmann', 'desc': 'Schuirmann proposes TOST for bioequivalence.'},
         {'name': 'Statistical Equivalence for Process Transfer', 'act': 2, 'year': 1990, 'inventor': 'Modern Synthesis', 'desc': 'Proving two processes perform equivalently after a transfer.'},
+        {'name': 'Process Stability (SPC)', 'act': 2, 'year': 1924, 'inventor': 'Walter Shewhart', 'desc': 'Shewhart invents the control chart at Bell Labs.'},
+        {'name': 'Process Capability (Cpk)', 'act': 2, 'year': 1986, 'inventor': 'Bill Smith (Motorola)', 'desc': 'Motorola popularizes Cpk with the Six Sigma initiative.'},
+        {'name': 'First Time Yield & Cost of Quality', 'act': 2, 'year': 1980, 'inventor': 'Six Sigma/TQM', 'desc': 'Quantifying the business impact of process performance.'},
+        {'name': 'Tolerance Intervals', 'act': 2, 'year': 1942, 'inventor': 'Abraham Wald', 'desc': 'Wald develops intervals to cover a proportion of a population.'},
+        {'name': 'Bayesian Inference', 'act': 2, 'year': 1990, 'inventor': 'Metropolis et al.', 'desc': 'Computational methods (MCMC) make Bayes practical.'},
         # --- ACT III ---
+        {'name': 'Process Control Plan Builder', 'act': 3, 'year': 1980, 'inventor': 'Automotive Industry', 'desc': 'Creating the operational playbook for process monitoring.'},
+        {'name': 'Run Validation (Westgard)', 'act': 3, 'year': 1981, 'inventor': 'James Westgard', 'desc': 'Westgard publishes his multi-rule QC system.'},
+        {'name': 'Small Shift Detection', 'act': 3, 'year': 1954, 'inventor': 'Page/Roberts', 'desc': 'Charts for faster detection of small process drifts.'},
         {'name': 'Multivariate SPC', 'act': 3, 'year': 1931, 'inventor': 'Harold Hotelling', 'desc': 'Hotelling develops the multivariate analog to the t-test.'},
-        {'name': 'Small Shift Detection', 'act': 3, 'year': 1954, 'inventor': 'Page (CUSUM) & Roberts (EWMA)', 'desc': 'Charts for faster detection of small process drifts.'},
-        {'name': 'Clustering', 'act': 3, 'year': 1957, 'inventor': 'Stuart Lloyd', 'desc': 'Algorithm for finding hidden groups in data.'},
-        {'name': 'Predictive QC', 'act': 3, 'year': 1958, 'inventor': 'David Cox', 'desc': 'Cox develops Logistic Regression for binary outcomes.'},
+        {'name': 'Stability Analysis (Shelf-Life)', 'act': 3, 'year': 1993, 'inventor': 'ICH', 'desc': 'ICH guidelines formalize statistical shelf-life estimation.'},
         {'name': 'Reliability / Survival Analysis', 'act': 3, 'year': 1958, 'inventor': 'Kaplan & Meier', 'desc': 'Kaplan-Meier estimator for time-to-event data.'},
-        {'name': 'Kalman Filter + Residual Chart', 'act': 3, 'year': 1960, 'inventor': 'Rudolf E. Kálmán', 'desc': 'Optimal state estimation for dynamic systems, used for intelligent fault detection.'},
         {'name': 'Time Series Analysis', 'act': 3, 'year': 1970, 'inventor': 'Box & Jenkins', 'desc': 'Box & Jenkins publish their seminal work on ARIMA models.'},
         {'name': 'Multivariate Analysis (MVA)', 'act': 3, 'year': 1975, 'inventor': 'Herman Wold', 'desc': 'Partial Least Squares for modeling complex process data.'},
-        {'name': 'Run Validation (Westgard)', 'act': 3, 'year': 1981, 'inventor': 'James Westgard', 'desc': 'Westgard publishes his multi-rule QC system.'},
-        {'name': 'MEWMA + XGBoost Diagnostics', 'act': 3, 'year': 1992, 'inventor': 'Lowry et al.', 'desc': 'Multivariate EWMA for sensitive drift detection, enhanced with modern AI for diagnosis.'},
-        {'name': 'Stability Analysis (Shelf-Life)', 'act': 3, 'year': 1993, 'inventor': 'ICH', 'desc': 'ICH guidelines formalize statistical shelf-life estimation.'},
-        {'name': 'LSTM Autoencoder', 'act': 3, 'year': 1997, 'inventor': 'Hochreiter & Schmidhuber', 'desc': 'Unsupervised anomaly detection by learning a process\'s normal dynamic fingerprint.'},
-        {'name': 'RL for Chart Tuning', 'act': 3, 'year': 2005, 'inventor': 'RL Community', 'desc': 'Using AI to economically optimize control chart parameters, balancing risk and cost.'},
-        {'name': 'BOCPD + ML Features', 'act': 3, 'year': 2007, 'inventor': 'Adams & MacKay', 'desc': 'Probabilistic real-time detection of process changes (changepoints).'},
+        {'name': 'Predictive QC (Classification)', 'act': 3, 'year': 1958, 'inventor': 'David Cox', 'desc': 'Cox develops Logistic Regression for binary outcomes.'},
         {'name': 'Explainable AI (XAI)', 'act': 3, 'year': 2017, 'inventor': 'Lundberg et al.', 'desc': 'Methods like SHAP to open the AI "black box".'},
+        {'name': 'Clustering (Unsupervised)', 'act': 3, 'year': 1957, 'inventor': 'Stuart Lloyd', 'desc': 'Algorithm for finding hidden groups in data.'},
+        {'name': 'Anomaly Detection', 'act': 3, 'year': 2008, 'inventor': 'Liu et al.', 'desc': 'Using Isolation Forests to find novel failures.'},
         {'name': 'Advanced AI Concepts', 'act': 3, 'year': 2017, 'inventor': 'Vaswani et al.', 'desc': 'Transformers and other advanced architectures emerge.'},
+        {'name': 'MEWMA + XGBoost Diagnostics', 'act': 3, 'year': 1992, 'inventor': 'Lowry et al.', 'desc': 'Multivariate EWMA for sensitive drift detection, enhanced with modern AI for diagnosis.'},
+        {'name': 'BOCPD + ML Features', 'act': 3, 'year': 2007, 'inventor': 'Adams & MacKay', 'desc': 'Probabilistic real-time detection of process changes (changepoints).'},
+        {'name': 'Kalman Filter + Residual Chart', 'act': 3, 'year': 1960, 'inventor': 'Rudolf E. Kálmán', 'desc': 'Optimal state estimation for dynamic systems, used for intelligent fault detection.'},
+        {'name': 'RL for Chart Tuning', 'act': 3, 'year': 2005, 'inventor': 'RL Community', 'desc': 'Using AI to economically optimize control chart parameters, balancing risk and cost.'},
         {'name': 'TCN + CUSUM', 'act': 3, 'year': 2018, 'inventor': 'Bai, Kolter & Koltun', 'desc': 'Hybrid model using AI to de-seasonalize data for ultra-sensitive drift detection.'},
+        {'name': 'LSTM Autoencoder + Hybrid Monitoring', 'act': 3, 'year': 1997, 'inventor': 'Hochreiter/Schmidhuber', 'desc': 'Unsupervised anomaly detection by learning a process\'s normal dynamic fingerprint.'},
     ]
     all_tools_data.sort(key=lambda x: (x['act'], x['year']))
     act_ranges = {0: (-5, 20), 1: (25, 65), 2: (70, 90), 3: (95, 140)}
@@ -343,9 +351,9 @@ def plot_act_grouped_timeline():
     fig = go.Figure()
     acts = {
         0: {'name': 'Act 0: Planning & Strategy', 'color': 'rgba(128, 128, 128, 0.9)', 'boundary': (-10, 23)},
-        1: {'name': 'Act I: Foundation & Characterization', 'color': 'rgba(0, 128, 128, 0.9)', 'boundary': (23, 68)},
-        2: {'name': 'Act II: Transfer & Stability', 'color': 'rgba(0, 104, 201, 0.9)', 'boundary': (68, 93)},
-        3: {'name': 'Act III: Lifecycle & Predictive', 'color': 'rgba(100, 0, 100, 0.9)', 'boundary': (93, 145)}
+        1: {'name': 'Act I: Characterization', 'color': 'rgba(0, 128, 128, 0.9)', 'boundary': (23, 68)},
+        2: {'name': 'Act II: Qualification & Transfer', 'color': 'rgba(0, 104, 201, 0.9)', 'boundary': (68, 93)},
+        3: {'name': 'Act III: Lifecycle Management', 'color': 'rgba(100, 0, 100, 0.9)', 'boundary': (93, 145)}
     }
     
     for act_info in acts.values():
@@ -373,16 +381,18 @@ def plot_act_grouped_timeline():
                                   yanchor="bottom", y=1.02, xanchor="center", x=0.5))
     return fig
 
-# FIX: Replace the entire plot_chronological_timeline function with this new version.
+# FIX: Replace the entire plot_chronological_timeline function with this new, complete version.
 @st.cache_data
 def plot_chronological_timeline():
     # SME Note: Added all new tools with their historical context and 'reason for invention'.
     all_tools_data = [
+        {'name': 'Linearity & Range', 'year': 1805, 'inventor': 'Legendre/Gauss', 'reason': 'To predict the orbits of celestial bodies from a limited number of observations.'},
         {'name': 'Process Stability', 'year': 1924, 'inventor': 'Walter Shewhart', 'reason': 'The dawn of mass manufacturing (telephones) required new methods for controlling process variation.'},
         {'name': 'Assay Robustness (DOE)', 'year': 1926, 'inventor': 'R.A. Fisher', 'reason': 'To revolutionize agricultural science by efficiently testing multiple factors (fertilizers, varieties) at once.'},
+        {'name': 'Confidence Intervals for Proportions', 'year': 1927, 'inventor': 'Edwin B. Wilson', 'reason': 'To solve the poor performance of the standard binomial confidence interval, especially for small samples.'},
         {'name': 'Split-Plot Designs', 'year': 1930, 'inventor': 'R.A. Fisher & F. Yates', 'reason': 'To solve agricultural experiments with factors that were difficult or expensive to change on a small scale.'},
         {'name': 'Multivariate SPC', 'year': 1931, 'inventor': 'Harold Hotelling', 'reason': 'To generalize the t-test and control charts to monitor multiple correlated variables simultaneously.'},
-        {'name': 'CI Concept', 'year': 1937, 'inventor': 'Jerzy Neyman', 'reason': 'A need for rigorous, objective methods in the growing field of mathematical statistics.'},
+        {'name': 'Confidence Interval Concept', 'year': 1937, 'inventor': 'Jerzy Neyman', 'reason': 'A need for rigorous, objective methods in the growing field of mathematical statistics.'},
         {'name': 'Sample Size for Qualification', 'year': 1940, 'inventor': 'Dodge & Romig', 'reason': 'WWII demanded a statistical basis for accepting or rejecting massive lots of military supplies.'},
         {'name': 'Tolerance Intervals', 'year': 1942, 'inventor': 'Abraham Wald', 'reason': 'WWII demanded mass production of interchangeable military parts that would fit together reliably.'},
         {'name': 'ROC Curve Analysis', 'year': 1945, 'inventor': 'Signal Processing Labs', 'reason': 'Developed during WWII to distinguish enemy radar signals from noise, a classic signal detection problem.'},
@@ -390,28 +400,30 @@ def plot_chronological_timeline():
         {'name': 'Comprehensive Diagnostic Validation', 'year': 1950, 'inventor': 'Multi-Disciplinary', 'reason': 'The post-war boom in epidemiology required a full suite of metrics to validate new disease screening tests.'},
         {'name': 'Assay Robustness (RSM)', 'year': 1951, 'inventor': 'Box & Wilson', 'reason': 'The post-war chemical industry boom created demand for efficient process optimization techniques.'},
         {'name': 'Small Shift Detection', 'year': 1954, 'inventor': 'Page (CUSUM) & Roberts (EWMA)', 'reason': 'Maturing industries required charts more sensitive to small, slow process drifts than Shewhart\'s original design.'},
-        {'name': 'Clustering', 'year': 1957, 'inventor': 'Stuart Lloyd', 'reason': 'The advent of early digital computing at Bell Labs made iterative, data-driven grouping algorithms feasible.'},
-        {'name': 'Predictive QC', 'year': 1958, 'inventor': 'David Cox', 'reason': 'A need to model binary outcomes (pass/fail, live/die) in a regression framework.'},
+        {'name': 'Clustering (Unsupervised)', 'year': 1957, 'inventor': 'Stuart Lloyd', 'reason': 'The advent of early digital computing at Bell Labs made iterative, data-driven grouping algorithms feasible.'},
+        {'name': 'Predictive QC (Classification)', 'year': 1958, 'inventor': 'David Cox', 'reason': 'A need to model binary outcomes (pass/fail, live/die) in a regression framework.'},
         {'name': 'Reliability / Survival Analysis', 'year': 1958, 'inventor': 'Kaplan & Meier', 'reason': 'The rise of clinical trials necessitated a formal way to handle \'censored\' data.'},
-        {'name': 'Mixture Designs', 'year': 1958, 'inventor': 'Henry Scheffé', 'reason': 'To provide a systematic way for chemists and food scientists to optimize recipes and formulations.'},
+        {'name': 'Mixture Design (Formulations)', 'year': 1958, 'inventor': 'Henry Scheffé', 'reason': 'To provide a systematic way for chemists and food scientists to optimize recipes and formulations.'},
         {'name': 'Attribute Agreement Analysis', 'year': 1960, 'inventor': 'Cohen/Fleiss', 'reason': 'Psychologists needed to measure the reliability of judgments between raters, corrected for chance agreement.'},
         {'name': 'Kalman Filter + Residual Chart', 'year': 1960, 'inventor': 'Rudolf E. Kálmán', 'reason': 'The Apollo program needed a way to navigate to the moon using noisy sensor data, requiring optimal state estimation.'},
         {'name': 'LOD & LOQ', 'year': 1968, 'inventor': 'Lloyd Currie (NIST)', 'reason': 'To create a harmonized, statistically rigorous framework for defining the sensitivity of analytical methods.'},
         {'name': 'Time Series Analysis', 'year': 1970, 'inventor': 'Box & Jenkins', 'reason': 'To provide a comprehensive statistical methodology for forecasting and control in industrial and economic processes.'},
         {'name': 'Multivariate Analysis (MVA)', 'year': 1975, 'inventor': 'Herman Wold', 'reason': 'To model "data-rich but theory-poor" systems in social science, later adapted for chemometrics.'},
-        {'name': 'Core Validation Params', 'year': 1980, 'inventor': 'ICH / FDA', 'reason': 'Globalization of the pharmaceutical industry required harmonized standards for drug approval.'},
+        {'name': 'Core Validation Parameters', 'year': 1980, 'inventor': 'ICH / FDA', 'reason': 'Globalization of the pharmaceutical industry required harmonized standards for drug approval.'},
         {'name': 'Run Validation (Westgard)', 'year': 1981, 'inventor': 'James Westgard', 'reason': 'The automation of clinical labs demanded a more sensitive, diagnostic system for daily quality control.'},
-        {'name': 'Gage R&R', 'year': 1982, 'inventor': 'AIAG', 'reason': 'The US auto industry, facing a quality crisis, needed to formalize the analysis of their measurement systems.'},
+        {'name': 'Gage R&R / VCA', 'year': 1982, 'inventor': 'AIAG', 'reason': 'The US auto industry, facing a quality crisis, needed to formalize the analysis of their measurement systems.'},
         {'name': 'Method Comparison', 'year': 1986, 'inventor': 'Bland & Altman', 'reason': 'A direct response to the widespread misuse of correlation for comparing clinical measurement methods.'},
-        {'name': 'Process Capability', 'year': 1986, 'inventor': 'Bill Smith (Motorola)', 'reason': 'The Six Sigma quality revolution at Motorola popularized a simple metric to quantify process capability.'},
+        {'name': 'Process Capability (Cpk)', 'year': 1986, 'inventor': 'Bill Smith (Motorola)', 'reason': 'The Six Sigma quality revolution at Motorola popularized a simple metric to quantify process capability.'},
         {'name': 'Equivalence Testing (TOST)', 'year': 1987, 'inventor': 'Donald Schuirmann', 'reason': 'The rise of the generic drug industry created a regulatory need to statistically *prove* equivalence.'},
         {'name': 'Validation Master Plan', 'year': 1990, 'inventor': 'GAMP Forum', 'reason': 'Increasingly complex computerized systems required a high-level strategic plan for validation.'},
         {'name': 'Bayesian Inference', 'year': 1990, 'inventor': 'Metropolis et al.', 'reason': 'The explosion in computing power made simulation-based methods (MCMC) practical, unlocking Bayesian inference.'},
         {'name': 'MEWMA + XGBoost Diagnostics', 'year': 1992, 'inventor': 'Lowry et al.', 'reason': 'A need to generalize the sensitive EWMA chart to monitor multiple correlated variables at once.'},
         {'name': 'Stability Analysis (Shelf-Life)', 'year': 1993, 'inventor': 'ICH', 'reason': 'To harmonize global pharmaceutical regulations for determining a product\'s shelf-life.'},
-        {'name': 'LSTM Autoencoder', 'year': 1997, 'inventor': 'Hochreiter & Schmidhuber', 'reason': 'A need to model long-range temporal dependencies in data, later adapted for unsupervised anomaly detection.'},
+        {'name': 'LSTM Autoencoder + Hybrid Monitoring', 'year': 1997, 'inventor': 'Hochreiter/Schmidhuber', 'reason': 'A need to model long-range temporal dependencies in data, later adapted for unsupervised anomaly detection.'},
+        {'name': 'Advanced Stability Design', 'year': 2003, 'inventor': 'ICH Q1D', 'reason': 'To provide a risk-based statistical framework for reducing the cost of complex stability studies.'},
         {'name': 'RL for Chart Tuning', 'year': 2005, 'inventor': 'RL Community', 'reason': 'A desire to move beyond purely statistical chart design to an economically optimal framework balancing risk and cost.'},
         {'name': 'BOCPD + ML Features', 'year': 2007, 'inventor': 'Adams & MacKay', 'reason': 'A need for a more robust, probabilistic method for detecting changepoints in real-time streaming data.'},
+        {'name': 'Anomaly Detection', 'year': 2008, 'inventor': 'Liu et al.', 'reason': 'A need for a fast, efficient algorithm (Isolation Forest) to find outliers in high-dimensional data.'},
         {'name': 'TPP & CQA Cascade', 'year': 2009, 'inventor': 'ICH Q8', 'reason': 'The Quality by Design movement required a formal framework to link patient needs to process controls.'},
         {'name': 'Analytical Target Profile', 'year': 2012, 'inventor': 'FDA/AAPS', 'reason': 'To extend QbD principles to the lifecycle of analytical methods, defining a "contract" for method performance.'},
         {'name': 'Explainable AI (XAI)', 'year': 2017, 'inventor': 'Lundberg et al.', 'reason': 'The rise of powerful but opaque "black box" models necessitated methods to explain their reasoning (XAI).'},
@@ -419,7 +431,6 @@ def plot_chronological_timeline():
         {'name': 'TCN + CUSUM', 'year': 2018, 'inventor': 'Bai, Kolter & Koltun', 'reason': 'A need for a faster, more effective deep learning architecture for sequence modeling to rival LSTMs.'},
         {'name': 'Causal Inference', 'year': 2018, 'inventor': 'Judea Pearl et al.', 'reason': 'The limitations of purely predictive models spurred a "causal revolution" to answer "why" questions.'},
     ]
-
     all_tools_data.sort(key=lambda x: x['year'])
     y_offsets = [3.0, -3.0, 3.5, -3.5, 2.5, -2.5, 4.0, -4.0, 2.0, -2.0, 4.5, -4.5, 1.5, -1.5]
     for i, tool in enumerate(all_tools_data):
@@ -441,77 +452,56 @@ def plot_chronological_timeline():
     fig.add_shape(type="line", x0=1920, y0=0, x1=2025, y1=0, line=dict(color="black", width=3), layer='below')
 
     for tool in all_tools_data:
-        x_coord = tool['year']
-        y_coord = tool['y']
-        
-        tool_color = 'grey'
-        for era_info in eras.values():
-            if era_info['boundary'][0] <= x_coord <= era_info['boundary'][1]:
-                tool_color = era_info['color']
-                break
-
-        fig.add_trace(go.Scatter(
-            x=[x_coord], y=[y_coord], mode='markers',
-            marker=dict(size=12, color=tool_color, line=dict(width=2, color='black')),
-            hoverinfo='text', text=f"<b>{tool['name']} ({tool['year']})</b><br><i>Inventor(s): {tool['inventor']}</i><br><br><b>Reason for Invention:</b> {tool['reason']}",
-            hoverlabel=dict(bgcolor='white', font_size=14)
-        ))
+        x_coord, y_coord = tool['year'], tool['y']
+        tool_color = next((era['color'] for era in eras.values() if era['boundary'][0] <= x_coord <= era['boundary'][1]), 'grey')
+        fig.add_trace(go.Scatter(x=[x_coord], y=[y_coord], mode='markers', marker=dict(size=12, color=tool_color, line=dict(width=2, color='black')),
+                                 hoverinfo='text', text=f"<b>{tool['name']} ({tool['year']})</b><br><i>Inventor(s): {tool['inventor']}</i><br><br><b>Reason:</b> {tool['reason']}"))
         fig.add_shape(type="line", x0=x_coord, y0=0, x1=x_coord, y1=y_coord, line=dict(color='grey', width=1))
-        fig.add_annotation(
-            x=x_coord, y=y_coord, text=f"<b>{tool['name']}</b>",
-            showarrow=False, yshift=25 if y_coord > 0 else -25, font=dict(size=11, color=tool_color), align="center"
-        )
+        fig.add_annotation(x=x_coord, y=y_coord, text=f"<b>{tool['name']}</b>", showarrow=False, yshift=25 if y_coord > 0 else -25, font=dict(size=11, color=tool_color), align="center")
 
-    fig.update_layout(
-        title_text='<b>A Chronological Timeline of V&V Analytics</b>',
-        title_font_size=28, title_x=0.5,
-        xaxis=dict(range=[1920, 2025], showgrid=True),
-        yaxis=dict(visible=False, range=[-8, 8]),
-        plot_bgcolor='white', paper_bgcolor='white',
-        height=700, margin=dict(l=20, r=20, t=100, b=20),
-        showlegend=False
-    )
+    fig.update_layout(title_text='<b>A Chronological Timeline of V&V Analytics</b>', title_font_size=28, title_x=0.5,
+                      xaxis=dict(range=[1920, 2025], showgrid=True), yaxis=dict(visible=False, range=[-8, 8]),
+                      plot_bgcolor='white', paper_bgcolor='white', height=700, margin=dict(l=20, r=20, t=100, b=20), showlegend=False)
     return fig
 
-# FIX: Replace the entire create_toolkit_conceptual_map function with this new version.
+# FIX: Replace the entire create_toolkit_conceptual_map function with this new, complete version.
 @st.cache_data
 def create_toolkit_conceptual_map():
-    # SME Note: Added all new tools to their logical homes in the hierarchy.
+    # SME Note: Completely re-architected the map to reflect the new four-act structure and all tools.
     structure = {
-        'Validation Planning & Strategy': ['Risk Management', 'Requirements Definition'],
+        'Validation Planning & Strategy': ['Risk Management', 'Requirements Definition', 'Design Principles'],
         'Method & Process Characterization': ['Foundational Statistics', 'Measurement Systems Analysis', 'Experimental Design'],
-        'Process & Lifecycle Management': ['Statistical Process Control', 'Validation & Lifecycle'],
-        'Advanced Analytics (ML/AI)': ['Predictive Modeling', 'Unsupervised Learning']
+        'Process & Lifecycle Management': ['Statistical Process Control', 'Validation & Qualification'],
+        'Advanced Analytics (ML/AI)': ['Predictive Modeling', 'Unsupervised Learning', 'Time Series & Sequential']
     }
     sub_structure = {
-        'Risk Management': ['Quality Risk Management (FMEA)'],
-        'Requirements Definition': ['TPP & CQA Cascade', 'Analytical Target Profile', 'Requirements Traceability Matrix'],
-        'Foundational Statistics': ['Confidence Interval Concept', 'Equivalence Testing (TOST)', 'Bayesian Inference', 'Comprehensive Diagnostic Validation'],
+        'Risk Management': ['Quality Risk Management (QRM) Suite'],
+        'Requirements Definition': ['TPP & CQA Cascade', 'Analytical Target Profile (ATP) Builder', 'Requirements Traceability Matrix (RTM)'],
+        'Design Principles': ['Design for Excellence (DfX)'],
+        'Foundational Statistics': ['Confidence Interval Concept', 'Confidence Intervals for Proportions', 'Bayesian Inference', 'Comprehensive Diagnostic Validation'],
         'Measurement Systems Analysis': ['Gage R&R / VCA', 'Attribute Agreement Analysis', 'Method Comparison', 'LOD & LOQ'],
-        'Experimental Design': ['Assay Robustness (DOE)', 'Process Optimization: DOE to AI', 'Mixture Design (Formulations)', 'Split-Plot Designs'],
+        'Experimental Design': ['Assay Robustness (DOE)', 'Process Optimization: From DOE to AI', 'Mixture Design (Formulations)', 'Split-Plot Designs', 'Causal Inference'],
         'Statistical Process Control': ['Process Stability (SPC)', 'Small Shift Detection', 'Multivariate SPC', 'MEWMA + XGBoost Diagnostics', 'Run Validation (Westgard)'],
-        'Validation & Lifecycle': ['Process Capability (Cpk)', 'Tolerance Intervals', 'Reliability / Survival Analysis', 'Stability Analysis (Shelf-Life)', 'Sample Size for Qualification', 'Statistical Equivalence for Process Transfer'],
-        'Predictive Modeling': ['Linearity & Range', 'Non-Linear Regression', 'Time Series Analysis', 'Multivariate Analysis (MVA)', 'Predictive QC (Classification)', 'Explainable AI (XAI)', 'Advanced AI Concepts'],
-        'Unsupervised Learning': ['Clustering (Unsupervised)', 'Anomaly Detection', 'LSTM Autoencoder', 'BOCPD + ML Features', 'Kalman Filter + Residual Chart', 'TCN + CUSUM', 'RL for Chart Tuning']
+        'Validation & Qualification': ['Process Capability (Cpk)', 'Tolerance Intervals', 'Reliability / Survival Analysis', 'Stability Analysis (Shelf-Life)', 'Sample Size for Qualification', 'Statistical Equivalence for Process Transfer', 'Advanced Stability Design', 'First Time Yield & Cost of Quality'],
+        'Predictive Modeling': ['Linearity & Range', 'Non-Linear Regression (4PL/5PL)', 'Multivariate Analysis (MVA)', 'Predictive QC (Classification)', 'Explainable AI (XAI)'],
+        'Unsupervised Learning': ['Clustering (Unsupervised)', 'Anomaly Detection', 'LSTM Autoencoder'],
+        'Time Series & Sequential': ['Time Series Analysis', 'BOCPD + ML Features', 'Kalman Filter + Residual Chart', 'TCN + CUSUM', 'RL for Chart Tuning', 'Advanced AI Concepts']
     }
     tool_origins = {
-        'TPP & CQA Cascade': 'Biostatistics', 'Analytical Target Profile': 'Biostatistics', 'Quality Risk Management (FMEA)': 'Industrial Quality Control', 'Validation Master Plan': 'Industrial Quality Control', 'Requirements Traceability Matrix': 'Industrial Quality Control',
-        'Confidence Interval Concept': 'Statistics', 'Equivalence Testing (TOST)': 'Biostatistics', 'Bayesian Inference': 'Statistics', 'ROC Curve Analysis': 'Statistics', 'Comprehensive Diagnostic Validation': 'Biostatistics',
-        'Gage R&R / VCA': 'Industrial Quality Control', 'Method Comparison': 'Biostatistics', 'LOD & LOQ': 'Statistics', 'Attribute Agreement Analysis': 'Statistics',
-        'Assay Robustness (DOE)': 'Statistics', 'Process Optimization: DOE to AI': 'Data Science / ML', 'Mixture Design (Formulations)': 'Statistics', 'Split-Plot Designs': 'Statistics',
+        'TPP & CQA Cascade': 'Biostatistics', 'Analytical Target Profile (ATP) Builder': 'Biostatistics', 'Quality Risk Management (QRM) Suite': 'Industrial Quality Control', 'Design for Excellence (DfX)': 'Industrial Quality Control', 'Validation Master Plan (VMP) Builder': 'Industrial Quality Control', 'Requirements Traceability Matrix (RTM)': 'Industrial Quality Control',
+        'Confidence Interval Concept': 'Statistics', 'Confidence Intervals for Proportions': 'Statistics', 'Equivalence Testing (TOST)': 'Biostatistics', 'Bayesian Inference': 'Statistics', 'ROC Curve Analysis': 'Statistics', 'Comprehensive Diagnostic Validation': 'Biostatistics',
+        'Gage R&R / VCA': 'Industrial Quality Control', 'Attribute Agreement Analysis': 'Statistics', 'Method Comparison': 'Biostatistics', 'LOD & LOQ': 'Statistics',
+        'Assay Robustness (DOE)': 'Statistics', 'Process Optimization: From DOE to AI': 'Data Science / ML', 'Mixture Design (Formulations)': 'Statistics', 'Split-Plot Designs': 'Statistics', 'Causal Inference': 'Data Science / ML',
         'Process Stability (SPC)': 'Industrial Quality Control', 'Small Shift Detection': 'Industrial Quality Control', 'Multivariate SPC': 'Industrial Quality Control', 'MEWMA + XGBoost Diagnostics': 'Data Science / ML', 'Run Validation (Westgard)': 'Biostatistics',
-        'Process Capability (Cpk)': 'Industrial Quality Control', 'Tolerance Intervals': 'Statistics', 'Reliability / Survival Analysis': 'Biostatistics', 'Stability Analysis (Shelf-Life)': 'Biostatistics', 'Sample Size for Qualification': 'Industrial Quality Control', 'Statistical Equivalence for Process Transfer': 'Biostatistics',
-        'Linearity & Range': 'Statistics', 'Non-Linear Regression': 'Biostatistics', 'Time Series Analysis': 'Statistics', 'Multivariate Analysis (MVA)': 'Data Science / ML', 'Predictive QC (Classification)': 'Data Science / ML', 'Explainable AI (XAI)': 'Data Science / ML', 'Advanced AI Concepts': 'Data Science / ML',
-        'Clustering (Unsupervised)': 'Data Science / ML', 'Anomaly Detection': 'Data Science / ML', 'LSTM Autoencoder': 'Data Science / ML', 'BOCPD + ML Features': 'Data Science / ML', 'Kalman Filter + Residual Chart': 'Statistics', 'TCN + CUSUM': 'Data Science / ML', 'RL for Chart Tuning': 'Data Science / ML',
+        'Process Capability (Cpk)': 'Industrial Quality Control', 'Tolerance Intervals': 'Statistics', 'Reliability / Survival Analysis': 'Biostatistics', 'Stability Analysis (Shelf-Life)': 'Biostatistics', 'Sample Size for Qualification': 'Industrial Quality Control', 'Statistical Equivalence for Process Transfer': 'Biostatistics', 'Advanced Stability Design': 'Biostatistics', 'First Time Yield & Cost of Quality': 'Industrial Quality Control',
+        'Linearity & Range': 'Statistics', 'Non-Linear Regression (4PL/5PL)': 'Biostatistics', 'Multivariate Analysis (MVA)': 'Data Science / ML', 'Predictive QC (Classification)': 'Data Science / ML', 'Explainable AI (XAI)': 'Data Science / ML',
+        'Clustering (Unsupervised)': 'Data Science / ML', 'Anomaly Detection': 'Data Science / ML', 'LSTM Autoencoder': 'Data Science / ML',
+        'Time Series Analysis': 'Statistics', 'BOCPD + ML Features': 'Data Science / ML', 'Kalman Filter + Residual Chart': 'Statistics', 'TCN + CUSUM': 'Data Science / ML', 'RL for Chart Tuning': 'Data Science / ML', 'Advanced AI Concepts': 'Data Science / ML'
     }
-    origin_colors = {
-        'Statistics': '#1f77b4', 'Biostatistics': '#2ca02c',
-        'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728',
-        'Structure': '#6A5ACD'
-    }
+    origin_colors = {'Statistics': '#1f77b4', 'Biostatistics': '#2ca02c', 'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728', 'Structure': '#6A5ACD'}
 
     nodes = {}
-    vertical_spacing = 2.0
+    vertical_spacing = 1.8
     all_tools_flat = [tool for sublist in sub_structure.values() for tool in sublist]
     y_coords = np.linspace(len(all_tools_flat) * vertical_spacing, -len(all_tools_flat) * vertical_spacing, len(all_tools_flat))
     x_positions = [4, 5]
@@ -546,12 +536,13 @@ def create_toolkit_conceptual_map():
         elif key in structure: level = 'Level1'
         elif key in sub_structure: level = 'Level2'
         else: level = 'Tool'
-        data_by_origin[data['origin']]['x'].append(data['x'])
-        data_by_origin[data['origin']]['y'].append(data['y'])
-        data_by_origin[data['origin']]['short'].append(data['short'])
-        data_by_origin[data['origin']]['full'].append(data['name'])
-        data_by_origin[data['origin']]['size'].append(size_map[level])
-        data_by_origin[data['origin']]['font_size'].append(font_map[level])
+        if data['origin']: # Check if origin exists
+            data_by_origin[data['origin']]['x'].append(data['x'])
+            data_by_origin[data['origin']]['y'].append(data['y'])
+            data_by_origin[data['origin']]['short'].append(data['short'])
+            data_by_origin[data['origin']]['full'].append(data['name'])
+            data_by_origin[data['origin']]['size'].append(size_map[level])
+            data_by_origin[data['origin']]['font_size'].append(font_map[level])
         
     for origin_name, data in data_by_origin.items():
         if not data['x']: continue
@@ -569,7 +560,7 @@ def create_toolkit_conceptual_map():
         legend=dict(title="<b>Tool Origin</b>", x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)', bordercolor="Black", borderwidth=1),
         xaxis=dict(visible=False, range=[-1, 6]),
         yaxis=dict(visible=False, range=[-len(all_tools_flat)*1.2, len(all_tools_flat)*1.2]),
-        height=len(all_tools_flat) * 80,
+        height=len(all_tools_flat) * 65, # Adjusted height
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF', paper_bgcolor='#f0f2f6'
     )
@@ -772,7 +763,111 @@ def plot_fmea_dashboard(fmea_df):
                               showarrow=False, align="left", bordercolor="black", borderwidth=1, bgcolor="white")
 
     return fig_matrix, fig_pareto
+
+@st.cache_data
+def plot_pha_matrix(pha_data):
+    """Generates a professional-grade Preliminary Hazard Analysis (PHA) risk matrix."""
+    df = pd.DataFrame(pha_data)
+    fig = go.Figure()
+
+    risk_levels = {
+        'Low': {'color': 'rgba(44, 160, 44, 0.2)', 'range_s': [1, 2], 'range_l': [1, 2]},
+        'Medium': {'color': 'rgba(255, 193, 7, 0.2)', 'range_s': [[1, 5], [3, 5], [1, 2]], 'range_l': [[3, 4], [1, 2], [3, 4]]},
+        'High': {'color': 'rgba(239, 83, 80, 0.3)', 'range_s': [3, 5], 'range_l': [3, 4]}
+    }
+    for level, props in risk_levels.items():
+        if isinstance(props['range_s'][0], list):
+            for s_range, l_range in zip(props['range_s'], props['range_l']):
+                fig.add_shape(type="rect", x0=s_range[0]-0.5, y0=l_range[0]-0.5, x1=s_range[1]+0.5, y1=l_range[1]+0.5,
+                              fillcolor=props['color'], line_width=0, layer='below')
+        else:
+             fig.add_shape(type="rect", x0=props['range_s'][0]-0.5, y0=props['range_l'][0]-0.5, x1=props['range_s'][1]+0.5, y1=props['range_l'][1]+0.5,
+                           fillcolor=props['color'], line_width=0, layer='below')
+
+    fig.add_trace(go.Scatter(
+        x=df['Severity'], y=df['Likelihood'], mode='markers+text',
+        text=df.index + 1, textposition='top center',
+        marker=dict(color=PRIMARY_COLOR, size=20, symbol='diamond'),
+        hovertext=df['Hazard'], hoverinfo='text'
+    ))
     
+    fig.update_layout(title='<b>Preliminary Hazard Analysis (PHA) Risk Matrix</b>',
+                      xaxis_title='<b>Severity of Harm</b>', yaxis_title='<b>Likelihood of Occurrence</b>',
+                      xaxis=dict(tickvals=[1,2,3,4,5], ticktext=['Negligible', 'Minor', 'Serious', 'Critical', 'Catastrophic'], range=[0.5, 5.5]),
+                      yaxis=dict(tickvals=[1,2,3,4], ticktext=['Improbable', 'Remote', 'Occasional', 'Frequent'], range=[0.5, 4.5]))
+    return fig
+
+# FIX: This is a new, SME-grade function to be added to your app.
+@st.cache_data
+def plot_fta_diagram(initiating_event_prob):
+    """Generates a professional-grade Fault Tree Analysis (FTA) diagram."""
+    # Probabilities
+    p_power = 0.001
+    p_pump = 0.005
+    p_sensor = initiating_event_prob / 100.0 # User controlled
+    p_or_gate = 1 - (1 - p_power) * (1 - p_pump)
+    p_top_event = p_or_gate * p_sensor # AND gate
+
+    fig = go.Figure()
+    nodes = {
+        'Top': {'label': f"Top Event:<br>Loss of Cooling<br>P={p_top_event:.4f}", 'x': 0.5, 'y': 0.9},
+        'And1': {'label': "AND", 'x': 0.5, 'y': 0.7, 'shape': 'circle'},
+        'Intermediate': {'label': f"Pump Failure<br>P={p_or_gate:.4f}", 'x': 0.25, 'y': 0.5},
+        'Sensor': {'label': f"Sensor Failure<br>P={p_sensor:.4f}", 'x': 0.75, 'y': 0.5},
+        'Or1': {'label': "OR", 'x': 0.25, 'y': 0.3, 'shape': 'circle'},
+        'Power': {'label': f"Power Loss<br>P={p_power:.4f}", 'x': 0.1, 'y': 0.1},
+        'Pump': {'label': f"Pump Wearout<br>P={p_pump:.4f}", 'x': 0.4, 'y': 0.1}
+    }
+    links = [('And1', 'Top'), ('Intermediate', 'And1'), ('Sensor', 'And1'), ('Or1', 'Intermediate'), ('Power', 'Or1'), ('Pump', 'Or1')]
+
+    for link in links: fig.add_shape(type="line", x0=nodes[link[0]]['x'], y0=nodes[link[0]]['y'], x1=nodes[link[1]]['x'], y1=nodes[link[1]]['y'])
+    for name, node in nodes.items():
+        color = 'salmon' if 'Top' in name else 'skyblue'
+        fig.add_shape(type="rect", x0=node['x']-0.1, y0=node['y']-0.05, x1=node['x']+0.1, y1=node['y']+0.05, fillcolor=color, line_color='black')
+        fig.add_annotation(x=node['x'], y=node['y'], text=f"<b>{node['label']}</b>", showarrow=False, font=dict(color='black', size=11))
+    
+    fig.update_layout(title="<b>Fault Tree Analysis (FTA) - Deductive 'Why' Analysis</b>", xaxis=dict(visible=False), yaxis=dict(visible=False))
+    return fig
+
+# FIX: This is a new, SME-grade function to be added to your app.
+@st.cache_data
+def plot_eta_diagram(initiating_event_prob):
+    """Generates a professional-grade Event Tree Analysis (ETA) diagram."""
+    p_alarm_works = 0.99
+    p_operator_responds = 0.95
+    p_shutdown_works = 0.999
+    p_initiating = initiating_event_prob / 100.0
+
+    # Calculate outcome probabilities
+    outcomes = {
+        'Safe Shutdown': p_initiating * p_alarm_works * p_operator_responds * p_shutdown_works,
+        'Minor Spill': p_initiating * p_alarm_works * p_operator_responds * (1 - p_shutdown_works),
+        'Major Incident': p_initiating * (1 - p_alarm_works) + p_initiating * p_alarm_works * (1 - p_operator_responds)
+    }
+
+    fig = go.Figure()
+    nodes = {
+        'IE': {'label': "Initiating Event:<br>Pump Overheats", 'x': 0.1, 'y': 0.5},
+        'Alarm': {'label': "Alarm System<br>Functions?", 'x': 0.35, 'y': 0.5},
+        'Response': {'label': "Operator<br>Responds?", 'x': 0.6, 'y': 0.75},
+        'Shutdown': {'label': "Auto-Shutdown<br>Works?", 'x': 0.8, 'y': 0.875},
+        'Outcome1': {'label': f"Safe Shutdown<br>P={outcomes['Safe Shutdown']:.2%}", 'x': 1.0, 'y': 0.9375},
+        'Outcome2': {'label': f"Minor Spill<br>P={outcomes['Minor Spill']:.2%}", 'x': 1.0, 'y': 0.8125},
+        'Outcome3': {'label': f"Major Incident<br>P={outcomes['Major Incident']:.2%}", 'x': 0.8, 'y': 0.375},
+    }
+    # Draw paths
+    fig.add_trace(go.Scatter(x=[0.1, 0.35, 0.6, 0.8, 1.0], y=[0.5, 0.75, 0.875, 0.9375, 0.9375], mode='lines', line=dict(color='green'))) # Success path
+    fig.add_trace(go.Scatter(x=[0.8, 1.0], y=[0.875, 0.8125], mode='lines', line=dict(color='orange'))) # Minor failure path
+    fig.add_trace(go.Scatter(x=[0.1, 0.35, 0.8], y=[0.5, 0.25, 0.375], mode='lines', line=dict(color='red'))) # Major failure path 1
+    fig.add_trace(go.Scatter(x=[0.35, 0.6, 0.8], y=[0.75, 0.5, 0.375], mode='lines', line=dict(color='red'))) # Major failure path 2
+    
+    for name, node in nodes.items():
+        color = 'red' if 'Incident' in node['label'] else ('orange' if 'Spill' in node['label'] else ('green' if 'Safe' in node['label'] else 'skyblue'))
+        fig.add_trace(go.Scatter(x=[node['x']], y=[node['y']], mode='markers', marker=dict(size=20, color=color, line=dict(width=2,color='black'))))
+        fig.add_annotation(x=node['x'], y=node['y'], text=f"<b>{node['label']}</b>", showarrow=False)
+
+    fig.update_layout(title="<b>Event Tree Analysis (ETA) - Inductive 'What If' Analysis</b>", xaxis=dict(visible=False), yaxis=dict(visible=False), showlegend=False)
+    return fig
 @st.cache_data
 def plot_vmp_flow(project_type):
     """
@@ -5573,127 +5668,173 @@ This ensures alignment from start to finish and guarantees the final deliverable
         - **USP Chapter <1220> - The Analytical Procedure Lifecycle:** This new chapter champions a holistic, lifecycle approach to method management. The ATP is the foundational element of **Stage 1 (Procedure Design)**, where the requirements for the method are formally defined.
         """)
 #============================================================================== 3. QUALITY RISK MANAGEMENT (FMEA) ========================================================
-def render_fmea():
-    """Renders the comprehensive, interactive module for FMEA."""
+def render_qrm_suite():
+    """Renders the comprehensive, interactive module for the Quality Risk Management (QRM) Suite."""
     st.markdown("""
     #### Purpose & Application: The Blueprint for Validation
-    **Purpose:** To serve as the **Master Blueprint for your entire Validation Plan**. A Failure Mode and Effects Analysis (FMEA) is a systematic, proactive method for identifying and mitigating potential risks in a process *before they happen*. It answers the foundational questions: "What could go wrong?", "How bad would it be?", and "How would we know?".
+    **Purpose:** To provide a suite of formal, structured tools for **Quality Risk Management (QRM)**. These tools are used to systematically identify, analyze, evaluate, and control potential risks associated with a product or process.
     
-    **Strategic Application:** This is the embodiment of Quality Risk Management (ICH Q9). The output of the FMEA directly justifies which parameters require rigorous characterization, which require tight monitoring, and which require procedural controls. It is the auditable, documented rationale for your entire validation strategy.
+    **Strategic Application:** This is the embodiment of **ICH Q9**. The output of a risk assessment is the direct, auditable justification for the entire validation strategy. It determines which parameters require rigorous characterization, which require tight monitoring, and which require procedural controls, focusing resources where they matter most.
     """)
     
     st.info("""
     **Interactive Demo:** You are the Validation Risk Lead.
-    1.  Select a **Project Type** to load a realistic FMEA template.
-    2.  Use the sliders (with detailed '?' explainers) to score the **initial risk** for each failure mode.
-    3.  Use the **Mitigation Toggles** to simulate implementing improvements.
-    4.  Observe how mitigations lower the RPN in the Pareto Chart and move risks to a safer zone in the Risk Matrix.
+    1.  Select a **Risk Management Tool** to simulate a specific type of analysis.
+    2.  Use the controls in the sidebar to interact with the scenario for that tool.
+    3.  Review the visualization to see how the tool helps in identifying and analyzing risks.
     """)
 
-    project_type = st.selectbox(
-        "Select a Project Type to view a sample FMEA:",
-        ["Pharma Process (MAb)", "Analytical Assay (ELISA)", "Instrument Qualification (HPLC)", "Software System (LIMS)"]
+    tool_choice = st.selectbox(
+        "Select a Quality Risk Management Tool to Use:",
+        ["Preliminary Hazard Analysis (PHA)", "Failure Mode and Effects Analysis (FMEA)", "Fault Tree Analysis (FTA)", "Event Tree Analysis (ETA)"]
     )
+    
+    st.header(f"Dashboard: {tool_choice}")
 
-    fmea_templates = {
-        "Pharma Process (MAb)": {'Failure Mode': ['Contamination in Bioreactor', 'Incorrect Chromatography Buffer', 'Filter Integrity Failure'],'S': [5, 4, 5],'O_Initial': [2, 3, 2],'D_Initial': [4, 3, 2]},
-        "Analytical Assay (ELISA)": {'Failure Mode': ['Incorrect Antibody Lot', 'Operator Pipetting Error', 'Incubation Time Error'],'S': [5, 3, 4],'O_Initial': [2, 4, 3],'D_Initial': [5, 3, 2]},
-        "Instrument Qualification (HPLC)": {'Failure Mode': ['Pump Seal Failure', 'Detector Lamp Degradation', 'Autosampler Needle Clog'],'S': [4, 3, 3],'O_Initial': [2, 3, 4],'D_Initial': [4, 2, 3]},
-        "Software System (LIMS)": {'Failure Mode': ['Data Corruption on Save', 'Incorrect Calculation Logic', 'Server Downtime'],'S': [5, 5, 4],'O_Initial': [1, 2, 3],'D_Initial': [4, 5, 2]}
-    }
-    
-    fmea_data = fmea_templates[project_type]
-    
-    with st.sidebar:
-        st.subheader("FMEA Risk Scoring")
-        st.markdown(f"**Initial Assessment for: {project_type}**")
+    if tool_choice == "Preliminary Hazard Analysis (PHA)":
+        st.markdown("PHA is a high-level, early-stage risk assessment to identify major hazards and prioritize them based on Severity and Likelihood of Occurrence.")
+        # No interactive gadgets needed for this static example
+        pha_data = [
+            {'Hazard': 'Operator Exposure to Potent API', 'Severity': 4, 'Likelihood': 2},
+            {'Hazard': 'Cross-Contamination Between Products', 'Severity': 5, 'Likelihood': 3},
+            {'Hazard': 'Incorrect Labeling of Final Product', 'Severity': 5, 'Likelihood': 1}
+        ]
+        fig = plot_pha_matrix(pha_data)
+        st.plotly_chart(fig, use_container_width=True)
+
+    elif tool_choice == "Failure Mode and Effects Analysis (FMEA)":
+        project_type = st.selectbox(
+            "Select an FMEA Project Type:",
+            ["Pharma Process (MAb)", "Analytical Assay (ELISA)", "Instrument Qualification (HPLC)", "Software System (LIMS)"]
+        )
+        fmea_templates = {
+            "Pharma Process (MAb)": {'Failure Mode': ['Contamination in Bioreactor', 'Incorrect Chromatography Buffer', 'Filter Integrity Failure'],'S': [5, 4, 5],'O_Initial': [2, 3, 2],'D_Initial': [4, 3, 2]},
+            "Analytical Assay (ELISA)": {'Failure Mode': ['Incorrect Antibody Lot', 'Operator Pipetting Error', 'Incubation Time Error'],'S': [5, 3, 4],'O_Initial': [2, 4, 3],'D_Initial': [5, 3, 2]},
+            "Instrument Qualification (HPLC)": {'Failure Mode': ['Pump Seal Failure', 'Detector Lamp Degradation', 'Autosampler Needle Clog'],'S': [4, 3, 3],'O_Initial': [2, 3, 4],'D_Initial': [4, 2, 3]},
+            "Software System (LIMS)": {'Failure Mode': ['Data Corruption on Save', 'Incorrect Calculation Logic', 'Server Downtime'],'S': [5, 5, 4],'O_Initial': [1, 2, 3],'D_Initial': [4, 5, 2]}
+        }
+        fmea_data = fmea_templates[project_type]
         
-        for i, mode in enumerate(fmea_data['Failure Mode']):
-            st.markdown(f"--- \n **Failure Mode {i+1}:** *{mode}*")
-            col1, col2 = st.columns(2)
-            fmea_data['O_Initial'][i] = col1.slider(f"Occurrence (O)", 1, 5, fmea_data['O_Initial'][i], key=f"o_{i}",
-                help="How frequently is this failure likely to occur? 1=Very Rare (<1/year), 2=Remote, 3=Occasional, 4=Frequent, 5=Very Frequent (>1/month).")
-            fmea_data['D_Initial'][i] = col2.slider(f"Detection (D)", 1, 5, fmea_data['D_Initial'][i], key=f"d_{i}",
-                help="How likely are we to DETECT this failure before it impacts the product? 1=Very Likely (automated 100% check), 3=Moderate (in-process check), 5=Very Unlikely (only detected by final QC or customer). A high score is bad.")
+        with st.sidebar:
+            st.subheader("FMEA Risk Scoring")
+            for i, mode in enumerate(fmea_data['Failure Mode']):
+                st.markdown(f"--- \n **Failure Mode {i+1}:** *{mode}*")
+                col1, col2 = st.columns(2)
+                fmea_data['O_Initial'][i] = col1.slider(f"Occurrence (O)", 1, 5, fmea_data['O_Initial'][i], key=f"o_{i}")
+                fmea_data['D_Initial'][i] = col2.slider(f"Detection (D)", 1, 5, fmea_data['D_Initial'][i], key=f"d_{i}")
+        
+        fmea_data['O_Final'] = fmea_data['O_Initial'].copy()
+        fmea_data['D_Final'] = fmea_data['D_Initial'].copy()
+        initial_rpn = [s * o * d for s, o, d in zip(fmea_data['S'], fmea_data['O_Initial'], fmea_data['D_Initial'])]
+        for i, rpn in enumerate(initial_rpn):
+            if rpn >= 50:
+                fmea_data['O_Final'][i] = max(1, fmea_data['O_Initial'][i] - 2)
+                fmea_data['D_Final'][i] = max(1, fmea_data['D_Initial'][i] - 2)
+        df_fmea = pd.DataFrame(fmea_data)
+        fig_matrix, fig_pareto = plot_fmea_dashboard(df_fmea)
+        col_m, col_p = st.columns(2)
+        with col_m:
+            st.plotly_chart(fig_matrix, use_container_width=True)
+        with col_p:
+            st.plotly_chart(fig_pareto, use_container_width=True)
 
-    # --- Apply Mitigations ---
-    fmea_data['O_Final'] = fmea_data['O_Initial'].copy()
-    fmea_data['D_Final'] = fmea_data['D_Initial'].copy()
-    initial_rpn = [s * o * d for s, o, d in zip(fmea_data['S'], fmea_data['O_Initial'], fmea_data['D_Initial'])]
-    st.markdown("---")
-    st.subheader("Proposed Mitigations")
-    for i, rpn in enumerate(initial_rpn):
-        if rpn >= 50:
-            st.write(f"**For Failure Mode {i+1}** (*{fmea_data['Failure Mode'][i]}*):")
-            col_mit1, col_mit2 = st.columns(2)
-            reduce_o = col_mit1.toggle(f"Reduce Occurrence", key=f"mit_o_{i}", help=f"Implement a control (e.g., automation, poka-yoke) to make '{fmea_data['Failure Mode'][i]}' less likely.")
-            improve_d = col_mit2.toggle(f"Improve Detection", key=f"mit_d_{i}", help=f"Implement a new check or monitoring system to make it easier to catch '{fmea_data['Failure Mode'][i]}'.")
-            if reduce_o: fmea_data['O_Final'][i] = max(1, fmea_data['O_Initial'][i] - 2)
-            if improve_d: fmea_data['D_Final'][i] = max(1, fmea_data['D_Initial'][i] - 2)
-
-    df_fmea = pd.DataFrame(fmea_data)
-    fig_matrix, fig_pareto = plot_fmea_dashboard(df_fmea)
-    
-    st.header("Risk Assessment Dashboard")
-    col_main, col_pareto = st.columns(2)
-    with col_main:
-        st.plotly_chart(fig_matrix, use_container_width=True)
-    with col_pareto:
-        st.plotly_chart(fig_pareto, use_container_width=True)
-
+    elif tool_choice == "Fault Tree Analysis (FTA)":
+        st.markdown("FTA is a top-down, deductive analysis that starts with an undesirable 'Top Event' (a failure) and works backwards to identify all the potential root causes.")
+        with st.sidebar:
+            st.subheader("FTA Controls")
+            initiating_prob = st.slider("Initiating Event Probability (%)", 0.1, 10.0, 1.0, 0.1, help="Probability of the 'Sensor Failure' base event occurring.")
+        fig = plot_fta_diagram(initiating_prob)
+        st.plotly_chart(fig, use_container_width=True)
+        
+    elif tool_choice == "Event Tree Analysis (ETA)":
+        st.markdown("ETA is a bottom-up, inductive analysis that starts with an 'Initiating Event' and models the sequence of subsequent events and their probabilities to determine all possible outcomes.")
+        with st.sidebar:
+            st.subheader("ETA Controls")
+            initiating_prob = st.slider("Initiating Event Probability (%)", 0.1, 10.0, 1.0, 0.1, help="Probability of the 'Pump Overheats' initiating event occurring.")
+        fig = plot_eta_diagram(initiating_prob)
+        st.plotly_chart(fig, use_container_width=True)
+        
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    with tabs[0]:
+with tabs[0]:
         st.markdown("""
-        **A Realistic Workflow & Interpretation:**
-        1.  **Assess Initial Risk (Black Circles):** The team first scores the Severity (S), Occurrence (O), and Detectability (D) of each potential failure. The **Risk Matrix** visualizes the most dangerous risks in the top-right (high severity, high occurrence).
-        2.  **Prioritize (Pareto Chart):** The **Risk Priority Number (RPN)** is calculated as `S x O x D`. The initial RPN values (grey bars) are plotted on the Pareto chart. The team must focus on all risks above the action threshold (red dashed line).
-        3.  **Mitigate:** For each high-priority risk, the team proposes and implements mitigation actions. Notice how a mitigation can either reduce **Occurrence** (making the failure less likely, moving a point down on the matrix) or improve **Detection** (making it easier to catch, which lowers the RPN but doesn't move the point on the S vs. O matrix).
-        4.  **Re-assess Final Risk (Blue Diamonds):** The team calculates the final RPN (blue bars). The arrows on the Risk Matrix provide a powerful visual summary of the risk reduction. The goal is to move all RPNs below the action threshold.
+        **A validation leader must choose the right risk tool for the right question.** While all these tools analyze risk, they do so from fundamentally different perspectives. Using the wrong tool for your situation can be inefficient at best and dangerously misleading at worst.
+
+        ---
+        ##### A Medical Analogy for Risk Tools
+        Think of your process or system as a patient, and you are the lead physician.
+
+        - **PHA is the Annual Physical:**
+          - **Approach:** Broad, high-level, and performed early.
+          - **Question:** "What are the most obvious, major health hazards for a patient of this age and lifestyle?" (e.g., smoking, high blood pressure).
+          - **Use Case:** Use this at the very beginning of a project to quickly identify the "big rock" hazards and set the scope for more detailed analysis. It's a quick, high-level screen.
+
+        - **FMEA is the Full Body System Review:**
+          - **Approach:** Detailed, systematic, and **bottom-up**.
+          - **Question:** "Let's review every organ system (cardiovascular, respiratory, etc.). What are all the ways each part could fail, and what would be the effect?"
+          - **Use Case:** This is the workhorse of risk management. Use it for a line-by-line analysis of a new process or design to ensure no potential failure mode has been overlooked. Its output is a comprehensive, prioritized list of risks.
+
+        - **FTA is the Specialist's Diagnosis for a Critical Symptom:**
+          - **Approach:** Forensic, focused, and **top-down (deductive)**.
+          - **Question:** "The patient has presented with a specific, critical symptom (e.g., 'shortness of breath'). What are all the possible combinations of underlying conditions that could have caused this single outcome?"
+          - **Use Case:** Use this when you have a specific, catastrophic failure you *must* prevent (the "Top Event," e.g., a sterility failure). FTA is a powerful tool for understanding all the complex pathways that could lead to that one specific disaster.
+
+        - **ETA is the Emergency Room Triage:**
+          - **Approach:** Forward-looking, sequential, and **bottom-up (inductive)**.
+          - **Question:** "A specific trauma has just occurred (the 'Initiating Event,' e.g., 'patient has fallen'). What is the sequence of events that follows, and what are the possible final outcomes based on the success or failure of our immediate interventions?"
+          - **Use Case:** Use this when you have a known initiating event (like a power failure) and need to understand the consequences. It is a "what-if" analysis that is excellent for evaluating the robustness of your safety systems (e.g., alarms, backup power, operator response).
+
+        ---
+        ##### Understanding the Analytical Directions
+        - **Bottom-Up (Inductive):** You start with individual **causes** and reason forward to their potential **effects**. You are building up a picture from the details. FMEA and ETA are bottom-up.
+        - **Top-Down (Deductive):** You start with a known **effect** (the failure) and reason backward to deduce the potential **causes**. You are breaking down a large problem into its root components. FTA is top-down.
         """)
     with tabs[1]:
         st.markdown("""
-        ##### Glossary of FMEA Terms
-        - **Failure Mode:** The specific way in which a process or component could potentially fail to meet its intended function (e.g., "Incorrect buffer pH").
-        - **Effect:** The consequence of the failure mode on the final product or patient (e.g., "Reduced product efficacy and potential safety risk").
-        - **Severity (S):** A rating of the seriousness of the effect of a potential failure mode. Severity is typically ranked on a 1-5 or 1-10 scale and should not change after mitigation, as the impact of the failure, should it occur, is the same.
-        - **Occurrence (O):** A rating of the likelihood that the cause of the failure mode will occur.
-        - **Detection (D):** A rating of the likelihood that the failure mode will be detected by the current control systems before it reaches the customer. A high D score means detection is unlikely (which is bad).
-        - **Risk Priority Number (RPN):** The product of the three scores: `RPN = S × O × D`. It is a numerical ranking used to prioritize the most significant risks for mitigation.
-        - **Mitigation:** An action taken to reduce the Occurrence or improve the Detection of a failure mode.
+        ##### Glossary of QRM Terms
+        - **Risk:** The combination of the probability of occurrence of harm and the severity of that harm.
+        - **Hazard:** A potential source of harm.
+        - **PHA (Preliminary Hazard Analysis):** A tool to identify and prioritize hazards early in the design process.
+        - **FMEA (Failure Mode and Effects Analysis):** A systematic, bottom-up method for identifying potential failure modes, their causes, and their effects.
+        - **FTA (Fault Tree Analysis):** A top-down, deductive failure analysis in which an undesired state of a system is analyzed using boolean logic to combine a series of lower-level events.
+        - **ETA (Event Tree Analysis):** A bottom-up, inductive logical model that explores the responses of a system to a particular initiating event.
+        - **RPN (Risk Priority Number):** The product of Severity, Occurrence, and Detection scores from an FMEA, used to prioritize risks.
         """)
     with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: The "RPN is Everything" Fallacy**
-A team focuses obsessively on lowering the RPN number, even for low-severity risks. They spend months implementing a complex detection system for a failure mode with a Severity of 1, ignoring a higher-severity risk because its initial RPN was slightly lower.
-- **The Flaw:** RPN is a prioritization tool, not the goal itself. **Severity is the most important factor.** A high-severity risk (S=5), even if rare, can never be truly "low risk" and always requires robust controls.""")
-        st.success("""🟢 **THE GOLDEN RULE: Risk Assessment Drives Validation Effort**
-The FMEA is not a standalone document; it is the strategic driver for the entire validation plan.
-1.  **First, Address High Severity:** Any failure mode with high Severity must be addressed, regardless of its RPN.
-2.  **Then, Use RPN to Prioritize:** For the remaining risks, use the RPN to prioritize resources, tackling the highest RPNs first.
-3.  **Link to Validation:** The FMEA provides the rationale for your validation activities. A high-risk failure mode justifies a rigorous DOE to characterize it; a medium-risk one might justify adding a parameter to your SPC monitoring plan. This creates a clear, auditable trail from risk to action.""")
+        st.success("""🟢 **THE GOLDEN RULE:** Risk Assessment is Not a One-Time Event. Quality Risk Management is a continuous lifecycle activity. An initial PHA should inform a more detailed FMEA. The FMEA identifies critical failure modes that might warrant a deep-dive FTA. The effectiveness of the controls identified in the FMEA and FTA should be monitored throughout the product lifecycle, and the risk assessments should be updated whenever new information (e.g., from a deviation or a process change) becomes available.""")
+        ##### **FMEA: The Foundation (1940s) - A Bottom-Up Approach**
+        - **The Problem:** In the late 1940s, the U.S. military was developing increasingly complex systems. The traditional reactive approach of "fly-crash-fix" was becoming unacceptably costly and dangerous. They needed a systematic way to think about failure *before* it happened.
+        - **The 'Aha!' Moment:** The methodology now known as **FMEA** was formalized in military procedures like **MIL-P-1629**. The key insight was to create a structured, **bottom-up** brainstorming process. Engineers would systematically list every single component (the "bottom" of the system), imagine how it could fail (the "Failure Mode"), and trace the consequences up to the system level (the "Effect").
+        - **The Impact:** This proactive mindset was revolutionary. It was famously adopted and refined by **NASA** during the Apollo program. It was later championed by the **automotive industry**, which introduced the **Risk Priority Number (RPN)** as a simple way to prioritize the many failure modes identified.
 
-    with tabs[3]:
-        st.markdown("""
-        #### Historical Context: From Munitions to Minivans
-        **The Problem:** In the late 1940s, the U.S. military was grappling with the unreliability of complex new systems. Failures were common, costly, and often catastrophic. They needed a structured, proactive way to think about and prevent failures before they happened.
+        ---
+        ##### **FTA & ETA: The Nuclear Age Tools (1960s-70s)**
+        - **The Problem:** While FMEA was excellent for component-level analysis, it struggled with complex system-level interactions. The nuclear power and aerospace industries needed tools to analyze how a series of small, independent failures could combine to cause a single, catastrophic event.
+        - **The 'Aha!' Moment (FTA):** **Fault Tree Analysis (FTA)**, developed in **1962 at Bell Labs** for the Minuteman ICBM program, provided the solution. The genius of FTA is its **top-down, deductive logic**. It starts with the catastrophic "Top Event" (e.g., "Accidental Missile Launch") and works backwards to identify all the combinations of lower-level failures that could lead to it.
+        - **The 'Aha!' Moment (ETA):** **Event Tree Analysis (ETA)** was developed as the logical inverse of FTA. It's a **bottom-up, inductive** tool. It starts with a single "Initiating Event" (e.g., "Loss of Offsite Power") and models the branching sequence of subsequent events to map out all possible final outcomes.
         
-        **The 'Aha!' Moment:** The methodology now known as **FMEA** was formalized in military procedures like **MIL-P-1629**. The key insight was to shift from a reactive "find and fix" model to a proactive, "predict and prevent" model by systematically asking three questions: What is the **effect**? What is the **cause**? How can we **detect** it?
-            
-        **The Impact:** The methodology was famously adopted and refined by **NASA** during the Apollo program to ensure astronaut safety and mission success. Later, facing a quality crisis in the 1970s, the **automotive industry**, led by Ford, championed FMEA as a core tool for improving vehicle safety and reliability. They introduced the **Risk Priority Number (RPN)** as a simple way to prioritize risks. Today, FMEA is a universal quality planning tool used in virtually every high-reliability industry.
+        **The Modern Synthesis:** The pharmaceutical industry formally adopted these proven engineering techniques as part of the **ICH Q9** guideline in 2005, integrating the proactive risk management culture of high-hazard industries into the core of pharmaceutical quality systems.
+
+        ---
+        ##### Understanding the Analytical Approaches
+        The terms "bottom-up," "top-down," "deductive," and "inductive" describe the fundamental direction of the analysis.
+
+        - **Bottom-Up (Inductive) - FMEA & ETA:**
+          - **Meaning:** You start with individual parts, causes, or initiating events and work your way up to the system-level consequences. It answers the question: **"If this component fails, *what happens*?"**
+          - **Analogy:** A detective examining individual clues (a footprint, a broken lock) to build a theory of the overall crime.
+
+        - **Top-Down (Deductive) - FTA:**
+          - **Meaning:** You start with a known, undesirable system-level outcome and work your way down to identify all the possible root causes. It answers the question: **"For this disaster to have happened, *what must have gone wrong*?"**
+          - **Analogy:** A detective starting with the fact that a crime was committed and working backwards to deduce the necessary sequence of events and motives that must have led to it.
         """)
-        
     with tabs[4]:
         st.markdown("""
-        FMEA is the primary tool for implementing the principles of **ICH Q9 - Quality Risk Management**, which is a cornerstone of a modern Pharmaceutical Quality System.
-        - **ICH Q9:** This guideline explicitly lists FMEA as a potential risk management tool. The FMEA process directly addresses the key elements of QRM:
-            - **Risk Identification:** Brainstorming potential failure modes.
-            - **Risk Analysis:** Estimating the Severity, Occurrence, and Detectability.
-            - **Risk Evaluation:** Comparing the identified risk (via RPN or the Risk Matrix) against given risk criteria (the action threshold).
-            - **Risk Control:** Proposing and implementing mitigation actions to reduce the risk.
-        - **FDA Process Validation Guidance:** The guidance emphasizes a lifecycle approach based on risk. An FMEA performed during **Stage 1 (Process Design)** is the perfect way to identify Critical Process Parameters (CPPs) and Critical Quality Attributes (CQAs) that will require intensive study and control in **Stage 2 (Process Qualification)** and **Stage 3 (Continued Process Verification)**.
+        This suite of tools is the direct implementation of the principles outlined in **ICH Q9 - Quality Risk Management**.
+        - **ICH Q9:** This guideline provides a framework for risk management and lists PHA, FMEA, FTA, and ETA as examples of appropriate tools. It emphasizes that the level of effort and formality should be commensurate with the level of risk.
+        - **FDA Process Validation Guidance:** The guidance requires a risk-based approach. These tools provide the documented evidence for how risks were identified and controlled, which in turn justifies the validation strategy.
+        - **ISO 14971 (Application of risk management to medical devices):** This is the international standard for risk management for medical devices, and it requires the use of a systematic process like FMEA or PHA.
         """)
-
 #========================================================================================= 4. DESIGN FOR EXCELLENCE (DfX) =====================================================================
 def render_dfx_dashboard():
     """Renders the comprehensive, interactive module for Design for Excellence (DfX)."""
@@ -8878,47 +9019,49 @@ def render_control_plan_builder():
     with tabs[0]:
         st.markdown("""
         **Interpreting the Dashboard:**
-        - **Control Plan Table:** This is the formal, auditable document. It contains all the critical information for controlling the process parameter in a single place. In a real GMP environment, this would be a controlled document.
-        - **Simulated SPC Chart:** This chart provides a "what-if" analysis of your chosen control strategy. A small process shift is introduced at batch #15. The purple line shows the predicted detection time. **Try changing the 'Sampling Frequency' in the sidebar from 'Once per batch' to 'Every 15 minutes' and watch the purple line move to the left, showing how faster sampling leads to faster detection.**
+        - **Control Plan Table:** This is the formal, auditable document. It contains all the critical information for controlling the process parameter in a single place. In a real GMP environment, this would be a controlled document that links directly to SOPs and batch records.
+        - **Simulated SPC Chart:** This chart provides a crucial "what-if" analysis of your chosen control strategy. A small process shift is introduced at batch #15. The purple line shows the predicted detection time. **Try changing the 'Sampling Frequency' in the sidebar from 'Once per batch' to 'Every 15 minutes' and watch the purple line move to the left, showing how faster sampling leads to faster detection.**
         - **OCAP Flowchart:** This is the user-friendly guide for the operator on the manufacturing floor. It provides a simple, unambiguous, visual decision tree for exactly what to do when a process alarm occurs.
         
-        **The Strategic Insight:** The Control Plan is a balancing act between risk and cost. More frequent sampling provides better process control and faster deviation detection, but it also increases laboratory costs and operational complexity. This dashboard allows you to simulate and visualize this trade-off to find the optimal strategy.
+        **The Strategic Insight:** The Control Plan is a balancing act between **risk and cost**. More frequent sampling provides better process control and faster deviation detection, which reduces the risk of producing non-conforming material. However, it also increases laboratory costs and operational complexity. This dashboard allows you to simulate and visualize this trade-off to find the optimal strategy that provides the necessary level of quality assurance without overburdening the system.
         """)
     with tabs[1]:
         st.markdown("""
         ##### Glossary of Control Strategy Terms
         - **Control Plan:** A written description of the systems and processes required for controlling a process or product. It is a living document that is updated as the process matures.
-        - **Control Strategy (ICH Q10):** A planned set of controls, derived from product and process understanding, that assures process performance and product quality.
-        - **OCAP (Out-of-Control Action Plan):** A flowchart or documented procedure that prescribes the sequence of actions an operator must take in response to an out-of-control signal from an SPC chart.
-        - **CPP (Critical Process Parameter):** A process parameter whose variability has an impact on a CQA and therefore should be monitored or controlled.
+        - **Control Strategy (ICH Q10):** A planned set of controls, derived from product and process understanding, that assures process performance and product quality. It encompasses raw material specifications, process parameter controls, facility conditions, and final product testing.
+        - **OCAP (Out-of-Control Action Plan):** A flowchart or documented procedure that prescribes the sequence of actions an operator must take in response to an out-of-control signal from an SPC chart. It is a critical tool for ensuring consistent and compliant responses to deviations.
+        - **CPP (Critical Process Parameter):** A process parameter whose variability has an impact on a CQA and therefore must be monitored and controlled to ensure the process produces the desired quality.
         - **In-Process Control (IPC):** Checks performed during production in order to monitor and, if necessary, to adjust the process to ensure that the product conforms to its specification.
+        - **Specification:** A list of detailed requirements with which the products or materials used or obtained during manufacture have to conform.
         """)
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "Trust the Engineers" Fallacy**
-Engineers install a new SPC system that monitors 50 parameters in real-time. When a chart alarms, the operator is unsure which alarms are important and what to do, so they call the busy engineer, who may not be immediately available.
-- **The Flaw:** The system provides data but no **actionable information**. The lack of a clear Control Plan and OCAP creates confusion, delays, and risk on the manufacturing floor.""")
+Engineers install a new SPC system that monitors 50 parameters in real-time. When a chart alarms, the operator is unsure which alarms are important and what to do, so they call the busy engineer, who may not be immediately available. By the time the engineer arrives, significant non-conforming material may have been produced.
+- **The Flaw:** The system provides data but no **actionable information** for the operator. The lack of a clear Control Plan and OCAP creates confusion, delays, and significant compliance risk on the manufacturing floor.""")
         st.success("""🟢 **THE GOLDEN RULE: If It Can Alarm, It Must Have a Plan**
 A compliant and effective control strategy requires that every single monitoring chart has a clear, pre-defined, and operator-friendly action plan.
-1.  **Link Controls to Risks:** The parameters included in the Control Plan should be directly linked to the high-risk items identified in the **FMEA**.
-2.  **Define the Full Strategy:** The Control Plan must specify *all* aspects of the control: the what, how, how much, how often, and who.
+1.  **Link Controls to Risks:** The parameters included in the Control Plan should be directly linked to the high-risk items identified in the **FMEA**. This provides a documented, risk-based rationale for your monitoring strategy.
+2.  **Define the Full Strategy:** The Control Plan must specify *all* aspects of the control: the what (CPP), how (Measurement System), how much (Sample Size), how often (Frequency), and who (Operator).
 3.  **Create a Simple OCAP:** The OCAP must be a simple, unambiguous flowchart that an operator can follow under pressure without needing to consult an engineer for routine alarms. This empowers operators and ensures consistent, rapid responses to process deviations.""")
         
     with tabs[3]:
         st.markdown("""
         #### Historical Context: From Shewhart's Chart to the Control Plan
-        When **Walter Shewhart** invented the control chart in the 1920s, his primary focus was on the statistical tool for *detection*. The reaction to the signal was largely left to the judgment of the on-site engineer.
+        When **Walter Shewhart** invented the control chart in the 1920s, his primary focus was on the statistical tool for *detection*. The reaction to the signal was largely left to the judgment of the on-site engineer. This worked well in the simpler manufacturing environments of the time.
         
-        As manufacturing processes became more complex, and as quality principles were adopted more broadly, the need for a more structured response became clear. The **automotive industry**, through its development of the **Advanced Product Quality Planning (APQP)** framework in the late 1980s, formalized the **Control Plan** as a key deliverable. They recognized that a control chart was useless without a documented plan for how it would be used and what actions would be taken in response to a signal.
+        As manufacturing processes became more complex and quality management systems more formalized, the need for a more structured response became clear. The **automotive industry**, through its development of the **Advanced Product Quality Planning (APQP)** framework in the late 1980s, formalized the **Control Plan** as a key deliverable for any new product. They recognized that a control chart was useless without a documented plan for how it would be used, by whom, and what actions would be taken in response to a signal.
         
-        The **Out-of-Control Action Plan (OCAP)** evolved from this as a best practice, translating the formal table of the Control Plan into a simple, visual flowchart that is ideal for use by operators on the factory floor. The combination of SPC, the Control Plan, and the OCAP creates a complete, closed-loop system for process control.
+        The **Out-of-Control Action Plan (OCAP)** evolved from this as a best practice, translating the formal table of the Control Plan into a simple, visual flowchart that is ideal for use by operators on the factory floor, especially in high-pressure situations. The combination of SPC, the Control Plan, and the OCAP creates a complete, closed-loop system for process control that is a hallmark of a mature quality system.
         """)
         
     with tabs[4]:
         st.markdown("""
-        The Control Plan is a key document that demonstrates a state of control and is a primary focus of regulatory audits.
-        - **ICH Q10 - Pharmaceutical Quality System:** The Control Plan is the operational embodiment of the **Control Strategy**, which is a central concept in ICH Q10. It is the documented proof that product and process understanding has been translated into effective, routine controls.
-        - **FDA Process Validation Guidance (Stage 3 - CPV):** The guidance requires an "ongoing program to collect and analyze product and process data." The Control Plan is the document that formally defines this program.
+        The Control Plan is a key document that demonstrates a state of control and is a primary focus of regulatory audits. It is the practical embodiment of your entire validation effort.
+        - **ICH Q10 - Pharmaceutical Quality System:** The Control Plan is the operational embodiment of the **Control Strategy**, which is a central concept in ICH Q10. It is the documented proof that product and process understanding (from QbD and validation) has been successfully translated into effective, routine controls.
+        - **FDA Process Validation Guidance (Stage 3 - CPV):** The guidance requires an "ongoing program to collect and analyze product and process data." The Control Plan is the document that formally defines this program, specifying what is monitored, how often, and what to do when a deviation is detected.
         - **21 CFR 211.110 (Sampling and testing of in-process materials and drug products):** This regulation requires written procedures for in-process controls, including "Control procedures shall be established to monitor the output and to validate the performance of those manufacturing processes that may be responsible for causing variability." The Control Plan is this established procedure.
+        - **EU Annex 15: Qualification and Validation:** Emphasizes that processes should be monitored during routine production to assure that they remain in a state of control. The Control Plan is the primary document defining this monitoring.
         """)
 #======================================= 2. RUN VALIDATION WESTGARD  ============================================================================
 def render_multi_rule():
@@ -10744,7 +10887,7 @@ with st.sidebar:
         "ACT 0: PLANNING & STRATEGY": [
             "TPP & CQA Cascade",
             "Analytical Target Profile (ATP) Builder",
-            "Quality Risk Management (FMEA)",
+            "Quality Risk Management (QRM) Suite",
             "Design for Excellence (DfX)",
             "Validation Master Plan (VMP) Builder",
             "Requirements Traceability Matrix (RTM)"
@@ -10822,7 +10965,7 @@ else:
         # Act 0
         "TPP & CQA Cascade": render_tpp_cqa_cascade,
         "Analytical Target Profile (ATP) Builder": render_atp_builder,
-        "Quality Risk Management (FMEA)": render_fmea,
+        "Quality Risk Management (QRM) Suite": render_qrm_suite,
         "Design for Excellence (DfX)": render_dfx_dashboard,
         "Validation Master Plan (VMP) Builder": render_vmp_builder,
         "Requirements Traceability Matrix (RTM)": render_rtm_builder,

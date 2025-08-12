@@ -5926,15 +5926,36 @@ def render_qrm_suite():
         """)
     with tabs[2]:
         st.success("""🟢 **THE GOLDEN RULE:** Risk Assessment is Not a One-Time Event. Quality Risk Management is a continuous lifecycle activity. An initial PHA should inform a more detailed FMEA. The FMEA identifies critical failure modes that might warrant a deep-dive FTA. The effectiveness of the controls identified in the FMEA and FTA should be monitored throughout the product lifecycle, and the risk assessments should be updated whenever new information (e.g., from a deviation or a process change) becomes available.""")
-    with tabs[3]:
+with tabs[3]:
         st.markdown("""
-        #### Historical Context: From Rockets and Reactors to Pharma
-        These advanced risk management tools were born out of high-consequence industries where failure was not an option.
-        - **FTA** was developed in the early 1960s at Bell Labs for the U.S. Air Force to evaluate the safety of the Minuteman intercontinental ballistic missile (ICBM) launch control system.
-        - **ETA** also has its roots in nuclear and chemical process safety, where it was used to analyze the sequence of events following a critical failure.
-        - **FMEA** originated in the U.S. military in the 1940s and was heavily used by NASA.
+        #### Historical Context: Forged in Fire, Ice, and the Void
+        These advanced risk management tools were not born in sterile laboratories but were forged in the crucibles of the 20th century's most demanding engineering challenges, where failure carried the ultimate price. They represent a migration of hard-won knowledge from high-hazard industries directly into the heart of pharmaceutical quality systems.
+
+        ---
         
-        The pharmaceutical industry formally adopted these proven engineering techniques as part of the **ICH Q9** guideline in 2005, integrating the proactive risk management culture of high-hazard industries into the core of pharmaceutical quality systems.
+        ##### FMEA: From Munitions to the Moon (and Back to Earth)
+        - **The Origin (1949):** The FMEA methodology was first formalized in a U.S. military procedure, **MIL-P-1629**. In the tense aftermath of WWII, the goal was brutally practical: to proactively analyze potential failures in complex munitions and weapon systems *before* they were deployed, preventing catastrophic failures on the battlefield.
+        - **The Ultimate High-Stakes Project (1960s):** FMEA became the bedrock of **NASA's reliability engineering for the Apollo program**. For a mission where millions of components had to function perfectly, FMEA was the exhaustive, bottom-up tool used to systematically assess every single bolt, switch, and circuit, asking "How can this fail, and what happens if it does?" The consequences of missing a failure mode were famously highlighted decades later by physicist Richard Feynman in his investigation of the Space Shuttle *Challenger* disaster, where he noted that a proper FMEA of the O-rings could have identified the critical temperature-related failure mode that led to the tragedy.
+        - **The Automotive Awakening (1970s):** The Ford Motor Company, reeling from the infamous Pinto fuel tank crisis and facing intense competition, championed the use of FMEA to proactively design safety and reliability into their vehicles, shifting the industry from a reactive, "test and fix" mentality to a proactive, design-centric one.
+
+        ---
+
+        ##### FTA: The Logic of Armageddon
+        - **The Cold War Problem (1961):** At Bell Laboratories, engineers working with the U.S. Air Force on the **Minuteman I Intercontinental Ballistic Missile (ICBM)** system faced a terrifying new question: "What is the probability of an *accidental* missile launch?" A simple FMEA was insufficient. FMEA is excellent for single-point failures, but the accidental launch required a complex *combination* of events.
+        - **The Insight (H.A. Watson):** Engineers led by H.A. Watson developed Fault Tree Analysis as a top-down, deductive logic tool. They started with the catastrophic top event ("Accidental Launch") and used Boolean logic gates (AND, OR) to map all the lower-level equipment failures and human errors that could lead to it. This allowed them to identify the most critical vulnerabilities—the "minimal cut sets"—in a system where the stakes were literally global annihilation.
+
+        ---
+
+        ##### ETA: The Domino Effect of a Meltdown
+        - **The Nuclear Age (1970s):** While FTA looked backward from a failure, engineers in the burgeoning nuclear power and chemical industries needed to look *forward*. They needed to answer a different kind of question: "A primary cooling pipe has just ruptured. **What happens next?**"
+        - **The Consequence Map:** Event Tree Analysis was developed to model this sequential, cascading failure. It starts with an "initiating event" and then maps out the success or failure of each subsequent safety system (e.g., "Did the backup pump start? Did the containment doors seal?"). This creates a branching map of all possible outcomes and their probabilities. ETA was a core component of the landmark **WASH-1400 Reactor Safety Study** (1975), which, in a sense, predicted the types of failure sequences that would occur at the **Three Mile Island accident** just four years later, solidifying its importance in plant safety.
+
+        ---
+        
+        ##### The Great Migration: From Engineering to Pharma
+        For decades, the pharmaceutical industry relied primarily on intensive "quality by testing," often reacting to failures after they occurred. However, a series of high-profile manufacturing issues in the late 1990s and early 2000s, which led to costly recalls and drug shortages, prompted a major philosophical shift. Led by visionaries like Dr. Janet Woodcock, the FDA launched its **"Pharmaceutical cGMPs for the 21st Century"** initiative, calling for a modern, proactive, science- and risk-based approach to quality.
+
+        This culminated in the **ICH Q9 guideline in 2005**, which formally "imported" this entire suite of battle-tested engineering tools into the pharmaceutical quality system. It was a landmark moment, signaling that the proactive, systems-thinking mindset forged in the aerospace, defense, and nuclear industries was now the regulatory expectation for ensuring patient safety, forever changing the landscape of validation and process control.
         """)
     with tabs[4]:
         st.markdown("""

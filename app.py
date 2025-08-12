@@ -12134,7 +12134,7 @@ with st.sidebar:
             "Kalman Filter + Residual Chart",
             "RL for Chart Tuning",
             "TCN + CUSUM",
-            "LSTM Autoencoder + Hybrid Monitoring"
+            "LSTM Autoencoder + Hybrid Monitoring",
             "PSO + Autoencoder"
         ]
     }

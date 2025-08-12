@@ -940,9 +940,9 @@ def plot_rtm_sankey(completed_streams):
     return fig, links_data, nodes_data
 
 @st.cache_data
-def plot_dfx_dashboard(project_type, efforts):
+def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort):
     """
-    Generates a professional-grade DfX dashboard with a Performance Radar Chart and a Cost Structure Pie Chart comparison.
+    Generates a professional-grade DfX dashboard from a given profile and effort allocation.
     """
     profiles = {
         "Pharma Assay (ELISA)": {
@@ -962,50 +962,33 @@ def plot_dfx_dashboard(project_type, efforts):
             'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
         }
     }
-    
     profile = profiles[project_type]
-    optimized_kpis = profile['baseline'].copy()
+    efforts = {'mfg': mfg_effort, 'quality': quality_effort, 'sustainability': sustainability_effort, 'ux': ux_effort}
     
+    optimized = profile['baseline'].copy()
     for i in range(len(profile['categories'])):
         total_impact = sum(efforts[k] * profile['impact'][k][i] for k in efforts)
-        optimized_kpis[i] += total_impact * (1 if profile['direction'][i] == 1 else -1)
+        optimized[i] += total_impact * (1 if profile['direction'][i] == 1 else -1)
+        if '%' in profile['categories'][i]: optimized[i] = np.clip(optimized[i], 0, 100)
+        if 'Score' in profile['categories'][i]: optimized[i] = np.clip(optimized[i], 0, 10)
+        
+    kpis = {'baseline': profile['baseline'], 'optimized': optimized}
 
-    # Simplified Cost Model for visualization
-    def get_cost_breakdown(kpis, p_type):
-        if p_type == "Pharma Assay (ELISA)": # Cost per run
-            return [kpis[2], 5, 2, kpis[1]*1] # Reagent, Labor, Plastic, Instrument Time
-        elif p_type == "Instrument (Liquid Handler)": # Annual cost
-            return [15000, 2000, kpis[3], 1000] # Capital, PM, Service, Consumables
-        elif p_type == "Software (LIMS)": # Total project cost
-            return [kpis[4], 150, 100, 50] # Development, Hardware, Validation, Training
-        elif p_type == "Pharma Process (MAb)": # Cost per gram
-            return [kpis[2]*0.4, kpis[2]*0.3, kpis[2]*0.2, kpis[2]*0.1] # Materials, Utilities, Labor, QC
-        return [1,1,1,1]
-
-    cost_labels = ['Core Materials/Dev', 'Labor/Manufacturing', 'Service/Validation', 'QC/Consumables']
-    base_costs = get_cost_breakdown(profile['baseline'], project_type)
-    optimized_costs = get_cost_breakdown(optimized_kpis, project_type)
-    
-    # --- Create Plots ---
-    # Plot 1: Radar Chart for Performance Profile
     fig_radar = go.Figure()
     fig_radar.add_trace(go.Scatterpolar(r=profile['baseline'], theta=profile['categories'], fill='toself', name='Baseline Design', line=dict(color='grey')))
-    fig_radar.add_trace(go.Scatterpolar(r=optimized_kpis, theta=profile['categories'], fill='toself', name='DfX Optimized Design', line=dict(color=SUCCESS_GREEN)))
+    fig_radar.add_trace(go.Scatterpolar(r=optimized, theta=profile['categories'], fill='toself', name='DfX Optimized Design', line=dict(color=SUCCESS_GREEN)))
     fig_radar.update_layout(title="<b>1. Project Performance Profile</b>", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
 
-    # Plot 2: Cost Structure Pie Charts
-    fig_cost = make_subplots(rows=1, cols=2, specs=[[{'type':'domain'}, {'type':'domain'}]],
-                             subplot_titles=['<b>Baseline Cost Structure</b>', '<b>Optimized Cost Structure</b>'])
-    fig_cost.add_trace(go.Pie(labels=cost_labels, values=base_costs, name="Base", marker_colors=['#636EFA', '#EF553B', '#00CC96', '#AB63FA']), 1, 1)
-    fig_cost.add_trace(go.Pie(labels=cost_labels, values=optimized_costs, name="Optimized", marker_colors=['#636EFA', '#EF553B', '#00CC96', '#AB63FA']), 1, 2)
-    fig_cost.update_traces(hole=.4, hoverinfo="label+percent+value", textinfo='percent', textfont_size=14)
-    fig_cost.update_layout(title_text="<b>2. Lifecycle Cost Breakdown</b>", showlegend=False, annotations=[
-        dict(text=f'${sum(base_costs):,.0f}', x=0.18, y=0.5, font_size=20, showarrow=False),
-        dict(text=f'${sum(optimized_costs):,.0f}', x=0.82, y=0.5, font_size=20, showarrow=False)
-    ])
+    base_cost_factors = [profile['baseline'][2]*0.5, profile['baseline'][0]*1.2, profile['baseline'][3]*0.8, profile['baseline'][4]*1.5]
+    optimized_cost_factors = [optimized[2]*0.5, optimized[0]*1.2, optimized[3]*0.8, optimized[4]*1.5]
+    cost_labels = ['Manufacturing', 'Quality (QC/QA)', 'Supply Chain', 'Service & Support']
     
-    kpis_out = {'baseline': profile['baseline'], 'optimized': optimized_kpis}
-    return fig_radar, fig_cost, kpis_out
+    fig_cost = go.Figure()
+    fig_cost.add_trace(go.Bar(name='Baseline', x=cost_labels, y=base_cost_factors, marker_color='grey'))
+    fig_cost.add_trace(go.Bar(name='Optimized', x=cost_labels, y=optimized_cost_factors, marker_color=SUCCESS_GREEN))
+    fig_cost.update_layout(title="<b>2. Lifecycle Cost Drivers</b>", yaxis_title="Relative Cost Contribution", barmode='group')
+    
+    return fig_radar, fig_cost, kpis, profile['categories']
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
 
@@ -5524,46 +5507,46 @@ def render_rtm_builder():
     """)
     
     st.info("""
-    **Interactive Demo: The Project Management Simulation**
-    You are the Validation Project Manager for a major Tech Transfer. Your goal is to achieve 100% traceability.
-    1.  The diagram shows the four validation streams (Process, Assay, Instrument, Software) required to meet the main Project Goal.
-    2.  Use the **"Validation Stream Completion" toggles** in the sidebar to simulate the completion of each sub-project.
-    3.  As you complete each stream, watch the links turn from grey to green, and see the overall project completeness KPI update.
+    **Interactive Demo:** You are the Head of Engineering or Validation.
+    1.  Select the **Project Type** you are leading.
+    2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
+    3.  Observe the impact in real-time on the **KPI Dashboard** and the **Performance Profile** radar chart.
     """)
+    
+    project_type = st.selectbox(
+        "Select a Project Type to Simulate DfX Impact:",
+        ["Pharma Process (MAb)", "Pharma Assay (ELISA)", "Instrument (Liquid Handler)", "Software (LIMS)"]
+    )
 
     with st.sidebar:
-        st.subheader("RTM Project Simulation")
-        st.markdown("Simulate the completion of each validation sub-project:")
-        completed_streams = []
-        if st.toggle("Complete Instrument Qualification", key="inst_complete"):
-            completed_streams.append("Instrument")
-        if st.toggle("Complete Assay Validation", key="assay_complete"):
-            completed_streams.append("Assay")
-        if st.toggle("Complete Software Validation (CSV)", key="soft_complete"):
-            completed_streams.append("Software")
-        if st.toggle("Complete Process Validation (PPQ)", key="proc_complete"):
-            completed_streams.append("Process")
-        
-    fig, links_data, nodes_data = plot_rtm_sankey(completed_streams)
-    
-    # Calculate KPIs
-    total_links = len(links_data)
-    completed_links = sum(1 for s, t, stream in links_data if stream in completed_streams or nodes_data[s][1] in completed_streams)
-    completeness_pct = (completed_links / total_links) * 100
-    
-    col1, col2 = st.columns([0.75, 0.25])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.subheader("Project Status")
-        st.progress(int(completeness_pct))
-        st.metric("Traceability Completeness", f"{completeness_pct:.0f}%",
-                  help="Percentage of all traceability links that have been completed and verified.")
-        if completeness_pct < 100:
-            st.warning("Project is incomplete. Some requirements have not been fully verified.")
-        else:
-            st.success("Project is 100% traceable and ready for final approval.")
+        st.subheader("DfX Effort Allocation")
+        mfg_effort = st.slider("Manufacturing & Assembly Effort (DFM/DFA)", 0, 10, 5, 1, help="Focus on part count reduction, using standard components, and designing for automated assembly.")
+        quality_effort = st.slider("Quality & Reliability Effort (DFR/DFT)", 0, 10, 5, 1, help="Focus on building in reliability, designing for robust performance, and adding features to make QC testing faster and more accurate.")
+        sustainability_effort = st.slider("Sustainability & Supply Chain Effort (DFE)", 0, 10, 5, 1, help="Focus on using standard/recyclable materials, reducing energy use, and designing for easy disassembly.")
+        ux_effort = st.slider("Service & User Experience Effort (DFS/DFUX)", 0, 10, 5, 1, help="Focus on making the device easy to use, service, and maintain, reducing long-term operational costs and human error.")
 
+    # --- THIS IS THE KEY FIX ---
+    # Call the cached function with simple, hashable arguments.
+    fig_radar, fig_cost, kpis, categories = plot_dfx_dashboard(
+        project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort
+    )
+    # --- END OF FIX ---
+
+    st.header("Project KPI Dashboard")
+    kpi_cols = st.columns(len(kpis['baseline']))
+    for i, col in enumerate(kpi_cols):
+        base_val = kpis['baseline'][i]
+        opt_val = kpis['optimized'][i]
+        delta = opt_val - base_val
+        col.metric(categories[i].replace('<br>', ' '), f"{opt_val:.1f}", f"{delta:.1f}")
+
+    st.header("Design Comparison Visualizations")
+    col_radar, col_cost = st.columns(2)
+    with col_radar:
+        st.plotly_chart(fig_radar, use_container_width=True)
+    with col_cost:
+        st.plotly_chart(fig_cost, use_container_width=True)
+    
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])

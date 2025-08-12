@@ -6023,7 +6023,6 @@ def render_eda_dashboard():
     st.header("Exploratory Data Analysis Report")
     st.dataframe(df.head())
     
-    # --- Data Quality KPIs ---
     st.subheader("Data Quality KPIs")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Rows", df.shape[0])
@@ -6064,9 +6063,11 @@ def render_eda_dashboard():
         - **Missing Values:** Data points for which no value is stored (often represented as `NaN`).
         """)
     with tabs[2]:
+        # --- THIS IS THE CORRECTED BLOCK ---
         st.error("""🔴 **THE INCORRECT APPROACH: "Garbage In, Gospel Out"**
 An analyst receives a new dataset, immediately feeds it into a sophisticated machine learning model, and presents the model's predictions as truth.
-- **The Flaw:** They never checked the data quality. The dataset was riddled with missing values and outliers, which the model interpreted as real patterns. The resulting predictions are statistically invalid and dangerously misleading. This is the definition of "Garbage In, Garbage Out."""")
+- **The Flaw:** They never checked the data quality. The dataset was riddled with missing values and outliers, which the model interpreted as real patterns. The resulting predictions are statistically invalid and dangerously misleading. This is the definition of \\"Garbage In, Garbage Out.\\"""")
+        # --- END OF CORRECTION ---
         st.success("""🟢 **THE GOLDEN RULE: Trust, but Verify Your Data**
 Before performing any formal statistical analysis or building any model, you must first get to know your data.
 1.  **Inspect for Quality:** Always begin by checking for fundamental issues like missing values, duplicates, and obvious errors.
@@ -6089,7 +6090,7 @@ EDA is the step that turns raw data into actionable scientific inquiry.""")
         - **Data Integrity (ALCOA+):** A core principle of data integrity is that data must be **Complete** and **Accurate**. The Data Quality KPIs in this dashboard are a direct check on these principles. An EDA report is often a key part of the evidence package for a new dataset, demonstrating that the data has been reviewed for quality before being used in formal GxP analysis.
         - **ICH Q9 (Quality Risk Management):** EDA is a powerful tool for risk identification. Discovering a strong, unexpected correlation in your data during EDA can highlight a previously unknown process risk that needs to be formally assessed with a tool like FMEA.
         """)
-
+        
 def render_ci_concept():
     """Renders the interactive module for Confidence Intervals."""
     st.markdown("""

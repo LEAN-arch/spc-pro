@@ -939,78 +939,67 @@ def plot_rtm_sankey(completed_streams):
     )
     return fig, links_data, nodes_data
 
+# FIX: Replace the existing plot_dfx_dashboard function with this new, multi-project, SME-grade version.
 @st.cache_data
-def plot_dfx_dashboard(efforts):
+def plot_dfx_dashboard(project_type, efforts):
     """
-    Generates a professional-grade DfX dashboard comparing a baseline design to an improved design.
+    Generates a professional-grade DfX dashboard for multiple project types, comparing a baseline to an improved design.
     """
-    base = {'part_count': 8, 'material_cost': 1.50, 'mfg_complexity': 9, 'assembly_steps': 15, 'fastener_count': 4, 'test_points': 1, 'test_time': 90, 'reliability_score': 5, 'service_time': 120, 'recyclability': 20, 'ux_score': 4}
+    profiles = {
+        "Pharma Assay (ELISA)": {
+            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost ($)', 'Precision (%CV)', 'Ease of Use'],
+            'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1],
+            'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
+        },
+        "Instrument (Liquid Handler)": {
+            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>($/yr)', 'Precision (%CV)'],
+            'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1],
+            'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
+        },
+        "Software (LIMS)": {
+            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost ($k)'],
+            'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1],
+            'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
+        },
+        "Pharma Process (MAb)": {
+            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS ($/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'],
+            'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1],
+            'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
+        }
+    }
     
-    improved = base.copy()
-    imp_mfg, imp_qual, imp_sus, imp_ux = efforts['mfg']/10.0, efforts['quality']/10.0, efforts['sustainability']/10.0, efforts['ux']/10.0
-    improved['part_count'] = int(base['part_count'] * (1 - imp_mfg * 0.6))
-    improved['fastener_count'] = int(base['fastener_count'] * (1 - imp_mfg * 0.8))
-    improved['mfg_complexity'] = base['mfg_complexity'] * (1 - imp_mfg * 0.7)
-    improved['assembly_steps'] = int(base['assembly_steps'] * (1 - imp_mfg * 0.6))
-    improved['reliability_score'] = base['reliability_score'] * (1 + imp_qual * 1.0)
-    improved['test_points'] = base['test_points'] + int(imp_qual * 2)
-    improved['test_time'] = base['test_time'] * (1 - imp_qual * 0.5)
-    improved['recyclability'] = base['recyclability'] + imp_sus * 70
-    improved['material_cost'] = base['material_cost'] * (1 - imp_sus * 0.15)
-    improved['service_time'] = base['service_time'] * (1 - imp_ux * 0.6)
-    improved['ux_score'] = base['ux_score'] * (1 + imp_ux * 1.0)
-
-    def calculate_kpis(d):
-        mfg_cost = d['mfg_complexity'] * 0.15
-        assembly_cost = d['assembly_steps'] * 0.05 + d['fastener_count'] * 0.02
-        qc_cost = d['test_time'] * 0.01
-        service_cost = d['service_time'] * 0.005
-        total_cost = d['material_cost'] + mfg_cost + assembly_cost + qc_cost + service_cost
-        yield_pct = 99.5 - (d['mfg_complexity'] * 1.5)
-        return {"Total Cost ($)": total_cost, "Mfg. Yield (%)": yield_pct, "Reliability Score": d['reliability_score'], "UX Score": d['ux_score'],
-                "cost_breakdown": [d['material_cost'], mfg_cost, assembly_cost, qc_cost, service_cost]}
-
-    kpis_base = calculate_kpis(base)
-    kpis_improved = calculate_kpis(improved)
+    profile = profiles[project_type]
+    optimized = profile['baseline'].copy()
     
-    # --- FIGURE 1: PIE CHARTS for Cost Structure ---
-    fig_pies = make_subplots(rows=1, cols=2, specs=[[{'type':'domain'}, {'type':'domain'}]],
-                             subplot_titles=['<b>Baseline Cost</b>', '<b>Optimized Cost</b>'])
-    pie_labels = ['Material', 'Manufacturing', 'Assembly', 'QC', 'Service']
-    fig_pies.add_trace(go.Pie(labels=pie_labels, values=kpis_base['cost_breakdown'], name="Base"), 1, 1)
-    fig_pies.add_trace(go.Pie(labels=pie_labels, values=kpis_improved['cost_breakdown'], name="Optimized"), 1, 2)
-    fig_pies.update_traces(hole=.4, hoverinfo="label+percent+value")
-    fig_pies.update_layout(title_text="<b>Cost Structure Breakdown</b>", showlegend=False)
+    for i in range(len(profile['categories'])):
+        # Calculate the total impact from all efforts on this specific KPI
+        total_impact = sum(efforts[k] * profile['impact'][k][i] for k in efforts)
+        # Apply the impact, respecting whether higher or lower is better
+        optimized[i] += total_impact * (1 if profile['direction'][i] == 1 else -1)
+        # Ensure values stay within plausible bounds
+        if '%' in profile['categories'][i]: optimized[i] = np.clip(optimized[i], 0, 100)
+        if 'Score' in profile['categories'][i]: optimized[i] = np.clip(optimized[i], 0, 10)
+        
+    kpis = {'baseline': profile['baseline'], 'optimized': optimized}
 
-    # --- FIGURE 2: SUBPLOTS for Product Visuals and KPIs ---
-    fig_main = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=("<b>1. Baseline Design</b>", "<b>2. DfX Optimized Design</b>", "<b>Manufacturing KPIs</b>", "<b>Product Quality KPIs</b>"),
-        vertical_spacing=0.25
-    )
-    fig_main.add_shape(type="rect", x0=1, y0=1, x1=4, y1=2, fillcolor='lightgrey', line_color='black', row=1, col=1)
-    fig_main.add_shape(type="rect", x0=1.2, y0=1.2, x1=3.8, y1=1.8, fillcolor='white', line_color='black', row=1, col=1)
-    for x in [0.8, 4.2]: fig_main.add_shape(type="circle", x0=x, y0=1.4, x1=x+0.2, y1=1.6, fillcolor='grey', row=1, col=1)
-    fig_main.add_annotation(x=2.5, y=0.5, text=f"{base['part_count']} Parts, {base['fastener_count']} Fasteners", showarrow=False, row=1, col=1)
+    # --- Create Plots ---
+    # Plot 1: Radar Chart for Performance Profile
+    fig_radar = go.Figure()
+    fig_radar.add_trace(go.Scatterpolar(r=profile['baseline'], theta=profile['categories'], fill='toself', name='Baseline Design', line=dict(color='grey')))
+    fig_radar.add_trace(go.Scatterpolar(r=optimized, theta=profile['categories'], fill='toself', name='DfX Optimized Design', line=dict(color=SUCCESS_GREEN)))
+    fig_radar.update_layout(title="<b>1. Project Performance Profile</b>", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
 
-    fig_main.add_shape(type="rect", x0=1, y0=1, x1=4, y1=2, fillcolor='lightgrey', line_color='black', row=1, col=2)
-    fig_main.add_shape(type="rect", x0=1.2, y0=1.2, x1=3.8, y1=1.8, fillcolor='white', line_color='black', row=1, col=2)
-    fig_main.add_shape(type="circle", x0=3.7, y0=1.0, x1=3.9, y1=1.2, line_color='blue', line_width=2, row=1, col=2)
-    fig_main.add_annotation(x=2.5, y=0.5, text=f"{improved['part_count']} Parts, {improved['fastener_count']} Fasteners (Snap-Fit)", showarrow=False, row=1, col=2)
+    # Plot 2: Cost Breakdown Bar Chart (Simplified representation)
+    base_cost_factors = [efforts['mfg']*0.8, efforts['quality']*1.2, efforts['sustainability']*1.1, efforts['ux']*1.5]
+    optimized_cost_factors = [efforts['mfg']*0.4, efforts['quality']*1.0, efforts['sustainability']*0.9, efforts['ux']*0.8]
+    cost_labels = ['Manufacturing', 'Quality (QC/QA)', 'Supply Chain', 'Service & Support']
     
-    for r,c in [(1,1), (1,2)]:
-        fig_main.update_xaxes(visible=False, range=[0,5], row=r, col=c); fig_main.update_yaxes(visible=False, range=[0,3], row=r, col=c)
-
-    mfg_kpis = ["Total Cost ($)", "Mfg. Yield (%)"]
-    qual_kpis = ["Reliability Score", "UX Score"]
-    fig_main.add_trace(go.Bar(name='Baseline', x=mfg_kpis, y=[kpis_base[k] for k in mfg_kpis], marker_color='grey'), row=2, col=1)
-    fig_main.add_trace(go.Bar(name='Optimized', x=mfg_kpis, y=[kpis_improved[k] for k in mfg_kpis], marker_color=SUCCESS_GREEN), row=2, col=2)
-    fig_main.add_trace(go.Bar(name='Baseline', x=qual_kpis, y=[kpis_base[k] for k in qual_kpis], marker_color='grey'), row=2, col=2)
-    fig_main.add_trace(go.Bar(name='Optimized', x=qual_kpis, y=[kpis_improved[k] for k in qual_kpis], marker_color=SUCCESS_GREEN), row=2, col=1)
+    fig_cost = go.Figure()
+    fig_cost.add_trace(go.Bar(name='Baseline', x=cost_labels, y=base_cost_factors, marker_color='grey'))
+    fig_cost.add_trace(go.Bar(name='Optimized', x=cost_labels, y=optimized_cost_factors, marker_color=SUCCESS_GREEN))
+    fig_cost.update_layout(title="<b>2. Lifecycle Cost Drivers</b>", yaxis_title="Relative Cost Contribution", barmode='group')
     
-    fig_main.update_layout(height=600, showlegend=True, barmode='group', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-
-    return fig_pies, fig_main, kpis_base, kpis_improved
+    return fig_radar, fig_cost, kpis
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
 
@@ -5615,6 +5604,7 @@ A complex project like a tech transfer should be governed by a single, integrate
         - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing. It is a critical component of the Design History File (DHF).
         """)
 
+# FIX: This is the definitive version of the render_dfx_dashboard function, with all tabs and content substantially improved by an SME.
 def render_dfx_dashboard():
     """Renders the comprehensive, interactive module for Design for Excellence (DfX)."""
     st.markdown("""
@@ -5625,63 +5615,73 @@ def render_dfx_dashboard():
     """)
     
     st.info("""
-    **Interactive Demo:** You are the Head of Engineering for a new diagnostic device.
-    1.  The dashboard shows a **Baseline Design**, with its associated costs and performance.
-    2.  Use the **DfX Effort Sliders** in the sidebar to apply different design philosophies.
-    3.  Observe the impact in real-time: the **physical design simplifies**, the **cost structure changes**, and the **KPIs** improve.
+    **Interactive Demo:** You are the Head of Engineering or Validation.
+    1.  Select the **Project Type** you are leading.
+    2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
+    3.  Observe the impact in real-time on the **KPI Dashboard** and the **Performance Profile** radar chart.
     """)
+
+    project_type = st.selectbox(
+        "Select a Project Type to Simulate DfX Impact:",
+        ["Pharma Process (MAb)", "Pharma Assay (ELISA)", "Instrument (Liquid Handler)", "Software (LIMS)"]
+    )
 
     with st.sidebar:
         st.subheader("DfX Effort Allocation")
         efforts = {}
-        efforts['mfg'] = st.slider("Core Manufacturing Effort (DFM/DFA)", 0, 10, 5, 1, help="Focus on part count reduction, using standard components, and designing for automated assembly.")
+        efforts['mfg'] = st.slider("Manufacturing & Assembly Effort (DFM/DFA)", 0, 10, 5, 1, help="Focus on part count reduction, using standard components, and designing for automated assembly.")
         efforts['quality'] = st.slider("Quality & Reliability Effort (DFR/DFT)", 0, 10, 5, 1, help="Focus on building in reliability, designing for robust performance, and adding features to make QC testing faster and more accurate.")
-        efforts['sustainability'] = st.slider("Sustainability Effort (DFE)", 0, 10, 5, 1, help="Focus on using recycled/recyclable materials, reducing material usage, and designing for easy disassembly and remanufacturing.")
-        efforts['ux'] = st.slider("Service & UX Effort (DFS/DFUX)", 0, 10, 5, 1, help="Focus on making the device easy to use, service, and maintain, reducing long-term operational costs.")
+        efforts['sustainability'] = st.slider("Sustainability & Supply Chain Effort (DFE)", 0, 10, 5, 1, help="Focus on using standard/recyclable materials, reducing energy use, and designing for easy disassembly.")
+        efforts['ux'] = st.slider("Service & User Experience Effort (DFS/DFUX)", 0, 10, 5, 1, help="Focus on making the device easy to use, service, and maintain, reducing long-term operational costs and human error.")
 
-    fig_pies, fig_main, kpis_base, kpis_improved = plot_dfx_dashboard(efforts)
+    fig_radar, fig_cost, kpis = plot_dfx_dashboard(project_type, efforts)
 
-    st.header("Design Comparison Dashboard")
-    
-       # --- NEW, CORRECTED LAYOUT ---
-    col1, col2 = st.columns([0.6, 0.4])
-    with col1:
-        st.plotly_chart(fig_main, use_container_width=True)
-    with col2:
-        st.plotly_chart(fig_pies, use_container_width=True)
+    st.header("Project KPI Dashboard")
+    kpi_cols = st.columns(len(kpis['baseline']))
+    categories = list(profiles[project_type]['categories'])
+    for i, col in enumerate(kpi_cols):
+        base_val = kpis['baseline'][i]
+        opt_val = kpis['optimized'][i]
+        col.metric(categories[i].replace('<br>', ' '), f"{opt_val:.1f}", f"{opt_val - base_val:.1f}")
+
+    st.header("Design Comparison Visualizations")
+    col_radar, col_cost = st.columns(2)
+    with col_radar:
+        st.plotly_chart(fig_radar, use_container_width=True)
+    with col_cost:
+        st.plotly_chart(fig_cost, use_container_width=True)
     
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    
     with tabs[0]:
         st.markdown("""
         **Interpreting the Dashboard:**
-        - **Product Visualization (Top-Left):** The 'After' design integrates parts and uses a snap-fit, reducing part count (DFA). It also includes a blue test port to make QC faster (DFT). This is a visual representation of smart design choices.
-        - **Cost Structure (Top-Right):** The pie charts show the business impact. Notice how applying DfX effort shifts the cost structure. Focusing on 'Core Manufacturing' shrinks the 'Assembly' and 'Manufacturing' slices of the pie, while focusing on 'Sustainability' might slightly increase 'Material' cost but reduce long-term service or disposal costs.
-        - **KPI Comparison (Bottom):** These bar charts quantify the benefits. Increasing DfX effort leads to a dramatic reduction in **Total Cost** and an improvement in **Mfg. Yield** and **Reliability**.
+        - **KPI Dashboard:** This is your executive summary. It quantifies the return on investment for your DfX efforts in terms of cost, quality, and performance. The delta shows the improvement over the baseline.
+        - **Performance Profile (Radar Chart):** This visualizes the multi-dimensional impact of your design choices. The goal is to create an "Optimized" profile (green) that meets or exceeds all performance targets for the project. Notice how different effort allocations change the shape of the profile.
+        - **Cost Drivers (Bar Chart):** This shows *how* you are achieving your goals. For example, a strong DFM/DFA effort will dramatically reduce the "Manufacturing" and "Assembly" cost drivers.
         
-        **The Strategic Insight:** This simulation demonstrates that DfX is a game of strategic trade-offs. Investing engineering effort in a specific "Design for X" principle yields a direct, quantifiable improvement in a corresponding business KPI. The most successful projects are those that balance these efforts to meet the product's overall Target Profile (TPP). For example, a disposable device may prioritize DFM and DFC (low cost), while a complex capital instrument would prioritize DFR and DFS (reliability and serviceability).
+        **The Strategic Insight:** DfX is a game of strategic trade-offs. You cannot maximize all attributes simultaneously. A disposable, high-volume product will prioritize low cost (DFM/DFA). A complex, reusable capital instrument will prioritize reliability and serviceability (DFR/DFS). This dashboard allows you to simulate these strategic choices and see their quantifiable impact.
         """)
-        
     with tabs[1]:
         st.markdown("""
-        ##### Glossary of Core DfX Principles
-        - **DfX (Design for Excellence):** A broad methodology that prioritizes designing a product with its entire lifecycle in mind. "X" can be replaced by many goals.
-        - **DFM (Design for Manufacturability):** Designing parts for ease of manufacturing, to make them cheaper to produce with higher yield. *Example: Avoiding complex curves, using standard hole sizes, and designing for a single machine setup.*
-        - **DFA (Design for Assembly):** Designing the product to be easy to assemble. The primary goal is to reduce the number of parts and assembly steps. *Example: Replacing screws with snap-fit features, designing self-aligning parts.*
-        - **DFT (Design for Test):** Designing the product to make QC testing and verification fast, automated, and reliable. *Example: Adding a dedicated test port for an automated pressure decay test, including fiducial marks for machine vision inspection.*
-        - **DFR (Design for Reliability):** Designing the product to be robust and have a long, predictable lifespan under expected use conditions. *Example: Selecting components with a known high Mean Time Between Failures (MTBF), designing for thermal management.*
+        ##### Glossary of DfX Principles
+        - **DfX (Design for Excellence):** An engineering philosophy that integrates lifecycle concerns into the earliest design stages.
+        - **DFM (Design for Manufacturability):** Designing parts for ease of manufacturing to reduce cost and improve yield.
+        - **DFA (Design for Assembly):** Designing a product to be easy to assemble, primarily by reducing part count.
+        - **DFT (Design for Test):** Designing a product to make QC testing fast, automated, and reliable.
+        - **DFR (Design for Reliability):** Designing a product to be robust and have a long, predictable lifespan.
         - **DFQ (Design for Quality):** Integrating quality assurance principles from concept through production, often using statistical tools like DFSS.
-        - **DFE (Design for Environment):** Designing to reduce environmental footprint, including material selection, energy consumption, and end-of-life recycling or disposal.
-        - **DFS (Design for Serviceability):** Designing the product to be easy to maintain, repair, and upgrade, often by creating modular components.
-        - **DFUX (Design for User Experience):** Optimizing the product for usability, accessibility, and user satisfaction by incorporating human factors and ergonomic principles.
+        - **DFSS (Design for Six Sigma):** A data-driven approach to design that aims to create products and processes that are defect-free from the start.
+        - **DFE (Design for Environment):** Designing to reduce environmental footprint, including material selection and end-of-life recycling.
+        - **DFS (Design for Serviceability):** Designing a product to be easy to maintain and repair.
+        - **DFUX (Design for User Experience):** Optimizing the product for usability and satisfaction by incorporating human factors and ergonomic principles.
+        - **COGS (Cost of Goods Sold):** The direct costs attributable to the production of the goods sold by a company.
         """)
-        
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: "Over-the-Wall" Engineering**
 The R&D team designs a product in isolation, focusing only on functionality and performance. They then "throw the design over the wall" to the manufacturing and quality teams, who discover that it is impossibly difficult to build, assemble, or test reliably at scale.
-- **The Flaw:** This sequential process creates massive rework, delays, and friction between departments. Problems that would have taken minutes to fix on a CAD model now require weeks of expensive re-tooling and re-validation, jeopardizing project timelines and budgets.""")
+- **The Flaw:** This sequential process creates massive rework, delays, and friction between departments. Problems that would have taken minutes to fix on a CAD model now require weeks of expensive re-tooling and re-validation.""")
         st.success("""🟢 **THE GOLDEN RULE: The Cost of a Design Change is Exponential**
 The core principle of DfX is **concurrent engineering**, where design, manufacturing, quality, and other downstream teams work together as a cross-functional unit from the very beginning of the project.
 1.  **Acknowledge the Cost Curve:** A design change on the whiteboard is free. A change after tooling is made costs thousands. A change after the product is in the field costs millions in recalls and reputational damage.
@@ -5694,19 +5694,19 @@ The core principle of DfX is **concurrent engineering**, where design, manufactu
         The principles of DfX emerged from the intense manufacturing competition of the 1970s and 80s. While concepts like designing for ease of manufacturing existed for decades, they were formalized and popularized by several key forces:
         - **Japanese Manufacturing:** Companies like Toyota and Sony pioneered concepts of lean manufacturing and concurrent engineering, where design was not an isolated activity but a team sport involving all departments to eliminate "muda" (waste).
         - **Boothroyd & Dewhurst (DFA):** In the late 1970s, Geoffrey Boothroyd and Peter Dewhurst at the University of Massachusetts Amherst developed the first systematic, quantitative methodology for **Design for Assembly (DFA)**. Their work provided a structured way to analyze a design, estimate its assembly time, and identify opportunities for part reduction, transforming DFA from a vague idea into a rigorous engineering discipline.
-        - **General Electric's "Bulls-eye":** In the 1980s, GE championed DFM, famously using a "bulls-eye" diagram to illustrate how the majority of a product's cost (up to 70%) is locked in during the earliest design stages, even though the majority of the project's spending occurs later. This powerfully demonstrated the immense leverage of early-stage design decisions.
+        - **General Electric's "Bulls-eye":** In the 1980s, GE championed DFM, famously using a "bulls-eye" diagram to illustrate how the majority of a product's cost is locked in during the earliest design stages.
         
         The success of these methods led to the proliferation of the "DfX" acronym, extending the core philosophy to all aspects of a product's lifecycle.
         """)
         
     with tabs[4]:
         st.markdown("""
-        DfX is the practical engineering methodology used to fulfill the requirements of formal **Design Controls** in a regulated environment.
-        - **FDA 21 CFR 820.30 (Design Controls for Medical Devices):** This regulation is the primary driver for DfX in the life sciences. The DfX process is how you fulfill the requirements for:
+        DfX is the practical engineering methodology used to fulfill the requirements of formal **Design Controls**.
+        - **FDA 21 CFR 820.30 (Design Controls):** This regulation for medical devices is the primary driver for DfX in the life sciences. The DfX process is how you fulfill the requirements for:
             - **Design Inputs:** Proactively considering manufacturing, assembly, and testing requirements from the very start.
             - **Design Review:** DfX checklists and scorecards are a key part of formal, documented design reviews.
-            - **Design Verification:** Ensuring the design outputs meet the design inputs (e.g., proving that DFM changes didn't compromise functionality through testing).
-            - **Design Transfer:** A product designed with DfX principles has a much smoother and more successful design transfer into manufacturing, as manufacturing and quality considerations were "designed in" from the start.
+            - **Design Verification & Validation:** Ensuring the design outputs meet the design inputs (e.g., proving that DFM changes didn't compromise functionality through testing).
+            - **Design Transfer:** A product designed with DfX principles has a much smoother and more successful design transfer into manufacturing.
         - **ICH Q8(R2) - Pharmaceutical Development:** The principles of QbD—understanding how product design and process parameters affect quality—are perfectly aligned with DfX. A robust Design Space can only be achieved for a manufacturable product.
         - **ISO 13485 (Medical Devices):** This international standard for quality management systems requires a structured design and development process, which is effectively implemented through DfX principles.
         """)

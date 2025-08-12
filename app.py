@@ -6417,7 +6417,7 @@ def render_eda_dashboard():
             st.subheader("Bivariate & Multivariate Relationships")
             corr_method = st.radio("Correlation Method:", ('pearson', 'spearman'), horizontal=True,
                                    help="Pearson measures linear relationships. Spearman measures monotonic relationships (if one variable goes up, the other goes up, but not necessarily in a straight line).")
-            figs = plot_eda_dashboard(df, numeric_cols, cat_cols, corr_method)
+            figs = plot_eda_dashboard(df, tuple(numeric_cols), tuple(cat_cols), corr_method)
             st.plotly_chart(figs['heatmap'], use_container_width=True)
             st.plotly_chart(figs['pairplot'], use_container_width=True)
         

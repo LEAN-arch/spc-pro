@@ -5625,10 +5625,9 @@ def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=2.0):
 
 def render_introduction_content():
     """Renders the complete, all-in-one introduction and framework dashboard."""
-    st.title("🛠️ V&V Analytics Toolkit")
-    st.markdown("### An Interactive Guide to Biotech/Medical Device Validation, Tech Transfer, and Lifecycle Management")
-# --- NEW, CLEAN & STACKED HEADER SECTION ---
-    # We use a single markdown block to control the layout precisely.
+    st.title("🛠️ Biotech V&V Analytics Toolkit")
+    st.markdown("### An Interactive Guide to Assay Validation, Tech Transfer, and Lifecycle Management")
+    
     st.markdown(
         """
         <p style='color: grey; margin-bottom: 0;'>Developed by<br><b>Jose Bautista, MSc, LSSBB, PMP</b></p>
@@ -5642,15 +5641,30 @@ def render_introduction_content():
         unsafe_allow_html=True
     )
     st.divider()
-    # --- END OF NEW HEADER SECTION ---
-    # --- END OF NEW HEADER SECTION ---
+    
     st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
     st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
+
+    # --- NEW: Integrated Core V&V Logic ---
+    st.header("🎯 The Core Logic of Verification & Validation (V&V)")
+    st.markdown("The purpose of V&V is to prove with objective evidence that what you built works as intended, under expected (and sometimes unexpected) conditions, and that it continues to work reliably over time. It's built on two simple but powerful questions:")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("1️⃣ Verification: Did we build it right?")
+        st.markdown("This is an internal-facing question. It confirms that the design, code, or process meets all the pre-defined, documented requirements and specifications that your team created.")
+    with col2:
+        st.subheader("2️⃣ Validation: Did we build the right thing?")
+        st.markdown("This is an external-facing question. It confirms that the final product actually meets the user's needs and intended use in their real-world environment.")
+
+    st.success("""
+    **✅ Bottom line:** V&V isn’t just to “make runs stay between specs” — it’s to prove reliability, compliance, and robustness under real-world conditions while minimizing risk, cost, and surprises.
+    """)
+    # --- END OF NEW SECTION ---
     
     st.header("📖 The Scientist's/Engineer's Journey: A Four-Act Story")
     st.markdown("""The journey from a novel idea to a robust, routine process can be viewed as a four-act story. A successful project is not just about executing tests; it begins with rigorous planning and strategy. The toolkit is structured to follow that complete narrative.""")
     
-    # --- UPDATED TO A 4-COLUMN LAYOUT ---
     act0, act1, act2, act3 = st.columns(4)
     with act0:
         st.subheader("Act 0: Planning & Strategy")

@@ -11869,7 +11869,118 @@ This is a fundamental principle of modern process monitoring for complex, dynami
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 6)
 # ==============================================================================
+def render_lstm_autoencoder_monitoring():
+    """Renders the LSTM Autoencoder + Hybrid Monitoring module."""
+    st.markdown("""
+    #### Purpose & Application: The AI Immune System
+    **Purpose:** To create a sophisticated, self-learning "immune system" for your process. An **LSTM Autoencoder** learns the normal, dynamic "fingerprint" of a healthy multivariate process. It then generates a single health score: the **reconstruction error**. We then deploy a **hybrid monitoring system** on this health score to detect different types of diseases (anomalies).
+    
+    **Strategic Application:** This is a state-of-the-art approach for unsupervised anomaly detection in multivariate time-series data, like that from a complex bioprocess.
+    - **Learns Normal Dynamics:** The LSTM Autoencoder learns the complex, time-dependent correlations between many process parameters.
+    - **One Health Score:** It distills hundreds of parameters into a single, chartable health score.
+    - **Hybrid Detection:** An **EWMA chart** detects slow-onset diseases (gradual degradation), while a **BOCPD algorithm** detects acute events (sudden shocks).
+    """)
+    st.info("""
+    **Interactive Demo:** Use the sliders to introduce two different types of anomalies into the multivariate process.
+    - **`Gradual Drift Rate`**: Controls a slow, creeping deviation in both Temp and pH. Watch the **EWMA chart (orange)** in the bottom plot slowly rise to catch this.
+    - **`Spike Magnitude`**: Controls a sudden shock at time #200. Watch the **BOCPD probability (purple)** in the bottom plot instantly react to this.
+    """)
+    with st.sidebar:
+        st.sidebar.subheader("LSTM Anomaly Controls")
+        drift_slider = st.sidebar.slider("Gradual Drift Rate", 0.0, 0.05, 0.02, 0.005,
+            help="Controls how quickly the process drifts away from its normal behavior after time #100. Simulates gradual equipment degradation.")
+        spike_slider = st.sidebar.slider("Spike Magnitude", 1.0, 5.0, 2.0, 0.5,
+            help="Controls the size of the sudden shock at time #200. Simulates a sudden process fault or sensor failure.")
 
+    fig, ewma_time, bocpd_time = plot_lstm_autoencoder_monitoring(drift_rate=drift_slider, spike_magnitude=spike_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        st.metric("EWMA Drift Detection Time", f"Hour #{ewma_time}" if ewma_time else "Not Detected",
+                  help="Time the EWMA chart alarmed on the slow drift.")
+        st.metric("BOCPD Spike Detection Time", f"Hour #{bocpd_time}" if bocpd_time else "Not Detected",
+                  help="Time the BOCPD algorithm alarmed on the sudden spike.")
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Learn the "Fingerprint" (Plot 1):** The LSTM Autoencoder is trained only on data from healthy, successful batches. It learns to reconstruct the normal, correlated dance between Temperature and pH. The dashed lines show the AI's reconstruction.
+        2.  **Generate a Health Score (Plot 2):** When the live process data deviates from normal (due to the drift or spike), the AI struggles to reconstruct it. This failure is quantified as the **Reconstruction Error**, which serves as a single, powerful "health score" for the entire multivariate system.
+        3.  **Deploy a Layered Defense (Plot 3):** Two specialized detectors monitor the health score:
+            - The **EWMA chart (orange)** is insensitive to the sudden spike but accumulates the small, persistent signal from the gradual drift, eventually sounding an alarm.
+            - The **BOCPD algorithm (purple)** ignores the slow drift but instantly detects the abrupt change caused by the spike, signaling an acute event.
+        
+        **The Strategic Insight:** This architecture creates a comprehensive "immune system" for your process. The LSTM Autoencoder is the T-cell that learns "self," and the hybrid monitoring charts are the antibodies and macrophages that detect and classify different types of "non-self" threats.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **LSTM (Long Short-Term Memory):** A type of recurrent neural network (RNN) that is excellent at learning long-range, time-dependent patterns in sequential data.
+        - **Autoencoder:** An unsupervised neural network trained to reconstruct its input. It consists of an **Encoder** that compresses the data into a low-dimensional "fingerprint" and a **Decoder** that attempts to recreate the original data from that fingerprint.
+        - **Reconstruction Error:** The difference between the original input data and the autoencoder's reconstructed output. It is a powerful anomaly score; if the model cannot reconstruct the data well, the error will be high, indicating an anomaly.
+        - **Hybrid Monitoring:** The practice of applying multiple, specialized control charts (like EWMA for drifts and BOCPD for spikes) to a single "health score" like the reconstruction error to create a comprehensive detection system.
+        """)
+        
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "One-Tool" Mindset**
+An engineer tries to use a single Shewhart chart on the reconstruction error. It misses the slow drift entirely, and while it might catch the big spike, it gives no probabilistic context and provides no diagnostic information about the *type* of failure (chronic vs. acute).""")
+        st.success("""🟢 **THE GOLDEN RULE: Use a Layered Defense for Anomaly Detection**
+Different types of process failures leave different signatures in the data. A robust monitoring system must use a combination of tools, each specialized for a different type of signature. By running EWMA (for drifts) and BOCPD (for shocks) in parallel on the same AI-driven health score, you create a comprehensive immune system that can effectively detect and begin to classify both chronic and acute process diseases.""")
+
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: A Powerful Synthesis
+        **The Problem:** Monitoring high-dimensional time-series data (like a bioreactor with hundreds of sensors) for anomalies is extremely difficult. A fault might not be a single sensor going haywire, but a subtle change in the *temporal correlation* between many sensors. How can you detect a deviation from a complex, dynamic "normal" state without having any examples of what "abnormal" looks like?
+
+        **The 'Aha!' Moment (Synthesis):** This architecture became a popular and powerful technique in the late 2010s by intelligently combining three distinct ideas to solve the problem piece by piece:
+        1.  **The Autoencoder:** A classic neural network design for unsupervised learning. It learns to compress data down to its essential features and then decompress it back to the original. Its ability to reconstruct the input serves as a measure of normalcy.
+        2.  **The LSTM:** The Long Short-Term Memory network (**Hochreiter & Schmidhuber, 1997**) was the perfect choice to build the encoder and decoder, as it is specifically designed to learn the "grammar" and patterns of sequential data. Fusing these created the **LSTM Autoencoder**.
+        3.  **Hybrid Monitoring:** The final piece was realizing that the autoencoder's output—the reconstruction error—is a single, powerful time series representing the health of the process. This allowed engineers to apply the best-in-class univariate monitoring tools, like **EWMA** and **BOCPD**, to this signal, creating a specialized, layered defense system.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        This advanced hybrid system is a state-of-the-art implementation of the principles of modern process monitoring and control.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** This tool provides a highly effective method for meeting the CPV requirement of continuously monitoring complex, multivariate processes.
+        - **FDA Guidance for Industry - PAT:** This "learn the fingerprint" approach is a direct implementation of the PAT goal of understanding and controlling manufacturing through timely measurements and feedback loops.
+        - **ICH Q9 (Quality Risk Management):** By providing early detection of both gradual and sudden deviations, this system can significantly reduce the risk of producing non-conforming material.
+        - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML model to provide diagnostic information for a GxP process, the model and the software it runs on would need to be validated as a Computerized System.
+        """)
+
+
+
+# ==============================================================================
+# UI RENDERING FUNCTION (PSO + Autoencoder)
+# ==============================================================================
+def render_pso_autoencoder():
+    """Renders the PSO + Autoencoder for worst-case analysis module."""
+    st.markdown("""
+    #### Purpose & Application: The AI-Powered "Red Team"
+    **Purpose:** To deploy an **AI-powered "Red Team"** that relentlessly searches for the hidden weaknesses in your process. This hybrid model uses a **Particle Swarm Optimization (PSO)** algorithm to find the specific combination of process parameters that cause the most "surprise" or deviation from normal, as measured by the reconstruction error of a pre-trained **LSTM Autoencoder**.
+    
+    **Strategic Application:** This is a state-of-the-art method for **AI-driven robustness testing and Design Space definition**. Instead of randomly picking points for worst-case analysis, you are using an intelligent swarm to find the true "edges of failure" for a high-value process like a monoclonal antibody bioreactor run.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Head of Process Robustness.
+    1.  **Select a Project Context** to see a realistic "anomaly landscape" learned by a pre-trained Autoencoder. Hotter colors are more abnormal.
+    2.  Use the **PSO Parameters** in the sidebar to control how the swarm (cyan crosses) searches this landscape.
+    3.  Click **"► Run Simulation"** to watch the swarm converge on the worst-case condition (the green star), which becomes your primary target for a lab-based robustness study.
+    """)
+
+    project_context_name = st.selectbox(
+        "Select a Project Context to Simulate:",
+        ['Pharma Process', 'Assay', 'Instrument', 'Software', 'IVD'],
+        help="The anomaly landscape and parameter names will change to match a realistic scenario for the selected context."
+    )
 
     with st.sidebar:
         st.subheader("PSO Algorithm Controls")

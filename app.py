@@ -744,7 +744,10 @@ def plot_pha_matrix(pha_data, project_type):
 
 @st.cache_data
 def plot_fmea_dashboard(fmea_df, project_type):
-    """Generates a professional-grade FMEA dashboard with a Risk Matrix and Pareto Chart from a dataframe."""
+    """
+    Generates a professional-grade FMEA dashboard with a Risk Matrix and Pareto Chart from a dataframe.
+    This version is corrected to use a standard 1-10 scale for S, O, and D.
+    """
     df = fmea_df.copy()
     if df.empty:
         return go.Figure().update_layout(title_text="No FMEA data."), go.Figure().update_layout(title_text="No FMEA data.")
@@ -752,13 +755,16 @@ def plot_fmea_dashboard(fmea_df, project_type):
     df['RPN_Initial'] = df['S'] * df['O_Initial'] * df['D_Initial']
     df['RPN_Final'] = df['S'] * df['O_Final'] * df['D_Final']
     
-    # --- 1. Risk Matrix (S vs O) ---
+    # --- 1. Risk Matrix (S vs O) on a 10x10 grid ---
     fig_matrix = go.Figure()
-    # Simplified risk regions for S vs O (assuming 1-5 scales)
-    fig_matrix.add_shape(type="rect", x0=0.5, y0=0.5, x1=3.5, y1=3.5, fillcolor='rgba(44, 160, 44, 0.2)', line_width=0, layer='below')
-    fig_matrix.add_shape(type="rect", x0=3.5, y0=0.5, x1=5.5, y1=3.5, fillcolor='rgba(255, 193, 7, 0.2)', line_width=0, layer='below')
-    fig_matrix.add_shape(type="rect", x0=0.5, y0=3.5, x1=3.5, y1=5.5, fillcolor='rgba(255, 193, 7, 0.2)', line_width=0, layer='below')
-    fig_matrix.add_shape(type="rect", x0=3.5, y0=3.5, x1=5.5, y1=5.5, fillcolor='rgba(239, 83, 80, 0.3)', line_width=0, layer='below')
+    # Define risk regions for a 10x10 grid
+    # High Risk (Red)
+    fig_matrix.add_shape(type="rect", x0=7.5, y0=7.5, x1=10.5, y1=10.5, fillcolor='rgba(239, 83, 80, 0.3)', line_width=0, layer='below')
+    # Medium Risk (Yellow)
+    fig_matrix.add_shape(type="rect", x0=0.5, y0=7.5, x1=7.5, y1=10.5, fillcolor='rgba(255, 193, 7, 0.2)', line_width=0, layer='below')
+    fig_matrix.add_shape(type="rect", x0=7.5, y0=0.5, x1=10.5, y1=7.5, fillcolor='rgba(255, 193, 7, 0.2)', line_width=0, layer='below')
+    # Low Risk (Green)
+    fig_matrix.add_shape(type="rect", x0=0.5, y0=0.5, x1=7.5, y1=7.5, fillcolor='rgba(44, 160, 44, 0.2)', line_width=0, layer='below')
     
     fig_matrix.add_trace(go.Scatter(x=df['S'], y=df['O_Initial'], mode='markers+text', text=df.index + 1, textposition='top center',
         marker=dict(color='black', size=15, symbol='circle'), name='Initial Risk', 
@@ -768,6 +774,7 @@ def plot_fmea_dashboard(fmea_df, project_type):
         marker=dict(color=PRIMARY_COLOR, size=15, symbol='diamond-open'), name='Final Risk', 
         hovertext='<b>Mode:</b> ' + df['Failure Mode'] + '<br><b>S:</b> ' + df['S'].astype(str) + ' | <b>O:</b> ' + df['O_Final'].astype(str), hoverinfo='text'))
     
+    # Add arrows to show mitigation
     for i in df.index:
         if df.loc[i, 'O_Initial'] != df.loc[i, 'O_Final'] or df.loc[i, 'D_Initial'] != df.loc[i, 'D_Final']:
             fig_matrix.add_annotation(x=df.loc[i, 'S'], y=df.loc[i, 'O_Final'], ax=df.loc[i, 'S'], ay=df.loc[i, 'O_Initial'],
@@ -775,7 +782,7 @@ def plot_fmea_dashboard(fmea_df, project_type):
     
     fig_matrix.update_layout(title=f'<b>1. Risk Matrix (S vs. O) for {project_type}</b>',
                              xaxis_title='<b>Severity (S)</b>', yaxis_title='<b>Occurrence (O)</b>',
-                             xaxis=dict(tickvals=list(range(1,6)), range=[0.5, 5.5]), yaxis=dict(tickvals=list(range(1,6)), range=[0.5, 5.5]),
+                             xaxis=dict(tickvals=list(range(1,11)), range=[0.5, 10.5]), yaxis=dict(tickvals=list(range(1,11)), range=[0.5, 10.5]),
                              legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
 
     # --- 2. RPN Pareto Chart ---
@@ -788,8 +795,8 @@ def plot_fmea_dashboard(fmea_df, project_type):
                         labels={'Failure Mode': 'Potential Failure Mode', 'RPN': 'Risk Priority Number (S x O x D)'},
                         color_discrete_map={'Initial': 'grey', 'Final': PRIMARY_COLOR})
     
-    # Use a dynamic action threshold for visual appeal
-    action_threshold = df['RPN_Initial'].quantile(0.75) if not df['RPN_Initial'].empty else 50
+    # Update action threshold for a 1-10 scale (max RPN = 1000)
+    action_threshold = 100
     fig_pareto.add_hline(y=action_threshold, line_dash="dash", line_color="red", annotation_text="Action Threshold", annotation_position="bottom right")
 
     return fig_matrix, fig_pareto
@@ -5708,12 +5715,11 @@ def render_qrm_suite():
     **How to Use:**
     1.  Select a **Project Type** and a **Risk Management Tool**.
     2.  The dashboard will load a realistic, contextual example.
-    3.  Review the main plot and interact with the **"Workbench Gadgets"** below to see how these tools are constructed. Use the `(?)` for details on each control.
+    3.  Review the main plot and interact with the **"Workbench Gadgets"** below. For FMEA, use the sliders in the sidebar to see the charts update in real-time. Use the `(?)` for details on each control.
     """)
 
     col1, col2 = st.columns(2)
     with col1:
-        # Note: Added IVD and Process to the list for full coverage
         project_type = st.selectbox(
             "Select a Scenario / Project Type:", 
             ["Pharma Process (MAb)", "IVD Assay (ELISA)", "Instrument Qualification (HPLC)", "Software System (LIMS)"]
@@ -5728,7 +5734,7 @@ def render_qrm_suite():
     st.divider()
 
     # --- Master Data Dictionary for ALL Scenarios ---
-    # This contains all the data templates required for the application.
+    # This remains unchanged, but the FMEA data now assumes a 1-10 scale.
     qrm_templates = {
         "PHA": {
             "Pharma Process (MAb)": pd.DataFrame([
@@ -5755,23 +5761,19 @@ def render_qrm_suite():
         "FMEA": {
             "Pharma Process (MAb)": pd.DataFrame({
                 'Failure Mode': ['Contamination in Bioreactor', 'Incorrect Chromatography Buffer', 'Filter Integrity Failure'],
-                'S': [10, 8, 10], 'O_Initial': [3, 5, 2], 'D_Initial': [4, 2, 3],
-                'O_Final': [2, 2, 2], 'D_Final': [2, 1, 1]
+                'S': [10, 8, 10], 'O_Initial': [3, 5, 2], 'D_Initial': [4, 2, 3]
             }),
             "IVD Assay (ELISA)": pd.DataFrame({
                 'Failure Mode': ['Degraded Capture Antibody', 'Operator Pipetting Error', 'Incorrect Incubation Time'],
-                'S': [9, 7, 8], 'O_Initial': [4, 6, 5], 'D_Initial': [5, 3, 2],
-                'O_Final': [2, 3, 2], 'D_Final': [2, 2, 1]
+                'S': [9, 7, 8], 'O_Initial': [4, 6, 5], 'D_Initial': [5, 3, 2]
             }),
             "Instrument Qualification (HPLC)": pd.DataFrame({
                 'Failure Mode': ['Pump Seal Failure (Leak)', 'Detector Lamp Degradation', 'Autosampler Needle Clog'],
-                'S': [6, 8, 7], 'O_Initial': [3, 4, 7], 'D_Initial': [4, 2, 3],
-                'O_Final': [2, 2, 3], 'D_Final': [2, 1, 2]
+                'S': [6, 8, 7], 'O_Initial': [3, 4, 7], 'D_Initial': [4, 2, 3]
             }),
             "Software System (LIMS)": pd.DataFrame({
                 'Failure Mode': ['Data Corruption on Database Write', 'Incorrect Calculation Logic', 'Server Downtime (No Failover)'],
-                'S': [10, 10, 7], 'O_Initial': [2, 3, 4], 'D_Initial': [6, 8, 3],
-                'O_Final': [1, 1, 2], 'D_Final': [2, 1, 1]
+                'S': [10, 10, 7], 'O_Initial': [2, 3, 4], 'D_Initial': [6, 8, 3]
             })
         },
         "FTA": {
@@ -5796,6 +5798,7 @@ def render_qrm_suite():
         st.dataframe(pha_data, use_container_width=True)
 
         st.subheader("FHA Workbench Gadgets")
+        # Gadgets remain the same...
         c1, c2 = st.columns(2)
         with c1:
             c1.text_input("System/Process Selector", value=project_type, help="Select the overall system, subsystem, or process being analyzed (e.g., 'Blood Analyzer XC-500', 'User Authentication Module', 'Aseptic Filling Process').")
@@ -5810,44 +5813,75 @@ def render_qrm_suite():
         c3.button("Create FMEA from Hazard", help="Escalate this high-level hazard into a more detailed investigation. 'Create FMEA' starts a bottom-up analysis of the components involved.")
         
     elif tool_choice == "Failure Mode and Effects Analysis (FMEA)":
+        # --- FIX: Added full interactivity for FMEA ---
         fmea_data = qrm_templates["FMEA"][project_type].copy() # Use copy to allow modification
+
+        # Create interactive sliders in the sidebar
+        with st.sidebar:
+            st.subheader("FMEA Interactive Scoring")
+            st.markdown("Adjust the initial risk scores to see the dashboard update in real-time.")
+            for i, mode in enumerate(fmea_data['Failure Mode']):
+                st.markdown(f"--- \n **Mode {i+1}:** *{mode}*")
+                # Update the DataFrame directly with the slider values
+                fmea_data.loc[i, 'O_Initial'] = st.slider(f"Occurrence (O)", 1, 10, int(fmea_data.loc[i, 'O_Initial']), key=f"o_{i}")
+                fmea_data.loc[i, 'D_Initial'] = st.slider(f"Detection (D)", 1, 10, int(fmea_data.loc[i, 'D_Initial']), key=f"d_{i}")
+
+        # Simulate mitigation actions based on the *interactive* initial RPN
+        fmea_data['O_Final'] = fmea_data['O_Initial']
+        fmea_data['D_Final'] = fmea_data['D_Initial']
+        initial_rpn = fmea_data['S'] * fmea_data['O_Initial'] * fmea_data['D_Initial']
+        
+        # Apply mitigation if RPN is over the action threshold
+        action_threshold = 100
+        for i, rpn in enumerate(initial_rpn):
+            if rpn >= action_threshold:
+                # Simulate a risk reduction action
+                fmea_data.loc[i, 'O_Final'] = max(1, fmea_data.loc[i, 'O_Initial'] - 3)
+                fmea_data.loc[i, 'D_Final'] = max(1, fmea_data.loc[i, 'D_Initial'] - 2)
+
+        # Plot the dashboard with the now-modified DataFrame
         fig_matrix, fig_pareto = plot_fmea_dashboard(fmea_data, project_type)
+        
         st.plotly_chart(fig_matrix, use_container_width=True)
         st.plotly_chart(fig_pareto, use_container_width=True)
 
         st.subheader("FMEA Worksheet Gadgets (Example for one Failure Mode)")
+        # Gadgets are updated to a 1-10 scale
         c1, c2 = st.columns(2)
         c1.text_input("Item / Function", value="Chromatography Column", help="The specific component, process step, or software function being analyzed.")
         c2.text_input("Potential Failure Mode", value="Column Overloading", help="How could this item fail to perform its intended function? (e.g., 'Cracked', 'Leaking', 'Returns null value', 'Incorrectly calculated', 'Degraded').")
         st.text_area("Potential Effect(s) of Failure", value="Poor separation of product and impurities, leading to out-of-specification (OOS) drug substance.", help="What is the consequence if this failure occurs? Describe the impact on the system, user, or patient.")
         
         c1, c2, c3 = st.columns(3)
-        c1.slider("Severity (S)", 1, 10, 8, help="How severe is the *effect* of the failure? (1 = No effect, 10 = Catastrophic failure with potential for death or serious injury).")
-        c2.slider("Occurrence (O)", 1, 10, 5, help="How likely is the *cause* to occur? (1 = Extremely unlikely, 10 = Inevitable or very high frequency).")
-        c3.slider("Detection (D)", 1, 10, 2, help="How well can the *current controls* detect the failure mode or its cause before it reaches the customer? (1 = Certain to be detected, 10 = Cannot be detected).")
+        s_val = c1.slider("Severity (S)", 1, 10, 8, help="How severe is the *effect* of the failure? (1 = No effect, 10 = Catastrophic failure with potential for death or serious injury).")
+        o_val = c2.slider("Occurrence (O)", 1, 10, 5, help="How likely is the *cause* to occur? (1 = Extremely unlikely, 10 = Inevitable or very high frequency).")
+        d_val = c3.slider("Detection (D)", 1, 10, 2, help="How well can the *current controls* detect the failure mode or its cause before it reaches the customer? (1 = Certain to be detected, 10 = Cannot be detected).")
         
         c1, c2 = st.columns(2)
         c1.text_area("Potential Cause(s)", value="Incorrect protein concentration calculation prior to loading.", help="What is the root cause or mechanism that triggers the failure mode? (e.g., 'Material fatigue', 'Incorrect algorithm', 'Operator error', 'Power surge').")
         c2.text_area("Current Controls", value="SOP for protein quantification; manual calculation verification.", help="What existing design features, tests, or procedures are in place to prevent the cause or detect the failure mode?")
         
-        rpn = 8 * 5 * 2
+        rpn = s_val * o_val * d_val
         st.metric("Risk Priority Number (RPN)", f"{rpn} (S x O x D)", help="A calculated value (Severity × Occurrence × Detection) used to rank and prioritize risks. High RPNs should be addressed first.")
         st.text_area("Recommended Actions", value="Implement automated loading calculation in MES. Add post-column impurity sensor.", help="What specific actions will be taken to reduce the Severity, Occurrence, or improve the Detection of this risk? Assign a responsible person and a due date.")
+        # --- END OF FMEA FIX ---
 
     elif tool_choice == "Fault Tree Analysis (FTA)":
         fta_data = qrm_templates["FTA"][project_type]
-        # Calculate probabilities for display
-        if 'AND' in fta_data['nodes']['AND1']['label']:
+        # Logic to calculate probability remains the same
+        if 'AND1' in fta_data['nodes'] and 'AND' in fta_data['nodes']['AND1']['label']:
             prob_top = fta_data['nodes']['Peak']['prob'] * fta_data['nodes']['Press']['prob']
-        else: # OR gate
+        else:
             p1 = fta_data['nodes'][list(fta_data['nodes'].keys())[2]]['prob']
             p2 = fta_data['nodes'][list(fta_data['nodes'].keys())[3]]['prob']
             prob_top = 1 - (1 - p1) * (1 - p2)
         fta_data['nodes']['Top']['prob'] = prob_top
+        
         fig = plot_fta_diagram(fta_data, project_type)
         st.plotly_chart(fig, use_container_width=True)
         
         st.subheader("FTA Constructor Gadgets")
+        # Gadgets remain the same...
         c1, c2, c3 = st.columns(3)
         c1.text_input("Top Event Definition", value=fta_data['title'], help="Define the specific, undesirable system-level failure you want to analyze. This is the starting point at the top of the fault tree (e.g., 'Inaccurate Result Displayed', 'System Overheats').")
         c2.button("Add Logic Gate (OR, AND...)", help="Insert a logic gate to define the relationship between events. **OR:** any input event causes the output. **AND:** all input events must occur to cause the output.")
@@ -5863,6 +5897,7 @@ def render_qrm_suite():
         st.plotly_chart(fig, use_container_width=True)
         
         st.subheader("ETA Modeler Gadgets")
+        # Gadgets remain the same...
         c1, c2 = st.columns(2)
         c1.text_input("Initiating Event", value=eta_data['title'], help="Define the single failure or error that starts the sequence. This is the root of your event tree (e.g., 'Power Surge', 'Contaminated Reagent', 'User enters invalid command').")
         c2.button("Add Safety Function / Barrier", help="Introduce a system, action, or feature designed to mitigate the event. Each barrier creates a new branching point in the tree (Success path / Failure path).")
@@ -5872,7 +5907,7 @@ def render_qrm_suite():
         c2.text_input("Outcome Node", value="System Safe Shutdown", help="Define the final state at the end of a branch (e.g., 'System Safe Shutdown', 'Minor Data Corruption', 'Catastrophic Failure', 'False Negative Result').")
         c3.text_input("Path Probability Calculator", value="0.9405", disabled=True, help="Automatically calculates the total probability of reaching a specific outcome by multiplying the probabilities of all events along that path.")
 
-    # --- Educational Tabs ---
+    # --- Educational Tabs (remain unchanged) ---
     st.divider()
     st.subheader("A Deeper Dive into QRM Strategy")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
@@ -5924,6 +5959,8 @@ def render_qrm_suite():
         - **FDA Process Validation Guidance:** The guidance requires a risk-based approach. These tools provide the documented evidence for how risks were identified and controlled.
         - **ISO 14971 (Application of risk management to medical devices):** This is the international standard for risk management for medical devices, and it requires the use of a systematic process like FMEA or PHA.
         """)
+
+#=============================================================== DfX MODULE ===========================================================================================================
 
 def render_dfx_dashboard():
     """Renders the comprehensive, interactive module for Design for Excellence (DfX)."""

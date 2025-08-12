@@ -10581,71 +10581,69 @@ with st.sidebar:
 
     st.divider()
 
-    # FIX: The all_tools dictionary is updated to treat the diagram and table as separate items.
-    # Replace the old all_tools dictionary with this one.
-all_tools = {
-    "ACT 0: PLANNING & STRATEGY": [
-        "TPP & CQA Cascade",
-        "Analytical Target Profile (ATP) Builder",
-        "Quality Risk Management (FMEA)",
-        "Design for Excellence (DfX)",
-        "Validation Master Plan (VMP) Builder",
-        "Requirements Traceability Matrix (RTM)"
-    ],
-    "ACT I: FOUNDATION & CHARACTERIZATION": [
-        "Exploratory Data Analysis (EDA)",
-        "Confidence Interval Concept",
-        "Confidence Intervals for Proportions",
-        "Core Validation Parameters",
-        "LOD & LOQ",
-        "Linearity & Range",
-        "Non-Linear Regression (4PL/5PL)",
-        "Gage R&R / VCA",
-        "Attribute Agreement Analysis",
-        "Comprehensive Diagnostic Validation",
-        "ROC Curve Analysis",
-        "Assay Robustness (DOE)",
-        "Mixture Design (Formulations)",
-        "Process Optimization: From DOE to AI",
-        "Split-Plot Designs",
-        "Causal Inference"
-    ],
-    "ACT II: TRANSFER & STABILITY": [
-        "Sample Size for Qualification",
-        "Advanced Stability Design",
-        "Method Comparison",
-        "Equivalence Testing (TOST)",
-        "Statistical Equivalence for Process Transfer",
-        "Process Stability (SPC)",
-        "Process Capability (Cpk)",
-        "First Time Yield & Cost of Quality",
-        "Tolerance Intervals",
-        "Bayesian Inference"
-    ],
-    "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
-        "Process Control Plan Builder",
-        "Run Validation (Westgard)",
-        "Small Shift Detection",
-        "Multivariate SPC",
-        "Stability Analysis (Shelf-Life)",
-        "Reliability / Survival Analysis",
-        "Time Series Analysis",
-        "Multivariate Analysis (MVA)",
-        "Predictive QC (Classification)",
-        "Explainable AI (XAI)",
-        "Clustering (Unsupervised)",
-        "Anomaly Detection",
-        "Advanced AI Concepts",
-        "MEWMA + XGBoost Diagnostics",
-        "BOCPD + ML Features",
-        "Kalman Filter + Residual Chart",
-        "RL for Chart Tuning",
-        "TCN + CUSUM",
-        "LSTM Autoencoder + Hybrid Monitoring"
-    ]
-}
+    # --- FIX: all_tools dictionary and the for loop are now correctly indented inside the 'with st.sidebar:' block ---
+    all_tools = {
+        "ACT 0: PLANNING & STRATEGY": [
+            "TPP & CQA Cascade",
+            "Analytical Target Profile (ATP) Builder",
+            "Quality Risk Management (FMEA)",
+            "Design for Excellence (DfX)",
+            "Validation Master Plan (VMP) Builder",
+            "Requirements Traceability Matrix (RTM)"
+        ],
+        "ACT I: FOUNDATION & CHARACTERIZATION": [
+            "Exploratory Data Analysis (EDA)",
+            "Confidence Interval Concept",
+            "Confidence Intervals for Proportions",
+            "Core Validation Parameters",
+            "LOD & LOQ",
+            "Linearity & Range",
+            "Non-Linear Regression (4PL/5PL)",
+            "Gage R&R / VCA",
+            "Attribute Agreement Analysis",
+            "Comprehensive Diagnostic Validation",
+            "ROC Curve Analysis",
+            "Assay Robustness (DOE)",
+            "Mixture Design (Formulations)",
+            "Process Optimization: From DOE to AI",
+            "Split-Plot Designs",
+            "Causal Inference"
+        ],
+        "ACT II: TRANSFER & STABILITY": [
+            "Sample Size for Qualification",
+            "Advanced Stability Design",
+            "Method Comparison",
+            "Equivalence Testing (TOST)",
+            "Statistical Equivalence for Process Transfer",
+            "Process Stability (SPC)",
+            "Process Capability (Cpk)",
+            "First Time Yield & Cost of Quality",
+            "Tolerance Intervals",
+            "Bayesian Inference"
+        ],
+        "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
+            "Process Control Plan Builder",
+            "Run Validation (Westgard)",
+            "Small Shift Detection",
+            "Multivariate SPC",
+            "Stability Analysis (Shelf-Life)",
+            "Reliability / Survival Analysis",
+            "Time Series Analysis",
+            "Multivariate Analysis (MVA)",
+            "Predictive QC (Classification)",
+            "Explainable AI (XAI)",
+            "Clustering (Unsupervised)",
+            "Anomaly Detection",
+            "Advanced AI Concepts",
+            "MEWMA + XGBoost Diagnostics",
+            "BOCPD + ML Features",
+            "Kalman Filter + Residual Chart",
+            "RL for Chart Tuning",
+            "TCN + CUSUM",
+            "LSTM Autoencoder + Hybrid Monitoring"
+        ]
+    }
 
-    # The loop for creating tool buttons remains the same.
     for act_title, act_tools in all_tools.items():
         st.subheader(act_title)
         for tool in act_tools:
@@ -10656,81 +10654,77 @@ all_tools = {
 # --- Main Content Area Dispatcher ---
 view = st.session_state.current_view
 
-# The logic is now much simpler.
 if view == 'Introduction':
     render_introduction_content()
 else:
-    # Render the selected tool
     st.header(f"🔧 {view}")
 
-    # --- THIS DICTIONARY NOW CONTAINS ALL RENDER FUNCTIONS ---
-PAGE_DISPATCHER = {
-    # Act 0
-    "TPP & CQA Cascade": render_tpp_cqa_cascade,
-    "Analytical Target Profile (ATP) Builder": render_atp_builder,
-    "Quality Risk Management (FMEA)": render_fmea,
-    "Design for Excellence (DfX)": render_dfx_dashboard,
-    "Validation Master Plan (VMP) Builder": render_vmp_builder,
-    "Requirements Traceability Matrix (RTM)": render_rtm_builder,
+    # --- FIX: Extra indentation at the end of this dictionary is removed ---
+    PAGE_DISPATCHER = {
+        # Act 0
+        "TPP & CQA Cascade": render_tpp_cqa_cascade,
+        "Analytical Target Profile (ATP) Builder": render_atp_builder,
+        "Quality Risk Management (FMEA)": render_fmea,
+        "Design for Excellence (DfX)": render_dfx_dashboard,
+        "Validation Master Plan (VMP) Builder": render_vmp_builder,
+        "Requirements Traceability Matrix (RTM)": render_rtm_builder,
+        
+        # Act I
+        "Exploratory Data Analysis (EDA)": render_eda_dashboard,
+        "Confidence Interval Concept": render_ci_concept,
+        "Confidence Intervals for Proportions": render_proportion_cis,
+        "Core Validation Parameters": render_core_validation_params,
+        "LOD & LOQ": render_lod_loq,
+        "Linearity & Range": render_linearity,
+        "Non-Linear Regression (4PL/5PL)": render_4pl_regression,
+        "Gage R&R / VCA": render_gage_rr,
+        "Attribute Agreement Analysis": render_attribute_agreement,
+        "Comprehensive Diagnostic Validation": render_diagnostic_validation_suite,
+        "ROC Curve Analysis": render_roc_curve,
+        "Assay Robustness (DOE)": render_assay_robustness_doe,
+        "Mixture Design (Formulations)": render_mixture_design,
+        "Process Optimization: From DOE to AI": render_process_optimization_suite,
+        "Split-Plot Designs": render_split_plot,
+        "Causal Inference": render_causal_inference,
+        
+        # Act II
+        "Sample Size for Qualification": render_sample_size_calculator,
+        "Advanced Stability Design": render_stability_design,
+        "Method Comparison": render_method_comparison,
+        "Equivalence Testing (TOST)": render_tost,
+        "Statistical Equivalence for Process Transfer": render_process_equivalence,
+        "Process Stability (SPC)": render_spc_charts,
+        "Process Capability (Cpk)": render_capability,
+        "First Time Yield & Cost of Quality": render_fty_coq,
+        "Tolerance Intervals": render_tolerance_intervals,
+        "Bayesian Inference": render_bayesian,
+        
+        # Act III
+        "Process Control Plan Builder": render_control_plan_builder,
+        "Run Validation (Westgard)": render_multi_rule,
+        "Small Shift Detection": render_ewma_cusum,
+        "Multivariate SPC": render_multivariate_spc,
+        "Stability Analysis (Shelf-Life)": render_stability_analysis,
+        "Reliability / Survival Analysis": render_survival_analysis,
+        "Time Series Analysis": render_time_series_analysis,
+        "Multivariate Analysis (MVA)": render_mva_pls,
+        "Predictive QC (Classification)": render_predictive_qc,
+        "Explainable AI (XAI)": render_xai_shap,
+        "Clustering (Unsupervised)": render_clustering,
+        "Anomaly Detection": render_anomaly_detection,
+        "Advanced AI Concepts": render_advanced_ai_concepts,
+        "MEWMA + XGBoost Diagnostics": render_mewma_xgboost,
+        "BOCPD + ML Features": render_bocpd_ml_features,
+        "Kalman Filter + Residual Chart": render_kalman_nn_residual,
+        "RL for Chart Tuning": render_rl_tuning,
+        "TCN + CUSUM": render_tcn_cusum,
+        "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
+    }
     
-    # Act I
-    "Exploratory Data Analysis (EDA)": render_eda_dashboard,
-    "Confidence Interval Concept": render_ci_concept,
-    "Confidence Intervals for Proportions": render_proportion_cis,
-    "Core Validation Parameters": render_core_validation_params,
-    "LOD & LOQ": render_lod_loq,
-    "Linearity & Range": render_linearity,
-    "Non-Linear Regression (4PL/5PL)": render_4pl_regression,
-    "Gage R&R / VCA": render_gage_rr,
-    "Attribute Agreement Analysis": render_attribute_agreement,
-    "Comprehensive Diagnostic Validation": render_diagnostic_validation_suite,
-    "ROC Curve Analysis": render_roc_curve,
-    "Assay Robustness (DOE)": render_assay_robustness_doe,
-    "Mixture Design (Formulations)": render_mixture_design,
-    "Process Optimization: From DOE to AI": render_process_optimization_suite,
-    "Split-Plot Designs": render_split_plot,
-    "Causal Inference": render_causal_inference,
-    
-    # Act II
-    "Sample Size for Qualification": render_sample_size_calculator,
-    "Advanced Stability Design": render_stability_design,
-    "Method Comparison": render_method_comparison,
-    "Equivalence Testing (TOST)": render_tost,
-    "Statistical Equivalence for Process Transfer": render_process_equivalence,
-    "Process Stability (SPC)": render_spc_charts,
-    "Process Capability (Cpk)": render_capability,
-    "First Time Yield & Cost of Quality": render_fty_coq,
-    "Tolerance Intervals": render_tolerance_intervals,
-    "Bayesian Inference": render_bayesian,
-    
-    # Act III
-    "Process Control Plan Builder": render_control_plan_builder,
-    "Run Validation (Westgard)": render_multi_rule,
-    "Small Shift Detection": render_ewma_cusum,
-    "Multivariate SPC": render_multivariate_spc,
-    "Stability Analysis (Shelf-Life)": render_stability_analysis,
-    "Reliability / Survival Analysis": render_survival_analysis,
-    "Time Series Analysis": render_time_series_analysis,
-    "Multivariate Analysis (MVA)": render_mva_pls,
-    "Predictive QC (Classification)": render_predictive_qc,
-    "Explainable AI (XAI)": render_xai_shap,
-    "Clustering (Unsupervised)": render_clustering,
-    "Anomaly Detection": render_anomaly_detection,
-    "Advanced AI Concepts": render_advanced_ai_concepts,
-    "MEWMA + XGBoost Diagnostics": render_mewma_xgboost,
-    "BOCPD + ML Features": render_bocpd_ml_features,
-    "Kalman Filter + Residual Chart": render_kalman_nn_residual,
-    "RL for Chart Tuning": render_rl_tuning,
-    "TCN + CUSUM": render_tcn_cusum,
-    "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
-}
-    
-    # FIX: This block is now correctly indented to be at the same level
-    # as the PAGE_DISPATCHER dictionary, inside the 'else' block.
+    # --- FIX: This block is now correctly indented to be at the same level as the PAGE_DISPATCHER dictionary ---
     if view in PAGE_DISPATCHER:
         PAGE_DISPATCHER[view]()
     else:
-        # Failsafe if state gets corrupted somehow
         st.error("Error: Could not find the selected tool to render.")
         st.session_state.current_view = 'Introduction'
         st.rerun()

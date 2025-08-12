@@ -3301,11 +3301,19 @@ def plot_fty_coq(project_type, improvement_effort):
 ##=======================================================================================END ACT II ===============================================================================================
 ##=================================================================================================================================================================================================
 @st.cache_data
-def plot_control_plan_dashboard(control_plan_data):
+def plot_control_plan_dashboard(cpp_data, sample_size, frequency, spc_tool):
     """
-    Generates a professional-grade Control Plan table and OCAP flowchart.
+    Generates a professional-grade Control Plan dashboard including a simulated SPC chart.
     """
-    # Plot 1: The Control Plan Table
+    # 1. --- Generate the Control Plan Table ---
+    control_plan_data = {
+        'Parameter (CPP)': [cpp_data['name']],
+        'Specification': [f"{cpp_data['lsl']} - {cpp_data['usl']}"],
+        'Measurement System': [cpp_data['method']],
+        'Sample Size / Freq.': [f"n={sample_size}, {frequency}"],
+        'Control Method': [spc_tool],
+        'Reaction Plan': ['Follow OCAP-001']
+    }
     df = pd.DataFrame(control_plan_data)
     fig_table = go.Figure(data=[go.Table(
         header=dict(values=list(df.columns), fill_color=PRIMARY_COLOR, font=dict(color='white', size=14), align='left', height=40),
@@ -3313,26 +3321,39 @@ def plot_control_plan_dashboard(control_plan_data):
     )])
     fig_table.update_layout(title_text="<b>1. Process Control Plan Document</b>", margin=dict(l=10, r=10, t=40, b=10))
 
-    # Plot 2: The OCAP Flowchart
+    # 2. --- Simulate and Plot the SPC Chart ---
+    np.random.seed(42)
+    process_mean = (cpp_data['usl'] + cpp_data['lsl']) / 2
+    process_std = (cpp_data['usl'] - cpp_data['lsl']) / 8 # Simulate a Cpk of 1.33
+    
+    # More frequent sampling means faster detection of shifts
+    shift_detection_point = 25 - int(np.log2(1 if "batch" in frequency else (5 if "hour" in frequency else 10)))
+    
+    data = np.random.normal(process_mean, process_std, 30)
+    data[15:] += process_std * 0.5 # Introduce a small 0.5 sigma shift
+    
+    fig_spc = go.Figure()
+    fig_spc.add_trace(go.Scatter(y=data, mode='lines+markers', name='CPP Data'))
+    mean_line = np.mean(data[:15])
+    std_line = np.std(data[:15])
+    fig_spc.add_hline(y=mean_line + 3*std_line, line=dict(color='red', dash='dash'))
+    fig_spc.add_hline(y=mean_line - 3*std_line, line=dict(color='red', dash='dash'))
+    fig_spc.add_hline(y=mean_line, line=dict(color='black', dash='dot'))
+    fig_spc.add_vrect(x0=14.5, x1=29.5, fillcolor="rgba(255,165,0,0.1)", line_width=0, annotation_text="Process Shift")
+    if 15 < shift_detection_point < 30:
+        fig_spc.add_vline(x=shift_detection_point, line=dict(color='purple', width=2), annotation_text="Predicted Detection")
+
+    fig_spc.update_layout(title=f"<b>2. Simulated Performance of '{spc_tool}'</b>", yaxis_title=cpp_data['name'])
+
+    # 3. --- Generate the OCAP Flowchart ---
     fig_flowchart = go.Figure(go.Sankey(
         arrangement = "snap",
-        node = {
-            "label": ["Process In-Control", "Point > 3s?", "Point > 2s?", "Stop Process", "Notify QA", "Continue Process", "Re-sample Immediately"],
-            "x": [0.1, 0.3, 0.3, 0.9, 0.9, 0.9, 0.6],
-            "y": [0.5, 0.2, 0.8, 0.1, 0.3, 0.9, 0.8],
-            'pad':10,
-            'color': [SUCCESS_GREEN, 'orange', 'orange', 'red', 'red', SUCCESS_GREEN, 'lightblue']
-        },
-        link = {
-            "source": [0, 1, 1, 2, 2, 6],
-            "target": [1, 3, 2, 6, 5, 5],
-            "value": [1, 0.2, 0.8, 0.5, 0.5, 1],
-            "label": ["Monitor", "YES", "NO", "YES", "NO", "If OK"]
-        }
+        node = {"label": ["Process In-Control", f"Signal on {spc_tool}?", "Stop Process", "Notify QA", "Continue Process", "Investigate Cause"], "color": [SUCCESS_GREEN, 'orange', 'red', 'red', SUCCESS_GREEN, 'lightblue']},
+        link = {"source": [0, 1, 1, 3], "target": [1, 2, 4, 5], "value": [1, 0.5, 0.5, 0.5], "label": ["Monitor", "YES", "NO", "Action"]}
     ))
-    fig_flowchart.update_layout(title_text="<b>2. Out-of-Control Action Plan (OCAP) Flowchart</b>", font_size=12)
+    fig_flowchart.update_layout(title_text="<b>3. Out-of-Control Action Plan (OCAP) Flowchart</b>", font_size=12)
 
-    return fig_table, fig_flowchart
+    return fig_table, fig_spc, fig_flowchart
 
 @st.cache_data
 def plot_westgard_scenario(scenario='Stable'):
@@ -8818,38 +8839,38 @@ def render_control_plan_builder():
     """)
     
     st.info("""
-    **Interactive Demo:** You are the Process Steward.
-    1.  Use the **Control Strategy** inputs in the sidebar to define how a Critical Process Parameter (CPP) will be monitored.
-    2.  The dashboard automatically generates the two key documents for operators:
-        - The **Control Plan Table**, which is the official reference.
-        - The **OCAP Flowchart**, which is a simple visual guide for what to do if a process alarm occurs.
+    **Interactive Demo:** You are the Process Steward for a drug product.
+    1.  Choose a **Critical Process Parameter (CPP)** from a real manufacturing process.
+    2.  Use the **Control Strategy** inputs in the sidebar to define how this CPP will be monitored.
+    3.  Observe the **Simulated SPC Chart** in real-time. Notice how a higher sampling frequency leads to faster detection of the process shift.
     """)
 
-    with st.sidebar:
-        st.subheader("Control Plan Builder")
-        cpp_name = st.text_input("Critical Process Parameter (CPP)", "Granulation Moisture (%)", help="The critical parameter identified in your FMEA or DOE that you need to control.")
-        lsl = st.number_input("Lower Specification Limit (LSL)", value=2.0)
-        usl = st.number_input("Upper Specification Limit (USL)", value=5.0)
-        measurement_method = st.selectbox("Measurement Method", ["NIR Spectroscopy", "Loss on Drying", "Karl Fischer"], help="The validated test method used to measure the CPP.")
-        sample_size = st.number_input("Sample Size (n)", 1, 10, 3, help="How many samples are taken at each measurement point.")
-        frequency = st.selectbox("Sampling Frequency", ["Once per batch", "Every 30 minutes", "Start, middle, and end"], help="How often the CPP is measured.")
-        spc_tool = st.selectbox("SPC Chart to Use", ["I-MR Chart", "Xbar-R Chart", "EWMA Chart"], help="The specific statistical control chart that will be used to monitor this CPP.")
-
-    control_plan_data = {
-        'Process Step': ['Granulation'],
-        'Parameter (CPP)': [cpp_name],
-        'Specification': [f"{lsl} - {usl}"],
-        'Measurement System': [measurement_method],
-        'Sample Size / Freq.': [f"n={sample_size}, {frequency}"],
-        'Control Method': [spc_tool],
-        'Reaction Plan': ['Follow OCAP-001']
+    cpp_options = {
+        "Granulation Moisture (%)": {'lsl': 2.0, 'usl': 5.0, 'method': 'NIR Spectroscopy'},
+        "Tablet Hardness (kp)": {'lsl': 10, 'usl': 15, 'method': 'Hardness Tester'},
+        "Bioreactor DO (%)": {'lsl': 30, 'usl': 60, 'method': 'DO Probe'}
     }
+    cpp_choice = st.selectbox("Select a Critical Process Parameter (CPP) to Control:", list(cpp_options.keys()))
+    cpp_data = {'name': cpp_choice, **cpp_options[cpp_choice]}
     
-    fig_table, fig_flowchart = plot_control_plan_dashboard(control_plan_data)
+    with st.sidebar:
+        st.subheader("Control Strategy Builder")
+        sample_size = st.slider("Sample Size (n)", 1, 10, 3, 1, help="How many samples are taken at each measurement point? A larger n increases confidence but also cost.")
+        frequency = st.select_slider("Sampling Frequency", ["Once per batch", "Once per hour", "Every 15 minutes"], value="Once per hour",
+            help="How often is the CPP measured? More frequent sampling detects shifts faster but has higher operational and testing costs.")
+        spc_tool = st.selectbox("SPC Chart to Use", ["I-MR Chart", "Xbar-R Chart", "EWMA Chart"],
+            help="The specific statistical control chart that will be used to monitor this CPP. Choose EWMA for higher sensitivity to small shifts.")
+
+    fig_table, fig_spc, fig_flowchart = plot_control_plan_dashboard(cpp_data, sample_size, frequency, spc_tool)
     
     st.header("Control Strategy Dashboard")
     st.plotly_chart(fig_table, use_container_width=True)
-    st.plotly_chart(fig_flowchart, use_container_width=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig_spc, use_container_width=True)
+    with col2:
+        st.plotly_chart(fig_flowchart, use_container_width=True)
     
     st.divider()
     st.subheader("Deeper Dive")
@@ -8857,16 +8878,17 @@ def render_control_plan_builder():
     with tabs[0]:
         st.markdown("""
         **Interpreting the Dashboard:**
-        - **Control Plan Table:** This is the formal, auditable document. It contains all the critical information for controlling the process parameter in a single place. In a real GMP environment, this would be a controlled document in a system like Veeva.
-        - **OCAP Flowchart:** This is the user-friendly guide for the operator on the manufacturing floor. It provides a simple, unambiguous, visual decision tree for exactly what to do when a process alarm occurs. A good OCAP clearly defines the steps for escalation, investigation, and disposition of potentially non-conforming material.
+        - **Control Plan Table:** This is the formal, auditable document. It contains all the critical information for controlling the process parameter in a single place. In a real GMP environment, this would be a controlled document.
+        - **Simulated SPC Chart:** This chart provides a "what-if" analysis of your chosen control strategy. A small process shift is introduced at batch #15. The purple line shows the predicted detection time. **Try changing the 'Sampling Frequency' in the sidebar from 'Once per batch' to 'Every 15 minutes' and watch the purple line move to the left, showing how faster sampling leads to faster detection.**
+        - **OCAP Flowchart:** This is the user-friendly guide for the operator on the manufacturing floor. It provides a simple, unambiguous, visual decision tree for exactly what to do when a process alarm occurs.
         
-        **The Strategic Insight:** A validation program is only as good as its implementation on the factory floor. The most sophisticated SPC chart is useless if the operator doesn't know what to do when it alarms. The Control Plan and OCAP are the critical documents that bridge this gap, ensuring that the process not only *is* in control, but *stays* in control.
+        **The Strategic Insight:** The Control Plan is a balancing act between risk and cost. More frequent sampling provides better process control and faster deviation detection, but it also increases laboratory costs and operational complexity. This dashboard allows you to simulate and visualize this trade-off to find the optimal strategy.
         """)
     with tabs[1]:
         st.markdown("""
         ##### Glossary of Control Strategy Terms
         - **Control Plan:** A written description of the systems and processes required for controlling a process or product. It is a living document that is updated as the process matures.
-        - **Control Strategy (ICH Q10):** A planned set of controls, derived from product and process understanding, that assures process performance and product quality. It includes controls on material attributes, process parameters, facility conditions, and final product testing.
+        - **Control Strategy (ICH Q10):** A planned set of controls, derived from product and process understanding, that assures process performance and product quality.
         - **OCAP (Out-of-Control Action Plan):** A flowchart or documented procedure that prescribes the sequence of actions an operator must take in response to an out-of-control signal from an SPC chart.
         - **CPP (Critical Process Parameter):** A process parameter whose variability has an impact on a CQA and therefore should be monitored or controlled.
         - **In-Process Control (IPC):** Checks performed during production in order to monitor and, if necessary, to adjust the process to ensure that the product conforms to its specification.

@@ -1052,6 +1052,132 @@ def plot_rtm_sankey(completed_streams):
     )
     return fig, links_data, nodes_data
 
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Design Controls & DHF)
+# ==============================================================================
+@st.cache_data
+def plot_design_controls_flow(completed_stages):
+    """
+    Generates an interactive flowchart of the Design Controls process,
+    highlighting completed stages.
+    """
+    fig = go.Figure()
+
+    stages = {
+        'Inputs': {'label': 'Design Inputs', 'pos': (1, 5), 'docs': 'URS, Risk Analysis (FMEA), Human Factors Report'},
+        'Outputs': {'label': 'Design Outputs', 'pos': (3, 5), 'docs': 'Specifications, Drawings, Source Code, BOM'},
+        'Review': {'label': 'Design Review', 'pos': (5, 5), 'docs': 'Meeting Minutes, Action Items'},
+        'Verification': {'label': 'Design Verification', 'pos': (5, 3), 'docs': 'Test Protocols & Reports (Unit, Integration)'},
+        'Validation': {'label': 'Design Validation', 'pos': (3, 1), 'docs': 'PQ/UAT Protocols & Reports, Clinical Study Data'},
+        'Transfer': {'label': 'Design Transfer', 'pos': (1, 1), 'docs': 'Manufacturing SOPs, QC Test Methods, Training Records'},
+        'DHF': {'label': 'Design History File (DHF)', 'pos': (3, 3), 'docs': 'The complete compilation of all evidence.'}
+    }
+
+    edges = [('Inputs', 'Outputs'), ('Outputs', 'Review'), ('Review', 'Verification'), ('Verification', 'DHF'),
+             ('Validation', 'DHF'), ('Transfer', 'DHF'), ('Outputs', 'Validation'), ('Outputs', 'Transfer')]
+
+    # Draw edges first
+    for start, end in edges:
+        fig.add_shape(type="line", x0=stages[start]['pos'][0], y0=stages[start]['pos'][1],
+                      x1=stages[end]['pos'][0], y1=stages[end]['pos'][1],
+                      line=dict(color="lightgrey", width=2))
+
+    # Draw nodes
+    for name, props in stages.items():
+        is_complete = name in completed_stages
+        color = SUCCESS_GREEN if is_complete else DARK_GREY
+        font_color = 'white'
+        if name == 'DHF':
+            color = PRIMARY_COLOR
+        
+        fig.add_shape(type="rect", x0=props['pos'][0]-0.8, y0=props['pos'][1]-0.4,
+                      x1=props['pos'][0]+0.8, y1=props['pos'][1]+0.4,
+                      line=dict(color="black", width=2), fillcolor=color)
+        fig.add_annotation(x=props['pos'][0], y=props['pos'][1], text=f"<b>{props['label']}</b>",
+                           showarrow=False, font=dict(color=font_color, size=12))
+
+    fig.update_layout(
+        title_text="<b>The Design Controls Waterfall & DHF Assembly</b>",
+        xaxis=dict(visible=False, range=[0, 6]),
+        yaxis=dict(visible=False, range=[0, 6]),
+        height=600, margin=dict(l=20, r=20, t=50, b=20)
+    )
+    return fig, stages
+
+# ==============================================================================
+# REVISED HELPER & PLOTTING FUNCTION (FAT/SAT & Qualification)
+# ==============================================================================
+@st.cache_data
+def plot_commissioning_qualification_flow(fat_thoroughness):
+    """
+    Generates an interactive table comparing the full C&Q workflow based on FAT quality.
+    """
+    test_plan = {
+        'Test Category': [
+            'Documentation Review', 'Physical & Installation Checks', 
+            'Core Functional Tests', 'Safety Interlock Tests',
+            'Performance & Throughput', 'Robustness & Error Handling'
+        ],
+        'FAT (At Vendor)': [
+            'Review & redline all docs (manuals, drawings, certs)', 'Verify P&ID, BOM, physical dimensions match spec',
+            'Test 100% of core functions per FS', 'Verify 100% of alarms and emergency stops',
+            'Run at max capacity for 2 hours', 'Test edge cases and invalid user inputs'
+        ]
+    }
+    
+    # Define the two scenarios for the rest of the workflow
+    if fat_thoroughness == "Comprehensive":
+        sat_plan = [
+            'Confirm receipt of all *finalized* documents', 'Verify physical integrity post-shipping only',
+            'Spot check 2-3 critical functions to confirm no damage', 'Verify 1-2 critical interlocks (e.g., E-stop)',
+            'Confirm performance settings are available', 'Execute User Acceptance Testing (UAT) with real users'
+        ]
+        iqoq_plan = [
+            'Leverage FAT report; verify final docs are in QMS', 'Leverage FAT report for BOM/P&ID check; verify utilities',
+            'Execute reduced OQ protocol; focus on site-specific factors', 'Leverage FAT report; test site-integrated interlocks',
+            'Execute full Performance Qualification (PQ) protocol', 'PQ challenge testing with worst-case conditions'
+        ]
+        timeline_reduction = 45 # in days
+    else: # Minimal FAT
+        sat_plan = [
+            'Perform full review of all documents on-site', 'Perform full IQ component and installation checks',
+            'Perform full Operational Qualification (OQ) dry run', 'Perform full OQ of all safety systems',
+            'Initial performance check before formal PQ', 'Execute User Acceptance Testing (UAT)'
+        ]
+        iqoq_plan = [
+            'Execute full IQ protocol from scratch', 'Execute full IQ protocol from scratch',
+            'Execute full OQ protocol from scratch', 'Execute full OQ protocol from scratch',
+            'Execute full Performance Qualification (PQ) protocol', 'PQ challenge testing'
+        ]
+        timeline_reduction = 0
+
+    df = pd.DataFrame(test_plan)
+    df['SAT (At User Site)'] = sat_plan
+    df['IQ/OQ (Formal Qualification)'] = iqoq_plan
+
+    # Create a styled Plotly Table
+    def get_cell_style(value):
+        if 'Leverage' in value: return 'rgba(44, 160, 44, 0.2)' # Green
+        if 'Full' in value or 'scratch' in value: return 'rgba(239, 83, 80, 0.2)' # Red
+        if 'Spot check' in value: return 'rgba(255, 193, 7, 0.2)' # Yellow
+        return 'white'
+    
+    sat_colors = [get_cell_style(val) for val in df['SAT (At User Site)']]
+    iqoq_colors = [get_cell_style(val) for val in df['IQ/OQ (Formal Qualification)']]
+
+    fig = go.Figure(data=[go.Table(
+        columnwidth = [120, 200, 200, 200],
+        header=dict(values=[f'<b>{col}</b>' for col in df.columns],
+                    fill_color=PRIMARY_COLOR, font=dict(color='white', size=14),
+                    align='left', height=40),
+        cells=dict(values=[df[col] for col in df.columns],
+                   fill_color=[['white']*len(df), ['white']*len(df), sat_colors, iqoq_colors],
+                   align='left', font_size=12, height=60)
+    )])
+    
+    fig.update_layout(title_text="<b>Commissioning & Qualification (C&Q) Workflow</b>", margin=dict(l=10, r=10, t=50, b=10))
+    return fig, timeline_reduction
+
 @st.cache_data
 def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort):
     """
@@ -6096,6 +6222,215 @@ def render_qrm_suite():
         - **ICH Q9:** This guideline provides a framework for risk management and lists PHA, FMEA, FTA, and ETA as examples of appropriate tools.
         - **FDA Process Validation Guidance:** The guidance requires a risk-based approach. These tools provide the documented evidence for how risks were identified and controlled.
         - **ISO 14971 (Application of risk management to medical devices):** This is the international standard for risk management for medical devices, and it requires the use of a systematic process like FMEA or PHA.
+        """)
+
+
+# ==============================================================================
+# UI RENDERING FUNCTION (Design Controls & DHF)
+# ==============================================================================
+def render_design_controls_dhf():
+    """Renders the comprehensive, interactive module for Design Controls & DHF."""
+    st.markdown("""
+    #### Purpose & Application: The Project's Audit Trail
+    **Purpose:** To provide a clear, systematic framework for **Design Controls**, the formal process required for medical device and complex system development. This module visualizes the "waterfall" of activities, from user needs to a fully validated and transferred design. The **Design History File (DHF)** is the living compilation of records that provides the objective evidence that this process was followed.
+    
+    **Strategic Application:** This is the master checklist for any regulated product development. For an auditor, the DHF is the single source of truth that proves a design was developed in a state of control. This tool demonstrates how the DHF is not a document you write at the end, but a binder you build concurrently throughout the project.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Project Manager.
+    1. Use the checkboxes in the sidebar to simulate the completion of each stage in the Design Controls process.
+    2. Watch the flowchart update in real-time, showing the project's progress.
+    3. Observe how the "DHF Contents" list below dynamically populates, showing how documentation is generated at each step.
+    """)
+
+    with st.sidebar:
+        st.subheader("Design Controls Progress")
+        completed_stages = []
+        if st.checkbox("Design Inputs Defined", value=True): completed_stages.append('Inputs')
+        if st.checkbox("Design Outputs Generated", value=True): completed_stages.append('Outputs')
+        if st.checkbox("Design Review Completed", value=False): completed_stages.append('Review')
+        if st.checkbox("Design Verification Completed", value=False): completed_stages.append('Verification')
+        if st.checkbox("Design Validation Completed", value=False): completed_stages.append('Validation')
+        if st.checkbox("Design Transfer Completed", value=False): completed_stages.append('Transfer')
+        if all(s in completed_stages for s in ['Inputs', 'Outputs', 'Review', 'Verification', 'Validation', 'Transfer']):
+            completed_stages.append('DHF')
+
+    fig, stages = plot_design_controls_flow(completed_stages)
+    
+    col1, col2 = st.columns([0.6, 0.4])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Design History File (DHF) Contents")
+        st.markdown("This list represents the documents and records compiled as each stage is completed.")
+        for stage_key, props in stages.items():
+            if stage_key in completed_stages and stage_key != 'DHF':
+                st.success(f"**{props['label']}:** *{props['docs']}*")
+            elif stage_key != 'DHF':
+                st.warning(f"**{props['label']}:** *Pending...*")
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Flowchart:**
+        - **The Waterfall:** The process generally flows from top-left (Inputs) to bottom-right (DHF). This represents the logical progression from defining what a product must do to proving it does it.
+        - **Verification vs. Validation Loop:** Notice the critical feedback loop. **Verification** asks "Did we build the product right?" (i.e., do the Outputs meet the Inputs). **Validation** asks "Did we build the right product?" (i.e., do the Outputs meet the *user's needs*).
+        - **The DHF is the Destination:** The Design History File (blue box) is not a single step but the final repository of all the evidence generated by every other step. As you check the boxes, you are simulating the creation of this evidence.
+
+        **The Strategic Insight:** Design Controls are not a bureaucratic checklist; they are a risk management framework. By forcing a structured process of defining requirements upfront and then rigorously testing against them (V&V), this process minimizes the risk of discovering a fatal design flaw late in development, when it is exponentially more expensive to fix.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Design Control Terms
+        - **Design Controls:** A formal, systematic process for medical device development mandated by the FDA to ensure that devices are safe and effective for their intended use.
+        - **Design History File (DHF):** A compilation of records which describes the design history of a finished device. It is the complete audit trail of the entire design process.
+        - **Design Inputs:** The physical and performance requirements of a device that are used as a basis for device design. (The "What").
+        - **Design Outputs:** The results of a design effort at each design phase. The total finished design consists of the device, its packaging and labeling, and the device master record. (The "How").
+        - **Design Review:** A documented, comprehensive, systematic examination of a design to evaluate its adequacy and capability to meet requirements.
+        - **Design Verification:** Confirmation by examination and provision of objective evidence that the design **outputs** meet the design **inputs**.
+        - **Design Validation:** Confirmation by examination and provision of objective evidence that the finished device conforms to **user needs and intended uses**.
+        - **Design Transfer:** The process by which the device design is correctly translated into production specifications.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "DHF Archeology"**
+A team develops a device in an ad-hoc, undocumented manner. Just before launch, a manager asks, "Where is the DHF?" This triggers a panicked, reverse-engineering effort to create documents for work that was done months or years ago, a process known as "DHF archeology."
+- **The Flaw:** This is not just a compliance failure; it's a project management disaster. The records are often incomplete, inaccurate, and cannot prove a state of control. An auditor would easily see through this, leading to major findings.""")
+        st.success("""🟢 **THE GOLDEN RULE: The DHF is Built Concurrently, Not Consecutively**
+The DHF is not a document you *write* at the end of a project; it is the *result* of the project.
+1.  **Start with the Plan:** The Design and Development Plan should outline the entire process and list the documents that will be generated for the DHF.
+2.  **Generate Evidence in Real-Time:** As each stage (Inputs, Outputs, V&V) is completed, its associated records (URS, specifications, test reports) are reviewed, approved, and immediately filed in the DHF.
+3.  **The DHF is the Project Logbook:** At any point, the DHF should reflect the current, up-to-date status of the project, providing a complete and contemporaneous audit trail.""")
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: Learning from Tragedy
+        **The Problem:** In the 1970s and 80s, the medical device industry was plagued by a series of high-profile failures, most notoriously the **Dalkon Shield IUD**, which caused serious injuries to thousands of users. Investigations revealed a common theme: many device failures were not due to manufacturing errors, but were caused by fundamental **flaws in the initial design process**.
+        
+        **The 'Aha!' Moment:** Congress and the FDA realized that simply regulating manufacturing (GMPs) was not enough. The design process itself needed to be brought into a state of control. This led to the **Safe Medical Devices Act of 1990**, which gave the FDA the authority to regulate the design process for medical devices.
+        
+        **The Impact:** The FDA implemented this authority by creating the **Design Controls** regulation (21 CFR 820.30). They adapted the systematic "waterfall" model from systems engineering, forcing the industry to adopt a structured, documented approach to product development. The **Design History File (DHF)** became the mandatory, auditable evidence that this disciplined process had been followed, transforming medical device development from an art into a rigorous engineering discipline.
+        """)
+    with tabs[4]:
+        st.markdown("""
+        Design Controls and the DHF are the central requirements for medical device development and are considered best practice for any complex system in a GxP environment.
+        - **FDA 21 CFR 820.30 - Design Controls:** This is the primary US regulation that explicitly defines the entire process visualized in the flowchart. It applies to all Class II and Class III medical devices, and certain Class I devices.
+        - **ISO 13485:2016 - Medical devices — Quality management systems:** This is the international standard for medical device quality systems. Section 7.3, "Design and development," contains requirements that are highly harmonized with 21 CFR 820.30.
+        - **GAMP 5:** While not a regulation, the GAMP 5 framework for validating computerized systems is built on the same principles of linking user requirements (Inputs) to specifications (Outputs) and testing (V&V).
+        """)
+
+
+# ==============================================================================
+# UI RENDERING FUNCTION (FAT/SAT)
+# ==============================================================================
+def render_fat_sat():
+    """Renders the comprehensive, interactive module for FAT, SAT & Qualification."""
+    st.markdown("""
+    #### Purpose & Application: The "Trust, but Verify" Framework
+    **Purpose:** To provide a structured, two-phase framework for accepting new equipment or systems that seamlessly flows into formal GxP qualification. It ensures that what you bought is what was delivered and that it works correctly in your own environment.
+    - **FAT (Factory Acceptance Test):** A dress rehearsal at the **vendor's site** to find issues early.
+    - **SAT (Site Acceptance Test):** The final check-out at **your site** post-installation.
+    - **IQ/OQ/PQ:** The formal **GxP qualification** that leverages the evidence from FAT/SAT.
+    
+    **Strategic Application:** This is a critical risk-reduction strategy for any significant capital project. A thorough FAT is one of the most powerful tools a project manager has to **prevent costly delays**. By finding and fixing problems at the vendor's factory, you avoid the massive expense and schedule impact of trying to fix them after the system has been shipped and installed in your facility, and you can significantly reduce the scope of your formal OQ.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Project Engineer responsible for a new HPLC system.
+    1.  Use the **"Thoroughness of FAT"** control in the sidebar to simulate two different project strategies.
+    2.  Observe how a **Comprehensive FAT** allows you to "Leverage" (green) many tests during the SAT and IQ/OQ, dramatically reducing the on-site workload and project timeline.
+    3.  A **Minimal FAT** forces you to "Full Retest" (red) everything on-site, a much riskier and slower approach.
+    """)
+
+    with st.sidebar:
+        st.subheader("FAT/SAT Strategy")
+        fat_thoroughness = st.radio(
+            "Thoroughness of FAT",
+            ["Comprehensive", "Minimal"],
+            index=0,
+            help="**Comprehensive:** Invest time upfront at the vendor's site. **Minimal:** Save time upfront but accept more risk and work during on-site installation."
+        )
+
+    fig, timeline_reduction = plot_commissioning_qualification_flow(fat_thoroughness)
+    
+    st.header("FAT, SAT & Qualification Plan & Outcome")
+    col1, col2 = st.columns(2)
+    col1.metric("Project Timeline Savings", f"{timeline_reduction} Days")
+    col2.metric("On-Site Qualification Risk Level", "Low (Leveraged)" if fat_thoroughness == "Comprehensive" else "High (Full Retest)")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Dashboard:**
+        - **The Color Code:** The dashboard visually represents the core principle of leveraging. 
+            - **Green (Leverage):** Activities successfully completed at the FAT that only need confirmation during SAT and can be formally referenced to reduce OQ scope.
+            - **Yellow (Spot Check):** A risk-based approach where only a few critical functions are re-tested on-site.
+            - **Red (Full Retest):** Activities that must be performed from scratch at your site, offering no time savings and carrying higher risk.
+        - **The Timeline KPI:** This metric quantifies the direct business benefit of a good FAT. By finding and fixing issues early at the vendor's site, you can significantly de-risk your on-site installation and qualification schedule, which is often on the critical path for a major project.
+
+        **The Strategic Insight:** A FAT is not a checkbox exercise; it is the single best investment you can make in ensuring a smooth and fast site qualification. The goal is to **"Leverage, Don't Repeat."** The more thorough your FAT, the more data and evidence you can leverage to reduce the scope and duration of your SAT and the subsequent IQ/OQ, saving both time and money.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Commissioning & Qualification Terms
+
+        These terms represent a logical sequence of activities, moving from the vendor's internal tests to your final process validation.
+
+        ---
+        
+        **Phase 1: Vendor-Side Activities (Pre-Shipment)**
+        - **VVT (Vendor Verification Testing):** The supplier's own internal testing to ensure their system meets its design specifications before they even invite the customer for the FAT.
+        - **VDR (Vendor Data Review):** A formal review of the vendor's documentation package (drawings, material certs, test reports) by the customer, often done *before* traveling for the FAT to catch issues early.
+        - **FAT (Factory Acceptance Test):** The formal, customer-witnessed test at the **supplier's site** to verify the system meets the pre-agreed specifications (URS/FS) before shipment.
+        
+        ---
+
+        **Phase 2: User-Side Activities (Post-Installation)**
+        - **SAT (Site Acceptance Test):** Testing performed at the **customer's site** after installation to confirm the system was not damaged in transit and still functions correctly in its final environment.
+        - **IQ (Installation Qualification):** The first GxP qualification step. Documented verification that the system is **installed per specifications**. This often leverages FAT/SAT evidence for things like checking the Bill of Materials (BOM).
+        - **OQ (Operational Qualification):** The second GxP step. Documented testing to ensure the equipment **functions as intended** across its operating ranges in the site environment. This often leverages functional tests performed during FAT/SAT.
+        - **PQ (Performance Qualification):** The final GxP qualification step. Documented evidence that the system **consistently performs as intended under actual process conditions**.
+
+        ---
+
+        **Related Testing Concepts**
+        - **SIT (System Integration Testing):** For complex systems with multiple vendors, this is testing done *before* FAT/SAT to ensure all the different components communicate and work together correctly.
+        - **UAT (User Acceptance Testing):** Primarily for software and automated systems, this is testing by end-users to confirm the system meets their real-world workflow needs. It often overlaps significantly with SAT and PQ.
+        - **Run-In / Burn-In Testing:** Stress testing, often performed by the vendor before FAT, where the system is run continuously for an extended period to identify and fix early-life component failures.
+        - **DRT (Dry Run Testing):** An informal practice run of a test protocol (like a FAT or SAT) by the executing team to ensure the procedure is clear and all prerequisites are in place before the formal, witnessed execution.
+        - **HAT (Harbor Acceptance Testing):** A specialized term used in maritime/offshore industries, functionally equivalent to a FAT/SAT but conducted at the harbor before a vessel or platform is deployed.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "We'll Fix It Later" Fallacy**
+A project team, under pressure to meet a deadline, decides to skip the FAT to "save a week" on the schedule. The equipment arrives on site, and during SAT/IQ, they discover a critical component was built with the wrong material and a key software module is missing.
+- **The Flaw:** They traded a one-week trip for a three-month on-site delay, as the vendor now has to manufacture and ship a new component and dispatch software engineers to their site to fix the code. This is a classic example of being "penny wise and pound foolish." """)
+        st.success("""🟢 **THE GOLDEN RULE: Find Problems at the Factory, Not in the Cleanroom**
+A robust acceptance testing plan treats the FAT as a critical, non-negotiable risk mitigation step.
+1.  **Define Upfront:** The detailed requirements for the FAT and SAT must be defined in the User Requirement Specification (URS) and agreed upon with the vendor *before* the purchase order is signed.
+2.  **Invest in the FAT:** Send a cross-functional team (Engineering, Quality, and the End User) to the vendor's site to execute the FAT protocol rigorously.
+3.  **Document Everything:** Use a formal FAT protocol. Any deviations or failures must be documented and formally resolved by the vendor *before* you give approval to ship the equipment. This gives you maximum leverage.""")
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: From Power Plants to Pharma
+        The concepts of FAT and SAT did not originate in the pharmaceutical industry. They are standard **Good Engineering Practices (GEP)** developed over a century of large-scale capital project management in industries like oil & gas, chemical manufacturing, and power generation.
+        
+        **The Problem:** When building a billion-dollar power plant, you cannot afford to have a custom-built, 50-ton turbine arrive on site only to discover it doesn't fit or doesn't meet its performance specifications. The cost of on-site rework for such massive equipment is astronomical.
+        
+        **The Solution:** The engineering world developed the two-stage acceptance process to de-risk these projects. The FAT became the critical gatekeeper to ensure that complex, custom-built equipment was fully functional and met all specifications *before* it was shipped. The SAT then served as a confirmation that the equipment survived the journey and worked as expected in its final home.
+        
+        **The Impact in Pharma:** As pharmaceutical equipment became more complex, automated, and computer-controlled, the industry recognized the value of these engineering best practices. The **GAMP (Good Automated Manufacturing Practice)** Forum and the **ISPE (International Society for Pharmaceutical Engineering)** championed the adoption of FAT and SAT as critical commissioning steps that occur *before* formal GxP qualification (IQ/OQ/PQ), significantly improving the efficiency and success rate of validation projects.
+        """)
+    with tabs[4]:
+        st.markdown("""
+        FAT and SAT are considered **Good Engineering Practices (GEP)** and are critical inputs to the formal GxP qualification process.
+        - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** This is the primary guidance document that formalizes this process. It positions FAT and SAT as key activities within the "Project Phase" that support the subsequent Qualification and Verification activities. A well-documented FAT report is often leveraged to reduce the scope of IQ and OQ testing.
+        - **FDA Process Validation Guidance & 21 CFR 211:** While not explicitly mentioning FAT/SAT, these regulations require that equipment be suitable for its intended use and that processes are in a state of control. A robust FAT/SAT program is the industry-standard method for ensuring equipment suitability, which is a prerequisite for a successful process validation.
+        - **EU Annex 15: Qualification and Validation:** Emphasizes a risk-based approach and the need for URS to be in place for equipment. FAT and SAT are the activities where the equipment is formally tested against the URS and functional specifications.
         """)
 
 #=============================================================== DfX MODULE ===========================================================================================================

@@ -5602,7 +5602,7 @@ def render_dfx_dashboard():
     **Strategic Application:** DfX is the practical implementation of "shifting left"—addressing downstream problems (like manufacturing costs, test time, or reliability) during the earliest stages of design, where changes are exponentially cheaper. For a validation leader, promoting DfX principles is a key strategy for ensuring that new products are not only effective but also robust, scalable, and profitable.
     """)
     
-    st.info("""
+   st.info("""
     **Interactive Demo:** You are the Head of Engineering or Validation.
     1.  Select the **Project Type** you are leading.
     2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
@@ -5610,10 +5610,22 @@ def render_dfx_dashboard():
     """)
     
     profiles = {
-        "Pharma Assay (ELISA)": {'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost ($)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1], 'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}},
-        "Instrument (Liquid Handler)": {'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>($/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1], 'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}},
-        "Software (LIMS)": {'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost ($k)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1], 'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}},
-        "Pharma Process (MAb)": {'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS ($/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1], 'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}}
+        "Pharma Assay (ELISA)": {
+            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost ($)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1],
+            'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
+        },
+        "Instrument (Liquid Handler)": {
+            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>($/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1],
+            'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
+        },
+        "Software (LIMS)": {
+            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost ($k)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1],
+            'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
+        },
+        "Pharma Process (MAb)": {
+            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS ($/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1],
+            'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
+        }
     }
     
     project_type = st.selectbox(
@@ -5623,18 +5635,23 @@ def render_dfx_dashboard():
 
     with st.sidebar:
         st.subheader("DfX Effort Allocation")
-        efforts = {}
-        efforts['mfg'] = st.slider("Manufacturing & Assembly Effort (DFM/DFA)", 0, 10, 5, 1, help="Focus on part count reduction, using standard components, and designing for automated assembly.")
-        efforts['quality'] = st.slider("Quality & Reliability Effort (DFR/DFT)", 0, 10, 5, 1, help="Focus on building in reliability, designing for robust performance, and adding features to make QC testing faster and more accurate.")
-        efforts['sustainability'] = st.slider("Sustainability & Supply Chain Effort (DFE)", 0, 10, 5, 1, help="Focus on using standard/recyclable materials, reducing energy use, and designing for easy disassembly.")
-        efforts['ux'] = st.slider("Service & User Experience Effort (DFS/DFUX)", 0, 10, 5, 1, help="Focus on making the device easy to use, service, and maintain, reducing long-term operational costs and human error.")
+        mfg_effort = st.slider("Manufacturing & Assembly Effort (DFM/DFA)", 0, 10, 5, 1, help="Focus on part count reduction, using standard components, and designing for automated assembly.")
+        quality_effort = st.slider("Quality & Reliability Effort (DFR/DFT)", 0, 10, 5, 1, help="Focus on building in reliability, designing for robust performance, and adding features to make QC testing faster and more accurate.")
+        sustainability_effort = st.slider("Sustainability & Supply Chain Effort (DFE)", 0, 10, 5, 1, help="Focus on using standard/recyclable materials, reducing energy use, and designing for easy disassembly.")
+        ux_effort = st.slider("Service & User Experience Effort (DFS/DFUX)", 0, 10, 5, 1, help="Focus on making the device easy to use, service, and maintain, reducing long-term operational costs and human error.")
 
-    selected_profile = profiles[project_type]
-    fig_radar, fig_cost, kpis = plot_dfx_dashboard(selected_profile, efforts)
+    # --- THIS IS THE CORRECTED FUNCTION CALL ---
+    fig_radar, fig_cost, kpis, categories = plot_dfx_dashboard(
+        project_type=project_type,
+        mfg_effort=mfg_effort,
+        quality_effort=quality_effort,
+        sustainability_effort=sustainability_effort,
+        ux_effort=ux_effort
+    )
+    # --- END OF CORRECTION ---
 
     st.header("Project KPI Dashboard")
     kpi_cols = st.columns(len(kpis['baseline']))
-    categories = selected_profile['categories']
     for i, col in enumerate(kpi_cols):
         base_val = kpis['baseline'][i]
         opt_val = kpis['optimized'][i]
@@ -5647,7 +5664,7 @@ def render_dfx_dashboard():
         st.plotly_chart(fig_radar, use_container_width=True)
     with col_cost:
         st.plotly_chart(fig_cost, use_container_width=True)
-    
+        
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])

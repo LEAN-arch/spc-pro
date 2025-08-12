@@ -5926,7 +5926,7 @@ def render_qrm_suite():
         """)
     with tabs[2]:
         st.success("""🟢 **THE GOLDEN RULE:** Risk Assessment is Not a One-Time Event. Quality Risk Management is a continuous lifecycle activity. An initial PHA should inform a more detailed FMEA. The FMEA identifies critical failure modes that might warrant a deep-dive FTA. The effectiveness of the controls identified in the FMEA and FTA should be monitored throughout the product lifecycle, and the risk assessments should be updated whenever new information (e.g., from a deviation or a process change) becomes available.""")
-with tabs[3]:
+    with tabs[3]:
         st.markdown("""
         #### Historical Context: Forged in Fire, Ice, and the Void
         These advanced risk management tools were not born in sterile laboratories but were forged in the crucibles of the 20th century's most demanding engineering challenges, where failure carried the ultimate price. They represent a migration of hard-won knowledge from high-hazard industries directly into the heart of pharmaceutical quality systems.

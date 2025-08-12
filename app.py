@@ -3097,6 +3097,79 @@ def plot_bayesian(prior_type, n_qc=20, k_qc=18, spec_limit=0.90):
     
     return fig, prior_mean, mle, posterior_mean, (ci_lower, ci_upper), prob_gt_spec
 
+@st.cache_data
+def plot_fty_coq(improvement_effort):
+    """
+    Generates a professional-grade dashboard for First Time Yield and Cost of Quality.
+    """
+    # 1. --- Define the Baseline ("Before") Process ---
+    steps = ["API Weighing", "Granulation", "Compression", "Coating", "Packaging"]
+    base_fty = [0.99, 0.95, 0.98, 0.97, 0.99]
+    
+    # 2. --- Calculate the Improved ("After") Process ---
+    # Improvement effort (0-10) targets the worst step first
+    improved_fty = base_fty.copy()
+    effort_remaining = improvement_effort
+    while effort_remaining > 0:
+        worst_step_idx = np.argmin(improved_fty)
+        improvement = (1 - improved_fty[worst_step_idx]) * 0.2 * effort_remaining # Each point of effort closes 20% of the gap
+        improved_fty[worst_step_idx] += improvement
+        improved_fty[worst_step_idx] = min(0.999, improved_fty[worst_step_idx]) # Cap improvement
+        effort_remaining -= 1
+
+    # 3. --- Calculate Rolled Throughput Yield (RTY) ---
+    rty_base = np.prod(base_fty)
+    rty_improved = np.prod(improved_fty)
+    
+    # 4. --- Calculate Cost of Quality (COQ) ---
+    base_coq = {
+        "Prevention": 20000 + (improvement_effort * 2000), "Appraisal": 30000 + (improvement_effort * 1500),
+        "Internal Failure": 80000 * (1 - rty_base) / (1-0.9), "External Failure": 200000 * (1 - rty_base)**2 / (1-0.9)**2
+    }
+    improved_coq = {
+        "Prevention": 20000 + (improvement_effort * 2000), "Appraisal": 30000 + (improvement_effort * 1500),
+        "Internal Failure": 80000 * (1 - rty_improved) / (1-0.9), "External Failure": 200000 * (1 - rty_improved)**2 / (1-0.9)**2
+    }
+
+    # --- PLOTTING ---
+    # Plot 1: Yield Funnel Sankey Diagram
+    fig_sankey = go.Figure()
+    scenarios = {'Baseline': base_fty, 'Optimized': improved_fty}
+    for i, (name, ftys) in enumerate(scenarios.items()):
+        labels = ["Input"] + steps + ["Final Output"] + [f"Scrap {j+1}" for j in range(len(steps))]
+        sources, targets, values = [], [], []
+        units_in = 1000
+        for j, fty in enumerate(ftys):
+            units_out = units_in * fty
+            scrap = units_in - units_out
+            sources.extend([j, j])
+            targets.extend([j + 1, len(steps) + 1 + j])
+            values.extend([units_out, scrap])
+            units_in = units_out
+        
+        fig_sankey.add_trace(go.Sankey(
+            domain={'x': [i*0.5, i*0.5+0.48]},
+            node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=labels, color=PRIMARY_COLOR),
+            link=dict(source=sources, target=targets, value=values)
+        ))
+    fig_sankey.update_layout(title_text="<b>1. Process Yield Funnel (Rolled Throughput Yield)</b>",
+                             annotations=[dict(x=0.24, y=1.1, text=f"<b>Baseline (RTY: {rty_base:.1%})</b>", showarrow=False),
+                                          dict(x=0.74, y=1.1, text=f"<b>Optimized (RTY: {rty_improved:.1%})</b>", showarrow=False)])
+
+    # Plot 2: Cost of Quality "Iceberg" Chart
+    fig_iceberg = go.Figure()
+    good_quality_base = base_coq['Prevention'] + base_coq['Appraisal']
+    poor_quality_base = base_coq['Internal Failure'] + base_coq['External Failure']
+    good_quality_improved = improved_coq['Prevention'] + improved_coq['Appraisal']
+    poor_quality_improved = improved_coq['Internal Failure'] + improved_coq['External Failure']
+    
+    fig_iceberg.add_trace(go.Bar(x=['Baseline', 'Optimized'], y=[good_quality_base, good_quality_improved], name='Cost of Good Quality (Visible)', marker_color='skyblue'))
+    fig_iceberg.add_trace(go.Bar(x=['Baseline', 'Optimized'], y=[-poor_quality_base, -poor_quality_improved], name='Cost of Poor Quality (Hidden)', marker_color='salmon'))
+    fig_iceberg.add_hline(y=0, line_color="darkblue", line_width=3)
+    fig_iceberg.update_layout(title="<b>2. The Cost of Quality 'Iceberg'</b>", yaxis_title="Cost (Relative Cost Units)", barmode='relative',
+                              legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    
+    return fig_sankey, fig_iceberg, rty_base, rty_improved, base_coq, improved_coq
 ##=================================================================================================================================================================================================
 ##=======================================================================================END ACT II ===============================================================================================
 ##=================================================================================================================================================================================================
@@ -8250,6 +8323,93 @@ def render_bayesian():
             - **FDA Guidance on Medical Device Decision Making:** The benefit-risk assessments for medical devices are often framed in a way that is highly compatible with Bayesian thinking, allowing for the formal incorporation of prior knowledge.
             - **ICH Q8, Q9, Q10:** The lifecycle and risk-based principles of these guidelines are well-aligned with the Bayesian paradigm of updating knowledge as more data becomes available.
             """)
+
+def render_fty_coq():
+    """Renders the comprehensive, interactive module for First Time Yield & Cost of Quality."""
+    st.markdown("""
+    #### Purpose & Application: The Business Case for Quality
+    **Purpose:** To demonstrate the powerful financial and operational relationship between process performance (**First Time Yield**) and its business consequences (**Cost of Quality**). This tool moves beyond simple pass/fail metrics to provide a holistic view of process efficiency and the hidden costs of failure.
+    
+    **Strategic Application:** This dashboard is a critical communication tool for validation and engineering leaders to justify quality improvement projects to business leadership. It translates technical process metrics (like yield) into the language of the business (cost and risk), making the return on investment for validation and process improvement activities clear and tangible.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Operations Director.
+    1.  The dashboard shows a baseline 5-step process with its current yield and cost structure.
+    2.  Use the **"Process Improvement Effort"** slider in the sidebar to simulate investing in better process controls, training, and validation.
+    3.  Observe the impact: The **Yield Funnel** (top) widens, producing less scrap. The **Cost Iceberg** (bottom) changes shape, as your investment in "Good Quality" shrinks the massive hidden "Poor Quality" costs.
+    """)
+
+    with st.sidebar:
+        st.subheader("DfX Improvement Controls")
+        improvement_effort = st.slider("Process Improvement Effort", 0, 10, 0, 1,
+            help="Simulates the level of investment in process understanding and control (e.g., more validation, better training, improved equipment). Higher effort increases 'Good Quality' costs but dramatically reduces 'Poor Quality' costs and improves yield.")
+
+    fig_sankey, fig_iceberg, rty_base, rty_improved, base_coq, improved_coq = plot_fty_coq(improvement_effort)
+
+    st.header("Process Performance & Cost Dashboard")
+    total_coq_base = sum(base_coq.values())
+    total_coq_improved = sum(improved_coq.values())
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Rolled Throughput Yield (RTY)", f"{rty_improved:.1%}", f"{rty_improved - rty_base:.1%}")
+    col2.metric("Total Cost of Quality (COQ)", f"{total_coq_improved:,.0f} RCU", f"{total_coq_improved - total_coq_base:,.0f} RCU")
+    col3.metric("Return on Quality Investment", f"{(total_coq_base - total_coq_improved) / (improvement_effort*3500 + 1):.1f}x", help="Ratio of cost savings to the investment in prevention/appraisal.")
+
+    st.plotly_chart(fig_sankey, use_container_width=True)
+    st.plotly_chart(fig_iceberg, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Dashboard:**
+        - **Yield Funnel (Sankey Plot):** This shows the flow of product through the manufacturing process. The width of the grey "Scrap" lines represents the yield loss at each step. The final output is the **Rolled Throughput Yield (RTY)**—the probability that a unit will pass through all steps without any defects. Notice how small losses at each step compound into a large overall loss.
+        - **Cost Iceberg (Bar Chart):** This visualizes the Cost of Quality.
+            - **Above the water (Visible Costs):** The "Cost of Good Quality"—money you proactively spend on **Prevention** and **Appraisal**.
+            - **Below the water (Hidden Costs):** The "Cost of Poor Quality"—money you lose due to **Internal and External Failures**.
+        
+        **The Strategic Insight:** As you increase the "Process Improvement Effort," you are investing more in prevention and appraisal (the iceberg tip grows). However, this investment has a highly leveraged effect, dramatically shrinking the hidden failure costs. This demonstrates the core principle of quality management: **an ounce of prevention is worth a pound of cure.**
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Quality Management Terms
+        - **First Time Yield (FTY):** The percentage of units that pass a single process step without any defects or rework.
+        - **Rolled Throughput Yield (RTY):** The probability that a unit will pass through all process steps without any defects. It is calculated by multiplying the FTY of all individual steps (`RTY = FTY₁ × FTY₂ × ... × FTYₙ`).
+        - **Cost of Quality (COQ):** A methodology that quantifies the total cost of quality-related efforts and deficiencies.
+        - **Prevention Costs:** Costs incurred to prevent defects from occurring in the first place (e.g., validation, training, FMEA).
+        - **Appraisal Costs:** Costs incurred to detect defects (e.g., inspections, QC testing, audits).
+        - **Internal Failure Costs:** Costs of defects found *before* the product is delivered to the customer (e.g., scrap, rework, investigation).
+        - **External Failure Costs:** Costs of defects found *after* the product is delivered to the customer (e.g., recalls, warranty claims, lawsuits, loss of reputation). These are the most damaging costs.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: "The Firefighting Mentality"**
+A company under-invests in prevention and appraisal to minimize short-term costs. Their quality system is entirely reactive, consisting of a large QC department to "inspect quality in" at the end, and a large QA team to manage the constant deviations, rework, and scrap.
+- **The Flaw:** They are paying the highest possible Cost of Quality. The massive, hidden costs of internal and external failures far outweigh the savings from skimping on prevention, and their low RTY creates unpredictable production schedules.""")
+        st.success("""🟢 **THE GOLDEN RULE: Invest in Prevention, Not Failure**
+The goal of a mature quality system is to strategically shift spending from failure costs to prevention and appraisal costs.
+1.  **Measure Your Yield:** Calculate FTY for every step and the overall RTY to understand where your process is "leaking."
+2.  **Quantify the Cost of Quality:** Use the COQ framework to translate yield losses and failures into a financial number that gets management's attention.
+3.  **Justify Investment:** Use the RTY and COQ data to build a powerful business case for investing in process validation, better equipment, and more robust quality systems. This tool shows that such investments have a massive positive return.""")
+        
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: The Quality Gurus
+        The concepts of FTY and COQ were developed by the pioneers of the 20th-century quality management movement.
+        - **Rolled Throughput Yield:** This concept is a cornerstone of **Six Sigma**, the quality improvement methodology famously developed at **Motorola in the 1980s**. RTY was a powerful metric for quantifying the cumulative effect of defects in a complex process and for measuring the impact of improvement projects.
+        - **Cost of Quality:** The COQ framework was first described by **Armand V. Feigenbaum** in a 1956 Harvard Business Review article and was later popularized in his book *Total Quality Control*. He was the first to categorize costs into the four buckets (Prevention, Appraisal, Internal Failure, External Failure). Independently, **Joseph M. Juran** discussed the economics of quality in his *Quality Control Handbook* and emphasized the distinction between the "Cost of Good Quality" and the "Cost of Poor Quality."
+        
+        Together, these concepts provided the financial and operational language for the quality revolution, allowing engineers and scientists to frame quality not as an expense, but as a high-return investment.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        FTY and COQ are not explicitly named in many regulations, but they are the underlying metrics and business drivers for the entire GxP quality system.
+        - **ICH Q9 - Quality Risk Management:** The COQ framework is a powerful tool for quantifying the financial impact of risks identified in an FMEA. The potential for high "External Failure Costs" is a key driver for risk mitigation activities.
+        - **ICH Q10 - Pharmaceutical Quality System:** This guideline emphasizes the importance of **continuous improvement** and **process performance monitoring**. RTY is a key metric for monitoring process performance, and reducing the COQ is a primary goal of a continuous improvement program.
+        - **FDA Process Validation Guidance (Stage 3 - CPV):** An effective Continued Process Verification program should monitor metrics like FTY and RTY. A negative trend in these metrics would trigger an investigation and corrective action, demonstrating that the quality system is working as intended.
+        """)
 ##=======================================================================================================================================================================================================
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================
@@ -10088,7 +10248,7 @@ with st.sidebar:
         ],
         "ACT II: TRANSFER & STABILITY": [
             "Sample Size for Qualification", "Process Stability (SPC)", "Process Capability (Cpk)", "Statistical Equivalence for Process Transfer",
-            "Tolerance Intervals", "Method Comparison", "Bayesian Inference"
+            "Tolerance Intervals", "Method Comparison", "Bayesian Inference", "First Time Yield & Cost of Quality"
         ],
         "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
             "Run Validation (Westgard)", "Multivariate SPC", "Small Shift Detection", 
@@ -10155,6 +10315,7 @@ else:
         "Tolerance Intervals": render_tolerance_intervals,
         "Method Comparison": render_method_comparison,
         "Bayesian Inference": render_bayesian,
+        "First Time Yield & Cost of Quality": render_fty_coq,
         
         # Act III
         "Run Validation (Westgard)": render_multi_rule,

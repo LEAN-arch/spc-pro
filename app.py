@@ -5602,7 +5602,7 @@ def render_dfx_dashboard():
     **Strategic Application:** DfX is the practical implementation of "shifting left"—addressing downstream problems (like manufacturing costs, test time, or reliability) during the earliest stages of design, where changes are exponentially cheaper. For a validation leader, promoting DfX principles is a key strategy for ensuring that new products are not only effective but also robust, scalable, and profitable.
     """)
     
-   st.info("""
+    st.info("""
     **Interactive Demo:** You are the Head of Engineering or Validation.
     1.  Select the **Project Type** you are leading.
     2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
@@ -5640,7 +5640,6 @@ def render_dfx_dashboard():
         sustainability_effort = st.slider("Sustainability & Supply Chain Effort (DFE)", 0, 10, 5, 1, help="Focus on using standard/recyclable materials, reducing energy use, and designing for easy disassembly.")
         ux_effort = st.slider("Service & User Experience Effort (DFS/DFUX)", 0, 10, 5, 1, help="Focus on making the device easy to use, service, and maintain, reducing long-term operational costs and human error.")
 
-    # --- THIS IS THE CORRECTED FUNCTION CALL ---
     fig_radar, fig_cost, kpis, categories = plot_dfx_dashboard(
         project_type=project_type,
         mfg_effort=mfg_effort,
@@ -5648,7 +5647,6 @@ def render_dfx_dashboard():
         sustainability_effort=sustainability_effort,
         ux_effort=ux_effort
     )
-    # --- END OF CORRECTION ---
 
     st.header("Project KPI Dashboard")
     kpi_cols = st.columns(len(kpis['baseline']))

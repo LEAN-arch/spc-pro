@@ -1194,10 +1194,10 @@ def plot_eda_dashboard(df, numeric_cols, cat_cols, corr_method='pearson'):
     figs['heatmap'] = fig_heatmap
 
     # --- Plot 2: Scatter Plot Matrix (with regression lines) ---
+# --- Plot 2: Scatter Plot Matrix ---
     fig_pairplot = px.scatter_matrix(df, dimensions=numeric_cols,
                                      color=cat_cols[0] if cat_cols else None,
-                                     trendline="ols",
-                                     title="<b>2. Scatter Plot Matrix (with Trendlines)</b>")
+                                     title="<b>2. Scatter Plot Matrix</b>")
     fig_pairplot.update_traces(diagonal_visible=False)
     fig_pairplot.update_layout(height=700)
     figs['pairplot'] = fig_pairplot

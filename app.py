@@ -11601,6 +11601,8 @@ else:
         "TPP & CQA Cascade": render_tpp_cqa_cascade,
         "Analytical Target Profile (ATP) Builder": render_atp_builder,
         "Quality Risk Management (QRM) Suite": render_qrm_suite,
+        "Design Controls & DHF": render_design_controls_dhf, 
+        "FAT & SAT": render_fat_sat,         
         "Design for Excellence (DfX)": render_dfx_dashboard,
         "Validation Master Plan (VMP) Builder": render_vmp_builder,
         "Requirements Traceability Matrix (RTM)": render_rtm_builder,

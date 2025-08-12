@@ -5412,7 +5412,7 @@ A compliant and robust QbD approach is a disciplined, multi-stage process.
         - **GAMP 5:** For instruments and software, the TPP is analogous to the **User Requirement Specification (URS)**, and the CQAs are analogous to the high-level **Functional Specifications (FS)**. This cascade provides the direct link between user needs and system design.
         """)
         
-
+#=====================================================================2. ANALYTICAL TARGET PROFILE (ATP) BUILDER ====================================================
 def render_atp_builder():
     """Renders the comprehensive, interactive module for building a Target Profile."""
     st.markdown("""
@@ -5551,7 +5551,7 @@ This ensures alignment from start to finish and guarantees the final deliverable
         - **GAMP 5:** For instruments and software, the Target Profile is a direct translation of the **User Requirement Specification (URS)** into a set of verifiable performance criteria for OQ and PQ.
         - **USP Chapter <1220> - The Analytical Procedure Lifecycle:** This new chapter champions a holistic, lifecycle approach to method management. The ATP is the foundational element of **Stage 1 (Procedure Design)**, where the requirements for the method are formally defined.
         """)
-        
+#============================================================================== 3. QUALITY RISK MANAGEMENT (FMEA) ========================================================
 def render_fmea():
     """Renders the comprehensive, interactive module for FMEA."""
     st.markdown("""
@@ -5673,7 +5673,150 @@ The FMEA is not a standalone document; it is the strategic driver for the entire
         - **FDA Process Validation Guidance:** The guidance emphasizes a lifecycle approach based on risk. An FMEA performed during **Stage 1 (Process Design)** is the perfect way to identify Critical Process Parameters (CPPs) and Critical Quality Attributes (CQAs) that will require intensive study and control in **Stage 2 (Process Qualification)** and **Stage 3 (Continued Process Verification)**.
         """)
 
+#========================================================================================= 4. DESIGN FOR EXCELLENCE (DfX) =====================================================================
+def render_dfx_dashboard():
+    """Renders the comprehensive, interactive module for Design for Excellence (DfX)."""
+    st.markdown("""
+    #### Purpose & Application: Designing for the Entire Lifecycle
+    **Purpose:** To demonstrate the strategic and economic impact of **Design for Excellence (DfX)**, a proactive engineering philosophy that focuses on optimizing a product's design for its entire lifecycle, from manufacturing to disposal.
+    
+    **Strategic Application:** DfX is the practical implementation of "shifting left"—addressing downstream problems (like manufacturing costs, test time, or reliability) during the earliest stages of design, where changes are exponentially cheaper. For a validation leader, promoting DfX principles is a key strategy for ensuring that new products are not only effective but also robust, scalable, and profitable.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Head of Engineering or Validation.
+    1.  Select the **Project Type** you are leading.
+    2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
+    3.  Observe the impact in real-time on the **KPI Dashboard**, including the critical **Risk-Adjusted Cost**.
+    """)
+    
+    profiles = {
+        "Pharma Assay (ELISA)": {
+            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost (RCU)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1], 'reliability_idx': 0,
+            'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
+        },
+        "Instrument (Liquid Handler)": {
+            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>(RCU/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1], 'reliability_idx': 1,
+            'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
+        },
+        "Software (LIMS)": {
+            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost (RCU)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1], 'reliability_idx': 2,
+            'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
+        },
+        "Pharma Process (MAb)": {
+            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS (RCU/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1], 'reliability_idx': 4,
+            'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
+        }
+    }
+    
+    project_type = st.selectbox("Select a Project Type to Simulate DfX Impact:", list(profiles.keys()))
+    selected_profile = profiles[project_type]
 
+    with st.sidebar:
+        st.subheader("DfX Effort Allocation")
+        mfg_effort = st.slider("Manufacturing & Assembly Effort", 0, 10, 5, 1, help="DFM/DFA: Focus on part count reduction, standard components, and automation.")
+        quality_effort = st.slider("Quality & Reliability Effort", 0, 10, 5, 1, help="DFR/DFT/DFQ: Focus on reliability, robust performance, and fast, accurate QC testing.")
+        sustainability_effort = st.slider("Sustainability & Supply Chain Effort", 0, 10, 5, 1, help="DFE/DFS: Focus on standard/recyclable materials, energy use, and easy disassembly.")
+        ux_effort = st.slider("Service & User Experience Effort", 0, 10, 5, 1, help="DFS/DFUX: Focus on ease of use, service, and maintenance.")
+
+    fig_radar, fig_cost, kpis, categories, base_costs, optimized_costs = plot_dfx_dashboard(
+        project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort
+    )
+
+    st.header("Project KPI Dashboard")
+    reliability_idx = selected_profile['reliability_idx']
+    base_reliability = kpis['baseline'][reliability_idx]
+    opt_reliability = kpis['optimized'][reliability_idx]
+    
+    base_total_cost = sum(base_costs)
+    opt_total_cost = sum(optimized_costs)
+
+    base_risk_premium = 1 + (10 - base_reliability) * 0.05 if "Score" in categories[reliability_idx] else 1 + (100 - base_reliability) * 0.02
+    opt_risk_premium = 1 + (10 - opt_reliability) * 0.05 if "Score" in categories[reliability_idx] else 1 + (100 - opt_reliability) * 0.02
+
+    base_risk_adjusted_cost = base_total_cost * base_risk_premium
+    opt_risk_adjusted_cost = opt_total_cost * opt_risk_premium
+
+    col1, col2 = st.columns(2)
+    col1.metric("Total Cost (RCU)", f"{opt_total_cost:,.0f}", f"{opt_total_cost - base_total_cost:,.0f}")
+    col2.metric("Risk-Adjusted Total Cost (RCU)", f"{opt_risk_adjusted_cost:,.0f}", f"{opt_risk_adjusted_cost - base_risk_adjusted_cost:,.0f}",
+                help="Total Cost including a 'risk premium'. A less reliable or robust design is penalized more heavily, reflecting the long-term cost of potential failures.")
+    
+    st.markdown("##### Performance Profile")
+    kpi_cols = st.columns(len(kpis['baseline']))
+    for i, col in enumerate(kpi_cols):
+        base_val = kpis['baseline'][i]
+        opt_val = kpis['optimized'][i]
+        delta = opt_val - base_val
+        col.metric(categories[i].replace('<br>', ' '), f"{opt_val:.1f}", f"{delta:.1f}")
+
+    st.header("Design Comparison Visualizations")
+    col_radar, col_cost = st.columns(2)
+    with col_radar:
+        st.plotly_chart(fig_radar, use_container_width=True)
+    with col_cost:
+        st.plotly_chart(fig_cost, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Dashboard:**
+        - **KPI Dashboard:** This is your executive summary. It quantifies the return on investment for your DfX efforts in terms of performance and cost. The **Risk-Adjusted Cost** is the most important metric, as it represents the "true" cost of a design by penalizing lower quality and reliability.
+        - **Performance Profile (Radar Chart):** This visualizes the multi-dimensional impact of your design choices. The goal is to create an "Optimized" profile (green) that meets or exceeds all performance targets.
+        - **Cost Structure (Pie Charts):** This shows *how* you achieved cost savings. The units are **Relative Cost Units (RCU)**, focusing on proportions. The total cost is displayed in the center. A strong DFM/DFA effort will dramatically reduce the proportion of cost attributed to 'Manufacturing/Labor'.
+        
+        **The Strategic Insight:** The most profitable design is not always the one with the lowest initial cost. The **Risk-Adjusted Cost** demonstrates that investing in reliability and quality (DFR/DFQ) can be a financially sound decision by reducing the long-term costs associated with failures, service, and warranty claims.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of DfX Principles
+        - **DfX (Design for Excellence):** An engineering philosophy that integrates lifecycle concerns into the earliest design stages.
+        - **DFM (Design for Manufacturability):** Designing parts for ease of manufacturing to reduce cost and improve yield.
+        - **DFA (Design for Assembly):** Designing a product to be easy to assemble, primarily by reducing part count.
+        - **DFT (Design for Test):** Designing a product to make QC testing fast, automated, and reliable.
+        - **DFR (Design for Reliability):** Designing a product to be robust and have a long, predictable lifespan.
+        - **DFQ (Design for Quality):** Integrating quality assurance principles from concept through production, often using statistical tools like DFSS.
+        - **DFSS (Design for Six Sigma):** A data-driven approach to design that aims to create products and processes that are defect-free from the start.
+        - **DFE (Design for Environment):** Designing to reduce environmental footprint, including material selection and end-of-life recycling.
+        - **DFS (Design for Serviceability):** Designing a product to be easy to maintain and repair.
+        - **DFUX (Design for User Experience):** Optimizing the product for usability and satisfaction by incorporating human factors and ergonomic principles.
+        - **RCU (Relative Cost Unit):** An abstract unit of cost used for strategic planning and comparison when precise dollar amounts are unknown or variable. It focuses on the proportions and relative magnitudes of different cost drivers.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: "Over-the-Wall" Engineering**
+The R&D team designs a product in isolation, focusing only on functionality. They then "throw the design over the wall" to the manufacturing and quality teams, who discover that it is impossibly difficult to build, assemble, or test reliably at scale.
+- **The Flaw:** This sequential process creates massive rework, delays, and friction between departments. Problems that would have taken minutes to fix on a CAD model now require weeks of expensive re-tooling and re-validation.""")
+        st.success("""🟢 **THE GOLDEN RULE: The Cost of a Design Change is Exponential**
+The core principle of DfX is **concurrent engineering**, where design, manufacturing, quality, and other downstream teams work together as a cross-functional unit from the very beginning of the project.
+1.  **Acknowledge the Cost Curve:** A design change on the whiteboard is free. A change after tooling is made costs thousands. A change after the product is in the field costs millions in recalls and reputational damage.
+2.  **Shift Left:** The goal is to pull as many manufacturing, assembly, and testing considerations as far "left" into the early design phase as possible.
+3.  **Use DfX as a Formal Checklist:** Proactively review designs against a formal DfX checklist at every Stage-Gate or Design Review to ensure the product is not just functional, but manufacturable, testable, and profitable.""")
+        
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: The Birth of Concurrent Engineering
+        The principles of DfX emerged from the intense manufacturing competition of the 1970s and 80s. While concepts like designing for ease of manufacturing existed for decades, they were formalized and popularized by several key forces:
+        - **Japanese Manufacturing:** Companies like Toyota and Sony pioneered concepts of lean manufacturing and concurrent engineering, where design was not an isolated activity but a team sport involving all departments to eliminate "muda" (waste).
+        - **Boothroyd & Dewhurst (DFA):** In the late 1970s, Geoffrey Boothroyd and Peter Dewhurst at the University of Massachusetts Amherst developed the first systematic, quantitative methodology for **Design for Assembly (DFA)**. Their work provided a structured way to analyze a design, estimate its assembly time, and identify opportunities for part reduction, transforming DFA from a vague idea into a rigorous engineering discipline.
+        - **General Electric's "Bulls-eye":** In the 1980s, GE championed DFM, famously using a "bulls-eye" diagram to illustrate how the majority of a product's cost is locked in during the earliest design stages.
+        
+        The success of these methods led to the proliferation of the "DfX" acronym, extending the core philosophy to all aspects of a product's lifecycle.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        DfX is the practical engineering methodology used to fulfill the requirements of formal **Design Controls**.
+        - **FDA 21 CFR 820.30 (Design Controls):** This regulation for medical devices is the primary driver for DfX in the life sciences. The DfX process is how you fulfill the requirements for:
+            - **Design Inputs:** Proactively considering manufacturing, assembly, and testing requirements from the very start.
+            - **Design Review:** DfX checklists and scorecards are a key part of formal, documented design reviews.
+            - **Design Verification & Validation:** Ensuring the design outputs meet the design inputs.
+            - **Design Transfer:** A product designed with DfX principles has a much smoother and more successful design transfer into manufacturing.
+        - **ICH Q8(R2) - Pharmaceutical Development:** The principles of QbD—understanding how product design and process parameters affect quality—are perfectly aligned with DfX.
+        - **ISO 13485 (Medical Devices):** This international standard for quality management systems requires a structured design and development process, which is effectively implemented through DfX principles.
+        """)
+#========================================================================================= 5. VALIDATION MASTER PLAN (VMP) BUILDER =====================================================================
 def render_vmp_builder():
     """Renders the comprehensive, interactive module for the Validation Master Plan Builder."""
     st.markdown("""
@@ -5842,151 +5985,11 @@ A complex project like a tech transfer should be governed by a single, integrate
         - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing. It is a critical component of the Design History File (DHF).
         """)
 
-def render_dfx_dashboard():
-    """Renders the comprehensive, interactive module for Design for Excellence (DfX)."""
-    st.markdown("""
-    #### Purpose & Application: Designing for the Entire Lifecycle
-    **Purpose:** To demonstrate the strategic and economic impact of **Design for Excellence (DfX)**, a proactive engineering philosophy that focuses on optimizing a product's design for its entire lifecycle, from manufacturing to disposal.
-    
-    **Strategic Application:** DfX is the practical implementation of "shifting left"—addressing downstream problems (like manufacturing costs, test time, or reliability) during the earliest stages of design, where changes are exponentially cheaper. For a validation leader, promoting DfX principles is a key strategy for ensuring that new products are not only effective but also robust, scalable, and profitable.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** You are the Head of Engineering or Validation.
-    1.  Select the **Project Type** you are leading.
-    2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
-    3.  Observe the impact in real-time on the **KPI Dashboard**, including the critical **Risk-Adjusted Cost**.
-    """)
-    
-    profiles = {
-        "Pharma Assay (ELISA)": {
-            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost (RCU)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1], 'reliability_idx': 0,
-            'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
-        },
-        "Instrument (Liquid Handler)": {
-            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>(RCU/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1], 'reliability_idx': 1,
-            'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
-        },
-        "Software (LIMS)": {
-            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost (RCU)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1], 'reliability_idx': 2,
-            'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
-        },
-        "Pharma Process (MAb)": {
-            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS (RCU/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1], 'reliability_idx': 4,
-            'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
-        }
-    }
-    
-    project_type = st.selectbox("Select a Project Type to Simulate DfX Impact:", list(profiles.keys()))
-    selected_profile = profiles[project_type]
 
-    with st.sidebar:
-        st.subheader("DfX Effort Allocation")
-        mfg_effort = st.slider("Manufacturing & Assembly Effort", 0, 10, 5, 1, help="DFM/DFA: Focus on part count reduction, standard components, and automation.")
-        quality_effort = st.slider("Quality & Reliability Effort", 0, 10, 5, 1, help="DFR/DFT/DFQ: Focus on reliability, robust performance, and fast, accurate QC testing.")
-        sustainability_effort = st.slider("Sustainability & Supply Chain Effort", 0, 10, 5, 1, help="DFE/DFS: Focus on standard/recyclable materials, energy use, and easy disassembly.")
-        ux_effort = st.slider("Service & User Experience Effort", 0, 10, 5, 1, help="DFS/DFUX: Focus on ease of use, service, and maintenance.")
-
-    fig_radar, fig_cost, kpis, categories, base_costs, optimized_costs = plot_dfx_dashboard(
-        project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort
-    )
-
-    st.header("Project KPI Dashboard")
-    reliability_idx = selected_profile['reliability_idx']
-    base_reliability = kpis['baseline'][reliability_idx]
-    opt_reliability = kpis['optimized'][reliability_idx]
-    
-    base_total_cost = sum(base_costs)
-    opt_total_cost = sum(optimized_costs)
-
-    base_risk_premium = 1 + (10 - base_reliability) * 0.05 if "Score" in categories[reliability_idx] else 1 + (100 - base_reliability) * 0.02
-    opt_risk_premium = 1 + (10 - opt_reliability) * 0.05 if "Score" in categories[reliability_idx] else 1 + (100 - opt_reliability) * 0.02
-
-    base_risk_adjusted_cost = base_total_cost * base_risk_premium
-    opt_risk_adjusted_cost = opt_total_cost * opt_risk_premium
-
-    col1, col2 = st.columns(2)
-    col1.metric("Total Cost (RCU)", f"{opt_total_cost:,.0f}", f"{opt_total_cost - base_total_cost:,.0f}")
-    col2.metric("Risk-Adjusted Total Cost (RCU)", f"{opt_risk_adjusted_cost:,.0f}", f"{opt_risk_adjusted_cost - base_risk_adjusted_cost:,.0f}",
-                help="Total Cost including a 'risk premium'. A less reliable or robust design is penalized more heavily, reflecting the long-term cost of potential failures.")
-    
-    st.markdown("##### Performance Profile")
-    kpi_cols = st.columns(len(kpis['baseline']))
-    for i, col in enumerate(kpi_cols):
-        base_val = kpis['baseline'][i]
-        opt_val = kpis['optimized'][i]
-        delta = opt_val - base_val
-        col.metric(categories[i].replace('<br>', ' '), f"{opt_val:.1f}", f"{delta:.1f}")
-
-    st.header("Design Comparison Visualizations")
-    col_radar, col_cost = st.columns(2)
-    with col_radar:
-        st.plotly_chart(fig_radar, use_container_width=True)
-    with col_cost:
-        st.plotly_chart(fig_cost, use_container_width=True)
-    
-    st.divider()
-    st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    with tabs[0]:
-        st.markdown("""
-        **Interpreting the Dashboard:**
-        - **KPI Dashboard:** This is your executive summary. It quantifies the return on investment for your DfX efforts in terms of performance and cost. The **Risk-Adjusted Cost** is the most important metric, as it represents the "true" cost of a design by penalizing lower quality and reliability.
-        - **Performance Profile (Radar Chart):** This visualizes the multi-dimensional impact of your design choices. The goal is to create an "Optimized" profile (green) that meets or exceeds all performance targets.
-        - **Cost Structure (Pie Charts):** This shows *how* you achieved cost savings. The units are **Relative Cost Units (RCU)**, focusing on proportions. The total cost is displayed in the center. A strong DFM/DFA effort will dramatically reduce the proportion of cost attributed to 'Manufacturing/Labor'.
-        
-        **The Strategic Insight:** The most profitable design is not always the one with the lowest initial cost. The **Risk-Adjusted Cost** demonstrates that investing in reliability and quality (DFR/DFQ) can be a financially sound decision by reducing the long-term costs associated with failures, service, and warranty claims.
-        """)
-    with tabs[1]:
-        st.markdown("""
-        ##### Glossary of DfX Principles
-        - **DfX (Design for Excellence):** An engineering philosophy that integrates lifecycle concerns into the earliest design stages.
-        - **DFM (Design for Manufacturability):** Designing parts for ease of manufacturing to reduce cost and improve yield.
-        - **DFA (Design for Assembly):** Designing a product to be easy to assemble, primarily by reducing part count.
-        - **DFT (Design for Test):** Designing a product to make QC testing fast, automated, and reliable.
-        - **DFR (Design for Reliability):** Designing a product to be robust and have a long, predictable lifespan.
-        - **DFQ (Design for Quality):** Integrating quality assurance principles from concept through production, often using statistical tools like DFSS.
-        - **DFSS (Design for Six Sigma):** A data-driven approach to design that aims to create products and processes that are defect-free from the start.
-        - **DFE (Design for Environment):** Designing to reduce environmental footprint, including material selection and end-of-life recycling.
-        - **DFS (Design for Serviceability):** Designing a product to be easy to maintain and repair.
-        - **DFUX (Design for User Experience):** Optimizing the product for usability and satisfaction by incorporating human factors and ergonomic principles.
-        - **RCU (Relative Cost Unit):** An abstract unit of cost used for strategic planning and comparison when precise dollar amounts are unknown or variable. It focuses on the proportions and relative magnitudes of different cost drivers.
-        """)
-    with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: "Over-the-Wall" Engineering**
-The R&D team designs a product in isolation, focusing only on functionality. They then "throw the design over the wall" to the manufacturing and quality teams, who discover that it is impossibly difficult to build, assemble, or test reliably at scale.
-- **The Flaw:** This sequential process creates massive rework, delays, and friction between departments. Problems that would have taken minutes to fix on a CAD model now require weeks of expensive re-tooling and re-validation.""")
-        st.success("""🟢 **THE GOLDEN RULE: The Cost of a Design Change is Exponential**
-The core principle of DfX is **concurrent engineering**, where design, manufacturing, quality, and other downstream teams work together as a cross-functional unit from the very beginning of the project.
-1.  **Acknowledge the Cost Curve:** A design change on the whiteboard is free. A change after tooling is made costs thousands. A change after the product is in the field costs millions in recalls and reputational damage.
-2.  **Shift Left:** The goal is to pull as many manufacturing, assembly, and testing considerations as far "left" into the early design phase as possible.
-3.  **Use DfX as a Formal Checklist:** Proactively review designs against a formal DfX checklist at every Stage-Gate or Design Review to ensure the product is not just functional, but manufacturable, testable, and profitable.""")
-        
-    with tabs[3]:
-        st.markdown("""
-        #### Historical Context: The Birth of Concurrent Engineering
-        The principles of DfX emerged from the intense manufacturing competition of the 1970s and 80s. While concepts like designing for ease of manufacturing existed for decades, they were formalized and popularized by several key forces:
-        - **Japanese Manufacturing:** Companies like Toyota and Sony pioneered concepts of lean manufacturing and concurrent engineering, where design was not an isolated activity but a team sport involving all departments to eliminate "muda" (waste).
-        - **Boothroyd & Dewhurst (DFA):** In the late 1970s, Geoffrey Boothroyd and Peter Dewhurst at the University of Massachusetts Amherst developed the first systematic, quantitative methodology for **Design for Assembly (DFA)**. Their work provided a structured way to analyze a design, estimate its assembly time, and identify opportunities for part reduction, transforming DFA from a vague idea into a rigorous engineering discipline.
-        - **General Electric's "Bulls-eye":** In the 1980s, GE championed DFM, famously using a "bulls-eye" diagram to illustrate how the majority of a product's cost is locked in during the earliest design stages.
-        
-        The success of these methods led to the proliferation of the "DfX" acronym, extending the core philosophy to all aspects of a product's lifecycle.
-        """)
-        
-    with tabs[4]:
-        st.markdown("""
-        DfX is the practical engineering methodology used to fulfill the requirements of formal **Design Controls**.
-        - **FDA 21 CFR 820.30 (Design Controls):** This regulation for medical devices is the primary driver for DfX in the life sciences. The DfX process is how you fulfill the requirements for:
-            - **Design Inputs:** Proactively considering manufacturing, assembly, and testing requirements from the very start.
-            - **Design Review:** DfX checklists and scorecards are a key part of formal, documented design reviews.
-            - **Design Verification & Validation:** Ensuring the design outputs meet the design inputs.
-            - **Design Transfer:** A product designed with DfX principles has a much smoother and more successful design transfer into manufacturing.
-        - **ICH Q8(R2) - Pharmaceutical Development:** The principles of QbD—understanding how product design and process parameters affect quality—are perfectly aligned with DfX.
-        - **ISO 13485 (Medical Devices):** This international standard for quality management systems requires a structured design and development process, which is effectively implemented through DfX principles.
-        """)
 #====================================================================================================================================================================================================================================
 #=====================================================================================================ACT 0 RENDER END ==============================================================================================================
 #====================================================================================================================================================================================================================================
+# ======================================== 1. EXPLORATORY DATA ANALYSIS (EDA)  ===============================================================
 def render_eda_dashboard():
     """Renders the comprehensive, interactive module for Exploratory Data Analysis."""
     st.markdown("""
@@ -6090,7 +6093,7 @@ EDA is the step that turns raw data into actionable scientific inquiry.""")
         - **Data Integrity (ALCOA+):** A core principle of data integrity is that data must be **Complete** and **Accurate**. The Data Quality KPIs in this dashboard are a direct check on these principles. An EDA report is often a key part of the evidence package for a new dataset, demonstrating that the data has been reviewed for quality before being used in formal GxP analysis.
         - **ICH Q9 (Quality Risk Management):** EDA is a powerful tool for risk identification. Discovering a strong, unexpected correlation in your data during EDA can highlight a previously unknown process risk that needs to be formally assessed with a tool like FMEA.
         """)
-        
+# ======================================== 2. CONFIDENCE INTERVAL CONCEPT ===============================================================
 def render_ci_concept():
     """Renders the interactive module for Confidence Intervals."""
     st.markdown("""
@@ -6176,7 +6179,97 @@ def render_ci_concept():
             - **FDA Process Validation Guidance:** Used to set confidence bounds on process parameters and quality attributes during Process Performance Qualification (PPQ).
             - **21 CFR Part 211:** Implicitly required for demonstrating statistical control and for the "appropriate statistical quality control criteria" mentioned in §211.165.
             """)
-            
+# ======================================== 3. CONFIDENCE INTERVALS FOR PROPORTIONS ===============================================================
+def render_proportion_cis():
+    """Renders the comprehensive, interactive module for comparing binomial confidence intervals."""
+    st.markdown("""
+    #### Purpose & Application: Choosing the Right Statistical Ruler for Pass/Fail Data
+    **Purpose:** To compare and contrast different statistical methods for calculating a confidence interval for pass/fail (binomial) data. This tool demonstrates that the choice of statistical method is not trivial and can have a significant impact on the final conclusion, especially in common validation scenarios with high success rates and limited sample sizes.
+    
+    **Strategic Application:** This is a critical decision point when writing a validation protocol or a statistical analysis plan. When you must prove that a process meets a high reliability target (e.g., >99% success rate) based on a limited sample, the statistical interval you choose determines your ability to make that claim. Using an overly conservative interval (like Clopper-Pearson) may require a much larger sample size, increasing project costs, while using an unreliable one (like the classic Wald interval) can lead to a false sense of confidence and significant compliance risk.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Validation Scientist.
+    1.  Use the top two sliders to simulate a validation run with a specific number of samples and successes.
+    2.  Pay close attention to the **"Failure Scenarios"**—what happens when you have **few samples** and **zero or one failures**. This is where the methods differ most dramatically.
+    3.  Use the **Bayesian Prior** sliders to see how prior knowledge (e.g., from R&D) can be formally incorporated to produce a more informed interval.
+    """)
+
+    with st.sidebar:
+        st.subheader("Confidence Interval Controls")
+        st.markdown("**Experimental Results**")
+        n_samples_slider = st.slider("Number of Validation Samples (n)", 10, 200, 50, 5, help="The total number of samples tested in your validation run. Note how interval widths shrink as you increase n.")
+        n_failures_slider = st.slider("Number of Failures Observed", 0, n_samples_slider, 1, 1, help="The number of non-conforming or failing results. Scenarios with 0 or 1 failures are common and where the choice of CI method is most critical.")
+        n_successes = n_samples_slider - n_failures_slider
+        
+        st.markdown("**Bayesian Prior Belief**")
+        st.write("Simulate prior knowledge (e.g., from R&D studies).")
+        prior_successes = st.slider("Prior Successes (α)", 0, 100, 10, 1, help="The number of successes in your 'imaginary' prior data. A higher number represents a stronger prior belief in a high success rate.")
+        prior_failures = st.slider("Prior Failures (β)", 0, 100, 1, 1, help="The number of failures in your 'imaginary' prior data. Even a small number here can make the model more conservative.")
+
+    fig, metrics = plot_proportion_cis(n_samples_slider, n_successes, prior_successes, prior_failures)
+    
+    col1, col2 = st.columns([0.6, 0.4])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Key Interval Results")
+        st.metric("Observed Success Rate", f"{n_successes/n_samples_slider if n_samples_slider > 0 else 0:.2%}")
+        st.markdown(f"**Wilson Score CI:** `[{metrics['Wilson Score'][0]:.3f}, {metrics['Wilson Score'][1]:.3f}]`")
+        st.markdown(f"**Clopper-Pearson (Exact) CI:** `[{metrics['Clopper–Pearson (Exact)'][0]:.3f}, {metrics['Clopper–Pearson (Exact)'][1]:.3f}]`")
+        st.markdown(f"**Custom Bayesian CI:** `[{metrics['Bayesian with Custom Prior'][0]:.3f}, {metrics['Bayesian with Custom Prior'][1]:.3f}]`")
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Comparison:**
+        - **The Wald Interval's Failure:** Set the "Number of Failures" to 0. Notice that the Wald interval (red) collapses to a width of zero. This is a nonsensical result that falsely claims perfect certainty from a finite sample. This is why it is blacklisted in modern statistical practice.
+        - **Conservatism vs. Accuracy:** The **Clopper-Pearson** interval is often the widest. It is guaranteed to meet the 95% confidence level, but this guarantee makes it conservative (less powerful). The **Wilson Score** interval is slightly narrower and has better average performance, making it a common "best practice" choice for frequentist analysis.
+        - **The Power of Priors:** Adjust the **Bayesian Prior** sliders. If you have a strong prior belief in a high success rate (e.g., 99 successes, 1 failure), notice how the "Bayesian with Custom Prior" interval is "pulled" towards that high rate, resulting in a higher lower bound than other methods. This can be a powerful way to reduce sample sizes, provided the prior is well-justified.
+        
+        **The Strategic Insight:** The choice of interval method directly impacts your ability to meet a pre-defined acceptance criterion. For a result of 49/50 successes (98%), the lower bound of the Wilson interval is 0.888. If your acceptance criterion is ">90% success," you fail. But for the same data, if you had a strong prior, the Bayesian lower bound might be >0.90, allowing you to pass.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of CI Methods for Proportions
+        - **Wald Interval:** The simplest method, based on the normal approximation. **Known to perform very poorly** with small `n` or extreme proportions and should be avoided in GxP settings.
+        - **Wilson Score Interval:** A more complex method also based on the normal approximation, but it inverts the score test, giving it excellent performance across all conditions. Often the recommended default for frequentist analysis.
+        - **Agresti–Coull Interval:** A simplified version of the Wilson interval that is easier to compute by hand (it adds 2 successes and 2 failures before calculating a Wald interval). Performs similarly to Wilson but is slightly more conservative.
+        - **Clopper–Pearson (Exact) Interval:** A method based directly on the binomial distribution. It guarantees that the true coverage will be *at least* 95%, but is often too wide (conservative), making it harder to pass acceptance criteria.
+        - **Jeffreys Interval (Bayesian):** A Bayesian credible interval using a non-informative prior (`Beta(0.5, 0.5)`). It has excellent frequentist properties and is a good choice when no prior knowledge is available.
+        - **Bayesian Credible Interval:** An interval derived from the posterior distribution. It represents a range where there is a 95% probability that the true parameter lies. Its location and width are influenced by both the data and the chosen prior.
+        - **Bootstrapped CI:** A computational method that simulates thousands of new datasets by resampling from the original data. It does not rely on statistical assumptions, but can be unstable with very small sample sizes.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Textbook Default" Fallacy**
+An analyst uses the simple Wald interval because it's the first one taught in many introductory statistics courses. When validating a process with a 100% success rate in 50 samples (50/50), the Wald interval is `[1.0, 1.0]`, leading them to claim with 95% confidence that the true success rate is exactly 100%.
+- **The Flaw:** This is a statistically indefensible claim of absolute certainty from a finite sample. The Wilson Score interval for the same data is `[0.93, 1.0]`, which correctly communicates that the true rate could plausibly be as low as 93%.""")
+        st.success("""🟢 **THE GOLDEN RULE: Match the Method to the Risk and Justify It**
+The choice of confidence interval method is a risk-based decision that must be pre-specified and justified in the validation protocol.
+1.  **For General Use (Frequentist):** The **Wilson Score interval** is the recommended default, providing the best balance of accuracy and interval width.
+2.  **For Absolute Guarantee:** When you absolutely must guarantee that your confidence level is not underestimated (e.g., for a critical safety claim), the **Clopper-Pearson (Exact) interval** is the most conservative and defensible choice.
+3.  **When Prior Data Exists:** When you have strong, justifiable prior knowledge (e.g., from extensive R&D data), a **Bayesian credible interval** is the most powerful and efficient approach, but the prior must be explicitly defined and justified in the protocol.
+**Never use the Wald interval in a formal validation report.**""")
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: Correcting a Century-Old Problem
+        The problem of estimating an interval for a proportion seems simple, but its history is complex. The standard **Wald interval**, based on the work of Abraham Wald in the 1930s, was easy to teach and compute, so it became the default method in textbooks for decades. However, its poor performance was well-known to statisticians. A famous 1998 paper by Brown, Cai, and DasGupta, titled "Interval Estimation for a Binomial Proportion," systematically exposed the severe flaws of the Wald interval to a wider audience, calling it "persistently chaotic."
+        
+        The irony is that the superior solutions were much older. The **Wilson Score interval** was developed by Edwin Bidwell Wilson in **1927**, and the **Clopper-Pearson interval** was developed in **1934**. For much of the 20th century, these more accurate but computationally intensive methods were overlooked in favor of the simpler Wald interval.
+        
+        The "rediscovery" of these superior methods in the 1990s, driven by increased computing power and influential papers like Brown et al.'s, led to a major shift in statistical practice. Today, modern statistical software and guidelines strongly advocate for the use of Wilson, Clopper-Pearson, or other improved methods, and the simple Wald interval is largely considered obsolete for serious analysis.
+        """)
+    with tabs[4]:
+        st.markdown("""
+        The calculation of a statistically valid confidence interval for a proportion is a fundamental requirement in many validation activities where the outcome is binary (pass/fail, concordant/discordant, etc.).
+        - **FDA Process Validation Guidance (Stage 2 - PPQ):** When validating a process attribute that is pass/fail (e.g., visual inspection for cosmetic defects), a confidence interval on the pass rate is used to demonstrate that the process can consistently produce conforming product. Using a robust interval is critical for making a high-confidence claim.
+        - **Analytical Method Validation (ICH Q2):** For qualitative assays (e.g., a limit test), validation requires demonstrating a high rate of correct detections. For concordance studies comparing a new method to a reference, a confidence interval on the concordance rate is a key performance metric.
+        - **21 CFR 820.250 (Statistical Techniques):** This regulation for medical devices explicitly requires that "Where appropriate, each manufacturer shall establish and maintain procedures for identifying valid statistical techniques..." Using a robust interval like the Wilson Score instead of the flawed Wald interval is a direct fulfillment of this requirement.
+        """)
+# ==================================================================================== 4. CORE VALIDATION PARAMETERS ===============================================================
 def render_core_validation_params():
     """Renders the INTERACTIVE module for core validation parameters."""
     st.markdown("""
@@ -6307,7 +6400,498 @@ def render_core_validation_params():
             - **FDA Guidance for Industry - Analytical Procedures and Methods Validation:** The FDA's specific guidance, which is harmonized with ICH Q2(R1).
             - **USP General Chapter <1225> - Validation of Compendial Procedures:** Provides detailed requirements for validation within the United States Pharmacopeia framework.
             """)
+#====================================================== 5. LOD & LOQ =========================================================================
+def render_lod_loq():
+    """Renders the INTERACTIVE module for Limit of Detection & Quantitation."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To formally establish the absolute lower performance boundaries of a quantitative assay. It determines the lowest analyte concentration an assay can reliably **detect (LOD)** and the lowest concentration it can reliably and accurately **quantify (LOQ)**.
+    
+    **Strategic Application:** This is a mission-critical parameter for any assay used to measure trace components, such as impurities in a drug product or biomarkers for early-stage disease diagnosis. **Use the sliders in the sidebar to simulate how assay sensitivity and noise impact the final LOD and LOQ.**
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Now, when you select the "LOD & LOQ" tool, a new set of dedicated sliders will appear below. You can dynamically change the assay's slope and noise to see in real-time how these fundamental characteristics drive the final LOD and LOQ results.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
+    st.subheader("LOD & LOQ Controls")
+    slope_slider = st.slider(
+        "📈 Assay Sensitivity (Slope)", 
+        min_value=0.005, max_value=0.1, value=0.02, step=0.005, format="%.3f",
+        help="How much the signal increases per unit of concentration. A steeper slope (higher sensitivity) is better."
+    )
+    noise_slider = st.slider(
+        "🔇 Baseline Noise (SD)", 
+        min_value=0.001, max_value=0.05, value=0.01, step=0.001, format="%.3f",
+        help="The inherent random noise of the assay at zero concentration. A lower noise floor is better."
+    )
+    
+    # Generate plots using the slider values
+    fig, lod_val, loq_val = plot_lod_loq(slope=slope_slider, baseline_sd=noise_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} units", help="The lowest concentration you can report with confidence in the numerical value.")
+            st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} units", help="The lowest concentration you can reliably claim is 'present'.")
+            st.info("Play with the sliders in the sidebar to see how assay parameters affect the results!")
+            st.markdown("""
+            - **Increase `Assay Sensitivity (Slope)`:** As the slope gets steeper, the LOD and LOQ values get **lower (better)**. A highly sensitive assay needs very little analyte to produce a strong signal that can overcome the noise.
+            - **Increase `Baseline Noise (SD)`:** As the noise floor of the assay increases, the LOD and LOQ values get **higher (worse)**. It becomes much harder to distinguish a true low-level signal from random background fluctuations.
 
+            **The Core Strategic Insight:** The sensitivity of an assay is a direct battle between its **signal-generating power (Slope)** and its **inherent noise (SD)**. The LOD and LOQ are simply the statistical formalization of this signal-to-noise ratio.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Sensitivity Terms
+            - **Limit of Blank (LOB):** The highest measurement result that is likely to be observed for a blank sample. It defines the "noise floor" of the assay.
+            - **Limit of Detection (LOD):** The lowest concentration of analyte that can be reliably detected above the LOB, but not necessarily quantified with acceptable precision and accuracy.
+            - **Limit of Quantitation (LOQ):** The lowest concentration of analyte that can be reliably quantified with a pre-defined level of precision and accuracy. This is the lower boundary of the assay's reportable range.
+            - **Slope (Sensitivity):** In a calibration curve, the slope represents the change in analytical signal per unit change in analyte concentration. A steeper slope generally indicates a more sensitive assay.
+            """)
+        with tabs[2]:
+            st.markdown("- The primary, non-negotiable criterion is that the experimentally determined **LOQ must be ≤ the lowest concentration that the assay is required to measure** for its specific application (e.g., a release specification for an impurity).")
+            st.markdown("- For a concentration to be formally declared the LOQ, it must be experimentally confirmed. This typically involves analyzing 5-6 independent samples at the claimed LOQ concentration and demonstrating that they meet pre-defined criteria for precision and accuracy (e.g., **%CV < 20% and %Recovery between 80-120%** for a bioassay).")
+            st.warning("""
+            **The LOB, LOD, and LOQ Hierarchy: A Critical Distinction**
+            A full characterization involves three distinct limits:
+            - **Limit of Blank (LOB):** The highest measurement expected from a blank sample.
+            - **Limit of Detection (LOD):** The lowest concentration whose signal is statistically distinguishable from the LOB.
+            - **Limit of Quantitation (LOQ):** The lowest concentration meeting precision/accuracy requirements, which is almost always higher than the LOD.
+            """)
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The need to define analytical sensitivity is old, but definitions were inconsistent until the **International Council for Harmonisation (ICH)** guideline **ICH Q2(R1)** harmonized the methodologies. This work was heavily influenced by the statistical framework established by **Lloyd Currie at NIST** in his 1968 paper, which established the clear, hypothesis-testing basis for the modern LOB/LOD/LOQ hierarchy.
+
+            #### Mathematical Basis
+            This method is built on the relationship between the assay's signal, its sensitivity (Slope, S), and its noise (standard deviation, σ).
+            """)
+            st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
+            st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
+            st.markdown("The factor of 10 for LOQ is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.")
+        with tabs[4]:
+            st.markdown("""
+            The determination of detection and quantitation limits is a mandatory part of validating quantitative assays for impurities or trace components.
+            - **ICH Q2(R1) - Validation of Analytical Procedures:** Explicitly lists "Quantitation Limit" and "Detection Limit" as key validation characteristics and provides the statistical methodologies (e.g., based on signal-to-noise or standard deviation of the response and the slope).
+            - **USP General Chapter <1225>:** Mirrors the requirements of ICH Q2(R1) for the validation of analytical procedures.
+            """)
+#====================================================== 6.LINEARITY & RANGE =========================================================================
+def render_linearity():
+    """Renders the INTERACTIVE module for Linearity analysis."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To verify that an assay's response is directly and predictably proportional to the known concentration of the analyte across its entire intended operational range.
+    
+    **Strategic Application:** This is a cornerstone of quantitative assay validation. A method exhibiting non-linearity might be accurate at a central control point but dangerously inaccurate at the specification limits. **Use the sliders in the sidebar to simulate different types of non-linear behavior and error.**
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sliders at the bottom of the sidebar to simulate different error types. The **Residual Plot** is your most important diagnostic tool! A "funnel" shape indicates proportional error, and a "U" shape indicates curvature. When you see a funnel, try switching to the WLS model to see how it can provide a better fit.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
+    with st.sidebar:
+        st.subheader("Linearity Controls")
+        curvature_slider = st.slider("🧬 Curvature Effect", -5.0, 5.0, -1.0, 0.5,
+            help="Simulates non-linearity. A negative value creates saturation at high concentrations. Zero is perfectly linear.")
+        random_error_slider = st.slider("🎲 Random Error (Constant SD)", 0.1, 5.0, 1.0, 0.1,
+            help="The baseline random noise of the assay, constant across all concentrations.")
+        proportional_error_slider = st.slider("📈 Proportional Error (% of Conc.)", 0.0, 5.0, 2.0, 0.25,
+            help="Error that increases with concentration. This creates a 'funnel' or 'megaphone' shape in the residual plot.")
+        
+        # --- NEW TOGGLE SWITCH ADDED HERE ---
+        st.markdown("---")
+        st.markdown("**Regression Model**")
+        wls_toggle = st.toggle("Use Weighted Least Squares (WLS)", value=False,
+            help="Activate WLS to give less weight to high-concentration points. Ideal for correcting the 'funnel' shape caused by proportional error.")
+    
+    # Generate plots using the slider values and the new toggle value
+    fig, model = plot_linearity(
+        curvature=curvature_slider,
+        random_error=random_error_slider,
+        proportional_error=proportional_error_slider,
+        use_wls=wls_toggle # Pass the toggle state to the plotting function
+    )
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights",  "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}", help="Indicates the proportion of variance explained by the model. Note how a high R² can hide clear non-linearity!")
+            st.metric(label="💡 Metric: Slope", value=f"{model.params['Nominal']:.3f}", help="Ideal = 1.0.")
+            st.metric(label="💡 Metric: Y-Intercept", value=f"{model.params['const']:.2f}", help="Ideal = 0.0.")
+            
+            st.markdown("""
+            - **The Residual Plot is Key:** This is the most sensitive diagnostic tool.
+                - Add **Curvature**: Notice the classic "U-shape" or "inverted U-shape" that appears. This is a dead giveaway that your straight-line model is wrong.
+                - Add **Proportional Error**: Watch the residuals form a "funnel" shape (heteroscedasticity). This means OLS is no longer valid. **Activate the WLS toggle in the sidebar** to see how a weighted model correctly handles this error structure.
+            
+            **The Core Strategic Insight:** A high R-squared is **not sufficient** to prove linearity. You must visually inspect the residual plot for hidden patterns. The residual plot tells the true story of your model's fit.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Linearity Terms
+            - **Linearity:** The ability of an analytical procedure to obtain test results which are directly proportional to the concentration of analyte in the sample.
+            - **Range:** The interval between the upper and lower concentration of analyte for which the procedure has demonstrated a suitable level of precision, accuracy, and linearity.
+            - **Residuals:** The vertical distance between an observed data point and the fitted regression line. Analyzing patterns in residuals is the best way to diagnose non-linearity.
+            - **R-squared (R²):** A statistical measure of how close the data are to the fitted regression line. While a high R² is necessary, it is not sufficient to prove linearity.
+            - **Weighted Least Squares (WLS):** A regression method used when the variance of the errors is not constant (heteroscedasticity). It gives less weight to less precise (typically high-concentration) data points.
+            """)
+        with tabs[2]:
+            st.markdown("These criteria are defined in the validation protocol and must be met to declare the method linear.")
+            st.markdown("- **R-squared (R²):** Typically > **0.995**, but for high-precision methods (e.g., HPLC), > **0.999** is often required.")
+            st.markdown("- **Slope & Intercept:** The 95% confidence intervals for the slope and intercept should contain 1.0 and 0, respectively.")
+            st.markdown("- **Residuals:** There should be no obvious pattern or trend. A formal **Lack-of-Fit test** can be used for objective proof (requires true replicates at each level).")
+            st.markdown("- **Recovery:** The percent recovery at each concentration level must fall within a pre-defined range (e.g., 80% to 120% for bioassays).")
+
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context & Origin
+            The mathematical engine is **Ordinary Least Squares (OLS) Regression**, developed independently by **Adrien-Marie Legendre (1805)** and **Carl Friedrich Gauss (1809)**. The genius of OLS is that it finds the one line that **minimizes the sum of the squared vertical distances (the "residuals")** between the data points and the line.
+            
+            However, OLS relies on a key assumption: that the variance of the errors is constant at all levels of X (homoscedasticity). In many biological and chemical assays, this is not true; variability often increases with concentration (heteroscedasticity). **Weighted Least Squares (WLS)** is the classical solution to this problem, where each point is weighted by the inverse of its variance, giving more influence to the more precise, low-concentration points.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The goal is to fit a simple linear model:")
+            st.latex("y = \\beta_0 + \\beta_1 x + \\epsilon")
+            st.markdown("""
+            - **OLS** finds the `β` values that minimize: `Σ(yᵢ - ŷᵢ)²`
+            - **WLS** finds the `β` values that minimize: `Σwᵢ(yᵢ - ŷᵢ)²`, where `wᵢ` is the weight for the i-th observation, typically `1/σ²ᵢ`.
+            """)
+        with tabs[4]:
+            st.markdown("""
+            Linearity is a fundamental characteristic required for all quantitative analytical methods.
+            - **ICH Q2(R1) - Validation of Analytical Procedures:** Mandates the evaluation of Linearity and Range for quantitative tests. It specifies that a linear relationship should be evaluated across the range of the analytical procedure.
+            - **FDA Guidance for Industry:** Recommends a minimum of five concentration levels to establish linearity and emphasizes the importance of visual inspection of the data and analysis of residuals.
+            - **USP General Chapter <1225>:** Requires the statistical evaluation of linearity, including the calculation of the correlation coefficient, y-intercept, and slope of the regression line.
+            """)
+#====================================================== 7. NON-LINEAR REGRESSION (4PL/5PL) =========================================================================
+def render_4pl_regression():
+    """Renders the INTERACTIVE module for 4-Parameter Logistic (4PL) regression."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To accurately model the characteristic sigmoidal (S-shaped) dose-response relationship found in most immunoassays (e.g., ELISA) and biological assays.
+    
+    **Strategic Application:** This is the workhorse model for potency assays and immunoassays. The 4PL model allows for the accurate calculation of critical assay parameters like the EC50. **Use the sliders in the sidebar to control the "true" shape of the curve and see how the curve-fitting algorithm performs.**
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Build your own "true" 4PL curves using the sliders. The **Residual Plot** is your key diagnostic: if you see a "funnel" shape (due to `Proportional Noise`), activate the **Weighted Fit (IRLS)** toggle to see how a more advanced algorithm can produce a better, more reliable fit.
+    """)
+    
+    # --- Sidebar controls for this specific module ---
+    with st.sidebar:
+        st.subheader("4PL Curve Controls (True Values)")
+        d_slider = st.slider("🅾️ Lower Asymptote (d)", 0.0, 0.5, 0.05, 0.01,
+            help="The minimum signal response of the assay, typically the background signal at zero concentration. This defines the 'floor' of the curve.")
+        a_slider = st.slider("🅰️ Upper Asymptote (a)", 1.0, 3.0, 1.5, 0.1,
+            help="The maximum signal response of the assay at infinite concentration. This represents the saturation point or the 'ceiling' of the curve.")
+        c_slider = st.slider("🎯 Potency / EC50 (c)", 1.0, 100.0, 10.0, 1.0,
+            help="The concentration that produces a response halfway between the lower (d) and upper (a) asymptotes. A lower EC50 value indicates a more potent substance.")
+        b_slider = st.slider("🅱️ Hill Slope (b)", 0.5, 5.0, 1.2, 0.1,
+            help="Controls the steepness of the curve at its midpoint (the EC50). A steeper slope (higher value) often indicates a more sensitive assay in its dynamic range.")
+        
+        st.markdown("---")
+        st.subheader("Noise Model Controls")
+        noise_sd_slider = st.slider("🎲 Constant Noise (SD)", 0.0, 0.2, 0.05, 0.01,
+            help="The baseline random noise, constant across all concentrations.")
+        proportional_noise_slider = st.slider("📈 Proportional Noise (%)", 0.0, 5.0, 1.0, 0.5,
+            help="Noise that increases with the signal. Creates a 'funnel' shape in the residuals (heteroscedasticity).")
+
+        st.markdown("---")
+        st.subheader("Fit Model Controls")
+        irls_toggle = st.toggle("Use Weighted Fit (IRLS)", value=True,
+            help="Activate Iteratively Reweighted Least Squares (IRLS). This is the correct model to use when proportional noise is present.")
+    
+    # Generate plots using the slider values
+    fig, params, perr = plot_4pl_regression(
+        a_true=a_slider, b_true=b_slider, c_true=c_slider, d_true=d_slider,
+        noise_sd=noise_sd_slider, proportional_noise=proportional_noise_slider,
+        use_irls=irls_toggle
+    )
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        a_fit, b_fit, c_fit, d_fit = params
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
+        with tabs[0]:
+            # Display fitted parameters with their standard errors
+            st.metric(label="🅰️ Fitted Upper Asymptote (a)", value=f"{a_fit:.3f} ± {perr[0]:.3f}")
+            st.metric(label="🅱️ Fitted Hill Slope (b)", value=f"{b_fit:.3f} ± {perr[1]:.3f}")
+            st.metric(label="🎯 Fitted EC50 (c)", value=f"{c_fit:.3f} ± {perr[2]:.2f} units")
+            st.metric(label="🅾️ Fitted Lower Asymptote (d)", value=f"{d_fit:.3f} ± {perr[3]:.3f}")
+            
+            st.markdown("""
+            **The Core Strategic Insight:** The 4PL curve is a complete picture of your assay's performance. The **residuals plot is your most important diagnostic tool**. A random scatter around zero means your model is a good fit. Any pattern (like a curve or funnel) indicates a problem with the model or the data weighting.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Bioassay Terms
+            - **4PL (Four-Parameter Logistic) Model:** A type of non-linear regression model used to describe sigmoidal (S-shaped) dose-response curves.
+            - **Upper Asymptote (a):** The maximum response of the assay at infinite concentration (the "ceiling").
+            - **Lower Asymptote (d):** The response of the assay at zero concentration (the "floor" or background).
+            - **EC50 / IC50 (c):** The concentration that gives a response halfway between the lower and upper asymptotes. It is the primary measure of a substance's **potency**.
+            - **Hill Slope (b):** A parameter that describes the steepness of the curve at its midpoint (the EC50).
+            - **Potency:** A measure of drug activity expressed in terms of the amount required to produce an effect of a given intensity. A lower EC50 means higher potency.
+            """)
+        with tabs[2]:
+            st.error("""🔴 **THE INCORRECT APPROACH: "Force the Fit"**
+- *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated and can hide significant lack of fit).
+- *"The model doesn't fit a point well. I'll delete the outlier."* (Data manipulation without statistical justification).
+- *"My residuals look like a funnel, but I'll ignore it and use standard least squares."* (This leads to incorrect parameter estimates and confidence intervals).""")
+            st.success("""🟢 **THE GOLDEN RULE: Model the Biology, Weight the Variance**
+- **Embrace the 'S' Shape:** Use a non-linear model for non-linear biological data. The 4PL is standard for a reason.
+- **Weight Your Points:** Bioassay data is almost always heteroscedastic (non-constant variance). Use a weighted regression (like IRLS) to get the most accurate and reliable parameter estimates.
+- **Inspect the Residuals:** The residuals must be visually random. Any pattern indicates your model is not correctly capturing the data's behavior.""")
+
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context: Modeling Dose-Response
+            **The Problem:** In the early 20th century, pharmacologists and biologists needed a mathematical way to describe the relationship between the dose of a substance and its biological response. This relationship was rarely linear; it typically showed a sigmoidal (S-shaped) curve, with a floor, a steep middle section, and a ceiling (saturation).
+
+            **The 'Aha!' Moment:** The first major step was the **Hill Equation**, developed by physiologist Archibald Hill in 1910 to describe oxygen binding to hemoglobin. Later, A.J. Clark and others adapted these ideas into dose-response models. The 4-Parameter Logistic (4PL) model emerged as a flexible, robust, and empirically successful model for this type of data.
+
+            **The Impact:** The proliferation of immunoassays like RIA and ELISA in the 1970s and 80s made the 4PL model a workhorse of the biotech industry. The development of accessible non-linear regression software, like that based on the **Levenberg-Marquardt algorithm**, made fitting these models routine. Today, it remains the standard model for most potency and immunogenicity assays.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The 4-Parameter Logistic function is a sigmoidal curve defined by:")
+            st.latex(r"y = d + \frac{a - d}{1 + (\frac{x}{c})^b}")
+            st.markdown("""
+            - **`a`**: The upper asymptote (response at infinite concentration).
+            - **`b`**: The Hill slope (steepness of the curve at the midpoint).
+            - **`c`**: The EC50 or IC50 (concentration at 50% of the maximal response). This is often the primary measure of potency.
+            - **`d`**: The lower asymptote (response at zero concentration).
+            Since this equation is non-linear in its parameters, it cannot be solved directly with linear algebra. It must be fit using an iterative numerical optimization algorithm (like Levenberg-Marquardt) that finds the parameter values `(a,b,c,d)` that minimize the sum of squared errors between the data and the fitted curve.
+            """)
+        with tabs[4]:
+            st.markdown("""
+            While the 4PL model itself is a mathematical tool, its use is governed by guidelines on the validation of bioassays, where such non-linear responses are common.
+            - **USP General Chapters <111>, <1032>, <1033>:** These chapters provide extensive guidance on the design and statistical analysis of biological assays. They discuss the importance of using an appropriate non-linear model to fit dose-response curves and assess parallelism.
+            - **FDA Guidance on Bioanalytical Method Validation:** Stresses the need to characterize the full concentration-response relationship and use appropriate regression models (including weighted regression for heteroscedastic data).
+            """)
+#=======================================================================8. GAGE R&R / VCA   ========================================================================================
+def render_gage_rr():
+    """Renders the INTERACTIVE module for Gage R&R."""
+    st.markdown("""
+    #### Purpose & Application: The Voice of the Measurement
+    **Purpose:** To rigorously quantify the inherent variability (error) of a measurement system itself. It answers the fundamental question: **"Is my measurement system a precision instrument, or a random number generator?"**
+    
+    **Strategic Application:** This is a non-negotiable gateway in any technology transfer or process validation. An unreliable measurement system creates a "fog of uncertainty," leading to two costly errors:
+    -   **Type I Error (Producer's Risk):** Rejecting good product because of measurement error.
+    -   **Type II Error (Consumer's Risk):** Accepting bad product because the measurement system couldn't detect the defect.
+    A Gage R&R study provides the objective evidence that your measurement system is fit for purpose.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Validation Lead. Use the sliders in the sidebar to simulate different sources of variation. Your goal is to achieve a **% Gage R&R < 10%**.
+    - **`Part-to-Part Variation`**: The "true" variation you want to measure. A high value makes it *easier* to pass the Gage R&R.
+    - **`Repeatability`**: The instrument's own noise. This is a primary driver of Gage R&R failure.
+    - **`Operator Variation`**: Inconsistency between people. This is the other major driver of failure.
+    - **`Operator-Part Interaction`**: A subtle effect where an operator's bias changes depending on the part being measured.
+    """)
+    
+    with st.sidebar:
+        st.subheader("Gage R&R Controls")
+        part_sd_slider = st.slider("🏭 Part-to-Part Variation (SD)", 1.0, 10.0, 5.0, 0.5,
+            help="The 'true' variation of the product. A well-designed study uses parts that span a wide range, making this value high.")
+        repeat_sd_slider = st.slider("🔬 Repeatability / Instrument Noise (SD)", 0.1, 5.0, 1.5, 0.1,
+            help="The inherent 'noise' of the instrument/assay. High values represent an imprecise measurement device.")
+        operator_sd_slider = st.slider("👤 Operator-to-Operator Variation (SD)", 0.0, 5.0, 0.75, 0.25,
+            help="The systematic bias between operators. High values represent poor training or inconsistent technique.")
+        # --- NEW SLIDER ADDED HERE ---
+        interaction_sd_slider = st.slider("🔄 Operator-Part Interaction (SD)", 0.0, 2.0, 0.5, 0.1,
+            help="Simulates inconsistency where operators measure certain parts differently (e.g., struggling with smaller parts). This causes the operator mean lines to be non-parallel.")
+
+    # Call the updated plot function with all four parameters
+    fig, pct_rr, ndc = plot_gage_rr(
+        part_sd=part_sd_slider, 
+        repeatability_sd=repeat_sd_slider, 
+        operator_sd=operator_sd_slider,
+        interaction_sd=interaction_sd_slider
+    )
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights",  "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse")
+            st.metric(label="📊 KPI: Number of Distinct Categories (ndc)", value=f"{ndc}", help="How many distinct groups of parts the system can reliably distinguish. Must be ≥ 5.")
+
+            st.markdown("""
+            **Reading the Plots:**
+            - **Main Plot (Left):** Now shows parts sorted by size. The colored lines represent each operator's average measurement for each part. If these lines are not parallel, it's a sign of **interaction**.
+            - **Operator Plot (Top-Right):** Visualizes the overall bias between operators.
+            - **Verdict (Bottom-Right):** The final bar chart. The colored bar (% Gage R&R) shows how much of the total observed variation is just measurement noise.
+
+            **Core Insight:** A low % Gage R&R is achieved when measurement error is small *relative to* the true process variation. You can improve your Gage R&R by either reducing measurement error OR by testing it on parts that have a wider, more representative range of true variation.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of MSA Terms
+            - **Measurement System Analysis (MSA):** A formal statistical study to evaluate the total variation present in a measurement system.
+            - **Gage R&R:** The combined estimate of a measurement system's Repeatability and Reproducibility. It quantifies the inherent variability of the measurement process itself.
+            - **Repeatability (Equipment Variation):** The variation observed when the same operator measures the same part multiple times with the same device. It represents the inherent "noise" of the instrument.
+            - **Reproducibility (Appraiser Variation):** The variation observed when different operators measure the same part using the same device. It represents the inconsistency between people.
+            - **% Gage R&R:** The percentage of the total observed process variation that is consumed by measurement system error.
+            - **Number of Distinct Categories (ndc):** An index that represents the number of distinct groups of parts the measurement system can reliably distinguish. A value ≥ 5 is considered acceptable.
+            """)
+        with tabs[2]:
+            st.markdown("Acceptance criteria are derived from the **AIAG's Measurement Systems Analysis (MSA)** manual, the global standard.")
+            st.markdown("- **< 10% Gage R&R:** The system is **acceptable**.")
+            st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable**, may be approved based on importance of application and cost. ")
+            st.markdown("- **> 30% Gage R&R:** The system is **unacceptable** and must be improved.")
+            st.error("""
+            **The Part Selection Catastrophe**: The most common way to fail a Gage R&R is not bad math, but bad study design. If you select parts that are all very similar (low Part-to-Part variation), you are mathematically guaranteed to get a high % Gage R&R, even with a perfect instrument. **You must select parts that represent the full range of expected process variation.**
+            """)
+            
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context: The Crisis that Forged a Standard
+            **The Problem:** In the 1970s and 80s, the American automotive industry was in crisis, facing intense competition from Japanese manufacturers who had mastered statistical quality control. A major source of defects and waste was inconsistent measurement. A part might pass inspection at a supplier's factory but fail at the assembly plant simply because the two locations' measurement systems ("gages") didn't agree. There was no standardized way to qualify a measurement system.
+
+            **The 'Aha!' Moment:** The "Big Three" US automakers—Ford, GM, and Chrysler—realized they couldn't solve this problem alone. They formed the **Automotive Industry Action Group (AIAG)** to create common quality standards for their entire supply chain. One of their most impactful creations was the **Measurement Systems Analysis (MSA)** manual, first published in 1990.
+            
+            **The Impact:** The MSA manual didn't invent Gage R&R, but it codified it into a simple, repeatable procedure that became the global standard. The critical evolution it championed was the move from older, less reliable methods to the **ANOVA (Analysis of Variance) method** as the preferred approach. The ANOVA method, pioneered by **Sir Ronald A. Fisher**, is statistically superior because it can correctly partition all sources of variation, including the crucial **interaction effect** between operators and parts (e.g., if one operator struggles to measure small parts specifically). This rigorous approach became the benchmark for quality-driven industries worldwide, from aerospace to pharmaceuticals.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The core idea is to partition the total observed variation into its components. The fundamental equation is:")
+            st.latex(r"\sigma^2_{\text{Total}} = \sigma^2_{\text{Process}} + \sigma^2_{\text{Measurement System}}")
+            st.markdown("The measurement system variation is further broken down:")
+            st.latex(r"\sigma^2_{\text{Measurement System}} = \underbrace{\sigma^2_{\text{Repeatability}}}_\text{Equipment Variation} + \underbrace{\sigma^2_{\text{Reproducibility}}}_\text{Appraiser Variation}")
+            st.markdown("ANOVA achieves this by partitioning the **Sum of Squares (SS)**:")
+            st.latex(r"SS_{\text{Total}} = SS_{\text{Part}} + SS_{\text{Operator}} + SS_{\text{Interaction}} + SS_{\text{Error}}")
+            st.markdown("These SS values are converted to Mean Squares (MS), and from the MS values, we can estimate the variance components (`σ²`). For example:")
+            st.latex(r"\hat{\sigma}^2_{\text{Repeatability}} = MS_{\text{Error}}")
+            st.latex(r"\hat{\sigma}^2_{\text{Operator}} = \frac{MS_{\text{Operator}} - MS_{\text{Interaction}}}{n \cdot r}")
+            st.markdown("The final KPI is the **% Gage R&R**, which is the percentage of the total variation that is consumed by the measurement system:")
+            st.latex(r"\% \text{Gage R\&R} = \frac{\hat{\sigma}_{\text{Gage R\&R}}}{\hat{\sigma}_{\text{Total}}} \times 100")
+        with tabs[4]:
+            st.markdown("""
+            Gage R&R is the standard methodology for Measurement Systems Analysis (MSA), a critical component of ensuring data integrity and process control.
+            - **AIAG MSA Manual:** While from the automotive industry, this is considered the global "gold standard" reference for Gage R&R methodology and acceptance criteria.
+            - **FDA Process Validation Guidance:** Stage 1 (Process Design) and Stage 2 (Process Qualification) require an understanding of all sources of variability, including measurement error. A Gage R&R is the formal proof that a measurement system is suitable for its intended use.
+            - **21 CFR 211.160(b):** Requires that "laboratory controls shall include the establishment of scientifically sound and appropriate... standards, and test procedures... to assure that components... and drug products conform to appropriate standards of identity, strength, quality, and purity." A qualified measurement system is a prerequisite.
+            """)
+#=============================================================== 9. ATTRIBUTE AGREEMENT ANALYSIS ===================================================
+def render_attribute_agreement():
+    """Renders the comprehensive, interactive module for Attribute Agreement Analysis."""
+    st.markdown("""
+    #### Purpose & Application: Validating Human Judgment
+    **Purpose:** To validate your **human measurement systems**. It answers the critical question: "Can our inspectors consistently and accurately distinguish good product from bad?" This is the counterpart to Gage R&R, but for subjective, pass/fail, or categorical assessments.
+    
+    **Strategic Application:** This analysis is essential for validating any process that relies on human visual inspection or go/no-go gauges. A failed study indicates that inspectors are either missing true defects (a risk to the patient/customer) or rejecting good product (a risk to the business), and that retraining or improved inspection aids are required.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sidebar controls to create a challenging inspection scenario with different inspector archetypes.
+    - The **Effectiveness Plot** (right) is your main diagnostic, showing the two critical types of error for each inspector.
+    - The **Kappa Matrix** (bottom) shows who agrees with whom. Low values between two inspectors indicate they are not aligned on their decision criteria.
+    """)
+
+    with st.sidebar:
+        st.subheader("Attribute Agreement Controls")
+        st.markdown("**Study Design**")
+        n_parts_slider = st.slider("Number of Parts in Study", 20, 100, 50, 5, help="The total number of unique parts (both good and bad) that will be assessed.")
+        prevalence_slider = st.slider("True Defect Rate in Parts (%)", 10, 50, 20, 5, help="The percentage of parts in the study that are known to be defective. A good study has a high prevalence of defects to properly challenge the inspectors.")
+        st.markdown("**Inspector Archetypes**")
+        skilled_acc_slider = st.slider("Skilled Inspector Accuracy (%)", 85, 100, 98, 1, help="The base accuracy of your best, most experienced inspector.")
+        uncertain_acc_slider = st.slider("Uncertain Inspector Accuracy (%)", 70, 100, 90, 1, help="The base accuracy of an inspector who struggles with borderline cases. Their performance will degrade on ambiguous parts.")
+        biased_acc_slider = st.slider("Biased Inspector Accuracy (%)", 70, 100, 92, 1, help="The base accuracy of an inspector who is generally good but has a specific bias.")
+        bias_strength_slider = st.slider("Biased Inspector 'Safe Play' Bias", 0.5, 1.0, 0.8, 0.05, help="When the Biased Inspector is unsure about a GOOD part, what is the probability they will fail it to be safe? 0.5 is no bias; 1.0 is maximum bias.")
+
+    fig_eff, fig_kappa, kappa, df_eff = plot_attribute_agreement(
+        n_parts=n_parts_slider, n_replicates=3,
+        prevalence=prevalence_slider/100.0, 
+        skilled_accuracy=skilled_acc_slider/100.0,
+        uncertain_accuracy=uncertain_acc_slider/100.0,
+        biased_accuracy=biased_acc_slider/100.0,
+        bias_strength=bias_strength_slider
+    )
+
+    st.header("Results Dashboard")
+    col1, col2 = st.columns([0.4, 0.6])
+    with col1:
+        st.subheader("Overall Study Metrics")
+        st.metric("Fleiss' Kappa (Overall Agreement)", f"{kappa:.3f}", help="Measures agreement between all inspectors, corrected for chance. >0.7 is considered substantial agreement.")
+        st.markdown("##### Individual Inspector Performance")
+        st.dataframe(df_eff.style.format({"Miss Rate": "{:.2%}", "False Alarm Rate": "{:.2%}", "Accuracy": "{:.2%}"}), use_container_width=True)
+        
+    with col2:
+        st.plotly_chart(fig_eff, use_container_width=True)
+    
+    st.plotly_chart(fig_kappa, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Check Overall Agreement (Fleiss' Kappa):** The first KPI tells you if the inspection team, as a whole, is consistent. A low Kappa (<0.7) signals a systemic problem with the procedure or training.
+        2.  **Diagnose Individual Performance (Effectiveness Plot):** This plot is the main tool for root cause analysis.
+            - **Inspector A (Skilled)** should be in the bottom-left "Ideal Zone."
+            - **Inspector B (Uncertain)** will drift away from the ideal zone as you increase defect prevalence, because there are more borderline parts to confuse them. This signals a need for better training or clearer defect standards.
+            - **Inspector C (Biased)** will drift to the right (high False Alarm Rate). This shows they are incorrectly failing good product, indicating they are either misinterpreting a standard or are being overly cautious.
+        3.  **Find Disagreements (Kappa Matrix):** This heatmap shows *who* disagrees with *whom*. A low Kappa value between Inspector B and C, for example, would be expected from the simulation. This tells you exactly which two inspectors need to sit down together with the defect library to align their criteria.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Agreement Terms
+        - **Attribute Data:** Data that is categorical or discrete, such as pass/fail, good/bad, or a defect classification.
+        - **Miss Rate (False Negative):** The proportion of known defective parts that an inspector incorrectly classified as good. This represents **consumer's risk**.
+        - **False Alarm Rate (False Positive):** The proportion of known good parts that an inspector incorrectly classified as defective. This represents **producer's risk**.
+        - **Inter-Rater Reliability:** The degree of agreement among different inspectors (raters).
+        - **Cohen's Kappa (κ):** A statistic that measures inter-rater agreement for categorical items, while taking into account the possibility of the agreement occurring by chance.
+        - **Fleiss' Kappa:** An adaptation of Cohen's Kappa for measuring agreement between a fixed number of raters (more than two).
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Percent Agreement" Trap**
+An analyst simply calculates that all inspectors agreed with the standard 95% of the time and declares the system valid.
+- **The Flaw:** If the study only contains 2% true defects, an inspector could pass *every single part* and still achieve 98% agreement! Simple percent agreement is dangerously misleading with imbalanced data.""")
+        st.success("""🟢 **THE GOLDEN RULE: Use Kappa for Consistency, and Effectiveness for Risk**
+A robust analysis separates two key questions that must be answered.
+1.  **Are the inspectors CONSISTENT? (Precision)** This is about whether the inspectors agree with **each other**. The **Kappa Matrix** is the best tool for this, as it corrects for chance agreement and pinpoints specific disagreements.
+2.  **Are the inspectors ACCURATE? (Bias/Error)** This is about whether the inspectors agree with the **truth** (the gold standard). The **Effectiveness Report** is the best tool for this, as it separates the two types of business and patient risk: Miss Rate (Consumer's Risk) and False Alarm Rate (Producer's Risk).""")
+
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: Beyond Simple Percentages
+        **The Problem:** For decades, researchers in social sciences and medicine struggled to quantify the reliability of subjective judgments. Simple "percent agreement" was the common method, but it had a fatal flaw: it didn't account for agreement that could happen purely by chance. Two doctors who both diagnose 90% of patients with "common cold" will have high agreement, but their skill might be no better than a coin flip if the true rate is 90%.
+
+        **The 'Aha!' Moment:** In 1960, the psychologist **Jacob Cohen** developed **Cohen's Kappa (κ)**, a statistic that brilliantly solved this problem. Kappa measures the *observed* agreement and then subtracts the *agreement expected by chance*, creating a much more robust measure of true inter-rater reliability. This concept was later extended by **Joseph L. Fleiss** in 1971 to handle cases with more than two raters, resulting in **Fleiss' Kappa**.
+            
+        **The Impact:** Kappa statistics became the gold standard for measuring agreement in fields from psychology to clinical diagnostics. The automotive industry, in its quest for quality, recognized that a human inspector is a "measurement system." They incorporated these advanced statistical techniques into their **Measurement Systems Analysis (MSA)** manual, which is now considered the global standard, codifying Attribute Agreement Analysis as an essential tool for any industry relying on human inspection.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        This analysis is a key part of **Measurement Systems Analysis (MSA)**, which is a fundamental expectation of a robust quality system.
+        - **FDA Process Validation Guidance & 21 CFR 820 (QSR):** Both require that all measurement systems used for process control and product release be validated and fit for purpose. This explicitly includes human inspection systems. A documented Attribute Agreement Analysis is the objective evidence that this requirement has been met.
+        - **ICH Q9 (Quality Risk Management):** A poorly performing inspection system is a major quality risk. This analysis quantifies that risk (e.g., the Miss Rate is a direct measure of patient/consumer risk) and provides the data to justify mitigation, such as retraining or implementing automated inspection.
+        - **Regulatory Audits:** A lack of qualification for visual inspection processes is a common finding during regulatory audits. Having a robust Attribute Agreement study in your validation package demonstrates a mature and compliant quality system.
+        """)
+#=============================================================== 10. COMPREHENSIVE DIAGNOSTIC VALIDATION ===================================================
 def render_diagnostic_validation_suite():
     """Renders the comprehensive, interactive module for diagnostic test validation."""
     st.markdown("""
@@ -6454,497 +7038,7 @@ A robust diagnostic validation always considers the clinical context.
         - **GAMP 5:** If the test's result is generated by software (e.g., an algorithm that analyzes an image), that software must be validated (CSV) to ensure its calculations are correct and reliable.
         """)
 
-def render_attribute_agreement():
-    """Renders the comprehensive, interactive module for Attribute Agreement Analysis."""
-    st.markdown("""
-    #### Purpose & Application: Validating Human Judgment
-    **Purpose:** To validate your **human measurement systems**. It answers the critical question: "Can our inspectors consistently and accurately distinguish good product from bad?" This is the counterpart to Gage R&R, but for subjective, pass/fail, or categorical assessments.
-    
-    **Strategic Application:** This analysis is essential for validating any process that relies on human visual inspection or go/no-go gauges. A failed study indicates that inspectors are either missing true defects (a risk to the patient/customer) or rejecting good product (a risk to the business), and that retraining or improved inspection aids are required.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the sidebar controls to create a challenging inspection scenario with different inspector archetypes.
-    - The **Effectiveness Plot** (right) is your main diagnostic, showing the two critical types of error for each inspector.
-    - The **Kappa Matrix** (bottom) shows who agrees with whom. Low values between two inspectors indicate they are not aligned on their decision criteria.
-    """)
-
-    with st.sidebar:
-        st.subheader("Attribute Agreement Controls")
-        st.markdown("**Study Design**")
-        n_parts_slider = st.slider("Number of Parts in Study", 20, 100, 50, 5, help="The total number of unique parts (both good and bad) that will be assessed.")
-        prevalence_slider = st.slider("True Defect Rate in Parts (%)", 10, 50, 20, 5, help="The percentage of parts in the study that are known to be defective. A good study has a high prevalence of defects to properly challenge the inspectors.")
-        st.markdown("**Inspector Archetypes**")
-        skilled_acc_slider = st.slider("Skilled Inspector Accuracy (%)", 85, 100, 98, 1, help="The base accuracy of your best, most experienced inspector.")
-        uncertain_acc_slider = st.slider("Uncertain Inspector Accuracy (%)", 70, 100, 90, 1, help="The base accuracy of an inspector who struggles with borderline cases. Their performance will degrade on ambiguous parts.")
-        biased_acc_slider = st.slider("Biased Inspector Accuracy (%)", 70, 100, 92, 1, help="The base accuracy of an inspector who is generally good but has a specific bias.")
-        bias_strength_slider = st.slider("Biased Inspector 'Safe Play' Bias", 0.5, 1.0, 0.8, 0.05, help="When the Biased Inspector is unsure about a GOOD part, what is the probability they will fail it to be safe? 0.5 is no bias; 1.0 is maximum bias.")
-
-    fig_eff, fig_kappa, kappa, df_eff = plot_attribute_agreement(
-        n_parts=n_parts_slider, n_replicates=3,
-        prevalence=prevalence_slider/100.0, 
-        skilled_accuracy=skilled_acc_slider/100.0,
-        uncertain_accuracy=uncertain_acc_slider/100.0,
-        biased_accuracy=biased_acc_slider/100.0,
-        bias_strength=bias_strength_slider
-    )
-
-    st.header("Results Dashboard")
-    col1, col2 = st.columns([0.4, 0.6])
-    with col1:
-        st.subheader("Overall Study Metrics")
-        st.metric("Fleiss' Kappa (Overall Agreement)", f"{kappa:.3f}", help="Measures agreement between all inspectors, corrected for chance. >0.7 is considered substantial agreement.")
-        st.markdown("##### Individual Inspector Performance")
-        st.dataframe(df_eff.style.format({"Miss Rate": "{:.2%}", "False Alarm Rate": "{:.2%}", "Accuracy": "{:.2%}"}), use_container_width=True)
-        
-    with col2:
-        st.plotly_chart(fig_eff, use_container_width=True)
-    
-    st.plotly_chart(fig_kappa, use_container_width=True)
-
-    st.divider()
-    st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    
-    with tabs[0]:
-        st.markdown("""
-        **A Realistic Workflow & Interpretation:**
-        1.  **Check Overall Agreement (Fleiss' Kappa):** The first KPI tells you if the inspection team, as a whole, is consistent. A low Kappa (<0.7) signals a systemic problem with the procedure or training.
-        2.  **Diagnose Individual Performance (Effectiveness Plot):** This plot is the main tool for root cause analysis.
-            - **Inspector A (Skilled)** should be in the bottom-left "Ideal Zone."
-            - **Inspector B (Uncertain)** will drift away from the ideal zone as you increase defect prevalence, because there are more borderline parts to confuse them. This signals a need for better training or clearer defect standards.
-            - **Inspector C (Biased)** will drift to the right (high False Alarm Rate). This shows they are incorrectly failing good product, indicating they are either misinterpreting a standard or are being overly cautious.
-        3.  **Find Disagreements (Kappa Matrix):** This heatmap shows *who* disagrees with *whom*. A low Kappa value between Inspector B and C, for example, would be expected from the simulation. This tells you exactly which two inspectors need to sit down together with the defect library to align their criteria.
-        """)
-    with tabs[1]:
-        st.markdown("""
-        ##### Glossary of Agreement Terms
-        - **Attribute Data:** Data that is categorical or discrete, such as pass/fail, good/bad, or a defect classification.
-        - **Miss Rate (False Negative):** The proportion of known defective parts that an inspector incorrectly classified as good. This represents **consumer's risk**.
-        - **False Alarm Rate (False Positive):** The proportion of known good parts that an inspector incorrectly classified as defective. This represents **producer's risk**.
-        - **Inter-Rater Reliability:** The degree of agreement among different inspectors (raters).
-        - **Cohen's Kappa (κ):** A statistic that measures inter-rater agreement for categorical items, while taking into account the possibility of the agreement occurring by chance.
-        - **Fleiss' Kappa:** An adaptation of Cohen's Kappa for measuring agreement between a fixed number of raters (more than two).
-        """)
-    with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: The "Percent Agreement" Trap**
-An analyst simply calculates that all inspectors agreed with the standard 95% of the time and declares the system valid.
-- **The Flaw:** If the study only contains 2% true defects, an inspector could pass *every single part* and still achieve 98% agreement! Simple percent agreement is dangerously misleading with imbalanced data.""")
-        st.success("""🟢 **THE GOLDEN RULE: Use Kappa for Consistency, and Effectiveness for Risk**
-A robust analysis separates two key questions that must be answered.
-1.  **Are the inspectors CONSISTENT? (Precision)** This is about whether the inspectors agree with **each other**. The **Kappa Matrix** is the best tool for this, as it corrects for chance agreement and pinpoints specific disagreements.
-2.  **Are the inspectors ACCURATE? (Bias/Error)** This is about whether the inspectors agree with the **truth** (the gold standard). The **Effectiveness Report** is the best tool for this, as it separates the two types of business and patient risk: Miss Rate (Consumer's Risk) and False Alarm Rate (Producer's Risk).""")
-
-    with tabs[3]:
-        st.markdown("""
-        #### Historical Context: Beyond Simple Percentages
-        **The Problem:** For decades, researchers in social sciences and medicine struggled to quantify the reliability of subjective judgments. Simple "percent agreement" was the common method, but it had a fatal flaw: it didn't account for agreement that could happen purely by chance. Two doctors who both diagnose 90% of patients with "common cold" will have high agreement, but their skill might be no better than a coin flip if the true rate is 90%.
-
-        **The 'Aha!' Moment:** In 1960, the psychologist **Jacob Cohen** developed **Cohen's Kappa (κ)**, a statistic that brilliantly solved this problem. Kappa measures the *observed* agreement and then subtracts the *agreement expected by chance*, creating a much more robust measure of true inter-rater reliability. This concept was later extended by **Joseph L. Fleiss** in 1971 to handle cases with more than two raters, resulting in **Fleiss' Kappa**.
-            
-        **The Impact:** Kappa statistics became the gold standard for measuring agreement in fields from psychology to clinical diagnostics. The automotive industry, in its quest for quality, recognized that a human inspector is a "measurement system." They incorporated these advanced statistical techniques into their **Measurement Systems Analysis (MSA)** manual, which is now considered the global standard, codifying Attribute Agreement Analysis as an essential tool for any industry relying on human inspection.
-        """)
-        
-    with tabs[4]:
-        st.markdown("""
-        This analysis is a key part of **Measurement Systems Analysis (MSA)**, which is a fundamental expectation of a robust quality system.
-        - **FDA Process Validation Guidance & 21 CFR 820 (QSR):** Both require that all measurement systems used for process control and product release be validated and fit for purpose. This explicitly includes human inspection systems. A documented Attribute Agreement Analysis is the objective evidence that this requirement has been met.
-        - **ICH Q9 (Quality Risk Management):** A poorly performing inspection system is a major quality risk. This analysis quantifies that risk (e.g., the Miss Rate is a direct measure of patient/consumer risk) and provides the data to justify mitigation, such as retraining or implementing automated inspection.
-        - **Regulatory Audits:** A lack of qualification for visual inspection processes is a common finding during regulatory audits. Having a robust Attribute Agreement study in your validation package demonstrates a mature and compliant quality system.
-        """)
-        
-def render_gage_rr():
-    """Renders the INTERACTIVE module for Gage R&R."""
-    st.markdown("""
-    #### Purpose & Application: The Voice of the Measurement
-    **Purpose:** To rigorously quantify the inherent variability (error) of a measurement system itself. It answers the fundamental question: **"Is my measurement system a precision instrument, or a random number generator?"**
-    
-    **Strategic Application:** This is a non-negotiable gateway in any technology transfer or process validation. An unreliable measurement system creates a "fog of uncertainty," leading to two costly errors:
-    -   **Type I Error (Producer's Risk):** Rejecting good product because of measurement error.
-    -   **Type II Error (Consumer's Risk):** Accepting bad product because the measurement system couldn't detect the defect.
-    A Gage R&R study provides the objective evidence that your measurement system is fit for purpose.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** You are the Validation Lead. Use the sliders in the sidebar to simulate different sources of variation. Your goal is to achieve a **% Gage R&R < 10%**.
-    - **`Part-to-Part Variation`**: The "true" variation you want to measure. A high value makes it *easier* to pass the Gage R&R.
-    - **`Repeatability`**: The instrument's own noise. This is a primary driver of Gage R&R failure.
-    - **`Operator Variation`**: Inconsistency between people. This is the other major driver of failure.
-    - **`Operator-Part Interaction`**: A subtle effect where an operator's bias changes depending on the part being measured.
-    """)
-    
-    with st.sidebar:
-        st.subheader("Gage R&R Controls")
-        part_sd_slider = st.slider("🏭 Part-to-Part Variation (SD)", 1.0, 10.0, 5.0, 0.5,
-            help="The 'true' variation of the product. A well-designed study uses parts that span a wide range, making this value high.")
-        repeat_sd_slider = st.slider("🔬 Repeatability / Instrument Noise (SD)", 0.1, 5.0, 1.5, 0.1,
-            help="The inherent 'noise' of the instrument/assay. High values represent an imprecise measurement device.")
-        operator_sd_slider = st.slider("👤 Operator-to-Operator Variation (SD)", 0.0, 5.0, 0.75, 0.25,
-            help="The systematic bias between operators. High values represent poor training or inconsistent technique.")
-        # --- NEW SLIDER ADDED HERE ---
-        interaction_sd_slider = st.slider("🔄 Operator-Part Interaction (SD)", 0.0, 2.0, 0.5, 0.1,
-            help="Simulates inconsistency where operators measure certain parts differently (e.g., struggling with smaller parts). This causes the operator mean lines to be non-parallel.")
-
-    # Call the updated plot function with all four parameters
-    fig, pct_rr, ndc = plot_gage_rr(
-        part_sd=part_sd_slider, 
-        repeatability_sd=repeat_sd_slider, 
-        operator_sd=operator_sd_slider,
-        interaction_sd=interaction_sd_slider
-    )
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights",  "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        with tabs[0]:
-            st.metric(label="📈 KPI: % Gage R&R", value=f"{pct_rr:.1f}%", delta="Lower is better", delta_color="inverse")
-            st.metric(label="📊 KPI: Number of Distinct Categories (ndc)", value=f"{ndc}", help="How many distinct groups of parts the system can reliably distinguish. Must be ≥ 5.")
-
-            st.markdown("""
-            **Reading the Plots:**
-            - **Main Plot (Left):** Now shows parts sorted by size. The colored lines represent each operator's average measurement for each part. If these lines are not parallel, it's a sign of **interaction**.
-            - **Operator Plot (Top-Right):** Visualizes the overall bias between operators.
-            - **Verdict (Bottom-Right):** The final bar chart. The colored bar (% Gage R&R) shows how much of the total observed variation is just measurement noise.
-
-            **Core Insight:** A low % Gage R&R is achieved when measurement error is small *relative to* the true process variation. You can improve your Gage R&R by either reducing measurement error OR by testing it on parts that have a wider, more representative range of true variation.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of MSA Terms
-            - **Measurement System Analysis (MSA):** A formal statistical study to evaluate the total variation present in a measurement system.
-            - **Gage R&R:** The combined estimate of a measurement system's Repeatability and Reproducibility. It quantifies the inherent variability of the measurement process itself.
-            - **Repeatability (Equipment Variation):** The variation observed when the same operator measures the same part multiple times with the same device. It represents the inherent "noise" of the instrument.
-            - **Reproducibility (Appraiser Variation):** The variation observed when different operators measure the same part using the same device. It represents the inconsistency between people.
-            - **% Gage R&R:** The percentage of the total observed process variation that is consumed by measurement system error.
-            - **Number of Distinct Categories (ndc):** An index that represents the number of distinct groups of parts the measurement system can reliably distinguish. A value ≥ 5 is considered acceptable.
-            """)
-        with tabs[2]:
-            st.markdown("Acceptance criteria are derived from the **AIAG's Measurement Systems Analysis (MSA)** manual, the global standard.")
-            st.markdown("- **< 10% Gage R&R:** The system is **acceptable**.")
-            st.markdown("- **10% - 30% Gage R&R:** The system is **conditionally acceptable**, may be approved based on importance of application and cost. ")
-            st.markdown("- **> 30% Gage R&R:** The system is **unacceptable** and must be improved.")
-            st.error("""
-            **The Part Selection Catastrophe**: The most common way to fail a Gage R&R is not bad math, but bad study design. If you select parts that are all very similar (low Part-to-Part variation), you are mathematically guaranteed to get a high % Gage R&R, even with a perfect instrument. **You must select parts that represent the full range of expected process variation.**
-            """)
-            
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: The Crisis that Forged a Standard
-            **The Problem:** In the 1970s and 80s, the American automotive industry was in crisis, facing intense competition from Japanese manufacturers who had mastered statistical quality control. A major source of defects and waste was inconsistent measurement. A part might pass inspection at a supplier's factory but fail at the assembly plant simply because the two locations' measurement systems ("gages") didn't agree. There was no standardized way to qualify a measurement system.
-
-            **The 'Aha!' Moment:** The "Big Three" US automakers—Ford, GM, and Chrysler—realized they couldn't solve this problem alone. They formed the **Automotive Industry Action Group (AIAG)** to create common quality standards for their entire supply chain. One of their most impactful creations was the **Measurement Systems Analysis (MSA)** manual, first published in 1990.
-            
-            **The Impact:** The MSA manual didn't invent Gage R&R, but it codified it into a simple, repeatable procedure that became the global standard. The critical evolution it championed was the move from older, less reliable methods to the **ANOVA (Analysis of Variance) method** as the preferred approach. The ANOVA method, pioneered by **Sir Ronald A. Fisher**, is statistically superior because it can correctly partition all sources of variation, including the crucial **interaction effect** between operators and parts (e.g., if one operator struggles to measure small parts specifically). This rigorous approach became the benchmark for quality-driven industries worldwide, from aerospace to pharmaceuticals.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The core idea is to partition the total observed variation into its components. The fundamental equation is:")
-            st.latex(r"\sigma^2_{\text{Total}} = \sigma^2_{\text{Process}} + \sigma^2_{\text{Measurement System}}")
-            st.markdown("The measurement system variation is further broken down:")
-            st.latex(r"\sigma^2_{\text{Measurement System}} = \underbrace{\sigma^2_{\text{Repeatability}}}_\text{Equipment Variation} + \underbrace{\sigma^2_{\text{Reproducibility}}}_\text{Appraiser Variation}")
-            st.markdown("ANOVA achieves this by partitioning the **Sum of Squares (SS)**:")
-            st.latex(r"SS_{\text{Total}} = SS_{\text{Part}} + SS_{\text{Operator}} + SS_{\text{Interaction}} + SS_{\text{Error}}")
-            st.markdown("These SS values are converted to Mean Squares (MS), and from the MS values, we can estimate the variance components (`σ²`). For example:")
-            st.latex(r"\hat{\sigma}^2_{\text{Repeatability}} = MS_{\text{Error}}")
-            st.latex(r"\hat{\sigma}^2_{\text{Operator}} = \frac{MS_{\text{Operator}} - MS_{\text{Interaction}}}{n \cdot r}")
-            st.markdown("The final KPI is the **% Gage R&R**, which is the percentage of the total variation that is consumed by the measurement system:")
-            st.latex(r"\% \text{Gage R\&R} = \frac{\hat{\sigma}_{\text{Gage R\&R}}}{\hat{\sigma}_{\text{Total}}} \times 100")
-        with tabs[4]:
-            st.markdown("""
-            Gage R&R is the standard methodology for Measurement Systems Analysis (MSA), a critical component of ensuring data integrity and process control.
-            - **AIAG MSA Manual:** While from the automotive industry, this is considered the global "gold standard" reference for Gage R&R methodology and acceptance criteria.
-            - **FDA Process Validation Guidance:** Stage 1 (Process Design) and Stage 2 (Process Qualification) require an understanding of all sources of variability, including measurement error. A Gage R&R is the formal proof that a measurement system is suitable for its intended use.
-            - **21 CFR 211.160(b):** Requires that "laboratory controls shall include the establishment of scientifically sound and appropriate... standards, and test procedures... to assure that components... and drug products conform to appropriate standards of identity, strength, quality, and purity." A qualified measurement system is a prerequisite.
-            """)
-
-def render_lod_loq():
-    """Renders the INTERACTIVE module for Limit of Detection & Quantitation."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To formally establish the absolute lower performance boundaries of a quantitative assay. It determines the lowest analyte concentration an assay can reliably **detect (LOD)** and the lowest concentration it can reliably and accurately **quantify (LOQ)**.
-    
-    **Strategic Application:** This is a mission-critical parameter for any assay used to measure trace components, such as impurities in a drug product or biomarkers for early-stage disease diagnosis. **Use the sliders in the sidebar to simulate how assay sensitivity and noise impact the final LOD and LOQ.**
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Now, when you select the "LOD & LOQ" tool, a new set of dedicated sliders will appear below. You can dynamically change the assay's slope and noise to see in real-time how these fundamental characteristics drive the final LOD and LOQ results.
-    """)
-    
-    # --- Sidebar controls for this specific module ---
-    st.subheader("LOD & LOQ Controls")
-    slope_slider = st.slider(
-        "📈 Assay Sensitivity (Slope)", 
-        min_value=0.005, max_value=0.1, value=0.02, step=0.005, format="%.3f",
-        help="How much the signal increases per unit of concentration. A steeper slope (higher sensitivity) is better."
-    )
-    noise_slider = st.slider(
-        "🔇 Baseline Noise (SD)", 
-        min_value=0.001, max_value=0.05, value=0.01, step=0.001, format="%.3f",
-        help="The inherent random noise of the assay at zero concentration. A lower noise floor is better."
-    )
-    
-    # Generate plots using the slider values
-    fig, lod_val, loq_val = plot_lod_loq(slope=slope_slider, baseline_sd=noise_slider)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        with tabs[0]:
-            st.metric(label="📈 KPI: Limit of Quantitation (LOQ)", value=f"{loq_val:.2f} units", help="The lowest concentration you can report with confidence in the numerical value.")
-            st.metric(label="💡 Metric: Limit of Detection (LOD)", value=f"{lod_val:.2f} units", help="The lowest concentration you can reliably claim is 'present'.")
-            st.info("Play with the sliders in the sidebar to see how assay parameters affect the results!")
-            st.markdown("""
-            - **Increase `Assay Sensitivity (Slope)`:** As the slope gets steeper, the LOD and LOQ values get **lower (better)**. A highly sensitive assay needs very little analyte to produce a strong signal that can overcome the noise.
-            - **Increase `Baseline Noise (SD)`:** As the noise floor of the assay increases, the LOD and LOQ values get **higher (worse)**. It becomes much harder to distinguish a true low-level signal from random background fluctuations.
-
-            **The Core Strategic Insight:** The sensitivity of an assay is a direct battle between its **signal-generating power (Slope)** and its **inherent noise (SD)**. The LOD and LOQ are simply the statistical formalization of this signal-to-noise ratio.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Sensitivity Terms
-            - **Limit of Blank (LOB):** The highest measurement result that is likely to be observed for a blank sample. It defines the "noise floor" of the assay.
-            - **Limit of Detection (LOD):** The lowest concentration of analyte that can be reliably detected above the LOB, but not necessarily quantified with acceptable precision and accuracy.
-            - **Limit of Quantitation (LOQ):** The lowest concentration of analyte that can be reliably quantified with a pre-defined level of precision and accuracy. This is the lower boundary of the assay's reportable range.
-            - **Slope (Sensitivity):** In a calibration curve, the slope represents the change in analytical signal per unit change in analyte concentration. A steeper slope generally indicates a more sensitive assay.
-            """)
-        with tabs[2]:
-            st.markdown("- The primary, non-negotiable criterion is that the experimentally determined **LOQ must be ≤ the lowest concentration that the assay is required to measure** for its specific application (e.g., a release specification for an impurity).")
-            st.markdown("- For a concentration to be formally declared the LOQ, it must be experimentally confirmed. This typically involves analyzing 5-6 independent samples at the claimed LOQ concentration and demonstrating that they meet pre-defined criteria for precision and accuracy (e.g., **%CV < 20% and %Recovery between 80-120%** for a bioassay).")
-            st.warning("""
-            **The LOB, LOD, and LOQ Hierarchy: A Critical Distinction**
-            A full characterization involves three distinct limits:
-            - **Limit of Blank (LOB):** The highest measurement expected from a blank sample.
-            - **Limit of Detection (LOD):** The lowest concentration whose signal is statistically distinguishable from the LOB.
-            - **Limit of Quantitation (LOQ):** The lowest concentration meeting precision/accuracy requirements, which is almost always higher than the LOD.
-            """)
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context & Origin
-            The need to define analytical sensitivity is old, but definitions were inconsistent until the **International Council for Harmonisation (ICH)** guideline **ICH Q2(R1)** harmonized the methodologies. This work was heavily influenced by the statistical framework established by **Lloyd Currie at NIST** in his 1968 paper, which established the clear, hypothesis-testing basis for the modern LOB/LOD/LOQ hierarchy.
-
-            #### Mathematical Basis
-            This method is built on the relationship between the assay's signal, its sensitivity (Slope, S), and its noise (standard deviation, σ).
-            """)
-            st.latex(r"LOD \approx \frac{3.3 \times \sigma}{S}")
-            st.latex(r"LOQ \approx \frac{10 \times \sigma}{S}")
-            st.markdown("The factor of 10 for LOQ is the standard convention that typically yields a precision of roughly 10% CV for a well-behaved assay.")
-        with tabs[4]:
-            st.markdown("""
-            The determination of detection and quantitation limits is a mandatory part of validating quantitative assays for impurities or trace components.
-            - **ICH Q2(R1) - Validation of Analytical Procedures:** Explicitly lists "Quantitation Limit" and "Detection Limit" as key validation characteristics and provides the statistical methodologies (e.g., based on signal-to-noise or standard deviation of the response and the slope).
-            - **USP General Chapter <1225>:** Mirrors the requirements of ICH Q2(R1) for the validation of analytical procedures.
-            """)
-
-def render_linearity():
-    """Renders the INTERACTIVE module for Linearity analysis."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To verify that an assay's response is directly and predictably proportional to the known concentration of the analyte across its entire intended operational range.
-    
-    **Strategic Application:** This is a cornerstone of quantitative assay validation. A method exhibiting non-linearity might be accurate at a central control point but dangerously inaccurate at the specification limits. **Use the sliders in the sidebar to simulate different types of non-linear behavior and error.**
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the sliders at the bottom of the sidebar to simulate different error types. The **Residual Plot** is your most important diagnostic tool! A "funnel" shape indicates proportional error, and a "U" shape indicates curvature. When you see a funnel, try switching to the WLS model to see how it can provide a better fit.
-    """)
-    
-    # --- Sidebar controls for this specific module ---
-    with st.sidebar:
-        st.subheader("Linearity Controls")
-        curvature_slider = st.slider("🧬 Curvature Effect", -5.0, 5.0, -1.0, 0.5,
-            help="Simulates non-linearity. A negative value creates saturation at high concentrations. Zero is perfectly linear.")
-        random_error_slider = st.slider("🎲 Random Error (Constant SD)", 0.1, 5.0, 1.0, 0.1,
-            help="The baseline random noise of the assay, constant across all concentrations.")
-        proportional_error_slider = st.slider("📈 Proportional Error (% of Conc.)", 0.0, 5.0, 2.0, 0.25,
-            help="Error that increases with concentration. This creates a 'funnel' or 'megaphone' shape in the residual plot.")
-        
-        # --- NEW TOGGLE SWITCH ADDED HERE ---
-        st.markdown("---")
-        st.markdown("**Regression Model**")
-        wls_toggle = st.toggle("Use Weighted Least Squares (WLS)", value=False,
-            help="Activate WLS to give less weight to high-concentration points. Ideal for correcting the 'funnel' shape caused by proportional error.")
-    
-    # Generate plots using the slider values and the new toggle value
-    fig, model = plot_linearity(
-        curvature=curvature_slider,
-        random_error=random_error_slider,
-        proportional_error=proportional_error_slider,
-        use_wls=wls_toggle # Pass the toggle state to the plotting function
-    )
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights",  "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        with tabs[0]:
-            st.metric(label="📈 KPI: R-squared (R²)", value=f"{model.rsquared:.4f}", help="Indicates the proportion of variance explained by the model. Note how a high R² can hide clear non-linearity!")
-            st.metric(label="💡 Metric: Slope", value=f"{model.params['Nominal']:.3f}", help="Ideal = 1.0.")
-            st.metric(label="💡 Metric: Y-Intercept", value=f"{model.params['const']:.2f}", help="Ideal = 0.0.")
-            
-            st.markdown("""
-            - **The Residual Plot is Key:** This is the most sensitive diagnostic tool.
-                - Add **Curvature**: Notice the classic "U-shape" or "inverted U-shape" that appears. This is a dead giveaway that your straight-line model is wrong.
-                - Add **Proportional Error**: Watch the residuals form a "funnel" shape (heteroscedasticity). This means OLS is no longer valid. **Activate the WLS toggle in the sidebar** to see how a weighted model correctly handles this error structure.
-            
-            **The Core Strategic Insight:** A high R-squared is **not sufficient** to prove linearity. You must visually inspect the residual plot for hidden patterns. The residual plot tells the true story of your model's fit.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Linearity Terms
-            - **Linearity:** The ability of an analytical procedure to obtain test results which are directly proportional to the concentration of analyte in the sample.
-            - **Range:** The interval between the upper and lower concentration of analyte for which the procedure has demonstrated a suitable level of precision, accuracy, and linearity.
-            - **Residuals:** The vertical distance between an observed data point and the fitted regression line. Analyzing patterns in residuals is the best way to diagnose non-linearity.
-            - **R-squared (R²):** A statistical measure of how close the data are to the fitted regression line. While a high R² is necessary, it is not sufficient to prove linearity.
-            - **Weighted Least Squares (WLS):** A regression method used when the variance of the errors is not constant (heteroscedasticity). It gives less weight to less precise (typically high-concentration) data points.
-            """)
-        with tabs[2]:
-            st.markdown("These criteria are defined in the validation protocol and must be met to declare the method linear.")
-            st.markdown("- **R-squared (R²):** Typically > **0.995**, but for high-precision methods (e.g., HPLC), > **0.999** is often required.")
-            st.markdown("- **Slope & Intercept:** The 95% confidence intervals for the slope and intercept should contain 1.0 and 0, respectively.")
-            st.markdown("- **Residuals:** There should be no obvious pattern or trend. A formal **Lack-of-Fit test** can be used for objective proof (requires true replicates at each level).")
-            st.markdown("- **Recovery:** The percent recovery at each concentration level must fall within a pre-defined range (e.g., 80% to 120% for bioassays).")
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context & Origin
-            The mathematical engine is **Ordinary Least Squares (OLS) Regression**, developed independently by **Adrien-Marie Legendre (1805)** and **Carl Friedrich Gauss (1809)**. The genius of OLS is that it finds the one line that **minimizes the sum of the squared vertical distances (the "residuals")** between the data points and the line.
-            
-            However, OLS relies on a key assumption: that the variance of the errors is constant at all levels of X (homoscedasticity). In many biological and chemical assays, this is not true; variability often increases with concentration (heteroscedasticity). **Weighted Least Squares (WLS)** is the classical solution to this problem, where each point is weighted by the inverse of its variance, giving more influence to the more precise, low-concentration points.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The goal is to fit a simple linear model:")
-            st.latex("y = \\beta_0 + \\beta_1 x + \\epsilon")
-            st.markdown("""
-            - **OLS** finds the `β` values that minimize: `Σ(yᵢ - ŷᵢ)²`
-            - **WLS** finds the `β` values that minimize: `Σwᵢ(yᵢ - ŷᵢ)²`, where `wᵢ` is the weight for the i-th observation, typically `1/σ²ᵢ`.
-            """)
-        with tabs[4]:
-            st.markdown("""
-            Linearity is a fundamental characteristic required for all quantitative analytical methods.
-            - **ICH Q2(R1) - Validation of Analytical Procedures:** Mandates the evaluation of Linearity and Range for quantitative tests. It specifies that a linear relationship should be evaluated across the range of the analytical procedure.
-            - **FDA Guidance for Industry:** Recommends a minimum of five concentration levels to establish linearity and emphasizes the importance of visual inspection of the data and analysis of residuals.
-            - **USP General Chapter <1225>:** Requires the statistical evaluation of linearity, including the calculation of the correlation coefficient, y-intercept, and slope of the regression line.
-            """)
-
-def render_4pl_regression():
-    """Renders the INTERACTIVE module for 4-Parameter Logistic (4PL) regression."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To accurately model the characteristic sigmoidal (S-shaped) dose-response relationship found in most immunoassays (e.g., ELISA) and biological assays.
-    
-    **Strategic Application:** This is the workhorse model for potency assays and immunoassays. The 4PL model allows for the accurate calculation of critical assay parameters like the EC50. **Use the sliders in the sidebar to control the "true" shape of the curve and see how the curve-fitting algorithm performs.**
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Build your own "true" 4PL curves using the sliders. The **Residual Plot** is your key diagnostic: if you see a "funnel" shape (due to `Proportional Noise`), activate the **Weighted Fit (IRLS)** toggle to see how a more advanced algorithm can produce a better, more reliable fit.
-    """)
-    
-    # --- Sidebar controls for this specific module ---
-    with st.sidebar:
-        st.subheader("4PL Curve Controls (True Values)")
-        d_slider = st.slider("🅾️ Lower Asymptote (d)", 0.0, 0.5, 0.05, 0.01,
-            help="The minimum signal response of the assay, typically the background signal at zero concentration. This defines the 'floor' of the curve.")
-        a_slider = st.slider("🅰️ Upper Asymptote (a)", 1.0, 3.0, 1.5, 0.1,
-            help="The maximum signal response of the assay at infinite concentration. This represents the saturation point or the 'ceiling' of the curve.")
-        c_slider = st.slider("🎯 Potency / EC50 (c)", 1.0, 100.0, 10.0, 1.0,
-            help="The concentration that produces a response halfway between the lower (d) and upper (a) asymptotes. A lower EC50 value indicates a more potent substance.")
-        b_slider = st.slider("🅱️ Hill Slope (b)", 0.5, 5.0, 1.2, 0.1,
-            help="Controls the steepness of the curve at its midpoint (the EC50). A steeper slope (higher value) often indicates a more sensitive assay in its dynamic range.")
-        
-        st.markdown("---")
-        st.subheader("Noise Model Controls")
-        noise_sd_slider = st.slider("🎲 Constant Noise (SD)", 0.0, 0.2, 0.05, 0.01,
-            help="The baseline random noise, constant across all concentrations.")
-        proportional_noise_slider = st.slider("📈 Proportional Noise (%)", 0.0, 5.0, 1.0, 0.5,
-            help="Noise that increases with the signal. Creates a 'funnel' shape in the residuals (heteroscedasticity).")
-
-        st.markdown("---")
-        st.subheader("Fit Model Controls")
-        irls_toggle = st.toggle("Use Weighted Fit (IRLS)", value=True,
-            help="Activate Iteratively Reweighted Least Squares (IRLS). This is the correct model to use when proportional noise is present.")
-    
-    # Generate plots using the slider values
-    fig, params, perr = plot_4pl_regression(
-        a_true=a_slider, b_true=b_slider, c_true=c_slider, d_true=d_slider,
-        noise_sd=noise_sd_slider, proportional_noise=proportional_noise_slider,
-        use_irls=irls_toggle
-    )
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        a_fit, b_fit, c_fit, d_fit = params
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            # Display fitted parameters with their standard errors
-            st.metric(label="🅰️ Fitted Upper Asymptote (a)", value=f"{a_fit:.3f} ± {perr[0]:.3f}")
-            st.metric(label="🅱️ Fitted Hill Slope (b)", value=f"{b_fit:.3f} ± {perr[1]:.3f}")
-            st.metric(label="🎯 Fitted EC50 (c)", value=f"{c_fit:.3f} ± {perr[2]:.2f} units")
-            st.metric(label="🅾️ Fitted Lower Asymptote (d)", value=f"{d_fit:.3f} ± {perr[3]:.3f}")
-            
-            st.markdown("""
-            **The Core Strategic Insight:** The 4PL curve is a complete picture of your assay's performance. The **residuals plot is your most important diagnostic tool**. A random scatter around zero means your model is a good fit. Any pattern (like a curve or funnel) indicates a problem with the model or the data weighting.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Bioassay Terms
-            - **4PL (Four-Parameter Logistic) Model:** A type of non-linear regression model used to describe sigmoidal (S-shaped) dose-response curves.
-            - **Upper Asymptote (a):** The maximum response of the assay at infinite concentration (the "ceiling").
-            - **Lower Asymptote (d):** The response of the assay at zero concentration (the "floor" or background).
-            - **EC50 / IC50 (c):** The concentration that gives a response halfway between the lower and upper asymptotes. It is the primary measure of a substance's **potency**.
-            - **Hill Slope (b):** A parameter that describes the steepness of the curve at its midpoint (the EC50).
-            - **Potency:** A measure of drug activity expressed in terms of the amount required to produce an effect of a given intensity. A lower EC50 means higher potency.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: "Force the Fit"**
-- *"My R-squared is 0.999, so the fit must be perfect."* (R-squared is easily inflated and can hide significant lack of fit).
-- *"The model doesn't fit a point well. I'll delete the outlier."* (Data manipulation without statistical justification).
-- *"My residuals look like a funnel, but I'll ignore it and use standard least squares."* (This leads to incorrect parameter estimates and confidence intervals).""")
-            st.success("""🟢 **THE GOLDEN RULE: Model the Biology, Weight the Variance**
-- **Embrace the 'S' Shape:** Use a non-linear model for non-linear biological data. The 4PL is standard for a reason.
-- **Weight Your Points:** Bioassay data is almost always heteroscedastic (non-constant variance). Use a weighted regression (like IRLS) to get the most accurate and reliable parameter estimates.
-- **Inspect the Residuals:** The residuals must be visually random. Any pattern indicates your model is not correctly capturing the data's behavior.""")
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: Modeling Dose-Response
-            **The Problem:** In the early 20th century, pharmacologists and biologists needed a mathematical way to describe the relationship between the dose of a substance and its biological response. This relationship was rarely linear; it typically showed a sigmoidal (S-shaped) curve, with a floor, a steep middle section, and a ceiling (saturation).
-
-            **The 'Aha!' Moment:** The first major step was the **Hill Equation**, developed by physiologist Archibald Hill in 1910 to describe oxygen binding to hemoglobin. Later, A.J. Clark and others adapted these ideas into dose-response models. The 4-Parameter Logistic (4PL) model emerged as a flexible, robust, and empirically successful model for this type of data.
-
-            **The Impact:** The proliferation of immunoassays like RIA and ELISA in the 1970s and 80s made the 4PL model a workhorse of the biotech industry. The development of accessible non-linear regression software, like that based on the **Levenberg-Marquardt algorithm**, made fitting these models routine. Today, it remains the standard model for most potency and immunogenicity assays.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The 4-Parameter Logistic function is a sigmoidal curve defined by:")
-            st.latex(r"y = d + \frac{a - d}{1 + (\frac{x}{c})^b}")
-            st.markdown("""
-            - **`a`**: The upper asymptote (response at infinite concentration).
-            - **`b`**: The Hill slope (steepness of the curve at the midpoint).
-            - **`c`**: The EC50 or IC50 (concentration at 50% of the maximal response). This is often the primary measure of potency.
-            - **`d`**: The lower asymptote (response at zero concentration).
-            Since this equation is non-linear in its parameters, it cannot be solved directly with linear algebra. It must be fit using an iterative numerical optimization algorithm (like Levenberg-Marquardt) that finds the parameter values `(a,b,c,d)` that minimize the sum of squared errors between the data and the fitted curve.
-            """)
-        with tabs[4]:
-            st.markdown("""
-            While the 4PL model itself is a mathematical tool, its use is governed by guidelines on the validation of bioassays, where such non-linear responses are common.
-            - **USP General Chapters <111>, <1032>, <1033>:** These chapters provide extensive guidance on the design and statistical analysis of biological assays. They discuss the importance of using an appropriate non-linear model to fit dose-response curves and assess parallelism.
-            - **FDA Guidance on Bioanalytical Method Validation:** Stresses the need to characterize the full concentration-response relationship and use appropriate regression models (including weighted regression for heteroscedastic data).
-            """)
-
+#=============================================================== 11. ROC CURVE ANALYSIS ===================================================
 def render_roc_curve():
     """Renders the INTERACTIVE module for Receiver Operating Characteristic (ROC) curve analysis."""
     st.markdown("""
@@ -7051,122 +7145,7 @@ Ask: **"What is worse? A false positive or a false negative?"**
             - **ISO 13485:2016:** The international quality management standard for medical devices, which aligns with the principles of design validation found in 21 CFR 820.
             """)
             
-def render_tost():
-    """Renders the INTERACTIVE module for Two One-Sided Tests (TOST) for equivalence."""
-    st.markdown("""
-    #### Purpose & Application
-    **Purpose:** To statistically prove that two methods or groups are **equivalent** within a predefined, practically insignificant margin. This flips the logic of standard hypothesis testing from trying to prove a difference to trying to prove a lack of meaningful difference.
-    
-    **Strategic Application:** This is the statistically rigorous way to handle comparisons where the goal is to prove similarity, not difference, such as in biosimilarity studies, analytical method transfers, or validating a new manufacturing site.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** This new 3-plot dashboard tells a complete story.
-    1.  See the raw sample data at the top.
-    2.  Watch how that translates into the evidence about the *difference* in the middle plot.
-    3.  See the final verdict at the bottom. The bar in Plot 3 is just a summary of the shaded area in Plot 2.
-    """)
-    
-    with st.sidebar:
-        st.subheader("TOST Controls")
-        delta_slider = st.slider(
-            "⚖️ Equivalence Margin (Δ)", 1.0, 15.0, 5.0, 0.5,
-            help="The 'goalposts'. Defines the zone where differences are considered practically meaningless."
-        )
-        diff_slider = st.slider(
-            "🎯 True Difference", -10.0, 10.0, 1.0, 0.5,
-            help="The actual underlying difference between the two groups in the simulation."
-        )
-        sd_slider = st.slider(
-            "🌫️ Standard Deviation (Variability)", 1.0, 15.0, 5.0, 0.5,
-            help="The random noise in the data. Higher variability widens the CI, making equivalence harder to prove."
-        )
-        n_slider = st.slider(
-            "🔬 Sample Size (n)", 10, 200, 50, 5,
-            help="The number of samples per group. Higher sample size narrows the CI, increasing your power."
-        )
-    
-    fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B, diff_mean = plot_tost(
-        delta=delta_slider,
-        true_diff=diff_slider,
-        std_dev=sd_slider,
-        n_samples=n_slider
-    )
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            status = "✅ EQUIVALENT" if is_equivalent else "❌ NOT EQUIVALENT"
-            if is_equivalent:
-                st.success(f"### Result: {status}")
-            else:
-                st.error(f"### Result: {status}")
-
-            st.metric(label="p-value (TOST)", value=f"{p_tost:.4f}", help="If p < 0.05, we conclude equivalence.")
-            st.metric(label="📊 Observed 90% CI for Difference", value=f"[{ci_lower:.2f}, {ci_upper:.2f}]")
-            st.metric(label="📈 Observed Difference", value=f"{diff_mean:.2f}",
-                      help="The difference between the two sample means (Mean B - Mean A).")
-            st.metric(label="⚖️ Equivalence Margin", value=f"± {delta_slider:.1f} units")
-
-            st.markdown("---")
-            st.markdown("##### The 3-Plot Story: How the Plots Connect")
-            st.markdown("""
-            1.  **Plot 1 (The Samples):** Shows the raw data you collected. The vertical dashed lines mark the *mean* of each sample.
-            2.  **Plot 2 (The Evidence):** This is the crucial link. It shows our statistical uncertainty about the true difference in means. The shaded area is the **90% Confidence Interval**.
-            3.  **Plot 3 (The Verdict):** This is just a compact summary of Plot 2. The bar represents the exact same 90% Confidence Interval.
-
-            **The conclusion of 'Equivalence' is reached when the entire shaded distribution in Plot 2 falls inside the light green 'Equivalence Zone'.**
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Equivalence Terms
-            - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference between two groups or methods is smaller than a pre-specified, practically meaningless amount.
-            - **TOST (Two One-Sided Tests):** The standard statistical method for performing an equivalence test. It involves testing two separate null hypotheses of "too different."
-            - **Equivalence Margin (Δ):** A pre-defined range `[-Δ, +Δ]` within which two products or methods are considered to be practically equivalent. Setting this margin is a critical, risk-based decision.
-            - **Confidence Interval Approach:** An equivalent method to TOST. If the 90% confidence interval for the difference between the two groups falls entirely within the equivalence margin, equivalence is demonstrated at the 5% significance level.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The Fallacy of the Non-Significant P-Value**
-- A scientist runs a standard t-test and gets a p-value of 0.25. They exclaim, *"Great, p > 0.05, so the methods are the same!"*
-- **This is wrong.** All they have shown is a *failure to find evidence of a difference*. **Absence of evidence is not evidence of absence.** Their study may have been underpowered (too much noise or too few samples).""")
-            st.success("""🟢 **THE GOLDEN RULE: Define 'Same Enough', Then Prove It**
-The TOST procedure forces a more rigorous scientific approach.
-1.  **First, Define the Margin:** Before collecting data, stakeholders must use scientific and clinical judgment to define the equivalence margin (`Δ`). This is the zone where a difference is considered practically meaningless.
-2.  **Then, Prove You're Inside:** Conduct the experiment. The burden of proof is on you to show that your evidence (the 90% CI for the difference) is precise enough to fall entirely within that pre-defined margin.""")
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: The Rise of Generic Drugs
-            **The Problem:** In the early 1980s, the pharmaceutical landscape was changing. The **1984 Hatch-Waxman Act** in the US created the modern pathway for generic drug approval. This created a new statistical challenge for regulators: how could a generic manufacturer *prove* that their drug was "the same as" the innovator's drug in terms of how it was absorbed by the body (bioequivalence)?
-
-            **The 'Aha!' Moment:** A standard t-test was useless; failing to find a difference wasn't proof of no difference. The solution was championed by statisticians like **Donald J. Schuirmann** at the FDA. The **Two One-Sided Tests (TOST)** procedure, which had existed in the statistical literature, was identified as the perfect tool.
-            
-            **The Impact:** The TOST procedure became the statistical engine for bioequivalence studies worldwide. Instead of one null hypothesis of "no difference," it brilliantly frames the problem with two null hypotheses of "too different." To prove equivalence, you must reject both. This places the burden of proof squarely on the manufacturer to demonstrate similarity, a much higher and more appropriate standard for ensuring patient safety.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("TOST brilliantly flips the null hypothesis. Instead of one null of \"no difference\" (`H₀: μ₁ - μ₂ = 0`), you have two null hypotheses of \"too different\":")
-            st.latex(r"H_{01}: \mu_B - \mu_A \leq -\Delta \quad (\text{The difference is too low})")
-            st.latex(r"H_{02}: \mu_B - \mu_A \geq +\Delta \quad (\text{The difference is too high})")
-            st.markdown("""
-            You must run two separate one-sided t-tests to reject **both** of these null hypotheses. The overall p-value for the TOST procedure is the larger of the two individual p-values. If this final p-value is less than your alpha (e.g., 0.05), you have statistically demonstrated equivalence within the margin `[-Δ, +Δ]`.
-            
-            A mathematically equivalent shortcut is to calculate the **90% confidence interval** for the difference. If this entire interval falls within `[-Δ, +Δ]`, you can conclude equivalence at the 5% significance level.
-            """)
-            
-        with tabs[4]:
-            st.markdown("""
-            TOST is the required statistical method for demonstrating similarity or equivalence in various regulated contexts.
-            - **FDA Guidance on Bioequivalence Studies:** TOST is the standard method for proving that the rate and extent of absorption of a generic drug are not significantly different from the reference listed drug.
-            - **USP General Chapter <1224> - Transfer of Analytical Procedures:** Suggests the use of equivalence testing to formally demonstrate that a receiving laboratory can obtain comparable results to the transferring laboratory.
-            - **Biosimilars (BPCIA Act):** The principles of equivalence testing are central to the analytical and clinical studies required to demonstrate biosimilarity to a reference biologic product.
-            """)
-
+#====================================================================================== 12. ASSAY ROBUSTNESS (DOE)  =================================================================================================   
 def render_assay_robustness_doe():
     """Renders the comprehensive, interactive module for Assay Robustness (DOE/RSM)."""
     st.markdown("""
@@ -7301,7 +7280,7 @@ By testing factors in combination using a dedicated design (like a Central Compo
         - **ICH Q2(R1) - Validation of Analytical Procedures:** Requires the assessment of **Robustness**, which is typically evaluated through a DOE by making small, deliberate variations in method parameters.
         - **FDA Guidance on Process Validation:** Emphasizes a lifecycle approach and process understanding, which are best achieved through the systematic study of process parameters using DOE.
         """)
-
+#====================================================================================== 13. MIXTURE DESIGN FORMULATIONS  =================================================================================================   
 def render_mixture_design():
     """Renders the comprehensive, interactive module for Mixture DOE."""
     st.markdown("""
@@ -7401,6 +7380,8 @@ def render_mixture_design():
         - **ICH Q11 - Development and Manufacture of Drug Substances:** The principles of QbD, including the use of DOE to understand the relationship between material attributes and quality, apply equally to drug substances.
         - **FDA Process Validation Guidance:** Emphasizes a lifecycle approach and deep process/product understanding. A mixture DOE provides this deep understanding for the formulation itself and can be used to justify the **Bill of Materials (BOM)** and the acceptable ranges for each component.
         """)
+
+#====================================================================================== 14. PROCESS OPTIMIZATION: FROM DOE TO AI  =================================================================================================   
 def render_process_optimization_suite():
     """Renders the comprehensive, interactive module for the full optimization workflow."""
     st.markdown("""
@@ -7534,7 +7515,8 @@ A robust optimization strategy uses the best of both worlds.
         **The Regulatory Advantage:**
         The guideline explicitly states: **"Working within the design space is not considered as a change. Movement out of the design space is considered to be a change and would normally initiate a regulatory post-approval change process."** This provides enormous operational and regulatory flexibility, which is the primary business driver for adopting a QbD approach.
         """)
-            
+
+#====================================================================================== 15. SPLIT-PLOT DESIGNS =================================================================================================   
 def render_split_plot():
     """Renders the module for Split-Plot Designs."""
     st.markdown("""
@@ -7643,7 +7625,7 @@ def render_split_plot():
             - **ICH Q8(R2) - Pharmaceutical Development:** The principles of efficient experimentation to gain process knowledge are central to QbD. A split-plot design is a practical tool for achieving this when certain factors are hard to change.
             - **FDA Guidance on Process Validation:** Encourages a scientific, risk-based approach to validation. Using an efficient design like a split-plot demonstrates statistical maturity and a commitment to resource optimization while still generating the required process knowledge.
             """)
-            
+#====================================================================================== 16. CAUSAL INFERENCE  =================================================================================================          
 def render_causal_inference():
     """Renders the INTERACTIVE module for Causal Inference."""
     st.markdown("""
@@ -7737,6 +7719,8 @@ def render_causal_inference():
 ##=========================================================================================================================================================================================================
 ##===============================================================================END ACT I UI Render ========================================================================================================================================
 ##=========================================================================================================================================================================================================
+
+#========================================================================================= 1. SAMPLE SIZE FOR QUALIFICATION =====================================================================
 def render_sample_size_calculator():
     """Renders the comprehensive, interactive module for calculating sample size for qualification."""
     st.markdown("""
@@ -7923,7 +7907,7 @@ A compliant and statistically sound sampling plan is always derived from pre-def
         st.markdown("""
         Where `M` is Lot Size, `D` is max allowable defects (`floor((1-R) * M)`), and `n` is Sample Size.
         """)
-
+#========================================================================== 2. ADVANCED STABILITY DESIGN ==================================
 def render_stability_design():
     """Renders the comprehensive, interactive module for Stability Study Design."""
     st.markdown("""
@@ -8014,464 +7998,7 @@ A reduced stability design is a powerful, compliant strategy *only* if it is han
         - **FDA Guidance for Industry - Q1D Bracketing and Matrixing:** The FDA's formal adoption and implementation of the ICH guideline, making it a regulatory expectation in the United States.
         """)
 
-def render_spc_charts():
-    """Renders the INTERACTIVE module for Statistical Process Control (SPC) charts."""
-    st.markdown("""
-    #### Purpose & Application: The Voice of the Process
-    **Purpose:** To serve as an **EKG for your process**—a real-time heartbeat monitor that visualizes its stability. The goal is to distinguish between two fundamental types of variation:
-    - **Common Cause Variation:** The natural, random "static" or "noise" inherent to a stable process. It's predictable.
-    - **Special Cause Variation:** A signal that something has changed or gone wrong. It's unpredictable and requires investigation.
-    
-    **Strategic Application:** SPC is the bedrock of modern quality control. These charts provide an objective, data-driven answer to the critical question: "Is my process stable and behaving as expected?" They are used to prevent defects, reduce waste, and provide the evidence needed to justify (or reject) process changes.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the controls at the bottom of the sidebar to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
-    """)
-    
-    st.sidebar.subheader("SPC Scenario Controls")
-    scenario = st.sidebar.radio(
-        "Select a Process Scenario to Simulate:",
-        ('Stable', 'Sudden Shift', 'Gradual Trend', 'Increased Variability'),
-        captions=[
-            "Process is behaving normally.",
-            "e.g., A new raw material lot is introduced.",
-            "e.g., An instrument is slowly drifting out of calibration.",
-            "e.g., An operator becomes less consistent."
-        ]
-    )
-
-    fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
-    
-    st.subheader(f"Analysis & Interpretation: {scenario} Process")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-
-    with tabs[0]:
-        st.info("💡 Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
-
-        with st.expander("Indivduals & Moving Range (I-MR) Chart", expanded=True):
-            st.plotly_chart(fig_imr, use_container_width=True)
-            st.markdown("- **Interpretation:** The I-chart tracks the process center, while the MR-chart tracks short-term variability. **Both** must be stable. An out-of-control MR chart is a leading indicator of future problems.")
-
-        with st.expander("X-bar & Range (X̄-R) Chart", expanded=True):
-            st.plotly_chart(fig_xbar, use_container_width=True)
-            st.markdown("- **Interpretation:** The X-bar chart tracks variation *between* subgroups and is extremely sensitive to small shifts. The R-chart tracks variation *within* subgroups, a measure of process consistency.")
-        
-        with st.expander("Proportion (P) Chart", expanded=True):
-            st.plotly_chart(fig_p, use_container_width=True)
-            st.markdown("- **Interpretation:** This chart tracks the proportion of defects. The control limits become tighter for larger batches, reflecting increased statistical certainty.")
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of SPC Terms
-            - **SPC (Statistical Process Control):** A method of quality control which employs statistical methods to monitor and control a process.
-            - **Control Chart:** A graph used to study how a process changes over time. Data are plotted in time order.
-            - **Control Limits:** Horizontal lines on a control chart (typically at ±3σ) that represent the natural variation of a process. They are calculated from the process data itself.
-            - **Common Cause Variation:** The natural, random variation inherent in a stable process. It is the "noise" of the system.
-            - **Special Cause Variation:** Variation that is not inherent to the process and is caused by a specific, assignable event (e.g., a machine malfunction, a new operator). It is the "signal" that something has changed.
-            - **In a State of Statistical Control:** A process from which all special causes of variation have been removed, leaving only common cause variation. Such a process is stable and predictable.
-            """)
-    with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: "Process Tampering"**
-        This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
-        - *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
-        Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.""")
-        st.success("""🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
-        The control chart's signal dictates one of two paths:
-        1.  **Process is IN-CONTROL (only common cause variation):**
-            - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).
-        2.  **Process is OUT-OF-CONTROL (a special cause is present):**
-            - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.""")
-
-    with tabs[3]:
-        st.markdown("""
-        #### Historical Context: The Birth of Modern Quality
-        **The Problem:** In the early 1920s, manufacturing at Western Electric for the Bell Telephone system was a chaotic affair. The challenge was immense: how could you ensure consistency across millions of components when you couldn't tell the difference between normal, random variation and a real production problem? Engineers were lost in a "fog" of data, constantly "tampering" with the process based on noise, often making things worse.
-
-        **The 'Aha!' Moment:** A brilliant physicist at Bell Labs, **Dr. Walter A. Shewhart**, had a revolutionary insight. In a famous 1924 internal memo, he was the first to formally articulate the critical distinction between what he called **"chance cause"** (common cause) and **"assignable cause"** (special cause) variation. He realized that as long as a process only exhibited chance cause variation, it was stable, predictable, and in a "state of statistical control."
-        
-        **The Impact:** The control chart was the simple, graphical tool he invented to detect the exact moment an assignable cause entered the system. This single idea was the birth of modern Statistical Process Control and laid the foundation for the entire 20th-century quality revolution, influencing giants like W. Edwards Deming and the rise of Japanese manufacturing excellence.
-        """)
-        st.markdown("#### Mathematical Basis")
-        st.markdown("The control limits on a Shewhart chart are famously set at the process average plus or minus three standard deviations of the statistic being plotted.")
-        st.latex(r"\text{Control Limits} = \mu \pm 3\sigma_{\text{statistic}}")
-        st.markdown("""
-        - **Why 3-Sigma?** Shewhart chose this value for sound economic and statistical reasons. For a normally distributed process, 99.73% of all data points will naturally fall within these limits. This means there's only a 0.27% chance of a point falling outside the limits purely by chance (a false alarm). This makes the chart robust; when you get a signal, you can be very confident it's real. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
-        - **Estimating Sigma:** In practice, the true `σ` is unknown. For an I-MR chart, it is estimated from the average moving range (`MR-bar`) using a statistical constant `d₂`:
-        """)
-        st.latex(r"\hat{\sigma} = \frac{\overline{MR}}{d_2}")
-    with tabs[4]:
-        st.markdown("""
-        SPC is the primary tool for Stage 3 of the process validation lifecycle, known as Continued or Ongoing Process Verification (CPV/OPV).
-        - **FDA Process Validation Guidance (Stage 3):** Explicitly states that "an ongoing program to collect and analyze product and process data... must be established." SPC charts are the standard method for this real-time monitoring.
-        - **ICH Q7 - Good Manufacturing Practice for APIs:** Section 2.5 on Quality Risk Management discusses the importance of monitoring and reviewing process performance.
-        - **21 CFR 211.110(a):** Requires the establishment of control procedures "to monitor the output and to validate the performance of those manufacturing processes that may be responsible for causing variability."
-        """)
-
-def render_capability():
-    """Renders the interactive module for Process Capability (Cpk)."""
-    st.markdown("""
-    #### Purpose & Application: Voice of the Process vs. Voice of the Customer
-    **Purpose:** To quantitatively determine if a process, once proven to be in a state of statistical control, is **capable** of consistently producing output that meets pre-defined specification limits (the "Voice of the Customer").
-    
-    **Strategic Application:** This is the ultimate verdict on process performance, often the final gate in a process validation or technology transfer. It directly answers the critical business question: "Is our process good enough to reliably meet customer or regulatory requirements?" 
-    - A high Cpk provides objective evidence that the process is robust and delivers high quality.
-    - A low Cpk is a clear signal that the process requires fundamental improvement.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the **Process Scenario** radio buttons below to simulate common real-world process states. Notice how the **Capability Verdict** is only valid when the top control chart shows a stable process. The bottom plot shows how the process distribution (blue line) fits within the specification limits (red lines).
-    """)
-
-    scenario = st.radio(
-        "Select Process Scenario:",
-        ('Ideal (High Cpk)', 'Shifted (Low Cpk)', 'Variable (Low Cpk)', 'Out of Control (Shift)', 'Out of Control (Trend)', 'Out of Control (Bimodal)'),
-        horizontal=True
-    )
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        fig, cpk_val = plot_capability(scenario)
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        with tabs[0]:
-            st.metric(label="📈 KPI: Process Capability (Cpk)",
-                      value=f"{cpk_val:.2f}" if not np.isnan(cpk_val) else "INVALID",
-                      help="Measures how well the process fits within the spec limits, accounting for centering. Higher is better.")
-            
-            st.markdown("""
-            **The Mantra: Stability First, Capability Second.**
-            - The control chart (top plot) is a prerequisite. The Cpk metric is **statistically invalid** if the process is unstable, as an unstable process has no single, predictable "voice" to measure.
-            - Notice how the **'Out of Control'** scenarios all produce an invalid result. You must fix the stability problem *before* you can assess capability.
-            
-            **The Key Insight: Control ≠ Capability.**
-            - A process can be perfectly stable but still produce bad product. The **'Shifted'** and **'Variable'** scenarios are stable but have poor Cpk values for different reasons (poor accuracy vs. poor precision).
-            
-            **The Bimodal Case:**
-            - The **'Bimodal'** scenario shows two distinct sub-processes running. This violates the normality assumption of Cpk and requires investigation to find and eliminate the source of the two populations.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Capability Terms
-            - **Process Capability:** A measure of the ability of a process to produce output within specification limits.
-            - **Specification Limits (LSL/USL):** The limits that define the acceptable range for a product's characteristic. They are determined by customer requirements or engineering design (the "Voice of the Customer").
-            - **Control Limits:** The limits on a control chart that represent the natural variation of the process (the "Voice of the Process"). **They are completely unrelated to specification limits.**
-            - **Cpk (Process Capability Index):** A statistical measure of process capability that accounts for how well the process is centered within the specification limits. It measures the distance from the process mean to the *nearest* specification limit.
-            - **Cp (Process Potential Index):** A measure of process capability that does not account for centering. It only measures if the process is "narrow" enough to fit within the specifications.
-            """)
-        with tabs[2]:
-            st.markdown("These are industry-standard benchmarks. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
-            st.markdown("- `Cpk < 1.00`: Process is **not capable**.")
-            st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**.")
-            st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable** (a '4-sigma' quality level).")
-            st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** (approaching 'Six Sigma').")
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: The Six Sigma Revolution
-            **The Problem:** In the 1980s, the American electronics manufacturer Motorola was facing a quality crisis. Despite using traditional quality control methods, defect rates were too high to compete globally. They needed a new, more ambitious way to think about quality.
-
-            **The 'Aha!' Moment:** An engineer named **Bill Smith**, with the backing of CEO Bob Galvin, championed a radical new idea. Instead of just being "in-spec," a process should be so good that the specification limits are at least **six standard deviations** away from the process mean. This "Six Sigma" concept was a quantum leap in quality thinking. The **Cpk index** became the simple, powerful metric to measure progress toward this goal. A Cpk of 2.0 was the statistical equivalent of achieving Six Sigma capability.
-
-            **The Impact:** The Six Sigma initiative was a spectacular success, reportedly saving Motorola billions of dollars. It was later adopted and popularized by companies like General Electric under Jack Welch, becoming one of the most influential business management strategies of the late 20th century. Cpk moved from a niche statistical tool to a globally recognized KPI for process excellence.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("Capability analysis is a direct comparison between the **\"Voice of the Customer\"** (the allowable spread, USL - LSL) and the **\"Voice of the Process\"** (the actual, natural spread, conventionally 6σ).")
-            st.markdown("- **Cp (Potential Capability):** Measures if the process is narrow enough, ignoring centering.")
-            st.latex(r"C_p = \frac{\text{USL} - \text{LSL}}{6\hat{\sigma}}")
-            st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit, in units of 3-sigma.")
-            st.latex(r"C_{pk} = \min \left( \frac{\text{USL} - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - \text{LSL}}{3\hat{\sigma}} \right)")
-        with tabs[4]:
-            st.markdown("""
-            Process capability analysis (Cpk) is the key metric used during Stage 2 of the validation lifecycle, Process Performance Qualification (PPQ).
-            - **FDA Process Validation Guidance (Stage 2):** The goal of PPQ is to demonstrate that the process, operating under normal conditions, is capable of consistently producing conforming product. A high Cpk is the statistical evidence that this goal has been met.
-            - **Global Harmonization Task Force (GHTF):** For medical devices, guidance on process validation similarly requires demonstrating that the process output consistently meets predetermined requirements.
-            """)
-
-def render_proportion_cis():
-    """Renders the comprehensive, interactive module for comparing binomial confidence intervals."""
-    st.markdown("""
-    #### Purpose & Application: Choosing the Right Statistical Ruler for Pass/Fail Data
-    **Purpose:** To compare and contrast different statistical methods for calculating a confidence interval for pass/fail (binomial) data. This tool demonstrates that the choice of statistical method is not trivial and can have a significant impact on the final conclusion, especially in common validation scenarios with high success rates and limited sample sizes.
-    
-    **Strategic Application:** This is a critical decision point when writing a validation protocol or a statistical analysis plan. When you must prove that a process meets a high reliability target (e.g., >99% success rate) based on a limited sample, the statistical interval you choose determines your ability to make that claim. Using an overly conservative interval (like Clopper-Pearson) may require a much larger sample size, increasing project costs, while using an unreliable one (like the classic Wald interval) can lead to a false sense of confidence and significant compliance risk.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** You are the Validation Scientist.
-    1.  Use the top two sliders to simulate a validation run with a specific number of samples and successes.
-    2.  Pay close attention to the **"Failure Scenarios"**—what happens when you have **few samples** and **zero or one failures**. This is where the methods differ most dramatically.
-    3.  Use the **Bayesian Prior** sliders to see how prior knowledge (e.g., from R&D) can be formally incorporated to produce a more informed interval.
-    """)
-
-    with st.sidebar:
-        st.subheader("Confidence Interval Controls")
-        st.markdown("**Experimental Results**")
-        n_samples_slider = st.slider("Number of Validation Samples (n)", 10, 200, 50, 5, help="The total number of samples tested in your validation run. Note how interval widths shrink as you increase n.")
-        n_failures_slider = st.slider("Number of Failures Observed", 0, n_samples_slider, 1, 1, help="The number of non-conforming or failing results. Scenarios with 0 or 1 failures are common and where the choice of CI method is most critical.")
-        n_successes = n_samples_slider - n_failures_slider
-        
-        st.markdown("**Bayesian Prior Belief**")
-        st.write("Simulate prior knowledge (e.g., from R&D studies).")
-        prior_successes = st.slider("Prior Successes (α)", 0, 100, 10, 1, help="The number of successes in your 'imaginary' prior data. A higher number represents a stronger prior belief in a high success rate.")
-        prior_failures = st.slider("Prior Failures (β)", 0, 100, 1, 1, help="The number of failures in your 'imaginary' prior data. Even a small number here can make the model more conservative.")
-
-    fig, metrics = plot_proportion_cis(n_samples_slider, n_successes, prior_successes, prior_failures)
-    
-    col1, col2 = st.columns([0.6, 0.4])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.subheader("Key Interval Results")
-        st.metric("Observed Success Rate", f"{n_successes/n_samples_slider if n_samples_slider > 0 else 0:.2%}")
-        st.markdown(f"**Wilson Score CI:** `[{metrics['Wilson Score'][0]:.3f}, {metrics['Wilson Score'][1]:.3f}]`")
-        st.markdown(f"**Clopper-Pearson (Exact) CI:** `[{metrics['Clopper–Pearson (Exact)'][0]:.3f}, {metrics['Clopper–Pearson (Exact)'][1]:.3f}]`")
-        st.markdown(f"**Custom Bayesian CI:** `[{metrics['Bayesian with Custom Prior'][0]:.3f}, {metrics['Bayesian with Custom Prior'][1]:.3f}]`")
-
-    st.divider()
-    st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    with tabs[0]:
-        st.markdown("""
-        **Interpreting the Comparison:**
-        - **The Wald Interval's Failure:** Set the "Number of Failures" to 0. Notice that the Wald interval (red) collapses to a width of zero. This is a nonsensical result that falsely claims perfect certainty from a finite sample. This is why it is blacklisted in modern statistical practice.
-        - **Conservatism vs. Accuracy:** The **Clopper-Pearson** interval is often the widest. It is guaranteed to meet the 95% confidence level, but this guarantee makes it conservative (less powerful). The **Wilson Score** interval is slightly narrower and has better average performance, making it a common "best practice" choice for frequentist analysis.
-        - **The Power of Priors:** Adjust the **Bayesian Prior** sliders. If you have a strong prior belief in a high success rate (e.g., 99 successes, 1 failure), notice how the "Bayesian with Custom Prior" interval is "pulled" towards that high rate, resulting in a higher lower bound than other methods. This can be a powerful way to reduce sample sizes, provided the prior is well-justified.
-        
-        **The Strategic Insight:** The choice of interval method directly impacts your ability to meet a pre-defined acceptance criterion. For a result of 49/50 successes (98%), the lower bound of the Wilson interval is 0.888. If your acceptance criterion is ">90% success," you fail. But for the same data, if you had a strong prior, the Bayesian lower bound might be >0.90, allowing you to pass.
-        """)
-    with tabs[1]:
-        st.markdown("""
-        ##### Glossary of CI Methods for Proportions
-        - **Wald Interval:** The simplest method, based on the normal approximation. **Known to perform very poorly** with small `n` or extreme proportions and should be avoided in GxP settings.
-        - **Wilson Score Interval:** A more complex method also based on the normal approximation, but it inverts the score test, giving it excellent performance across all conditions. Often the recommended default for frequentist analysis.
-        - **Agresti–Coull Interval:** A simplified version of the Wilson interval that is easier to compute by hand (it adds 2 successes and 2 failures before calculating a Wald interval). Performs similarly to Wilson but is slightly more conservative.
-        - **Clopper–Pearson (Exact) Interval:** A method based directly on the binomial distribution. It guarantees that the true coverage will be *at least* 95%, but is often too wide (conservative), making it harder to pass acceptance criteria.
-        - **Jeffreys Interval (Bayesian):** A Bayesian credible interval using a non-informative prior (`Beta(0.5, 0.5)`). It has excellent frequentist properties and is a good choice when no prior knowledge is available.
-        - **Bayesian Credible Interval:** An interval derived from the posterior distribution. It represents a range where there is a 95% probability that the true parameter lies. Its location and width are influenced by both the data and the chosen prior.
-        - **Bootstrapped CI:** A computational method that simulates thousands of new datasets by resampling from the original data. It does not rely on statistical assumptions, but can be unstable with very small sample sizes.
-        """)
-    with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: The "Textbook Default" Fallacy**
-An analyst uses the simple Wald interval because it's the first one taught in many introductory statistics courses. When validating a process with a 100% success rate in 50 samples (50/50), the Wald interval is `[1.0, 1.0]`, leading them to claim with 95% confidence that the true success rate is exactly 100%.
-- **The Flaw:** This is a statistically indefensible claim of absolute certainty from a finite sample. The Wilson Score interval for the same data is `[0.93, 1.0]`, which correctly communicates that the true rate could plausibly be as low as 93%.""")
-        st.success("""🟢 **THE GOLDEN RULE: Match the Method to the Risk and Justify It**
-The choice of confidence interval method is a risk-based decision that must be pre-specified and justified in the validation protocol.
-1.  **For General Use (Frequentist):** The **Wilson Score interval** is the recommended default, providing the best balance of accuracy and interval width.
-2.  **For Absolute Guarantee:** When you absolutely must guarantee that your confidence level is not underestimated (e.g., for a critical safety claim), the **Clopper-Pearson (Exact) interval** is the most conservative and defensible choice.
-3.  **When Prior Data Exists:** When you have strong, justifiable prior knowledge (e.g., from extensive R&D data), a **Bayesian credible interval** is the most powerful and efficient approach, but the prior must be explicitly defined and justified in the protocol.
-**Never use the Wald interval in a formal validation report.**""")
-    with tabs[3]:
-        st.markdown("""
-        #### Historical Context: Correcting a Century-Old Problem
-        The problem of estimating an interval for a proportion seems simple, but its history is complex. The standard **Wald interval**, based on the work of Abraham Wald in the 1930s, was easy to teach and compute, so it became the default method in textbooks for decades. However, its poor performance was well-known to statisticians. A famous 1998 paper by Brown, Cai, and DasGupta, titled "Interval Estimation for a Binomial Proportion," systematically exposed the severe flaws of the Wald interval to a wider audience, calling it "persistently chaotic."
-        
-        The irony is that the superior solutions were much older. The **Wilson Score interval** was developed by Edwin Bidwell Wilson in **1927**, and the **Clopper-Pearson interval** was developed in **1934**. For much of the 20th century, these more accurate but computationally intensive methods were overlooked in favor of the simpler Wald interval.
-        
-        The "rediscovery" of these superior methods in the 1990s, driven by increased computing power and influential papers like Brown et al.'s, led to a major shift in statistical practice. Today, modern statistical software and guidelines strongly advocate for the use of Wilson, Clopper-Pearson, or other improved methods, and the simple Wald interval is largely considered obsolete for serious analysis.
-        """)
-    with tabs[4]:
-        st.markdown("""
-        The calculation of a statistically valid confidence interval for a proportion is a fundamental requirement in many validation activities where the outcome is binary (pass/fail, concordant/discordant, etc.).
-        - **FDA Process Validation Guidance (Stage 2 - PPQ):** When validating a process attribute that is pass/fail (e.g., visual inspection for cosmetic defects), a confidence interval on the pass rate is used to demonstrate that the process can consistently produce conforming product. Using a robust interval is critical for making a high-confidence claim.
-        - **Analytical Method Validation (ICH Q2):** For qualitative assays (e.g., a limit test), validation requires demonstrating a high rate of correct detections. For concordance studies comparing a new method to a reference, a confidence interval on the concordance rate is a key performance metric.
-        - **21 CFR 820.250 (Statistical Techniques):** This regulation for medical devices explicitly requires that "Where appropriate, each manufacturer shall establish and maintain procedures for identifying valid statistical techniques..." Using a robust interval like the Wilson Score instead of the flawed Wald interval is a direct fulfillment of this requirement.
-        """)
-
-def render_process_equivalence():
-    """Renders the comprehensive, interactive module for Process Transfer Equivalence."""
-    st.markdown("""
-    #### Purpose & Application: Statistical Proof of Transfer Success
-    **Purpose:** To provide **objective, statistical proof** that a manufacturing process transferred to a new site, scale, or equipment set performs equivalently to the original, validated process.
-    
-    **Strategic Application:** This is a high-level validation activity that goes beyond simply showing the new site is "in control." It formally proves that the new process is **statistically indistinguishable** from the original, providing powerful evidence for regulatory filings and ensuring consistent product quality across a global network. It is the final exam of a technology transfer.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** You are the Head of Tech Transfer. Use the sidebar controls to simulate the performance of the new manufacturing site (Site B).
-    - The dashboard tells a 3-part story: the **raw process comparison** (top), the **statistical evidence** about the difference (middle), and the **final verdict** (bottom).
-    - **The Goal:** Achieve a "PASS" verdict by ensuring the entire evidence distribution in Plot 2 falls within the red equivalence margins.
-    """)
-    
-    with st.sidebar:
-        st.subheader("Process Equivalence Controls")
-        st.markdown("**Baseline Process**")
-        cpk_a_slider = st.slider("Original Site A Performance (Cpk)", 1.33, 2.5, 1.67, 0.01, help="The historical, validated process capability of the sending site. This is your benchmark.")
-        st.markdown("**New Process Simulation**")
-        mean_shift_slider = st.slider("Mean Shift at Site B", -2.0, 2.0, 0.5, 0.1, help="Simulates a systematic bias or shift in the process average at the new site. A key risk in tech transfer.")
-        var_change_slider = st.slider("Variability Change Factor at Site B", 0.8, 1.5, 1.1, 0.05, help="Simulates a change in process precision. >1.0 means the new site is more variable (worse); <1.0 means it is less variable (better).")
-        st.markdown("**Statistical Criteria**")
-        n_samples_slider = st.slider("Samples per Site (n)", 30, 200, 50, 10, help="The number of samples taken during the PPQ runs at each site. More samples increase statistical power.")
-        margin_slider = st.slider("Equivalence Margin for Cpk (±)", 0.1, 0.5, 0.2, 0.05, help="The 'goalposts'. How much can the new site's Cpk differ from the original and still be considered equivalent? This is a risk-based decision.")
-
-    fig, is_equivalent, diff_cpk, cpk_a_sample, cpk_b_sample, ci_lower, ci_upper = plot_process_equivalence(
-        cpk_site_a=cpk_a_slider, mean_shift=mean_shift_slider,
-        var_change_factor=var_change_slider, n_samples=n_samples_slider,
-        margin=margin_slider
-    )
-    
-    st.header("Results Dashboard")
-    col1, col2 = st.columns([0.65, 0.35])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        if is_equivalent:
-            st.success("### Verdict: ✅ PASS - Processes are Equivalent")
-        else:
-            st.error("### Verdict: ❌ FAIL - Processes are NOT Equivalent")
-        
-        c1, c2 = st.columns(2)
-        c1.metric("Site A Sample Cpk", f"{cpk_a_sample:.2f}")
-        c2.metric("Site B Sample Cpk", f"{cpk_b_sample:.2f}", delta=f"{(diff_cpk):.2f} vs Site A")
-        
-        st.metric("90% CI for Cpk Difference", f"[{ci_lower:.2f}, {ci_upper:.2f}]", help="The range of plausible true differences between the sites' Cpk values, based on the sample data.")
-        st.metric("Equivalence Margin", f"± {margin_slider}", help="The pre-defined goalposts for success.")
-        
-    st.divider()
-    st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    
-    with tabs[0]:
-        st.markdown("""
-        **The 3-Plot Story: From Data to Decision**
-        1.  **Plot 1 (Process Comparison):** This shows what you see in the raw data from the validation runs. The smooth curves represent the "Voice of the Process" for each site relative to the specification limits (the "Voice of the Customer").
-        2.  **Plot 2 (Statistical Evidence):** This is the crucial bridge. It shows the result of a bootstrap simulation—a histogram of all the likely "true" differences in Cpk between the sites. The shaded area is the 90% confidence interval, representing our statistical evidence.
-        3.  **Plot 3 (The Verdict):** This is a simple summary of Plot 2. The colored bar is the same 90% confidence interval. **The test passes only if this entire bar is inside the equivalence zone defined by the red dashed lines.**
-        
-        **Core Insight:** A tech transfer doesn't just need to produce good product (high Cpk); it needs to produce product that is **statistically consistent** with the original site. This analysis provides the formal proof. Notice how a small `Mean Shift` or an increase in `Variability` at Site B can quickly lead to a failed equivalence test, even if Site B's Cpk is still above 1.33.
-        """)
-    with tabs[1]:
-        st.markdown("""
-        ##### Glossary of Transfer Terms
-        - **Technology Transfer:** The process of transferring skills, knowledge, technologies, and methods of manufacturing among organizations to ensure that scientific and technological developments are accessible to a wider range of users.
-        - **Process Performance Qualification (PPQ):** Stage 2 of the FDA Process Validation lifecycle, where the process design is evaluated to determine if it is capable of reproducible commercial manufacturing.
-        - **Cpk (Process Capability Index):** A key performance indicator for a manufacturing process. A high Cpk (>1.33) indicates a capable process.
-        - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference in performance between two processes (e.g., the original and transferred site) is smaller than a pre-specified, practically meaningless amount.
-        - **Bootstrap Simulation:** A computer-intensive statistical method that uses resampling of the original data to estimate the sampling distribution and confidence intervals of a statistic (like the difference in Cpk).
-        """)
-    with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: The "Cpk is Cpk" Fallacy**
-A manager reviews the Site B PPQ data, sees a Cpk of 1.40 (which is > 1.33), and declares the transfer a success, even though the original site's Cpk was 1.80.
-- **The Flaw:** This significant drop in performance is ignored, introducing a new, hidden level of risk into the manufacturing network. The process is now less robust and more likely to fail in the future. They have proven capability, but not comparability.""")
-        st.success("""🟢 **THE GOLDEN RULE: Pre-Define Equivalence, Then Prove It**
-A robust tech transfer plan treats equivalence as a formal acceptance criterion.
-1.  **Define the Margin:** Before the transfer, stakeholders must agree on the equivalence margin for a key performance metric (like Cpk). This is a risk-based decision: how much of a performance drop are we willing to accept?
-2.  **Prove You're Inside:** Conduct the PPQ runs and perform the equivalence test. The burden of proof is on the receiving site to demonstrate that their process performance is statistically indistinguishable from the sending site, within the pre-defined margin.""")
-
-    with tabs[3]:
-        st.markdown("""
-        #### Historical Context: A Modern Synthesis
-        This tool represents a modern synthesis of two powerful statistical ideas that both came to prominence in the 1980s but in different industries:
-        1.  **Process Capability (Cpk):** Popularized by the **Six Sigma** movement at Motorola, Cpk became the universal language for quantifying how well a process fits within its specification limits. It answered the question, "Is our process good enough?"
-        2.  **Equivalence Testing (TOST):** Championed by the **FDA** for generic drug approvals, equivalence testing provided the rigorous framework for proving two things were "the same" within a practical margin. It answered the question, "Is Drug B the same as Drug A?"
-        
-        **The Impact:** In modern tech transfer and lifecycle management, these two ideas are fused. By applying the rigorous logic of equivalence testing to a key performance indicator like Cpk, we create a powerful, modern tool for validating process transfers, scale-up, and other post-approval changes. The use of computer-intensive **bootstrapping** to calculate the confidence interval for a complex metric like Cpk is a distinctly 21st-century statistical technique that makes this analysis possible.
-        """)
-        
-    with tabs[4]:
-        st.markdown("""
-        This analysis is a best-practice implementation for several key regulatory activities that require demonstrating comparability.
-        - **FDA Process Validation Guidance:** This tool is ideal for **Stage 2 (Process Qualification)** when transferring a process. It provides objective evidence that the receiving site has successfully reproduced the performance of the sending site.
-        - **ICH Q5E - Comparability of Biotechnological/Biological Products:** While this guideline focuses on product quality attributes, its core principle is demonstrating comparability after a manufacturing process change. This statistical approach provides a quantitative framework for that demonstration.
-        - **Technology Transfer (ICH Q10):** A robust tech transfer protocol should have pre-defined acceptance criteria. Proving statistical equivalence of process capability is a state-of-the-art criterion.
-        - **SUPAC (Scale-Up and Post-Approval Changes):** When making a change to a validated process, this analysis can be used to prove that the change has not adversely impacted process performance.
-        """)
-        
-def render_tolerance_intervals():
-    """Renders the INTERACTIVE module for Tolerance Intervals."""
-    st.markdown("""
-    #### Purpose & Application: The Quality Engineer's Secret Weapon
-    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process.
-    
-    **Strategic Application:** This is often the most critical statistical interval in manufacturing. It directly answers the high-stakes question: **"Based on this sample, what is the range where we can expect almost all of our individual product units to fall?"**
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the sliders below to explore the trade-offs in tolerance intervals. This simulation demonstrates how sample size and the desired quality guarantee (coverage) directly impact the calculated interval, which in turn affects process specifications and batch release decisions.
-    """)
-    
-    # --- NEW: Sidebar controls for this specific module ---
-    st.subheader("Tolerance Interval Controls")
-    n_slider = st.slider(
-        "🔬 Sample Size (n)", 
-        min_value=10, max_value=200, value=30, step=10,
-        help="The number of samples collected. More samples lead to a narrower, more reliable interval."
-    )
-    coverage_slider = st.select_slider(
-        "🎯 Desired Population Coverage",
-        options=[90.0, 95.0, 99.0, 99.9],
-        value=99.0,
-        help="The 'quality promise'. What percentage of all future parts do you want this interval to contain? A higher promise requires a wider interval."
-    )
-
-    # Generate plots using the slider values
-    fig, ci, ti = plot_tolerance_intervals(n=n_slider, coverage_pct=coverage_slider)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            st.metric(label="🎯 Desired Coverage", value=f"{coverage_slider:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
-            st.metric(label="📏 Resulting Tolerance Interval", value=f"[{ti[0]:.1f}, {ti[1]:.1f}]", help="The final calculated range. Note how much wider it is than the CI.")
-            
-            st.info("Play with the sliders in the sidebar and observe the results!")
-            st.markdown("""
-            - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
-            - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Statistical Intervals
-            - **Confidence Interval (CI):** An interval estimate for a population **parameter** (like the mean). A 95% CI provides a plausible range for the *average* of the process.
-            - **Tolerance Interval (TI):** An interval estimate for a specified **proportion of a population**. A 95%/99% TI provides a plausible range for where 99% of all *individual units* from the process will fall.
-            - **Prediction Interval (PI):** An interval estimate for a **single future observation**. A 95% PI provides a plausible range for the *very next* data point.
-            - **Coverage:** The proportion of the population that the tolerance interval is intended to contain (e.g., 99%).
-            - **Confidence:** The probability that a given interval, constructed from a random sample, will actually contain the true value it is intended to estimate.
-            """)
-        with tabs[2]:
-            st.error("""
-            🔴 **THE INCORRECT APPROACH: The Confidence Interval Fallacy**
-            - A manager sees that the 95% **Confidence Interval** for the mean is [99.9, 100.1] and their product specification is [95, 105]. They declare victory, believing all their product is in spec.
-            - **The Flaw:** They've proven the *average* is in spec, but have made no claim about the *individuals*. If process variation is high, many parts could still be out of spec.
-            """)
-            st.success("""
-            🟢 **THE GOLDEN RULE: Use the Right Interval for the Right Question**
-            - **Question 1: "Where is my long-term process average located?"**
-              - **Correct Tool:** ✅ **Confidence Interval**.
-            - **Question 2: "Will the individual units I produce meet the customer's specification?"**
-              - **Correct Tool:** ✅ **Tolerance Interval**.
-              
-            Never use a confidence interval to make a statement about where individual values are expected to fall.
-            """)
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: The Surviving Bomber Problem
-            The development of tolerance intervals is credited to the brilliant mathematician **Abraham Wald** during World War II. He is famous for the "surviving bombers" problem: when analyzing bullet holes on returning planes, the military wanted to reinforce the most-hit areas. Wald's revolutionary insight was that they should reinforce the areas with **no bullet holes**—because planes hit there never made it back.
-            
-            This ability to reason about an entire population from a limited sample is the same thinking behind the tolerance interval. Wald developed the statistical theory to allow engineers to make a reliable claim about **all** manufactured parts based on a **small sample**, a critical need for mass-producing interchangeable military hardware.
-            
-            #### Mathematical Basis
-            """)
-            st.latex(r"\text{TI} = \bar{x} \pm k \cdot s")
-            st.markdown("""
-            - **`k`**: The **k-factor** is the magic ingredient. It is a special value that depends on **three** inputs: the sample size (`n`), the desired population coverage (e.g., 99%), and the desired confidence level (e.g., 95%). This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation.
-            """)
-        with tabs[4]:
-            st.markdown("""
-            Tolerance intervals are a statistically rigorous method for setting acceptance criteria and release specifications based on validation data.
-            - **FDA Process Validation Guidance (Stage 2):** PPQ runs are used to demonstrate that the process can reliably produce product meeting its Critical Quality Attributes (CQAs). A tolerance interval calculated from PPQ data provides a high-confidence range where a large proportion of all future production will fall.
-            - **USP General Chapter <1010> - Analytical Data:** Discusses various statistical intervals and their correct application, including tolerance intervals for making claims about a proportion of a population.
-            """)
-
+#======================================================================= 3. METHOD COMPARISON ========================================================================
 def render_method_comparison():
     """Renders the INTERACTIVE module for Method Comparison."""
     st.markdown("""
@@ -8571,7 +8098,591 @@ def render_method_comparison():
             - **USP General Chapter <1224> - Transfer of Analytical Procedures:** This chapter is entirely dedicated to the process of qualifying a laboratory to use an analytical test procedure. It explicitly mentions "Comparative Testing" as a transfer option, for which Bland-Altman and Deming regression are the standard analysis tools.
             - **CLIA (Clinical Laboratory Improvement Amendments):** In the US, clinical labs are required to perform method comparison studies to validate new tests.
             """)
+
+#===============================================================  4. EQUIVALENCE TESTING (TOST) ================================================
+def render_tost():
+    """Renders the INTERACTIVE module for Two One-Sided Tests (TOST) for equivalence."""
+    st.markdown("""
+    #### Purpose & Application
+    **Purpose:** To statistically prove that two methods or groups are **equivalent** within a predefined, practically insignificant margin. This flips the logic of standard hypothesis testing from trying to prove a difference to trying to prove a lack of meaningful difference.
+    
+    **Strategic Application:** This is the statistically rigorous way to handle comparisons where the goal is to prove similarity, not difference, such as in biosimilarity studies, analytical method transfers, or validating a new manufacturing site.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** This new 3-plot dashboard tells a complete story.
+    1.  See the raw sample data at the top.
+    2.  Watch how that translates into the evidence about the *difference* in the middle plot.
+    3.  See the final verdict at the bottom. The bar in Plot 3 is just a summary of the shaded area in Plot 2.
+    """)
+    
+    with st.sidebar:
+        st.subheader("TOST Controls")
+        delta_slider = st.slider(
+            "⚖️ Equivalence Margin (Δ)", 1.0, 15.0, 5.0, 0.5,
+            help="The 'goalposts'. Defines the zone where differences are considered practically meaningless."
+        )
+        diff_slider = st.slider(
+            "🎯 True Difference", -10.0, 10.0, 1.0, 0.5,
+            help="The actual underlying difference between the two groups in the simulation."
+        )
+        sd_slider = st.slider(
+            "🌫️ Standard Deviation (Variability)", 1.0, 15.0, 5.0, 0.5,
+            help="The random noise in the data. Higher variability widens the CI, making equivalence harder to prove."
+        )
+        n_slider = st.slider(
+            "🔬 Sample Size (n)", 10, 200, 50, 5,
+            help="The number of samples per group. Higher sample size narrows the CI, increasing your power."
+        )
+    
+    fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B, diff_mean = plot_tost(
+        delta=delta_slider,
+        true_diff=diff_slider,
+        std_dev=sd_slider,
+        n_samples=n_slider
+    )
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
+        with tabs[0]:
+            status = "✅ EQUIVALENT" if is_equivalent else "❌ NOT EQUIVALENT"
+            if is_equivalent:
+                st.success(f"### Result: {status}")
+            else:
+                st.error(f"### Result: {status}")
+
+            st.metric(label="p-value (TOST)", value=f"{p_tost:.4f}", help="If p < 0.05, we conclude equivalence.")
+            st.metric(label="📊 Observed 90% CI for Difference", value=f"[{ci_lower:.2f}, {ci_upper:.2f}]")
+            st.metric(label="📈 Observed Difference", value=f"{diff_mean:.2f}",
+                      help="The difference between the two sample means (Mean B - Mean A).")
+            st.metric(label="⚖️ Equivalence Margin", value=f"± {delta_slider:.1f} units")
+
+            st.markdown("---")
+            st.markdown("##### The 3-Plot Story: How the Plots Connect")
+            st.markdown("""
+            1.  **Plot 1 (The Samples):** Shows the raw data you collected. The vertical dashed lines mark the *mean* of each sample.
+            2.  **Plot 2 (The Evidence):** This is the crucial link. It shows our statistical uncertainty about the true difference in means. The shaded area is the **90% Confidence Interval**.
+            3.  **Plot 3 (The Verdict):** This is just a compact summary of Plot 2. The bar represents the exact same 90% Confidence Interval.
+
+            **The conclusion of 'Equivalence' is reached when the entire shaded distribution in Plot 2 falls inside the light green 'Equivalence Zone'.**
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Equivalence Terms
+            - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference between two groups or methods is smaller than a pre-specified, practically meaningless amount.
+            - **TOST (Two One-Sided Tests):** The standard statistical method for performing an equivalence test. It involves testing two separate null hypotheses of "too different."
+            - **Equivalence Margin (Δ):** A pre-defined range `[-Δ, +Δ]` within which two products or methods are considered to be practically equivalent. Setting this margin is a critical, risk-based decision.
+            - **Confidence Interval Approach:** An equivalent method to TOST. If the 90% confidence interval for the difference between the two groups falls entirely within the equivalence margin, equivalence is demonstrated at the 5% significance level.
+            """)
+        with tabs[2]:
+            st.error("""🔴 **THE INCORRECT APPROACH: The Fallacy of the Non-Significant P-Value**
+- A scientist runs a standard t-test and gets a p-value of 0.25. They exclaim, *"Great, p > 0.05, so the methods are the same!"*
+- **This is wrong.** All they have shown is a *failure to find evidence of a difference*. **Absence of evidence is not evidence of absence.** Their study may have been underpowered (too much noise or too few samples).""")
+            st.success("""🟢 **THE GOLDEN RULE: Define 'Same Enough', Then Prove It**
+The TOST procedure forces a more rigorous scientific approach.
+1.  **First, Define the Margin:** Before collecting data, stakeholders must use scientific and clinical judgment to define the equivalence margin (`Δ`). This is the zone where a difference is considered practically meaningless.
+2.  **Then, Prove You're Inside:** Conduct the experiment. The burden of proof is on you to show that your evidence (the 90% CI for the difference) is precise enough to fall entirely within that pre-defined margin.""")
+
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context: The Rise of Generic Drugs
+            **The Problem:** In the early 1980s, the pharmaceutical landscape was changing. The **1984 Hatch-Waxman Act** in the US created the modern pathway for generic drug approval. This created a new statistical challenge for regulators: how could a generic manufacturer *prove* that their drug was "the same as" the innovator's drug in terms of how it was absorbed by the body (bioequivalence)?
+
+            **The 'Aha!' Moment:** A standard t-test was useless; failing to find a difference wasn't proof of no difference. The solution was championed by statisticians like **Donald J. Schuirmann** at the FDA. The **Two One-Sided Tests (TOST)** procedure, which had existed in the statistical literature, was identified as the perfect tool.
             
+            **The Impact:** The TOST procedure became the statistical engine for bioequivalence studies worldwide. Instead of one null hypothesis of "no difference," it brilliantly frames the problem with two null hypotheses of "too different." To prove equivalence, you must reject both. This places the burden of proof squarely on the manufacturer to demonstrate similarity, a much higher and more appropriate standard for ensuring patient safety.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("TOST brilliantly flips the null hypothesis. Instead of one null of \"no difference\" (`H₀: μ₁ - μ₂ = 0`), you have two null hypotheses of \"too different\":")
+            st.latex(r"H_{01}: \mu_B - \mu_A \leq -\Delta \quad (\text{The difference is too low})")
+            st.latex(r"H_{02}: \mu_B - \mu_A \geq +\Delta \quad (\text{The difference is too high})")
+            st.markdown("""
+            You must run two separate one-sided t-tests to reject **both** of these null hypotheses. The overall p-value for the TOST procedure is the larger of the two individual p-values. If this final p-value is less than your alpha (e.g., 0.05), you have statistically demonstrated equivalence within the margin `[-Δ, +Δ]`.
+            
+            A mathematically equivalent shortcut is to calculate the **90% confidence interval** for the difference. If this entire interval falls within `[-Δ, +Δ]`, you can conclude equivalence at the 5% significance level.
+            """)
+            
+        with tabs[4]:
+            st.markdown("""
+            TOST is the required statistical method for demonstrating similarity or equivalence in various regulated contexts.
+            - **FDA Guidance on Bioequivalence Studies:** TOST is the standard method for proving that the rate and extent of absorption of a generic drug are not significantly different from the reference listed drug.
+            - **USP General Chapter <1224> - Transfer of Analytical Procedures:** Suggests the use of equivalence testing to formally demonstrate that a receiving laboratory can obtain comparable results to the transferring laboratory.
+            - **Biosimilars (BPCIA Act):** The principles of equivalence testing are central to the analytical and clinical studies required to demonstrate biosimilarity to a reference biologic product.
+            """)
+#===============================================================  5. STATISTICAL EQUIVALENCE FOR PROCESS TRANSFER ================================================
+def render_process_equivalence():
+    """Renders the comprehensive, interactive module for Process Transfer Equivalence."""
+    st.markdown("""
+    #### Purpose & Application: Statistical Proof of Transfer Success
+    **Purpose:** To provide **objective, statistical proof** that a manufacturing process transferred to a new site, scale, or equipment set performs equivalently to the original, validated process.
+    
+    **Strategic Application:** This is a high-level validation activity that goes beyond simply showing the new site is "in control." It formally proves that the new process is **statistically indistinguishable** from the original, providing powerful evidence for regulatory filings and ensuring consistent product quality across a global network. It is the final exam of a technology transfer.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Head of Tech Transfer. Use the sidebar controls to simulate the performance of the new manufacturing site (Site B).
+    - The dashboard tells a 3-part story: the **raw process comparison** (top), the **statistical evidence** about the difference (middle), and the **final verdict** (bottom).
+    - **The Goal:** Achieve a "PASS" verdict by ensuring the entire evidence distribution in Plot 2 falls within the red equivalence margins.
+    """)
+    
+    with st.sidebar:
+        st.subheader("Process Equivalence Controls")
+        st.markdown("**Baseline Process**")
+        cpk_a_slider = st.slider("Original Site A Performance (Cpk)", 1.33, 2.5, 1.67, 0.01, help="The historical, validated process capability of the sending site. This is your benchmark.")
+        st.markdown("**New Process Simulation**")
+        mean_shift_slider = st.slider("Mean Shift at Site B", -2.0, 2.0, 0.5, 0.1, help="Simulates a systematic bias or shift in the process average at the new site. A key risk in tech transfer.")
+        var_change_slider = st.slider("Variability Change Factor at Site B", 0.8, 1.5, 1.1, 0.05, help="Simulates a change in process precision. >1.0 means the new site is more variable (worse); <1.0 means it is less variable (better).")
+        st.markdown("**Statistical Criteria**")
+        n_samples_slider = st.slider("Samples per Site (n)", 30, 200, 50, 10, help="The number of samples taken during the PPQ runs at each site. More samples increase statistical power.")
+        margin_slider = st.slider("Equivalence Margin for Cpk (±)", 0.1, 0.5, 0.2, 0.05, help="The 'goalposts'. How much can the new site's Cpk differ from the original and still be considered equivalent? This is a risk-based decision.")
+
+    fig, is_equivalent, diff_cpk, cpk_a_sample, cpk_b_sample, ci_lower, ci_upper = plot_process_equivalence(
+        cpk_site_a=cpk_a_slider, mean_shift=mean_shift_slider,
+        var_change_factor=var_change_slider, n_samples=n_samples_slider,
+        margin=margin_slider
+    )
+    
+    st.header("Results Dashboard")
+    col1, col2 = st.columns([0.65, 0.35])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        if is_equivalent:
+            st.success("### Verdict: ✅ PASS - Processes are Equivalent")
+        else:
+            st.error("### Verdict: ❌ FAIL - Processes are NOT Equivalent")
+        
+        c1, c2 = st.columns(2)
+        c1.metric("Site A Sample Cpk", f"{cpk_a_sample:.2f}")
+        c2.metric("Site B Sample Cpk", f"{cpk_b_sample:.2f}", delta=f"{(diff_cpk):.2f} vs Site A")
+        
+        st.metric("90% CI for Cpk Difference", f"[{ci_lower:.2f}, {ci_upper:.2f}]", help="The range of plausible true differences between the sites' Cpk values, based on the sample data.")
+        st.metric("Equivalence Margin", f"± {margin_slider}", help="The pre-defined goalposts for success.")
+        
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **The 3-Plot Story: From Data to Decision**
+        1.  **Plot 1 (Process Comparison):** This shows what you see in the raw data from the validation runs. The smooth curves represent the "Voice of the Process" for each site relative to the specification limits (the "Voice of the Customer").
+        2.  **Plot 2 (Statistical Evidence):** This is the crucial bridge. It shows the result of a bootstrap simulation—a histogram of all the likely "true" differences in Cpk between the sites. The shaded area is the 90% confidence interval, representing our statistical evidence.
+        3.  **Plot 3 (The Verdict):** This is a simple summary of Plot 2. The colored bar is the same 90% confidence interval. **The test passes only if this entire bar is inside the equivalence zone defined by the red dashed lines.**
+        
+        **Core Insight:** A tech transfer doesn't just need to produce good product (high Cpk); it needs to produce product that is **statistically consistent** with the original site. This analysis provides the formal proof. Notice how a small `Mean Shift` or an increase in `Variability` at Site B can quickly lead to a failed equivalence test, even if Site B's Cpk is still above 1.33.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Transfer Terms
+        - **Technology Transfer:** The process of transferring skills, knowledge, technologies, and methods of manufacturing among organizations to ensure that scientific and technological developments are accessible to a wider range of users.
+        - **Process Performance Qualification (PPQ):** Stage 2 of the FDA Process Validation lifecycle, where the process design is evaluated to determine if it is capable of reproducible commercial manufacturing.
+        - **Cpk (Process Capability Index):** A key performance indicator for a manufacturing process. A high Cpk (>1.33) indicates a capable process.
+        - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference in performance between two processes (e.g., the original and transferred site) is smaller than a pre-specified, practically meaningless amount.
+        - **Bootstrap Simulation:** A computer-intensive statistical method that uses resampling of the original data to estimate the sampling distribution and confidence intervals of a statistic (like the difference in Cpk).
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Cpk is Cpk" Fallacy**
+A manager reviews the Site B PPQ data, sees a Cpk of 1.40 (which is > 1.33), and declares the transfer a success, even though the original site's Cpk was 1.80.
+- **The Flaw:** This significant drop in performance is ignored, introducing a new, hidden level of risk into the manufacturing network. The process is now less robust and more likely to fail in the future. They have proven capability, but not comparability.""")
+        st.success("""🟢 **THE GOLDEN RULE: Pre-Define Equivalence, Then Prove It**
+A robust tech transfer plan treats equivalence as a formal acceptance criterion.
+1.  **Define the Margin:** Before the transfer, stakeholders must agree on the equivalence margin for a key performance metric (like Cpk). This is a risk-based decision: how much of a performance drop are we willing to accept?
+2.  **Prove You're Inside:** Conduct the PPQ runs and perform the equivalence test. The burden of proof is on the receiving site to demonstrate that their process performance is statistically indistinguishable from the sending site, within the pre-defined margin.""")
+
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: A Modern Synthesis
+        This tool represents a modern synthesis of two powerful statistical ideas that both came to prominence in the 1980s but in different industries:
+        1.  **Process Capability (Cpk):** Popularized by the **Six Sigma** movement at Motorola, Cpk became the universal language for quantifying how well a process fits within its specification limits. It answered the question, "Is our process good enough?"
+        2.  **Equivalence Testing (TOST):** Championed by the **FDA** for generic drug approvals, equivalence testing provided the rigorous framework for proving two things were "the same" within a practical margin. It answered the question, "Is Drug B the same as Drug A?"
+        
+        **The Impact:** In modern tech transfer and lifecycle management, these two ideas are fused. By applying the rigorous logic of equivalence testing to a key performance indicator like Cpk, we create a powerful, modern tool for validating process transfers, scale-up, and other post-approval changes. The use of computer-intensive **bootstrapping** to calculate the confidence interval for a complex metric like Cpk is a distinctly 21st-century statistical technique that makes this analysis possible.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        This analysis is a best-practice implementation for several key regulatory activities that require demonstrating comparability.
+        - **FDA Process Validation Guidance:** This tool is ideal for **Stage 2 (Process Qualification)** when transferring a process. It provides objective evidence that the receiving site has successfully reproduced the performance of the sending site.
+        - **ICH Q5E - Comparability of Biotechnological/Biological Products:** While this guideline focuses on product quality attributes, its core principle is demonstrating comparability after a manufacturing process change. This statistical approach provides a quantitative framework for that demonstration.
+        - **Technology Transfer (ICH Q10):** A robust tech transfer protocol should have pre-defined acceptance criteria. Proving statistical equivalence of process capability is a state-of-the-art criterion.
+        - **SUPAC (Scale-Up and Post-Approval Changes):** When making a change to a validated process, this analysis can be used to prove that the change has not adversely impacted process performance.
+        """)
+
+#===============================================================  6. PROCESS STABILITY (SPC) ================================================
+def render_spc_charts():
+    """Renders the INTERACTIVE module for Statistical Process Control (SPC) charts."""
+    st.markdown("""
+    #### Purpose & Application: The Voice of the Process
+    **Purpose:** To serve as an **EKG for your process**—a real-time heartbeat monitor that visualizes its stability. The goal is to distinguish between two fundamental types of variation:
+    - **Common Cause Variation:** The natural, random "static" or "noise" inherent to a stable process. It's predictable.
+    - **Special Cause Variation:** A signal that something has changed or gone wrong. It's unpredictable and requires investigation.
+    
+    **Strategic Application:** SPC is the bedrock of modern quality control. These charts provide an objective, data-driven answer to the critical question: "Is my process stable and behaving as expected?" They are used to prevent defects, reduce waste, and provide the evidence needed to justify (or reject) process changes.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the controls at the bottom of the sidebar to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
+    """)
+    
+    st.sidebar.subheader("SPC Scenario Controls")
+    scenario = st.sidebar.radio(
+        "Select a Process Scenario to Simulate:",
+        ('Stable', 'Sudden Shift', 'Gradual Trend', 'Increased Variability'),
+        captions=[
+            "Process is behaving normally.",
+            "e.g., A new raw material lot is introduced.",
+            "e.g., An instrument is slowly drifting out of calibration.",
+            "e.g., An operator becomes less consistent."
+        ]
+    )
+
+    fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
+    
+    st.subheader(f"Analysis & Interpretation: {scenario} Process")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+
+    with tabs[0]:
+        st.info("💡 Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
+
+        with st.expander("Indivduals & Moving Range (I-MR) Chart", expanded=True):
+            st.plotly_chart(fig_imr, use_container_width=True)
+            st.markdown("- **Interpretation:** The I-chart tracks the process center, while the MR-chart tracks short-term variability. **Both** must be stable. An out-of-control MR chart is a leading indicator of future problems.")
+
+        with st.expander("X-bar & Range (X̄-R) Chart", expanded=True):
+            st.plotly_chart(fig_xbar, use_container_width=True)
+            st.markdown("- **Interpretation:** The X-bar chart tracks variation *between* subgroups and is extremely sensitive to small shifts. The R-chart tracks variation *within* subgroups, a measure of process consistency.")
+        
+        with st.expander("Proportion (P) Chart", expanded=True):
+            st.plotly_chart(fig_p, use_container_width=True)
+            st.markdown("- **Interpretation:** This chart tracks the proportion of defects. The control limits become tighter for larger batches, reflecting increased statistical certainty.")
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of SPC Terms
+            - **SPC (Statistical Process Control):** A method of quality control which employs statistical methods to monitor and control a process.
+            - **Control Chart:** A graph used to study how a process changes over time. Data are plotted in time order.
+            - **Control Limits:** Horizontal lines on a control chart (typically at ±3σ) that represent the natural variation of a process. They are calculated from the process data itself.
+            - **Common Cause Variation:** The natural, random variation inherent in a stable process. It is the "noise" of the system.
+            - **Special Cause Variation:** Variation that is not inherent to the process and is caused by a specific, assignable event (e.g., a machine malfunction, a new operator). It is the "signal" that something has changed.
+            - **In a State of Statistical Control:** A process from which all special causes of variation have been removed, leaving only common cause variation. Such a process is stable and predictable.
+            """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: "Process Tampering"**
+        This is the single most destructive mistake in SPC. The operator sees any random fluctuation within the control limits and reacts as if it's a real problem.
+        - *"This point is a little higher than the last one, I'll tweak the temperature down a bit."*
+        Reacting to "common cause" noise as if it were a "special cause" signal actually **adds more variation** to the process, making it worse. This is like trying to correct the path of a car for every tiny bump in the road—you'll end up swerving all over the place.""")
+        st.success("""🟢 **THE GOLDEN RULE: Know When to Act (and When Not To)**
+        The control chart's signal dictates one of two paths:
+        1.  **Process is IN-CONTROL (only common cause variation):**
+            - **Your Action:** Leave the process alone! To improve, you must work on changing the fundamental system (e.g., better equipment, new materials).
+        2.  **Process is OUT-OF-CONTROL (a special cause is present):**
+            - **Your Action:** Stop! Investigate immediately. Find the specific, assignable "special cause" for that signal and eliminate it.""")
+
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: The Birth of Modern Quality
+        **The Problem:** In the early 1920s, manufacturing at Western Electric for the Bell Telephone system was a chaotic affair. The challenge was immense: how could you ensure consistency across millions of components when you couldn't tell the difference between normal, random variation and a real production problem? Engineers were lost in a "fog" of data, constantly "tampering" with the process based on noise, often making things worse.
+
+        **The 'Aha!' Moment:** A brilliant physicist at Bell Labs, **Dr. Walter A. Shewhart**, had a revolutionary insight. In a famous 1924 internal memo, he was the first to formally articulate the critical distinction between what he called **"chance cause"** (common cause) and **"assignable cause"** (special cause) variation. He realized that as long as a process only exhibited chance cause variation, it was stable, predictable, and in a "state of statistical control."
+        
+        **The Impact:** The control chart was the simple, graphical tool he invented to detect the exact moment an assignable cause entered the system. This single idea was the birth of modern Statistical Process Control and laid the foundation for the entire 20th-century quality revolution, influencing giants like W. Edwards Deming and the rise of Japanese manufacturing excellence.
+        """)
+        st.markdown("#### Mathematical Basis")
+        st.markdown("The control limits on a Shewhart chart are famously set at the process average plus or minus three standard deviations of the statistic being plotted.")
+        st.latex(r"\text{Control Limits} = \mu \pm 3\sigma_{\text{statistic}}")
+        st.markdown("""
+        - **Why 3-Sigma?** Shewhart chose this value for sound economic and statistical reasons. For a normally distributed process, 99.73% of all data points will naturally fall within these limits. This means there's only a 0.27% chance of a point falling outside the limits purely by chance (a false alarm). This makes the chart robust; when you get a signal, you can be very confident it's real. It strikes an optimal balance between being sensitive to real problems and not causing "fire drills" for false alarms.
+        - **Estimating Sigma:** In practice, the true `σ` is unknown. For an I-MR chart, it is estimated from the average moving range (`MR-bar`) using a statistical constant `d₂`:
+        """)
+        st.latex(r"\hat{\sigma} = \frac{\overline{MR}}{d_2}")
+    with tabs[4]:
+        st.markdown("""
+        SPC is the primary tool for Stage 3 of the process validation lifecycle, known as Continued or Ongoing Process Verification (CPV/OPV).
+        - **FDA Process Validation Guidance (Stage 3):** Explicitly states that "an ongoing program to collect and analyze product and process data... must be established." SPC charts are the standard method for this real-time monitoring.
+        - **ICH Q7 - Good Manufacturing Practice for APIs:** Section 2.5 on Quality Risk Management discusses the importance of monitoring and reviewing process performance.
+        - **21 CFR 211.110(a):** Requires the establishment of control procedures "to monitor the output and to validate the performance of those manufacturing processes that may be responsible for causing variability."
+        """)
+#======================================================= 7. PROCESS CAPABILITY (CpK  ============================================================================
+def render_capability():
+    """Renders the interactive module for Process Capability (Cpk)."""
+    st.markdown("""
+    #### Purpose & Application: Voice of the Process vs. Voice of the Customer
+    **Purpose:** To quantitatively determine if a process, once proven to be in a state of statistical control, is **capable** of consistently producing output that meets pre-defined specification limits (the "Voice of the Customer").
+    
+    **Strategic Application:** This is the ultimate verdict on process performance, often the final gate in a process validation or technology transfer. It directly answers the critical business question: "Is our process good enough to reliably meet customer or regulatory requirements?" 
+    - A high Cpk provides objective evidence that the process is robust and delivers high quality.
+    - A low Cpk is a clear signal that the process requires fundamental improvement.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the **Process Scenario** radio buttons below to simulate common real-world process states. Notice how the **Capability Verdict** is only valid when the top control chart shows a stable process. The bottom plot shows how the process distribution (blue line) fits within the specification limits (red lines).
+    """)
+
+    scenario = st.radio(
+        "Select Process Scenario:",
+        ('Ideal (High Cpk)', 'Shifted (Low Cpk)', 'Variable (Low Cpk)', 'Out of Control (Shift)', 'Out of Control (Trend)', 'Out of Control (Bimodal)'),
+        horizontal=True
+    )
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, cpk_val = plot_capability(scenario)
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        with tabs[0]:
+            st.metric(label="📈 KPI: Process Capability (Cpk)",
+                      value=f"{cpk_val:.2f}" if not np.isnan(cpk_val) else "INVALID",
+                      help="Measures how well the process fits within the spec limits, accounting for centering. Higher is better.")
+            
+            st.markdown("""
+            **The Mantra: Stability First, Capability Second.**
+            - The control chart (top plot) is a prerequisite. The Cpk metric is **statistically invalid** if the process is unstable, as an unstable process has no single, predictable "voice" to measure.
+            - Notice how the **'Out of Control'** scenarios all produce an invalid result. You must fix the stability problem *before* you can assess capability.
+            
+            **The Key Insight: Control ≠ Capability.**
+            - A process can be perfectly stable but still produce bad product. The **'Shifted'** and **'Variable'** scenarios are stable but have poor Cpk values for different reasons (poor accuracy vs. poor precision).
+            
+            **The Bimodal Case:**
+            - The **'Bimodal'** scenario shows two distinct sub-processes running. This violates the normality assumption of Cpk and requires investigation to find and eliminate the source of the two populations.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Capability Terms
+            - **Process Capability:** A measure of the ability of a process to produce output within specification limits.
+            - **Specification Limits (LSL/USL):** The limits that define the acceptable range for a product's characteristic. They are determined by customer requirements or engineering design (the "Voice of the Customer").
+            - **Control Limits:** The limits on a control chart that represent the natural variation of the process (the "Voice of the Process"). **They are completely unrelated to specification limits.**
+            - **Cpk (Process Capability Index):** A statistical measure of process capability that accounts for how well the process is centered within the specification limits. It measures the distance from the process mean to the *nearest* specification limit.
+            - **Cp (Process Potential Index):** A measure of process capability that does not account for centering. It only measures if the process is "narrow" enough to fit within the specifications.
+            """)
+        with tabs[2]:
+            st.markdown("These are industry-standard benchmarks. For pharmaceuticals, a high Cpk in validation provides strong assurance of lifecycle performance.")
+            st.markdown("- `Cpk < 1.00`: Process is **not capable**.")
+            st.markdown("- `1.00 ≤ Cpk < 1.33`: Process is **marginally capable**.")
+            st.markdown("- `Cpk ≥ 1.33`: Process is considered **capable** (a '4-sigma' quality level).")
+            st.markdown("- `Cpk ≥ 1.67`: Process is considered **highly capable** (approaching 'Six Sigma').")
+
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context: The Six Sigma Revolution
+            **The Problem:** In the 1980s, the American electronics manufacturer Motorola was facing a quality crisis. Despite using traditional quality control methods, defect rates were too high to compete globally. They needed a new, more ambitious way to think about quality.
+
+            **The 'Aha!' Moment:** An engineer named **Bill Smith**, with the backing of CEO Bob Galvin, championed a radical new idea. Instead of just being "in-spec," a process should be so good that the specification limits are at least **six standard deviations** away from the process mean. This "Six Sigma" concept was a quantum leap in quality thinking. The **Cpk index** became the simple, powerful metric to measure progress toward this goal. A Cpk of 2.0 was the statistical equivalent of achieving Six Sigma capability.
+
+            **The Impact:** The Six Sigma initiative was a spectacular success, reportedly saving Motorola billions of dollars. It was later adopted and popularized by companies like General Electric under Jack Welch, becoming one of the most influential business management strategies of the late 20th century. Cpk moved from a niche statistical tool to a globally recognized KPI for process excellence.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("Capability analysis is a direct comparison between the **\"Voice of the Customer\"** (the allowable spread, USL - LSL) and the **\"Voice of the Process\"** (the actual, natural spread, conventionally 6σ).")
+            st.markdown("- **Cp (Potential Capability):** Measures if the process is narrow enough, ignoring centering.")
+            st.latex(r"C_p = \frac{\text{USL} - \text{LSL}}{6\hat{\sigma}}")
+            st.markdown("- **Cpk (Actual Capability):** The more important metric, as it accounts for process centering. It measures the distance from the process mean to the *nearest* specification limit, in units of 3-sigma.")
+            st.latex(r"C_{pk} = \min \left( \frac{\text{USL} - \bar{x}}{3\hat{\sigma}}, \frac{\bar{x} - \text{LSL}}{3\hat{\sigma}} \right)")
+        with tabs[4]:
+            st.markdown("""
+            Process capability analysis (Cpk) is the key metric used during Stage 2 of the validation lifecycle, Process Performance Qualification (PPQ).
+            - **FDA Process Validation Guidance (Stage 2):** The goal of PPQ is to demonstrate that the process, operating under normal conditions, is capable of consistently producing conforming product. A high Cpk is the statistical evidence that this goal has been met.
+            - **Global Harmonization Task Force (GHTF):** For medical devices, guidance on process validation similarly requires demonstrating that the process output consistently meets predetermined requirements.
+            """)
+#======================================================= 8. FIRST TIME YIELD & COST OF QUALITY  ============================================================================
+def render_fty_coq():
+    """Renders the comprehensive, interactive module for First Time Yield & Cost of Quality."""
+    st.markdown("""
+    #### Purpose & Application: The Business Case for Quality
+    **Purpose:** To demonstrate the powerful financial and operational relationship between process performance (**First Time Yield**) and its business consequences (**Cost of Quality**). This tool moves beyond simple pass/fail metrics to provide a holistic view of process efficiency and the hidden costs of failure.
+    
+    **Strategic Application:** This dashboard is a critical communication tool for validation and engineering leaders to justify quality improvement projects to business leadership. It translates technical process metrics (like yield) into the language of the business (cost and risk), making the return on investment for validation and process improvement activities clear and tangible.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Operations Director.
+    1.  Select the **Project Type** to see a realistic multi-step process.
+    2.  Use the **"Process Improvement Effort"** slider in the sidebar to simulate investing in better process controls, training, and validation.
+    3.  Observe the impact across the four-plot dashboard, from root cause to financial outcome.
+    """)
+
+    project_type = st.selectbox(
+        "Select a Project Type to Simulate:",
+        ["Pharma Process (MAb)", "Analytical Assay (ELISA)", "Instrument Qualification", "Software System (CSV)"]
+    )
+
+    with st.sidebar:
+        st.subheader("Improvement Effort Controls")
+        improvement_effort = st.slider("Process Improvement Effort", 0, 10, 0, 1,
+            help="Simulates the level of investment in process understanding and control (e.g., more validation, better training, improved equipment). Higher effort increases 'Good Quality' costs but dramatically reduces 'Poor Quality' costs and improves yield.")
+
+    fig_pareto, fig_spc, fig_sankey, fig_iceberg, rty_base, rty_improved, base_coq, improved_coq = plot_fty_coq(project_type, improvement_effort)
+
+    st.header("Process Performance & Cost Dashboard")
+    total_coq_base = sum(base_coq.values())
+    total_coq_improved = sum(improved_coq.values())
+    
+    rty_name = "Right First Time" if "Software" in project_type else "Rolled Throughput Yield (RTY)"
+    col1, col2, col3 = st.columns(3)
+    col1.metric(rty_name, f"{rty_improved:.1%}", f"{rty_improved - rty_base:.1%}")
+    col2.metric("Total Cost of Quality (COQ)", f"{total_coq_improved:,.0f} RCU", f"{total_coq_improved - total_coq_base:,.0f} RCU")
+    col3.metric("Return on Quality Investment", f"{(total_coq_base - total_coq_improved) / (improvement_effort*3500 + 1):.1f}x", help="Ratio of cost savings to the investment in prevention/appraisal.")
+
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        st.plotly_chart(fig_pareto, use_container_width=True)
+        st.plotly_chart(fig_sankey, use_container_width=True)
+    with col_p2:
+        st.plotly_chart(fig_spc, use_container_width=True)
+        st.plotly_chart(fig_iceberg, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown("""
+        **The 4-Plot Story: A Realistic Improvement Workflow**
+        This dashboard tells a story from left to right, top to bottom, mirroring a real process improvement project.
+        1.  **Where is the problem? (Pareto Chart):** This chart identifies the "vital few" steps causing the most scrap/rework. Your improvement efforts should always start here. Notice how the "Optimized" (green) bar is lowest for the step that was worst in the "Baseline" (grey).
+        2.  **Why is it a problem? (SPC Chart):** This chart provides a statistical root cause for the failure at the worst step. A process with low yield is often unstable or off-center. As you apply improvement effort, this chart becomes more stable and centered, visually linking investment to improved process control.
+        3.  **What is the overall impact? (Sankey Plot):** This shows the cumulative effect of all step yields on the final output (RTY). Improving the worst step has the biggest impact on widening the green "Final Output" flow.
+        4.  **What is the financial consequence? (Iceberg Chart):** This translates the operational improvements into business terms. The investment in better process control (making the iceberg tip bigger) dramatically shrinks the hidden costs of failure (the much larger submerged part).
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Quality Management Terms
+        - **First Time Yield (FTY):** The percentage of units that pass a single process step without any defects or rework. Also known as First Pass Yield.
+        - **Rolled Throughput Yield (RTY):** The probability that a unit will pass through all process steps without any defects. It is calculated by multiplying the FTY of all individual steps (`RTY = FTY₁ × FTY₂ × ... × FTYₙ`).
+        - **Cost of Quality (COQ):** A methodology that quantifies the total cost of quality-related efforts and deficiencies.
+        - **Prevention Costs:** Costs incurred to prevent defects from occurring in the first place (e.g., validation, training, FMEA).
+        - **Appraisal Costs:** Costs incurred to detect defects (e.g., inspections, QC testing, audits).
+        - **Internal Failure Costs:** Costs of defects found *before* the product is delivered to the customer (e.g., scrap, rework, investigation).
+        - **External Failure Costs:** Costs of defects found *after* the product is delivered to the customer (e.g., recalls, warranty claims, lawsuits). These are the most damaging costs.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: "The Firefighting Mentality"**
+A company under-invests in prevention and appraisal to minimize short-term costs. Their quality system is entirely reactive, consisting of a large QC department to "inspect quality in" at the end, and a large QA team to manage the constant deviations, rework, and scrap.
+- **The Flaw:** They are paying the highest possible Cost of Quality. The massive, hidden costs of internal and external failures far outweigh the savings from skimping on prevention, and their low RTY creates unpredictable production schedules.""")
+        st.success("""🟢 **THE GOLDEN RULE: Invest in Prevention, Not Failure**
+The goal of a mature quality system is to strategically shift spending from failure costs to prevention and appraisal costs.
+1.  **Measure Your Yield:** Calculate FTY for every step and the overall RTY to understand where your process is "leaking."
+2.  **Quantify the Cost of Quality:** Use the COQ framework to translate yield losses and failures into a financial number that gets management's attention.
+3.  **Justify Investment:** Use the RTY and COQ data to build a powerful business case for investing in process validation, better equipment, and more robust quality systems. This tool shows that such investments have a massive positive return.""")
+        
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: The Quality Gurus
+        The concepts of FTY and COQ were developed by the pioneers of the 20th-century quality management movement.
+        - **Rolled Throughput Yield:** This concept is a cornerstone of **Six Sigma**, the quality improvement methodology famously developed at **Motorola in the 1980s**. RTY was a powerful metric for quantifying the cumulative effect of defects in a complex process and for measuring the impact of improvement projects.
+        - **Cost of Quality:** The COQ framework was first described by **Armand V. Feigenbaum** in a 1956 Harvard Business Review article and was later popularized in his book *Total Quality Control*. He was the first to categorize costs into the four buckets (Prevention, Appraisal, Internal Failure, External Failure). Independently, **Joseph M. Juran** discussed the economics of quality in his *Quality Control Handbook* and emphasized the distinction between the "Cost of Good Quality" and the "Cost of Poor Quality."
+        
+        Together, these concepts provided the financial and operational language for the quality revolution, allowing engineers and scientists to frame quality not as an expense, but as a high-return investment.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        FTY and COQ are not explicitly named in many regulations, but they are the underlying metrics and business drivers for the entire GxP quality system.
+        - **ICH Q9 - Quality Risk Management:** The COQ framework is a powerful tool for quantifying the financial impact of risks identified in an FMEA. The potential for high "External Failure Costs" is a key driver for risk mitigation activities.
+        - **ICH Q10 - Pharmaceutical Quality System:** This guideline emphasizes the importance of **continuous improvement** and **process performance monitoring**. RTY is a key metric for monitoring process performance, and reducing the COQ is a primary goal of a continuous improvement program.
+        - **FDA Process Validation Guidance (Stage 3 - CPV):** An effective Continued Process Verification program should monitor metrics like FTY and RTY. A negative trend in these metrics would trigger an investigation and corrective action, demonstrating that the quality system is working as intended.
+        """)
+#======================================= 9. TOLERANCE INTERVALS  ============================================================================
+def render_tolerance_intervals():
+    """Renders the INTERACTIVE module for Tolerance Intervals."""
+    st.markdown("""
+    #### Purpose & Application: The Quality Engineer's Secret Weapon
+    **Purpose:** To construct an interval that we can claim, with a specified level of confidence, contains a certain proportion of all individual values from a process.
+    
+    **Strategic Application:** This is often the most critical statistical interval in manufacturing. It directly answers the high-stakes question: **"Based on this sample, what is the range where we can expect almost all of our individual product units to fall?"**
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sliders below to explore the trade-offs in tolerance intervals. This simulation demonstrates how sample size and the desired quality guarantee (coverage) directly impact the calculated interval, which in turn affects process specifications and batch release decisions.
+    """)
+    
+    # --- NEW: Sidebar controls for this specific module ---
+    st.subheader("Tolerance Interval Controls")
+    n_slider = st.slider(
+        "🔬 Sample Size (n)", 
+        min_value=10, max_value=200, value=30, step=10,
+        help="The number of samples collected. More samples lead to a narrower, more reliable interval."
+    )
+    coverage_slider = st.select_slider(
+        "🎯 Desired Population Coverage",
+        options=[90.0, 95.0, 99.0, 99.9],
+        value=99.0,
+        help="The 'quality promise'. What percentage of all future parts do you want this interval to contain? A higher promise requires a wider interval."
+    )
+
+    # Generate plots using the slider values
+    fig, ci, ti = plot_tolerance_intervals(n=n_slider, coverage_pct=coverage_slider)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
+        with tabs[0]:
+            st.metric(label="🎯 Desired Coverage", value=f"{coverage_slider:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
+            st.metric(label="📏 Resulting Tolerance Interval", value=f"[{ti[0]:.1f}, {ti[1]:.1f}]", help="The final calculated range. Note how much wider it is than the CI.")
+            
+            st.info("Play with the sliders in the sidebar and observe the results!")
+            st.markdown("""
+            - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
+            - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Statistical Intervals
+            - **Confidence Interval (CI):** An interval estimate for a population **parameter** (like the mean). A 95% CI provides a plausible range for the *average* of the process.
+            - **Tolerance Interval (TI):** An interval estimate for a specified **proportion of a population**. A 95%/99% TI provides a plausible range for where 99% of all *individual units* from the process will fall.
+            - **Prediction Interval (PI):** An interval estimate for a **single future observation**. A 95% PI provides a plausible range for the *very next* data point.
+            - **Coverage:** The proportion of the population that the tolerance interval is intended to contain (e.g., 99%).
+            - **Confidence:** The probability that a given interval, constructed from a random sample, will actually contain the true value it is intended to estimate.
+            """)
+        with tabs[2]:
+            st.error("""
+            🔴 **THE INCORRECT APPROACH: The Confidence Interval Fallacy**
+            - A manager sees that the 95% **Confidence Interval** for the mean is [99.9, 100.1] and their product specification is [95, 105]. They declare victory, believing all their product is in spec.
+            - **The Flaw:** They've proven the *average* is in spec, but have made no claim about the *individuals*. If process variation is high, many parts could still be out of spec.
+            """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Use the Right Interval for the Right Question**
+            - **Question 1: "Where is my long-term process average located?"**
+              - **Correct Tool:** ✅ **Confidence Interval**.
+            - **Question 2: "Will the individual units I produce meet the customer's specification?"**
+              - **Correct Tool:** ✅ **Tolerance Interval**.
+              
+            Never use a confidence interval to make a statement about where individual values are expected to fall.
+            """)
+
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context: The Surviving Bomber Problem
+            The development of tolerance intervals is credited to the brilliant mathematician **Abraham Wald** during World War II. He is famous for the "surviving bombers" problem: when analyzing bullet holes on returning planes, the military wanted to reinforce the most-hit areas. Wald's revolutionary insight was that they should reinforce the areas with **no bullet holes**—because planes hit there never made it back.
+            
+            This ability to reason about an entire population from a limited sample is the same thinking behind the tolerance interval. Wald developed the statistical theory to allow engineers to make a reliable claim about **all** manufactured parts based on a **small sample**, a critical need for mass-producing interchangeable military hardware.
+            
+            #### Mathematical Basis
+            """)
+            st.latex(r"\text{TI} = \bar{x} \pm k \cdot s")
+            st.markdown("""
+            - **`k`**: The **k-factor** is the magic ingredient. It is a special value that depends on **three** inputs: the sample size (`n`), the desired population coverage (e.g., 99%), and the desired confidence level (e.g., 95%). This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation.
+            """)
+        with tabs[4]:
+            st.markdown("""
+            Tolerance intervals are a statistically rigorous method for setting acceptance criteria and release specifications based on validation data.
+            - **FDA Process Validation Guidance (Stage 2):** PPQ runs are used to demonstrate that the process can reliably produce product meeting its Critical Quality Attributes (CQAs). A tolerance interval calculated from PPQ data provides a high-confidence range where a large proportion of all future production will fall.
+            - **USP General Chapter <1010> - Analytical Data:** Discusses various statistical intervals and their correct application, including tolerance intervals for making claims about a proportion of a population.
+            """)
+
+#======================================= 10. BAYESIAN INFERENCE  ============================================================================
 def render_bayesian():
     """Renders the interactive module for Bayesian Inference."""
     st.markdown("""
@@ -8679,105 +8790,11 @@ def render_bayesian():
             - **ICH Q8, Q9, Q10:** The lifecycle and risk-based principles of these guidelines are well-aligned with the Bayesian paradigm of updating knowledge as more data becomes available.
             """)
 
-def render_fty_coq():
-    """Renders the comprehensive, interactive module for First Time Yield & Cost of Quality."""
-    st.markdown("""
-    #### Purpose & Application: The Business Case for Quality
-    **Purpose:** To demonstrate the powerful financial and operational relationship between process performance (**First Time Yield**) and its business consequences (**Cost of Quality**). This tool moves beyond simple pass/fail metrics to provide a holistic view of process efficiency and the hidden costs of failure.
-    
-    **Strategic Application:** This dashboard is a critical communication tool for validation and engineering leaders to justify quality improvement projects to business leadership. It translates technical process metrics (like yield) into the language of the business (cost and risk), making the return on investment for validation and process improvement activities clear and tangible.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** You are the Operations Director.
-    1.  Select the **Project Type** to see a realistic multi-step process.
-    2.  Use the **"Process Improvement Effort"** slider in the sidebar to simulate investing in better process controls, training, and validation.
-    3.  Observe the impact across the four-plot dashboard, from root cause to financial outcome.
-    """)
 
-    project_type = st.selectbox(
-        "Select a Project Type to Simulate:",
-        ["Pharma Process (MAb)", "Analytical Assay (ELISA)", "Instrument Qualification", "Software System (CSV)"]
-    )
-
-    with st.sidebar:
-        st.subheader("Improvement Effort Controls")
-        improvement_effort = st.slider("Process Improvement Effort", 0, 10, 0, 1,
-            help="Simulates the level of investment in process understanding and control (e.g., more validation, better training, improved equipment). Higher effort increases 'Good Quality' costs but dramatically reduces 'Poor Quality' costs and improves yield.")
-
-    fig_pareto, fig_spc, fig_sankey, fig_iceberg, rty_base, rty_improved, base_coq, improved_coq = plot_fty_coq(project_type, improvement_effort)
-
-    st.header("Process Performance & Cost Dashboard")
-    total_coq_base = sum(base_coq.values())
-    total_coq_improved = sum(improved_coq.values())
-    
-    rty_name = "Right First Time" if "Software" in project_type else "Rolled Throughput Yield (RTY)"
-    col1, col2, col3 = st.columns(3)
-    col1.metric(rty_name, f"{rty_improved:.1%}", f"{rty_improved - rty_base:.1%}")
-    col2.metric("Total Cost of Quality (COQ)", f"{total_coq_improved:,.0f} RCU", f"{total_coq_improved - total_coq_base:,.0f} RCU")
-    col3.metric("Return on Quality Investment", f"{(total_coq_base - total_coq_improved) / (improvement_effort*3500 + 1):.1f}x", help="Ratio of cost savings to the investment in prevention/appraisal.")
-
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        st.plotly_chart(fig_pareto, use_container_width=True)
-        st.plotly_chart(fig_sankey, use_container_width=True)
-    with col_p2:
-        st.plotly_chart(fig_spc, use_container_width=True)
-        st.plotly_chart(fig_iceberg, use_container_width=True)
-    
-    st.divider()
-    st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    with tabs[0]:
-        st.markdown("""
-        **The 4-Plot Story: A Realistic Improvement Workflow**
-        This dashboard tells a story from left to right, top to bottom, mirroring a real process improvement project.
-        1.  **Where is the problem? (Pareto Chart):** This chart identifies the "vital few" steps causing the most scrap/rework. Your improvement efforts should always start here. Notice how the "Optimized" (green) bar is lowest for the step that was worst in the "Baseline" (grey).
-        2.  **Why is it a problem? (SPC Chart):** This chart provides a statistical root cause for the failure at the worst step. A process with low yield is often unstable or off-center. As you apply improvement effort, this chart becomes more stable and centered, visually linking investment to improved process control.
-        3.  **What is the overall impact? (Sankey Plot):** This shows the cumulative effect of all step yields on the final output (RTY). Improving the worst step has the biggest impact on widening the green "Final Output" flow.
-        4.  **What is the financial consequence? (Iceberg Chart):** This translates the operational improvements into business terms. The investment in better process control (making the iceberg tip bigger) dramatically shrinks the hidden costs of failure (the much larger submerged part).
-        """)
-    with tabs[1]:
-        st.markdown("""
-        ##### Glossary of Quality Management Terms
-        - **First Time Yield (FTY):** The percentage of units that pass a single process step without any defects or rework. Also known as First Pass Yield.
-        - **Rolled Throughput Yield (RTY):** The probability that a unit will pass through all process steps without any defects. It is calculated by multiplying the FTY of all individual steps (`RTY = FTY₁ × FTY₂ × ... × FTYₙ`).
-        - **Cost of Quality (COQ):** A methodology that quantifies the total cost of quality-related efforts and deficiencies.
-        - **Prevention Costs:** Costs incurred to prevent defects from occurring in the first place (e.g., validation, training, FMEA).
-        - **Appraisal Costs:** Costs incurred to detect defects (e.g., inspections, QC testing, audits).
-        - **Internal Failure Costs:** Costs of defects found *before* the product is delivered to the customer (e.g., scrap, rework, investigation).
-        - **External Failure Costs:** Costs of defects found *after* the product is delivered to the customer (e.g., recalls, warranty claims, lawsuits). These are the most damaging costs.
-        """)
-    with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: "The Firefighting Mentality"**
-A company under-invests in prevention and appraisal to minimize short-term costs. Their quality system is entirely reactive, consisting of a large QC department to "inspect quality in" at the end, and a large QA team to manage the constant deviations, rework, and scrap.
-- **The Flaw:** They are paying the highest possible Cost of Quality. The massive, hidden costs of internal and external failures far outweigh the savings from skimping on prevention, and their low RTY creates unpredictable production schedules.""")
-        st.success("""🟢 **THE GOLDEN RULE: Invest in Prevention, Not Failure**
-The goal of a mature quality system is to strategically shift spending from failure costs to prevention and appraisal costs.
-1.  **Measure Your Yield:** Calculate FTY for every step and the overall RTY to understand where your process is "leaking."
-2.  **Quantify the Cost of Quality:** Use the COQ framework to translate yield losses and failures into a financial number that gets management's attention.
-3.  **Justify Investment:** Use the RTY and COQ data to build a powerful business case for investing in process validation, better equipment, and more robust quality systems. This tool shows that such investments have a massive positive return.""")
-        
-    with tabs[3]:
-        st.markdown("""
-        #### Historical Context: The Quality Gurus
-        The concepts of FTY and COQ were developed by the pioneers of the 20th-century quality management movement.
-        - **Rolled Throughput Yield:** This concept is a cornerstone of **Six Sigma**, the quality improvement methodology famously developed at **Motorola in the 1980s**. RTY was a powerful metric for quantifying the cumulative effect of defects in a complex process and for measuring the impact of improvement projects.
-        - **Cost of Quality:** The COQ framework was first described by **Armand V. Feigenbaum** in a 1956 Harvard Business Review article and was later popularized in his book *Total Quality Control*. He was the first to categorize costs into the four buckets (Prevention, Appraisal, Internal Failure, External Failure). Independently, **Joseph M. Juran** discussed the economics of quality in his *Quality Control Handbook* and emphasized the distinction between the "Cost of Good Quality" and the "Cost of Poor Quality."
-        
-        Together, these concepts provided the financial and operational language for the quality revolution, allowing engineers and scientists to frame quality not as an expense, but as a high-return investment.
-        """)
-        
-    with tabs[4]:
-        st.markdown("""
-        FTY and COQ are not explicitly named in many regulations, but they are the underlying metrics and business drivers for the entire GxP quality system.
-        - **ICH Q9 - Quality Risk Management:** The COQ framework is a powerful tool for quantifying the financial impact of risks identified in an FMEA. The potential for high "External Failure Costs" is a key driver for risk mitigation activities.
-        - **ICH Q10 - Pharmaceutical Quality System:** This guideline emphasizes the importance of **continuous improvement** and **process performance monitoring**. RTY is a key metric for monitoring process performance, and reducing the COQ is a primary goal of a continuous improvement program.
-        - **FDA Process Validation Guidance (Stage 3 - CPV):** An effective Continued Process Verification program should monitor metrics like FTY and RTY. A negative trend in these metrics would trigger an investigation and corrective action, demonstrating that the quality system is working as intended.
-        """)
 ##=======================================================================================================================================================================================================
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================
+#======================================= 1. PROCESS CONTROL PLAN BUILDER  ============================================================================
 def render_control_plan_builder():
     """Renders the comprehensive, interactive module for a Process Control Plan."""
     st.markdown("""
@@ -8868,7 +8885,7 @@ A compliant and effective control strategy requires that every single monitoring
         - **FDA Process Validation Guidance (Stage 3 - CPV):** The guidance requires an "ongoing program to collect and analyze product and process data." The Control Plan is the document that formally defines this program.
         - **21 CFR 211.110 (Sampling and testing of in-process materials and drug products):** This regulation requires written procedures for in-process controls, including "Control procedures shall be established to monitor the output and to validate the performance of those manufacturing processes that may be responsible for causing variability." The Control Plan is this established procedure.
         """)
-
+#======================================= 2. RUN VALIDATION WESTGARD  ============================================================================
 def render_multi_rule():
     """Renders the comprehensive, interactive module for Multi-Rule SPC (Westgard Rules)."""
     st.markdown("""
@@ -8974,6 +8991,123 @@ The goal is to treat the specific rule violation as the starting point of a targ
             - **USP General Chapter <1010> - Analytical Data:** Discusses the treatment of analytical data and the principles of statistical control, for which multi-rule systems are a best practice.
             """)
 
+#======================================= 3. SMALL DRIFT DETECTION  ============================================================================
+def render_ewma_cusum():
+    """Renders the comprehensive, interactive module for Small Shift Detection (EWMA/CUSUM)."""
+    st.markdown("""
+    #### Purpose & Application: The Process Sentinel
+    **Purpose:** To deploy a high-sensitivity monitoring system designed to detect small, sustained shifts in a process mean that would be invisible to a standard Shewhart control chart (like an I-MR or X-bar chart). These charts have "memory," accumulating evidence from past data to find subtle signals.
+
+    **Strategic Application:** This is an essential "second layer" of process monitoring for mature, stable processes where large, sudden failures are rare, but slow, gradual drifts are a significant risk.
+    - **🔬 EWMA (The Sentinel):** A robust, general-purpose tool that smoothly weights past observations, excellent for detecting the onset of a gradual drift.
+    - **🐕 CUSUM (The Bloodhound):** A specialized, high-power tool that is the fastest possible detector for a shift of a specific, pre-defined magnitude.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Select a **Failure Scenario** and a **Shift Size**. Observe how quickly each chart (marked with a red 'X') detects the problem after the "Process Change Begins" line. For small shifts and gradual drifts, notice how the I-Chart often fails to detect the issue at all.
+    """)
+    
+    with st.sidebar:
+        st.sidebar.subheader("Small Shift Detection Controls")
+        scenario_slider = st.sidebar.radio(
+            "Select Failure Scenario:",
+            ('Sudden Shift', 'Gradual Drift'),
+            captions=["An abrupt change in the process mean.", "A slow, creeping change over time."]
+        )
+        shift_size_slider = st.sidebar.slider(
+            "Select Process Shift Size (in multiples of σ):",
+            min_value=0.25, max_value=3.5, value=0.75, step=0.25,
+            help="Controls the magnitude of the process shift. Small shifts are much harder for standard charts to detect."
+        )
+
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        fig, i_time, ewma_time, cusum_time = plot_ewma_cusum_comparison(
+            shift_size=shift_size_slider,
+            scenario=scenario_slider
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+
+        with tabs[0]:
+            st.markdown(f"##### Detection Performance for a **{shift_size_slider}σ** {scenario_slider}")
+            st.metric(
+                label="I-Chart: Time to Detect",
+                value=f"{int(i_time)} points" if not np.isnan(i_time) else "Not Detected",
+                help="Number of points after the shift began before the I-Chart alarmed."
+            )
+            st.metric(
+                label="EWMA: Time to Detect",
+                value=f"{int(ewma_time)} points" if not np.isnan(ewma_time) else "Not Detected",
+                help="Number of points after the shift began before the EWMA chart alarmed."
+            )
+            st.metric(
+                label="CUSUM: Time to Detect",
+                value=f"{int(cusum_time)} points" if not np.isnan(cusum_time) else "Not Detected",
+                help="Number of points after the shift began before the CUSUM chart alarmed."
+            )
+
+            st.markdown("""
+            **The Core Insight:**
+            Try simulating a small (`< 1.5σ`) **Gradual Drift**. The I-Chart is completely blind, giving a false sense of security. The EWMA and CUSUM charts, because they have memory, accumulate the small signals over time and reliably sound the alarm. This demonstrates why relying only on Shewhart charts creates a significant blind spot for modern, high-precision processes.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Small Shift Terms
+            - **Shewhart Chart (e.g., I-Chart):** A "memoryless" control chart that evaluates each data point independently. It is excellent for detecting large shifts but insensitive to small, gradual drifts.
+            - **EWMA (Exponentially Weighted Moving Average):** A "memory-based" chart that computes a weighted average of all past and current observations. The weights decay exponentially over time.
+            - **CUSUM (Cumulative Sum):** A "memory-based" chart that plots the cumulative sum of deviations from a target. It is the fastest possible chart for detecting a shift of a specific, pre-defined magnitude.
+            - **Lambda (λ):** The weighting parameter for an EWMA chart (0 < λ ≤ 1). A small λ gives the chart a long memory, making it sensitive to tiny shifts.
+            - **ARL (Average Run Length):** The average number of points that will be plotted on a control chart before an out-of-control signal occurs.
+            """)
+        with tabs[2]:
+            st.error("""🔴 **THE INCORRECT APPROACH: The "One-Chart-Fits-All Fallacy"**
+A manager insists on using only I-MR charts for everything because they are easy to understand.
+- They miss a slow 1-sigma drift for weeks, producing tons of near-spec material.
+- When a batch finally fails, they are shocked and have no leading indicators to explain why. They have been flying blind.""")
+            st.success("""🟢 **THE GOLDEN RULE: Layer Your Statistical Defenses**
+The goal is to use a combination of charts to create a comprehensive security system.
+- **Use Shewhart Charts (I-MR, X-bar) as your front-line "Beat Cops":** They are unmatched for detecting large, sudden special causes.
+- **Use EWMA or CUSUM as your "Sentinels":** Deploy them alongside Shewhart charts to stand guard against the silent, creeping threats that the beat cops will miss.
+This layered approach provides a complete picture of process stability.""")
+
+        with tabs[3]:
+            st.markdown(r"""
+            #### Historical Context: The Second Generation of SPC
+            **The Problem:** Dr. Walter Shewhart's control charts of the 1920s were a monumental success. However, they were designed like a **smoke detector**—brilliantly effective at detecting large, sudden events ("fires"), but intentionally insensitive to small, slow changes to avoid overreaction to random noise. By the 1950s, industries like chemistry and electronics required higher precision. The critical challenge was no longer just preventing large breakdowns, but detecting subtle, gradual drifts that could slowly degrade quality. A new kind of sensor was needed.
+
+            **The 'Aha!' Moment (CUSUM - 1954):** The first breakthrough came from British statistician **E. S. Page**. Inspired by **sequential analysis** from WWII munitions testing, he realized that instead of looking at each data point in isolation, he could **accumulate the evidence** of small deviations over time. The Cumulative Sum (CUSUM) chart was born. It acts like a **bloodhound on a trail**, ignoring random noise by using a "slack" parameter `k`, but rapidly accumulating the signal once it detects a persistent scent in one direction.
+
+            **The 'Aha!' Moment (EWMA - 1959):** Five years later, **S. W. Roberts** of Bell Labs proposed a more flexible alternative, inspired by **time series forecasting**. The Exponentially Weighted Moving Average (EWMA) chart acts like a **sentinel with a memory**. It gives the most weight to the most recent data point, a little less to the one before, and so on, with the influence of old data decaying exponentially. This creates a smooth, sensitive trend line that effectively filters out noise while quickly reacting to the beginning of a real drift.
+
+            **The Impact:** These two inventions were not replacements for Shewhart's charts but essential complements. They gave engineers the sensitive, memory-based tools they needed to manage the increasingly precise and complex manufacturing processes of the late 20th century.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The elegance of these charts lies in their simple, recursive formulas.")
+            st.markdown("- **EWMA (Exponentially Weighted Moving Average):**")
+            st.latex(r"EWMA_t = \lambda \cdot Y_t + (1-\lambda) \cdot EWMA_{t-1}")
+            st.markdown(r"""
+            - **`λ` (lambda):** This is the **memory parameter** (0 < λ ≤ 1). A small `λ` (e.g., 0.1) creates a chart with a long memory, making it very sensitive to tiny, persistent shifts. A large `λ` (e.g., 0.4) creates a chart with a short memory, behaving more like a Shewhart chart.
+            """)
+            st.markdown("- **CUSUM (Cumulative Sum):**")
+            st.latex(r"SH_t = \max(0, SH_{t-1} + (Y_t - T) - k)")
+            st.markdown(r"""
+            - This formula tracks upward shifts (`SH`).
+            - **`T`**: The process target or historical mean.
+            - **`k`**: The **"slack" or "allowance" parameter**, typically set to half the size of the shift you want to detect quickly (e.g., `k = 0.5σ`). This makes the CUSUM chart a highly targeted detector.
+            """)
+        with tabs[4]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
+#======================================= 4. MULTIVARIATE SPC  ============================================================================
 def render_multivariate_spc():
     """Renders the comprehensive, interactive module for Multivariate SPC."""
     st.markdown("""
@@ -9091,227 +9225,7 @@ A robust MSPC program is a two-stage process.
             - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a Computerized System.
             """)
             
-def render_ewma_cusum():
-    """Renders the comprehensive, interactive module for Small Shift Detection (EWMA/CUSUM)."""
-    st.markdown("""
-    #### Purpose & Application: The Process Sentinel
-    **Purpose:** To deploy a high-sensitivity monitoring system designed to detect small, sustained shifts in a process mean that would be invisible to a standard Shewhart control chart (like an I-MR or X-bar chart). These charts have "memory," accumulating evidence from past data to find subtle signals.
-
-    **Strategic Application:** This is an essential "second layer" of process monitoring for mature, stable processes where large, sudden failures are rare, but slow, gradual drifts are a significant risk.
-    - **🔬 EWMA (The Sentinel):** A robust, general-purpose tool that smoothly weights past observations, excellent for detecting the onset of a gradual drift.
-    - **🐕 CUSUM (The Bloodhound):** A specialized, high-power tool that is the fastest possible detector for a shift of a specific, pre-defined magnitude.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Select a **Failure Scenario** and a **Shift Size**. Observe how quickly each chart (marked with a red 'X') detects the problem after the "Process Change Begins" line. For small shifts and gradual drifts, notice how the I-Chart often fails to detect the issue at all.
-    """)
-    
-    with st.sidebar:
-        st.sidebar.subheader("Small Shift Detection Controls")
-        scenario_slider = st.sidebar.radio(
-            "Select Failure Scenario:",
-            ('Sudden Shift', 'Gradual Drift'),
-            captions=["An abrupt change in the process mean.", "A slow, creeping change over time."]
-        )
-        shift_size_slider = st.sidebar.slider(
-            "Select Process Shift Size (in multiples of σ):",
-            min_value=0.25, max_value=3.5, value=0.75, step=0.25,
-            help="Controls the magnitude of the process shift. Small shifts are much harder for standard charts to detect."
-        )
-
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        fig, i_time, ewma_time, cusum_time = plot_ewma_cusum_comparison(
-            shift_size=shift_size_slider,
-            scenario=scenario_slider
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-
-        with tabs[0]:
-            st.markdown(f"##### Detection Performance for a **{shift_size_slider}σ** {scenario_slider}")
-            st.metric(
-                label="I-Chart: Time to Detect",
-                value=f"{int(i_time)} points" if not np.isnan(i_time) else "Not Detected",
-                help="Number of points after the shift began before the I-Chart alarmed."
-            )
-            st.metric(
-                label="EWMA: Time to Detect",
-                value=f"{int(ewma_time)} points" if not np.isnan(ewma_time) else "Not Detected",
-                help="Number of points after the shift began before the EWMA chart alarmed."
-            )
-            st.metric(
-                label="CUSUM: Time to Detect",
-                value=f"{int(cusum_time)} points" if not np.isnan(cusum_time) else "Not Detected",
-                help="Number of points after the shift began before the CUSUM chart alarmed."
-            )
-
-            st.markdown("""
-            **The Core Insight:**
-            Try simulating a small (`< 1.5σ`) **Gradual Drift**. The I-Chart is completely blind, giving a false sense of security. The EWMA and CUSUM charts, because they have memory, accumulate the small signals over time and reliably sound the alarm. This demonstrates why relying only on Shewhart charts creates a significant blind spot for modern, high-precision processes.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Small Shift Terms
-            - **Shewhart Chart (e.g., I-Chart):** A "memoryless" control chart that evaluates each data point independently. It is excellent for detecting large shifts but insensitive to small, gradual drifts.
-            - **EWMA (Exponentially Weighted Moving Average):** A "memory-based" chart that computes a weighted average of all past and current observations. The weights decay exponentially over time.
-            - **CUSUM (Cumulative Sum):** A "memory-based" chart that plots the cumulative sum of deviations from a target. It is the fastest possible chart for detecting a shift of a specific, pre-defined magnitude.
-            - **Lambda (λ):** The weighting parameter for an EWMA chart (0 < λ ≤ 1). A small λ gives the chart a long memory, making it sensitive to tiny shifts.
-            - **ARL (Average Run Length):** The average number of points that will be plotted on a control chart before an out-of-control signal occurs.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "One-Chart-Fits-All Fallacy"**
-A manager insists on using only I-MR charts for everything because they are easy to understand.
-- They miss a slow 1-sigma drift for weeks, producing tons of near-spec material.
-- When a batch finally fails, they are shocked and have no leading indicators to explain why. They have been flying blind.""")
-            st.success("""🟢 **THE GOLDEN RULE: Layer Your Statistical Defenses**
-The goal is to use a combination of charts to create a comprehensive security system.
-- **Use Shewhart Charts (I-MR, X-bar) as your front-line "Beat Cops":** They are unmatched for detecting large, sudden special causes.
-- **Use EWMA or CUSUM as your "Sentinels":** Deploy them alongside Shewhart charts to stand guard against the silent, creeping threats that the beat cops will miss.
-This layered approach provides a complete picture of process stability.""")
-
-        with tabs[3]:
-            st.markdown(r"""
-            #### Historical Context: The Second Generation of SPC
-            **The Problem:** Dr. Walter Shewhart's control charts of the 1920s were a monumental success. However, they were designed like a **smoke detector**—brilliantly effective at detecting large, sudden events ("fires"), but intentionally insensitive to small, slow changes to avoid overreaction to random noise. By the 1950s, industries like chemistry and electronics required higher precision. The critical challenge was no longer just preventing large breakdowns, but detecting subtle, gradual drifts that could slowly degrade quality. A new kind of sensor was needed.
-
-            **The 'Aha!' Moment (CUSUM - 1954):** The first breakthrough came from British statistician **E. S. Page**. Inspired by **sequential analysis** from WWII munitions testing, he realized that instead of looking at each data point in isolation, he could **accumulate the evidence** of small deviations over time. The Cumulative Sum (CUSUM) chart was born. It acts like a **bloodhound on a trail**, ignoring random noise by using a "slack" parameter `k`, but rapidly accumulating the signal once it detects a persistent scent in one direction.
-
-            **The 'Aha!' Moment (EWMA - 1959):** Five years later, **S. W. Roberts** of Bell Labs proposed a more flexible alternative, inspired by **time series forecasting**. The Exponentially Weighted Moving Average (EWMA) chart acts like a **sentinel with a memory**. It gives the most weight to the most recent data point, a little less to the one before, and so on, with the influence of old data decaying exponentially. This creates a smooth, sensitive trend line that effectively filters out noise while quickly reacting to the beginning of a real drift.
-
-            **The Impact:** These two inventions were not replacements for Shewhart's charts but essential complements. They gave engineers the sensitive, memory-based tools they needed to manage the increasingly precise and complex manufacturing processes of the late 20th century.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The elegance of these charts lies in their simple, recursive formulas.")
-            st.markdown("- **EWMA (Exponentially Weighted Moving Average):**")
-            st.latex(r"EWMA_t = \lambda \cdot Y_t + (1-\lambda) \cdot EWMA_{t-1}")
-            st.markdown(r"""
-            - **`λ` (lambda):** This is the **memory parameter** (0 < λ ≤ 1). A small `λ` (e.g., 0.1) creates a chart with a long memory, making it very sensitive to tiny, persistent shifts. A large `λ` (e.g., 0.4) creates a chart with a short memory, behaving more like a Shewhart chart.
-            """)
-            st.markdown("- **CUSUM (Cumulative Sum):**")
-            st.latex(r"SH_t = \max(0, SH_{t-1} + (Y_t - T) - k)")
-            st.markdown(r"""
-            - This formula tracks upward shifts (`SH`).
-            - **`T`**: The process target or historical mean.
-            - **`k`**: The **"slack" or "allowance" parameter**, typically set to half the size of the shift you want to detect quickly (e.g., `k = 0.5σ`). This makes the CUSUM chart a highly targeted detector.
-            """)
-        with tabs[4]:
-            st.markdown("""
-            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
-            
-def render_time_series_analysis():
-    """Renders the module for Time Series analysis."""
-    st.markdown("""
-    #### Purpose & Application: The Watchmaker vs. The Smartwatch
-    **Purpose:** To model and forecast time-dependent data by understanding its internal structure, such as trend, seasonality, and autocorrelation. This module compares two powerful philosophies for this task.
-    
-    **Strategic Application:** This is fundamental for demand forecasting, resource planning, and proactive process monitoring.
-    - **⌚ ARIMA (The Classical Watchmaker):** A powerful "white-box" model. Like a master watchmaker, you must understand every gear, but you get a highly interpretable model that excels at short-term forecasting of stable processes.
-    - **📱 Prophet (The Modern Smartwatch):** A modern, automated tool from Meta. It is designed to handle complex seasonalities, holidays, and changing trends with minimal user input, making it ideal for forecasting at scale.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the sliders to change the underlying structure of the time series data. 
-    - **`Trend Changepoint`**: Introduce an abrupt change in the trend's slope. Notice how Prophet (red) adapts more easily than the rigid ARIMA model (green).
-    - **`Random Noise`**: Observe how forecasting becomes more difficult and forecast intervals widen as the data gets noisier.
-    - **Check the `ACF Plot`**: A good ARIMA model should have no significant bars outside the red lines, indicating the residuals are random noise.
-    """)
-
-    with st.sidebar:
-        st.sidebar.subheader("Time Series Controls")
-        trend_slider = st.sidebar.slider("📈 Trend Strength", 0, 50, 10, 5)
-        noise_slider = st.sidebar.slider("🎲 Random Noise (SD)", 0.5, 10.0, 2.0, 0.5)
-        # --- NEW SLIDER ADDED HERE ---
-        changepoint_slider = st.sidebar.slider("🔄 Trend Changepoint Strength", -50.0, 50.0, 0.0, 5.0,
-            help="Controls the magnitude of an abrupt change in the trend's slope halfway through the data. Prophet is designed to handle this well.")
-    
-    fig, mae_arima, mae_prophet = plot_time_series_analysis(
-        trend_strength=trend_slider,
-        noise_sd=noise_slider,
-        changepoint_strength=changepoint_slider
-    )
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value=f"{mae_arima:.2f} units")
-            st.metric(label="📱 Prophet Forecast Error (MAE)", value=f"{mae_prophet:.2f} units")
-
-            st.markdown("""
-            **Reading the Dashboard:**
-            - **1. Main Forecast:** This plot shows the historical data and the two competing forecasts, including their 80% confidence intervals.
-            - **2. ARIMA Residuals:** These are the one-step-ahead forecast errors from the ARIMA model. For a good model, this plot should look like random white noise with no discernible pattern.
-            - **3. ARIMA Residuals ACF:** The Autocorrelation Function plot is the key diagnostic. It shows the correlation of the residuals with their own past values. **If any bars go outside the red significance lines, it means there is still predictable structure in the errors that the model has failed to capture.**
-
-            **The Core Strategic Insight:** Prophet's main advantage is its automatic flexibility. Introduce a large **Trend Changepoint**, and watch Prophet's forecast adjust while the linear-trending ARIMA model fails to adapt, resulting in a much higher forecast error.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Time Series Terms
-            - **Time Series:** A sequence of data points indexed in time order.
-            - **Trend:** The long-term direction of the series (e.g., increasing, decreasing, or flat).
-            - **Seasonality:** A distinct, repeating pattern in the data that occurs at regular intervals (e.g., daily, weekly, yearly).
-            - **ARIMA (AutoRegressive Integrated Moving Average):** A class of statistical models for analyzing and forecasting time series data. It models the relationships between an observation and its own past values and past forecast errors.
-            - **Prophet:** A forecasting procedure developed by Facebook. It is an additive model that fits non-linear trends with yearly, weekly, and daily seasonality, plus holiday effects.
-            - **ACF (Autocorrelation Function):** A plot that shows the correlation of a time series with its own past values (lags). It is a key tool for diagnosing the fit of an ARIMA model.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
-An analyst takes a column of data, feeds it into `model.fit()` and `model.predict()`, and presents the resulting line without checking the diagnostics.
-- **The Flaw:** They've made no attempt to validate the model's assumptions. The residuals might show a clear pattern or the ACF plot might have significant lags, proving the model is wrong. This "black box" approach produces a forecast that is fragile and untrustworthy.""")
-            st.success("""🟢 **THE GOLDEN RULE: Decompose, Validate, and Monitor**
-A robust forecasting process is disciplined and applies regardless of the model you use.
-1.  **Decompose and Understand:** Before modeling, visualize the data to understand its trend, seasonality, and any changepoints.
-2.  **Fit and Diagnose:** After fitting a model, **always** analyze its residuals. The residuals must look like random noise. The ACF plot of the residuals is the statistical proof of this.
-3.  **Validate on a Test Set:** The model's true performance is only revealed when it is tested on data it has never seen before.""")
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: Two Cultures of Forecasting
-            **The Problem (The Classical Era):** Before the 1970s, forecasting was often an ad-hoc affair. There was no single, rigorous methodology that combined modeling, estimation, and validation into a coherent whole. 
-
-            **The 'Aha!' Moment (ARIMA):** In their seminal 1970 book *Time Series Analysis: Forecasting and Control*, statisticians **George Box** and **Gwilym Jenkins** changed everything. They provided a comprehensive, step-by-step methodology for time series modeling. The **Box-Jenkins method**—a rigorous process of model identification (using ACF/PACF plots), parameter estimation, and diagnostic checking—became the undisputed gold standard for decades. The ARIMA model is the heart of this methodology, a testament to deep statistical theory.
-
-            **The Problem (The Modern Era):** Fast forward to the 2010s. **Facebook** faced a new kind of challenge: thousands of internal analysts, not all of them statisticians, needed to generate high-quality forecasts for business metrics at scale. The manual, expert-driven Box-Jenkins method was too slow and complex for this environment.
-            
-            **The 'Aha!' Moment (Prophet):** In 2017, their Core Data Science team released **Prophet**. It was designed from the ground up for automation, performance, and intuitive tuning. Its key insight was to treat forecasting as a curve-fitting problem, making it robust to missing data and shifts in trend, and allowing analysts to easily incorporate domain knowledge like holidays. It sacrificed some of the statistical purity of ARIMA for massive gains in usability and scale.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("- **ARIMA (AutoRegressive Integrated Moving Average):** A linear model that explains a series based on its own past.")
-            st.latex(r"Y'_t = \sum_{i=1}^{p} \phi_i Y'_{t-i} + \sum_{j=1}^{q} \theta_j \epsilon_{t-j} + \epsilon_t")
-            st.markdown("""
-              - **AR (p):** The model uses the relationship between an observation `Y'` and its own `p` past values.
-              - **I (d):** `Y'` is the series after being **d**ifferenced `d` times to make it stationary.
-              - **MA (q):** The model uses the relationship between an observation and the residual errors `ε` from its `q` past forecasts.
-            """)
-            st.markdown("- **Prophet:** A decomposable additive model.")
-            st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
-            st.markdown(r"""
-            Where `g(t)` is a saturating growth trend with automatic changepoint detection, `s(t)` models complex seasonality using Fourier series, `h(t)` is for holidays, and `ε` is the error.
-            """)
-        with tabs[4]:
-            st.markdown("""
-            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
-
+#====================================================================== 5. STABILITY ANALYSIS (SHELF LIFE) ACT III ============================================================================
 def render_stability_analysis():
     """Renders the module for pharmaceutical stability analysis."""
     st.markdown("""
@@ -9412,7 +9326,7 @@ The ICH Q1E guideline is built on a principle of statistical conservatism to pro
             - **ICH Q1A(R2) - Stability Testing of New Drug Substances and Products:** Defines the study design, storage conditions, and testing frequency for stability studies.
             - **FDA Guidance for Industry - Q1E Evaluation of Stability Data:** The FDA's adoption and implementation of the ICH guideline.
             """)
-
+#=================================================================== 6. RELIABILITY / SURVIVAL ANALYSIS ACT III ============================================================================
 def render_survival_analysis():
     """Renders the module for Survival Analysis."""
     st.markdown("""
@@ -9528,7 +9442,112 @@ The core principle of survival analysis is that censored data is not missing dat
             - **FDA 21 CFR 820.30 (Design Controls):** For medical devices, design validation requires demonstrating reliability. Survival analysis is used to analyze data from reliability testing to predict the probability of failure over time.
             - **ICH Q1E:** The principles can also be applied to stability data to model the "time to Out-of-Specification (OOS)" event.
             """)
+#======================================================================== 7. TIME SERIES ANALYSIS ACT III ============================================================================
+def render_time_series_analysis():
+    """Renders the module for Time Series analysis."""
+    st.markdown("""
+    #### Purpose & Application: The Watchmaker vs. The Smartwatch
+    **Purpose:** To model and forecast time-dependent data by understanding its internal structure, such as trend, seasonality, and autocorrelation. This module compares two powerful philosophies for this task.
+    
+    **Strategic Application:** This is fundamental for demand forecasting, resource planning, and proactive process monitoring.
+    - **⌚ ARIMA (The Classical Watchmaker):** A powerful "white-box" model. Like a master watchmaker, you must understand every gear, but you get a highly interpretable model that excels at short-term forecasting of stable processes.
+    - **📱 Prophet (The Modern Smartwatch):** A modern, automated tool from Meta. It is designed to handle complex seasonalities, holidays, and changing trends with minimal user input, making it ideal for forecasting at scale.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sliders to change the underlying structure of the time series data. 
+    - **`Trend Changepoint`**: Introduce an abrupt change in the trend's slope. Notice how Prophet (red) adapts more easily than the rigid ARIMA model (green).
+    - **`Random Noise`**: Observe how forecasting becomes more difficult and forecast intervals widen as the data gets noisier.
+    - **Check the `ACF Plot`**: A good ARIMA model should have no significant bars outside the red lines, indicating the residuals are random noise.
+    """)
 
+    with st.sidebar:
+        st.sidebar.subheader("Time Series Controls")
+        trend_slider = st.sidebar.slider("📈 Trend Strength", 0, 50, 10, 5)
+        noise_slider = st.sidebar.slider("🎲 Random Noise (SD)", 0.5, 10.0, 2.0, 0.5)
+        # --- NEW SLIDER ADDED HERE ---
+        changepoint_slider = st.sidebar.slider("🔄 Trend Changepoint Strength", -50.0, 50.0, 0.0, 5.0,
+            help="Controls the magnitude of an abrupt change in the trend's slope halfway through the data. Prophet is designed to handle this well.")
+    
+    fig, mae_arima, mae_prophet = plot_time_series_analysis(
+        trend_strength=trend_slider,
+        noise_sd=noise_slider,
+        changepoint_strength=changepoint_slider
+    )
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
+        with tabs[0]:
+            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value=f"{mae_arima:.2f} units")
+            st.metric(label="📱 Prophet Forecast Error (MAE)", value=f"{mae_prophet:.2f} units")
+
+            st.markdown("""
+            **Reading the Dashboard:**
+            - **1. Main Forecast:** This plot shows the historical data and the two competing forecasts, including their 80% confidence intervals.
+            - **2. ARIMA Residuals:** These are the one-step-ahead forecast errors from the ARIMA model. For a good model, this plot should look like random white noise with no discernible pattern.
+            - **3. ARIMA Residuals ACF:** The Autocorrelation Function plot is the key diagnostic. It shows the correlation of the residuals with their own past values. **If any bars go outside the red significance lines, it means there is still predictable structure in the errors that the model has failed to capture.**
+
+            **The Core Strategic Insight:** Prophet's main advantage is its automatic flexibility. Introduce a large **Trend Changepoint**, and watch Prophet's forecast adjust while the linear-trending ARIMA model fails to adapt, resulting in a much higher forecast error.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Time Series Terms
+            - **Time Series:** A sequence of data points indexed in time order.
+            - **Trend:** The long-term direction of the series (e.g., increasing, decreasing, or flat).
+            - **Seasonality:** A distinct, repeating pattern in the data that occurs at regular intervals (e.g., daily, weekly, yearly).
+            - **ARIMA (AutoRegressive Integrated Moving Average):** A class of statistical models for analyzing and forecasting time series data. It models the relationships between an observation and its own past values and past forecast errors.
+            - **Prophet:** A forecasting procedure developed by Facebook. It is an additive model that fits non-linear trends with yearly, weekly, and daily seasonality, plus holiday effects.
+            - **ACF (Autocorrelation Function):** A plot that shows the correlation of a time series with its own past values (lags). It is a key tool for diagnosing the fit of an ARIMA model.
+            """)
+        with tabs[2]:
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
+An analyst takes a column of data, feeds it into `model.fit()` and `model.predict()`, and presents the resulting line without checking the diagnostics.
+- **The Flaw:** They've made no attempt to validate the model's assumptions. The residuals might show a clear pattern or the ACF plot might have significant lags, proving the model is wrong. This "black box" approach produces a forecast that is fragile and untrustworthy.""")
+            st.success("""🟢 **THE GOLDEN RULE: Decompose, Validate, and Monitor**
+A robust forecasting process is disciplined and applies regardless of the model you use.
+1.  **Decompose and Understand:** Before modeling, visualize the data to understand its trend, seasonality, and any changepoints.
+2.  **Fit and Diagnose:** After fitting a model, **always** analyze its residuals. The residuals must look like random noise. The ACF plot of the residuals is the statistical proof of this.
+3.  **Validate on a Test Set:** The model's true performance is only revealed when it is tested on data it has never seen before.""")
+
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context: Two Cultures of Forecasting
+            **The Problem (The Classical Era):** Before the 1970s, forecasting was often an ad-hoc affair. There was no single, rigorous methodology that combined modeling, estimation, and validation into a coherent whole. 
+
+            **The 'Aha!' Moment (ARIMA):** In their seminal 1970 book *Time Series Analysis: Forecasting and Control*, statisticians **George Box** and **Gwilym Jenkins** changed everything. They provided a comprehensive, step-by-step methodology for time series modeling. The **Box-Jenkins method**—a rigorous process of model identification (using ACF/PACF plots), parameter estimation, and diagnostic checking—became the undisputed gold standard for decades. The ARIMA model is the heart of this methodology, a testament to deep statistical theory.
+
+            **The Problem (The Modern Era):** Fast forward to the 2010s. **Facebook** faced a new kind of challenge: thousands of internal analysts, not all of them statisticians, needed to generate high-quality forecasts for business metrics at scale. The manual, expert-driven Box-Jenkins method was too slow and complex for this environment.
+            
+            **The 'Aha!' Moment (Prophet):** In 2017, their Core Data Science team released **Prophet**. It was designed from the ground up for automation, performance, and intuitive tuning. Its key insight was to treat forecasting as a curve-fitting problem, making it robust to missing data and shifts in trend, and allowing analysts to easily incorporate domain knowledge like holidays. It sacrificed some of the statistical purity of ARIMA for massive gains in usability and scale.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("- **ARIMA (AutoRegressive Integrated Moving Average):** A linear model that explains a series based on its own past.")
+            st.latex(r"Y'_t = \sum_{i=1}^{p} \phi_i Y'_{t-i} + \sum_{j=1}^{q} \theta_j \epsilon_{t-j} + \epsilon_t")
+            st.markdown("""
+              - **AR (p):** The model uses the relationship between an observation `Y'` and its own `p` past values.
+              - **I (d):** `Y'` is the series after being **d**ifferenced `d` times to make it stationary.
+              - **MA (q):** The model uses the relationship between an observation and the residual errors `ε` from its `q` past forecasts.
+            """)
+            st.markdown("- **Prophet:** A decomposable additive model.")
+            st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
+            st.markdown(r"""
+            Where `g(t)` is a saturating growth trend with automatic changepoint detection, `s(t)` models complex seasonality using Fourier series, `h(t)` is for holidays, and `ε` is the error.
+            """)
+        with tabs[4]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
+#========================================================================== 8. MULTIVARIATE ANALYSIS (MVA) ACT III============================================================================
 def render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
     st.markdown("""
@@ -9617,109 +9636,7 @@ A robust chemometric workflow is disciplined:
             - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
             - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
             """)
-
-def render_clustering():
-    """Renders the module for unsupervised clustering."""
-    st.markdown("""
-    #### Purpose & Application: The Data Archeologist
-    **Purpose:** To act as a **data archeologist**, sifting through your process data to discover natural, hidden groupings or "regimes." Without any prior knowledge, it can uncover distinct "civilizations" within your data, answering the question: "Are all of my 'good' batches truly the same, or are there different ways to be good?"
-    
-    **Strategic Application:** This is a powerful exploratory tool for deep process understanding. It moves you from assumption to discovery.
-    - **Process Regime Identification:** Can reveal that a process is secretly operating in different states (e.g., due to raw material lots, seasons, or operator techniques), even when all batches are passing specification.
-    - **Root Cause Analysis:** If a failure occurs, clustering can help determine which "family" of normal operation the failed batch was most similar to, providing critical clues for the investigation.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** Use the sliders to control the underlying data structure.
-    - **`True Number of Clusters`**: Changes the "correct" answer for `k`. See if the diagnostic plots (Elbow and Silhouette) can find it.
-    - **`Cluster Separation` & `Spread`**: Control how easy or hard the clustering task is. Well-separated, tight clusters are easy to find and will result in a high Silhouette Score.
-    """)
-
-    with st.sidebar:
-        st.sidebar.subheader("Clustering Controls")
-        n_clusters_slider = st.sidebar.slider("True Number of Clusters", 2, 8, 3, 1,
-            help="Controls the actual number of distinct groups generated in the data.")
-        separation_slider = st.sidebar.slider("Cluster Separation", 5, 25, 15, 1,
-            help="Controls how far apart the centers of the data clusters are.")
-        spread_slider = st.sidebar.slider("Cluster Spread (Noise)", 1.0, 10.0, 2.5, 0.5,
-            help="Controls the standard deviation (spread) within each cluster. Higher spread means more overlap.")
-    
-    fig, silhouette_val, optimal_k = plot_clustering(
-        separation=separation_slider,
-        spread=spread_slider,
-        n_true_clusters=n_clusters_slider
-    )
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            st.metric(label="📈 Optimal 'k' Found by Model", value=f"{optimal_k}",
-                      help="The number of clusters recommended by the Silhouette analysis.")
-            st.metric(label="🗺️ Cluster Quality (Silhouette Score)", value=f"{silhouette_val:.3f}",
-                      help="A measure of how distinct the final clusters are. Higher is better (max 1.0).")
-
-            st.markdown("""
-            **Reading the Dashboard:**
-            - **1. Discovered Regimes:** The main plot shows how the K-Means algorithm (using the optimal `k`) has partitioned the data.
-            - **2. Elbow Method:** A heuristic for finding `k`. The "elbow" (often near the true `k`) is the point of diminishing returns where adding more clusters doesn't significantly reduce the total within-cluster variance (Inertia).
-            - **3. Silhouette Analysis:** A more robust method. The peak of this curve indicates the value of `k` that results in the most dense and well-separated clusters. This is often a more reliable guide than the Elbow Method.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Clustering Terms
-            - **Unsupervised Learning:** A type of machine learning where the algorithm learns patterns from untagged data, without a pre-defined outcome to predict.
-            - **Clustering:** The task of grouping a set of objects in such a way that objects in the same group (a cluster) are more similar to each other than to those in other groups.
-            - **K-Means:** A popular clustering algorithm that aims to partition `n` observations into `k` clusters in which each observation belongs to the cluster with the nearest mean (cluster centroid).
-            - **Inertia (WCSS):** The sum of squared distances of samples to their closest cluster center. The Elbow Method looks for the "elbow" in the plot of Inertia vs. `k`.
-            - **Silhouette Score:** A metric used to evaluate the quality of clusters. It measures how similar an object is to its own cluster compared to other clusters. Scores range from -1 to +1, with a high value indicating dense and well-separated clusters.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "If It Ain't Broke..." Fallacy**
-- An analyst discovers three distinct clusters of successful batches. A manager responds, *"Interesting, but all of those batches passed QC, so who cares? Let's move on."*
-- **The Flaw:** This treats a treasure map as a doodle. The discovery is important *because* all batches passed! It means there are different-and potentially more or less robust-paths to success. One "regime" might be operating dangerously close to a failure cliff.""")
-            st.success("""🟢 **THE GOLDEN RULE: A Cluster is a Clue, Not a Conclusion**
-The discovery of clusters is the **start** of the investigation, not the end.
-1.  **Find the Clusters:** Use an algorithm like K-Means and diagnostics like the Silhouette plot to find a statistically sound grouping.
-2.  **Profile the Clusters (This is the most important step!):** Treat each cluster as a separate group. Ask:
-    - Do batches in Cluster 1 use a different raw material lot than Cluster 2?
-    - Were the batches in Cluster 3 all run by the night shift?
-This profiling step is what turns a statistical finding into actionable process knowledge.""")
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: The Dawn of Unsupervised Learning
-            **The Problem:** In the 1950s, the field of statistics was almost entirely focused on "supervised" problems-testing pre-defined hypotheses or building models to predict a known outcome. But what if you didn't have a hypothesis? What if you just had a mountain of data and wanted to know if there were any natural structures hidden within it?
-
-            **The 'Aha!' Moment:** This was a challenge faced at Bell Labs, a hotbed of innovation. **Stuart Lloyd**, in a 1957 internal memo, proposed a simple, iterative algorithm to solve this problem for signal processing. His goal was to find a small set of "codebook vectors" (cluster centroids) that could efficiently represent a much larger set of signals, a form of data compression. Independently, others like E. W. Forgy and James MacQueen developed similar ideas. MacQueen was the first to coin the term "k-means" in a 1967 paper.
-            
-            **The Impact:** The development of K-Means was a direct consequence of the dawn of the digital computing age, as the iterative process was finally feasible. It became a canonical example of an **unsupervised learning** algorithm, a paradigm where the goal is not to predict a known label but to discover the inherent structure in the data itself. Along with Principal Component Analysis (PCA), K-Means helped lay the groundwork for the modern field of data mining and data science.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("K-Means is an optimization algorithm. Its objective is to find the set of `k` cluster centroids `C` that minimizes the **Within-Cluster Sum of Squares (WCSS)**, also known as inertia.")
-            st.latex(r"\text{WCSS} = \sum_{i=1}^{k} \sum_{x \in C_i} ||x - \mu_i||^2")
-            st.markdown("""
-            -   `k`: The number of clusters.
-            -   `Cᵢ`: The set of all points belonging to cluster `i`.
-            -   `μᵢ`: The centroid (mean) of cluster `i`.
-            The algorithm iteratively performs two steps until the cluster assignments no longer change:
-            1.  **Assignment Step:** Assign each data point `x` to the cluster `Cᵢ` with the nearest centroid `μᵢ`.
-            2.  **Update Step:** Recalculate the centroid `μᵢ` for each cluster by taking the mean of all points assigned to it.
-            """)
-        with tabs[4]:
-            st.markdown("""
-            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
-
+#========================================================================== 9. PREDICTIVE QC (CLASSIFICATION) ACT III============================================================================
 def render_classification_models():
     """Renders the module for Predictive QC (Classification)."""
     st.markdown("""
@@ -9819,96 +9736,6 @@ The success of a predictive model depends less on the algorithm and more on the 
             - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
             """)
 
-def render_anomaly_detection():
-    """Renders the module for unsupervised anomaly detection."""
-    st.markdown("""
-    #### Purpose & Application: The AI Bouncer
-    **Purpose:** To deploy an **AI Bouncer** for your data-a smart system that identifies rare, unexpected observations (anomalies) without any prior knowledge of what "bad" looks like. It doesn't need a list of troublemakers; it learns the "normal vibe" of the crowd and flags anything that stands out.
-    
-    **Strategic Application:** This is a game-changer for monitoring complex processes where simple rule-based alarms are blind to new problems.
-    - **Novel Fault Detection:** It can flag a completely new type of process failure the first time it occurs, because it looks for "weirdness," not pre-defined failures.
-    - **"Golden Batch" Investigation:** Can find which batches, even if they passed all specifications, were statistically unusual. These "weird-but-good" batches often hold the secrets to improving process robustness.
-    """)
-
-    st.info("""
-    **Interactive Demo:** Use the **Expected Contamination** slider to control the model's sensitivity.
-    1.  Observe the final classification in the **top-left plot**.
-    2.  See how the algorithm works in the **top-right plot**: outliers (anomalies) are isolated with very few "questions" (splits), resulting in short paths.
-    3.  The **bottom plot** shows how this translates to a clean separation of anomaly scores. The slider moves the black decision threshold.
-    """)
-
-    with st.sidebar:
-        st.sidebar.subheader("Anomaly Detection Controls")
-        contamination_slider = st.sidebar.slider(
-            "Expected Contamination (%)",
-            min_value=1, max_value=25, value=10, step=1,
-            help="Your assumption about the percentage of anomalies in the data. This tunes the model's sensitivity by moving the decision threshold."
-        )
-
-    fig, num_anomalies = plot_isolation_forest(contamination_rate=contamination_slider/100.0)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            st.metric(label="Total Data Points Scanned", value="215")
-            st.metric(label="Anomalies Flagged by Model", value=f"{num_anomalies}")
-
-            st.markdown("""
-            **Reading the Dashboard:**
-            - **1. Detection Results:** The model successfully identifies the scattered outliers (red crosses) while classifying the main, correlated data cloud as normal (blue circles).
-            - **2. Example Isolation Tree:** This visualizes how the algorithm thinks. It makes random splits to isolate points. Notice that the leaf nodes at the very top (shallow depth) contain the anomalies, as they are easy to single out.
-            - **3. Score Distribution:** This plot shows the result of the isolation process. The true outliers (red histogram) have much higher anomaly scores because they are easy to isolate. The inliers (grey histogram) have lower scores. The black line is the decision threshold controlled by the `Contamination` slider.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Anomaly Terms
-            - **Anomaly Detection:** The identification of rare items, events, or observations which raise suspicions by differing significantly from the majority of the data.
-            - **Unsupervised Learning:** This approach is unsupervised because it does not require pre-labeled examples of "anomalies" to learn. It learns the structure of "normal" and flags anything that deviates.
-            - **Isolation Forest:** An unsupervised anomaly detection algorithm based on the principle that anomalies are "few and different," making them easier to isolate than normal points.
-            - **Isolation Tree:** A random binary tree used to partition the data. The path length from the root to a leaf node represents how easy it was to isolate a point.
-            - **Anomaly Score:** A score derived from the average path length across all trees in the forest. Anomalies will have a short average path length and thus a high anomaly score.
-            - **Contamination:** A user-defined parameter that sets the expected proportion of anomalies in the dataset. It is used to set the decision threshold on the anomaly scores.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "Glitch Hunter"**
-When an anomaly is detected, the immediate reaction is to dismiss it as a data error.
-- *"Oh, that's just a sensor glitch. Delete the point and move on."*
-- *"Let's increase the contamination parameter until the alarms go away."*
-This approach treats valuable signals as noise. It's like the bouncer seeing a problem, shrugging, and looking the other way. You are deliberately blinding yourself to potentially critical process information.""")
-            st.success("""🟢 **THE GOLDEN RULE: An Anomaly is a Question, Not an Answer**
-The goal is to treat every flagged anomaly as the start of a forensic investigation.
-- **The anomaly is the breadcrumb:** When the bouncer flags someone, you ask questions. "What happened in the process at that exact time? Was it a specific operator? A new raw material lot?"
-- **Investigate the weird-but-good:** If a batch that passed all specifications is flagged as an anomaly, it's a golden opportunity. What made it different? Understanding these "good" anomalies is a key to process optimization.""")
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: Flipping the Problem on its Head
-            **The Problem:** For decades, "outlier detection" was a purely statistical affair, often done one variable at a time. This falls apart in high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values. Most methods focused on building a complex model of what "normal" data looks like and then flagging anything that didn't fit. This was often slow and brittle.
-
-            **The 'Aha!' Moment:** In a 2008 paper, Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou introduced the **Isolation Forest** with a brilliantly counter-intuitive insight. Instead of trying to define "normal," they decided to just try to **isolate** every data point. They reasoned that anomalous points are, by definition, "few and different." This makes them much easier to separate from the rest of the data. Like finding a single red marble in a jar of blue ones, it's easy to "isolate" because it doesn't blend in.
-            
-            **The Impact:** This simple but powerful idea had huge consequences. The algorithm was extremely fast because it didn't need to model the whole dataset; it could often identify an anomaly in just a few steps. It worked well in high dimensions and didn't rely on any assumptions about the data's distribution. The Isolation Forest became a go-to method for unsupervised anomaly detection.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The algorithm is built on an ensemble of `iTrees` (Isolation Trees). Each `iTree` is a random binary tree built by recursively making random splits on random features.")
-            st.markdown("The **path length** `h(x)` for a point `x` is the number of splits required to isolate it. Anomalies, being different, will have a much shorter average path length across all trees in the forest. The final anomaly score `s(x, n)` for a point is calculated based on its average path length `E(h(x))`:")
-            st.latex(r"s(x, n) = 2^{-\frac{E(h(x))}{c(n)}}")
-            st.markdown("Where `c(n)` is a normalization factor based on the sample size `n`. Scores close to 1 are highly anomalous, while scores much smaller than 0.5 are normal.")
-        with tabs[4]:
-            st.markdown("""
-            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
-            
 def render_xai_shap():
     """Renders the module for Explainable AI (XAI) using SHAP."""
     st.markdown("""
@@ -10019,6 +9846,198 @@ def render_xai_shap():
         - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** The principles of system validation require a thorough understanding and verification of the system's logic. For an AI model, XAI is essential for fulfilling the spirit of User and Functional Requirement Specifications (URS/FS).
         - **Good Machine Learning Practice (GMLP):** While not yet a formal regulation, this set of principles is emerging as a standard for developing robust and trustworthy ML models in healthcare, and explainability is a core pillar.
         """)
+
+def render_clustering():
+    """Renders the module for unsupervised clustering."""
+    st.markdown("""
+    #### Purpose & Application: The Data Archeologist
+    **Purpose:** To act as a **data archeologist**, sifting through your process data to discover natural, hidden groupings or "regimes." Without any prior knowledge, it can uncover distinct "civilizations" within your data, answering the question: "Are all of my 'good' batches truly the same, or are there different ways to be good?"
+    
+    **Strategic Application:** This is a powerful exploratory tool for deep process understanding. It moves you from assumption to discovery.
+    - **Process Regime Identification:** Can reveal that a process is secretly operating in different states (e.g., due to raw material lots, seasons, or operator techniques), even when all batches are passing specification.
+    - **Root Cause Analysis:** If a failure occurs, clustering can help determine which "family" of normal operation the failed batch was most similar to, providing critical clues for the investigation.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** Use the sliders to control the underlying data structure.
+    - **`True Number of Clusters`**: Changes the "correct" answer for `k`. See if the diagnostic plots (Elbow and Silhouette) can find it.
+    - **`Cluster Separation` & `Spread`**: Control how easy or hard the clustering task is. Well-separated, tight clusters are easy to find and will result in a high Silhouette Score.
+    """)
+
+    with st.sidebar:
+        st.sidebar.subheader("Clustering Controls")
+        n_clusters_slider = st.sidebar.slider("True Number of Clusters", 2, 8, 3, 1,
+            help="Controls the actual number of distinct groups generated in the data.")
+        separation_slider = st.sidebar.slider("Cluster Separation", 5, 25, 15, 1,
+            help="Controls how far apart the centers of the data clusters are.")
+        spread_slider = st.sidebar.slider("Cluster Spread (Noise)", 1.0, 10.0, 2.5, 0.5,
+            help="Controls the standard deviation (spread) within each cluster. Higher spread means more overlap.")
+    
+    fig, silhouette_val, optimal_k = plot_clustering(
+        separation=separation_slider,
+        spread=spread_slider,
+        n_true_clusters=n_clusters_slider
+    )
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
+        with tabs[0]:
+            st.metric(label="📈 Optimal 'k' Found by Model", value=f"{optimal_k}",
+                      help="The number of clusters recommended by the Silhouette analysis.")
+            st.metric(label="🗺️ Cluster Quality (Silhouette Score)", value=f"{silhouette_val:.3f}",
+                      help="A measure of how distinct the final clusters are. Higher is better (max 1.0).")
+
+            st.markdown("""
+            **Reading the Dashboard:**
+            - **1. Discovered Regimes:** The main plot shows how the K-Means algorithm (using the optimal `k`) has partitioned the data.
+            - **2. Elbow Method:** A heuristic for finding `k`. The "elbow" (often near the true `k`) is the point of diminishing returns where adding more clusters doesn't significantly reduce the total within-cluster variance (Inertia).
+            - **3. Silhouette Analysis:** A more robust method. The peak of this curve indicates the value of `k` that results in the most dense and well-separated clusters. This is often a more reliable guide than the Elbow Method.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Clustering Terms
+            - **Unsupervised Learning:** A type of machine learning where the algorithm learns patterns from untagged data, without a pre-defined outcome to predict.
+            - **Clustering:** The task of grouping a set of objects in such a way that objects in the same group (a cluster) are more similar to each other than to those in other groups.
+            - **K-Means:** A popular clustering algorithm that aims to partition `n` observations into `k` clusters in which each observation belongs to the cluster with the nearest mean (cluster centroid).
+            - **Inertia (WCSS):** The sum of squared distances of samples to their closest cluster center. The Elbow Method looks for the "elbow" in the plot of Inertia vs. `k`.
+            - **Silhouette Score:** A metric used to evaluate the quality of clusters. It measures how similar an object is to its own cluster compared to other clusters. Scores range from -1 to +1, with a high value indicating dense and well-separated clusters.
+            """)
+        with tabs[2]:
+            st.error("""🔴 **THE INCORRECT APPROACH: The "If It Ain't Broke..." Fallacy**
+- An analyst discovers three distinct clusters of successful batches. A manager responds, *"Interesting, but all of those batches passed QC, so who cares? Let's move on."*
+- **The Flaw:** This treats a treasure map as a doodle. The discovery is important *because* all batches passed! It means there are different-and potentially more or less robust-paths to success. One "regime" might be operating dangerously close to a failure cliff.""")
+            st.success("""🟢 **THE GOLDEN RULE: A Cluster is a Clue, Not a Conclusion**
+The discovery of clusters is the **start** of the investigation, not the end.
+1.  **Find the Clusters:** Use an algorithm like K-Means and diagnostics like the Silhouette plot to find a statistically sound grouping.
+2.  **Profile the Clusters (This is the most important step!):** Treat each cluster as a separate group. Ask:
+    - Do batches in Cluster 1 use a different raw material lot than Cluster 2?
+    - Were the batches in Cluster 3 all run by the night shift?
+This profiling step is what turns a statistical finding into actionable process knowledge.""")
+
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context: The Dawn of Unsupervised Learning
+            **The Problem:** In the 1950s, the field of statistics was almost entirely focused on "supervised" problems-testing pre-defined hypotheses or building models to predict a known outcome. But what if you didn't have a hypothesis? What if you just had a mountain of data and wanted to know if there were any natural structures hidden within it?
+
+            **The 'Aha!' Moment:** This was a challenge faced at Bell Labs, a hotbed of innovation. **Stuart Lloyd**, in a 1957 internal memo, proposed a simple, iterative algorithm to solve this problem for signal processing. His goal was to find a small set of "codebook vectors" (cluster centroids) that could efficiently represent a much larger set of signals, a form of data compression. Independently, others like E. W. Forgy and James MacQueen developed similar ideas. MacQueen was the first to coin the term "k-means" in a 1967 paper.
+            
+            **The Impact:** The development of K-Means was a direct consequence of the dawn of the digital computing age, as the iterative process was finally feasible. It became a canonical example of an **unsupervised learning** algorithm, a paradigm where the goal is not to predict a known label but to discover the inherent structure in the data itself. Along with Principal Component Analysis (PCA), K-Means helped lay the groundwork for the modern field of data mining and data science.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("K-Means is an optimization algorithm. Its objective is to find the set of `k` cluster centroids `C` that minimizes the **Within-Cluster Sum of Squares (WCSS)**, also known as inertia.")
+            st.latex(r"\text{WCSS} = \sum_{i=1}^{k} \sum_{x \in C_i} ||x - \mu_i||^2")
+            st.markdown("""
+            -   `k`: The number of clusters.
+            -   `Cᵢ`: The set of all points belonging to cluster `i`.
+            -   `μᵢ`: The centroid (mean) of cluster `i`.
+            The algorithm iteratively performs two steps until the cluster assignments no longer change:
+            1.  **Assignment Step:** Assign each data point `x` to the cluster `Cᵢ` with the nearest centroid `μᵢ`.
+            2.  **Update Step:** Recalculate the centroid `μᵢ` for each cluster by taking the mean of all points assigned to it.
+            """)
+        with tabs[4]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)
+
+def render_anomaly_detection():
+    """Renders the module for unsupervised anomaly detection."""
+    st.markdown("""
+    #### Purpose & Application: The AI Bouncer
+    **Purpose:** To deploy an **AI Bouncer** for your data-a smart system that identifies rare, unexpected observations (anomalies) without any prior knowledge of what "bad" looks like. It doesn't need a list of troublemakers; it learns the "normal vibe" of the crowd and flags anything that stands out.
+    
+    **Strategic Application:** This is a game-changer for monitoring complex processes where simple rule-based alarms are blind to new problems.
+    - **Novel Fault Detection:** It can flag a completely new type of process failure the first time it occurs, because it looks for "weirdness," not pre-defined failures.
+    - **"Golden Batch" Investigation:** Can find which batches, even if they passed all specifications, were statistically unusual. These "weird-but-good" batches often hold the secrets to improving process robustness.
+    """)
+
+    st.info("""
+    **Interactive Demo:** Use the **Expected Contamination** slider to control the model's sensitivity.
+    1.  Observe the final classification in the **top-left plot**.
+    2.  See how the algorithm works in the **top-right plot**: outliers (anomalies) are isolated with very few "questions" (splits), resulting in short paths.
+    3.  The **bottom plot** shows how this translates to a clean separation of anomaly scores. The slider moves the black decision threshold.
+    """)
+
+    with st.sidebar:
+        st.sidebar.subheader("Anomaly Detection Controls")
+        contamination_slider = st.sidebar.slider(
+            "Expected Contamination (%)",
+            min_value=1, max_value=25, value=10, step=1,
+            help="Your assumption about the percentage of anomalies in the data. This tunes the model's sensitivity by moving the decision threshold."
+        )
+
+    fig, num_anomalies = plot_isolation_forest(contamination_rate=contamination_slider/100.0)
+    
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
+        with tabs[0]:
+            st.metric(label="Total Data Points Scanned", value="215")
+            st.metric(label="Anomalies Flagged by Model", value=f"{num_anomalies}")
+
+            st.markdown("""
+            **Reading the Dashboard:**
+            - **1. Detection Results:** The model successfully identifies the scattered outliers (red crosses) while classifying the main, correlated data cloud as normal (blue circles).
+            - **2. Example Isolation Tree:** This visualizes how the algorithm thinks. It makes random splits to isolate points. Notice that the leaf nodes at the very top (shallow depth) contain the anomalies, as they are easy to single out.
+            - **3. Score Distribution:** This plot shows the result of the isolation process. The true outliers (red histogram) have much higher anomaly scores because they are easy to isolate. The inliers (grey histogram) have lower scores. The black line is the decision threshold controlled by the `Contamination` slider.
+            """)
+        with tabs[1]:
+            st.markdown("""
+            ##### Glossary of Anomaly Terms
+            - **Anomaly Detection:** The identification of rare items, events, or observations which raise suspicions by differing significantly from the majority of the data.
+            - **Unsupervised Learning:** This approach is unsupervised because it does not require pre-labeled examples of "anomalies" to learn. It learns the structure of "normal" and flags anything that deviates.
+            - **Isolation Forest:** An unsupervised anomaly detection algorithm based on the principle that anomalies are "few and different," making them easier to isolate than normal points.
+            - **Isolation Tree:** A random binary tree used to partition the data. The path length from the root to a leaf node represents how easy it was to isolate a point.
+            - **Anomaly Score:** A score derived from the average path length across all trees in the forest. Anomalies will have a short average path length and thus a high anomaly score.
+            - **Contamination:** A user-defined parameter that sets the expected proportion of anomalies in the dataset. It is used to set the decision threshold on the anomaly scores.
+            """)
+        with tabs[2]:
+            st.error("""🔴 **THE INCORRECT APPROACH: The "Glitch Hunter"**
+When an anomaly is detected, the immediate reaction is to dismiss it as a data error.
+- *"Oh, that's just a sensor glitch. Delete the point and move on."*
+- *"Let's increase the contamination parameter until the alarms go away."*
+This approach treats valuable signals as noise. It's like the bouncer seeing a problem, shrugging, and looking the other way. You are deliberately blinding yourself to potentially critical process information.""")
+            st.success("""🟢 **THE GOLDEN RULE: An Anomaly is a Question, Not an Answer**
+The goal is to treat every flagged anomaly as the start of a forensic investigation.
+- **The anomaly is the breadcrumb:** When the bouncer flags someone, you ask questions. "What happened in the process at that exact time? Was it a specific operator? A new raw material lot?"
+- **Investigate the weird-but-good:** If a batch that passed all specifications is flagged as an anomaly, it's a golden opportunity. What made it different? Understanding these "good" anomalies is a key to process optimization.""")
+
+        with tabs[3]:
+            st.markdown("""
+            #### Historical Context: Flipping the Problem on its Head
+            **The Problem:** For decades, "outlier detection" was a purely statistical affair, often done one variable at a time. This falls apart in high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values. Most methods focused on building a complex model of what "normal" data looks like and then flagging anything that didn't fit. This was often slow and brittle.
+
+            **The 'Aha!' Moment:** In a 2008 paper, Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou introduced the **Isolation Forest** with a brilliantly counter-intuitive insight. Instead of trying to define "normal," they decided to just try to **isolate** every data point. They reasoned that anomalous points are, by definition, "few and different." This makes them much easier to separate from the rest of the data. Like finding a single red marble in a jar of blue ones, it's easy to "isolate" because it doesn't blend in.
+            
+            **The Impact:** This simple but powerful idea had huge consequences. The algorithm was extremely fast because it didn't need to model the whole dataset; it could often identify an anomaly in just a few steps. It worked well in high dimensions and didn't rely on any assumptions about the data's distribution. The Isolation Forest became a go-to method for unsupervised anomaly detection.
+            """)
+            st.markdown("#### Mathematical Basis")
+            st.markdown("The algorithm is built on an ensemble of `iTrees` (Isolation Trees). Each `iTree` is a random binary tree built by recursively making random splits on random features.")
+            st.markdown("The **path length** `h(x)` for a point `x` is the number of splits required to isolate it. Anomalies, being different, will have a much shorter average path length across all trees in the forest. The final anomaly score `s(x, n)` for a point is calculated based on its average path length `E(h(x))`:")
+            st.latex(r"s(x, n) = 2^{-\frac{E(h(x))}{c(n)}}")
+            st.markdown("Where `c(n)` is a normalization factor based on the sample size `n`. Scores close to 1 are highly anomalous, while scores much smaller than 0.5 are normal.")
+        with tabs[4]:
+            st.markdown("""
+            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+            """)   
             
 def render_advanced_ai_concepts():
     """Renders the interactive dashboard for advanced AI concepts in a V&V context."""
@@ -10812,7 +10831,7 @@ else:
         "Reliability / Survival Analysis": render_survival_analysis,
         "Time Series Analysis": render_time_series_analysis,
         "Multivariate Analysis (MVA)": render_mva_pls,
-        "Predictive QC (Classification)": render_predictive_qc_models,
+        "Predictive QC (Classification)": render_classification_models,
         "Explainable AI (XAI)": render_xai_shap,
         "Clustering (Unsupervised)": render_clustering,
         "Anomaly Detection": render_anomaly_detection,

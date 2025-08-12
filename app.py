@@ -5718,10 +5718,9 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
 
 def create_pso_figure(zz, x_range, y_range, history, gbest_position, context):
     """
-    Creates the Plotly figure from the simulation data.
-    This version is corrected to handle animation frames properly.
+    Creates a robust, non-flickering animated Plotly figure from the simulation data.
     """
-    # 1. Define the static, unchanging parts of the plot
+    # 1. Define the static, unchanging traces that form the background
     contour_trace = go.Contour(
         z=zz, 
         x=x_range, 
@@ -5738,32 +5737,44 @@ def create_pso_figure(zz, x_range, y_range, history, gbest_position, context):
         name='Highest-Risk Condition Found'
     )
 
-    # 2. Create the list of frames for the animation
-    # Each frame must contain ALL traces that should be visible
+    # 2. Define the initial state of the moving particles
+    initial_particle_trace = go.Scatter(
+        x=history[0][:, 0], 
+        y=history[0][:, 1], 
+        mode='markers', 
+        marker=dict(color='cyan', size=10, symbol='cross'),
+        name='PSO Particles'
+    )
+
+    # 3. Create the list of frames for the animation.
+    # Each frame will now contain ALL traces to prevent the background from disappearing.
     frames = []
     for step_positions in history:
-        particle_trace = go.Scatter(
-            x=step_positions[:, 0], 
-            y=step_positions[:, 1], 
-            mode='markers', 
-            marker=dict(color='cyan', size=10, symbol='cross'),
-            name='PSO Particles'
+        frame = go.Frame(
+            data=[
+                contour_trace, 
+                star_trace, 
+                go.Scatter(x=step_positions[:, 0], y=step_positions[:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'))
+            ],
+            name=f"frame_{len(frames)}" # Give each frame a name
         )
-        # Each frame contains the background, the final star, and the particles at one step
-        frames.append(go.Frame(data=[contour_trace, star_trace, particle_trace]))
+        frames.append(frame)
 
-    # 3. Create the figure, starting with the initial state
+    # 4. Create the figure, starting with the initial state and including all frames
     fig = go.Figure(
-        data=[contour_trace, star_trace, frames[0].data[2]], # Initial state is frame 0
+        data=[contour_trace, star_trace, initial_particle_trace],
         layout=go.Layout(
             title=f"<b>PSO Red Team: Finding Hidden Failure Modes in a {context['name']}</b>",
-            xaxis_title=context['x_label'], yaxis_title=context['y_label'],
+            xaxis_title=context['x_label'], 
+            yaxis_title=context['y_label'],
+            legend=dict(x=0.01, y=0.99),
             updatemenus=[dict(
                 type="buttons",
                 buttons=[dict(label="► Run Simulation",
                               method="animate",
-                              args=[None, {"frame": {"duration": 100, "redraw": True}, # Use redraw=True for this method
-                                           "fromcurrent": True, "transition": {"duration": 0}}]),
+                              # The args now specify to play all frames without replacing the layout
+                              args=[None, {"frame": {"duration": 100, "redraw": True},
+                                           "fromcurrent": True, "transition": {"duration": 0}, "mode": "immediate"}]),
                          dict(label="❚❚ Pause",
                               method="animate",
                               args=[[None], {"frame": {"duration": 0, "redraw": False},

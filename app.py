@@ -5710,7 +5710,7 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
         current_best_idx = np.argmax(pbest_scores)
         if pbest_scores[current_best_idx] > gbest_score:
             gbest_position = pbest_positions[current_best_idx].copy()
-            
+            gbest_score = pbest_scores[current_best_idx] 
     return zz, x_range, y_range, history, gbest_position, context
 
 # This function is now also cached. It will only rerun if the DATA from the simulation changes.

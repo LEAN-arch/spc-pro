@@ -1119,6 +1119,41 @@ def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_
     return fig_radar, fig_cost, kpis, profile['categories'], base_costs, optimized_costs
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
+# ======================================= 3 files for EDA, first load datasets follows =================
+def apply_gadget_transformations(df, noise_level, missing_pct, outlier_magnitude, categorical_effect):
+    """Takes a DataFrame and applies transformations based on user-controlled gadgets."""
+    df_mod = df.copy()
+    numeric_cols = df_mod.select_dtypes(include=np.number).columns
+
+    # 1. Add Random Noise
+    if noise_level > 0:
+        for col in numeric_cols:
+            noise = np.random.normal(0, df_mod[col].std() * noise_level / 10, len(df_mod))
+            df_mod[col] += noise
+
+    # 2. Inject Categorical Effect
+    if 'Raw_Material_Lot' in df_mod.columns and 'Yield (%)' in df_mod.columns:
+        df_mod.loc[df_mod['Raw_Material_Lot'] == 'Lot B', 'Yield (%)'] += categorical_effect
+    if 'Operator' in df_mod.columns and 'Dispense_Volume (µL)' in df_mod.columns:
+        df_mod.loc[df_mod['Operator'] == 'Alice', 'Dispense_Volume (µL)'] += categorical_effect
+
+    # 3. Inject Outlier
+    if outlier_magnitude > 0:
+        target_col = 'Yield (%)' if 'Yield (%)' in df_mod.columns else 'Dispense_Volume (µL)'
+        outlier_idx = df_mod.index[10] # Pick a consistent index for the outlier
+        df_mod.loc[outlier_idx, target_col] = df_mod[target_col].mean() + outlier_magnitude * df_mod[target_col].std()
+
+    # 4. Inject Missing Values
+    if missing_pct > 0:
+        target_col = 'Purity (%)' if 'Purity (%)' in df_mod.columns else 'Pressure (psi)'
+        n_missing = int(len(df_mod) * missing_pct / 100)
+        # Ensure we don't try to sample more than available rows if df is small
+        if n_missing > 0:
+            missing_indices = np.random.choice(df_mod.index.drop(outlier_idx, errors='ignore'), n_missing, replace=False)
+            df_mod.loc[missing_indices, target_col] = np.nan
+        
+    return df_mod
+    
 @st.cache_data
 def load_datasets():
     """Generates more realistic sample datasets for EDA."""
@@ -6374,13 +6409,29 @@ def render_eda_dashboard():
     st.info("""
     **Interactive Demo:** You are a Data Scientist receiving a new dataset.
     1.  **Select a sample dataset** to simulate a real-world analysis scenario.
-    2.  The dashboard automatically generates a full EDA report.
-    3.  Review the **Data Quality KPIs**, then explore the tabs to understand relationships, distributions, and group differences.
+    2.  Use the **Interactive Data Gadgets** to deliberately corrupt the data and see how it impacts the plots.
+    3.  Review the KPIs and explore the tabs to see if you can detect the problems you introduced.
     """)
 
     datasets = load_datasets()
     dataset_choice = st.selectbox("Select a Sample Dataset to Analyze:", list(datasets.keys()))
-    df = datasets[dataset_choice]
+    df_base = datasets[dataset_choice] # Load the pristine, base dataset
+
+    # --- Interactive Data Gadgets Expander ---
+    with st.expander("🔬 Interactive Data Gadgets (Play with the Data!)"):
+        st.markdown("Use these controls to deliberately introduce common data quality issues. Observe how they affect the plots below.")
+        g_col1, g_col2, g_col3, g_col4 = st.columns(4)
+        with g_col1:
+            noise_level = st.slider("Add Noise", 0, 10, 0, help="Injects random noise into all numeric variables. Watch how this makes trends in the scatter plots harder to see and increases the spread in the distribution plots.")
+        with g_col2:
+            categorical_effect = st.slider("Categorical Effect", -10, 10, 0, help="Introduces a systematic bias for one group ('Lot B' or 'Alice'). Watch how this group separates from the others in the 'Group Analysis' box plots.")
+        with g_col3:
+            outlier_magnitude = st.slider("Inject Outlier", 0, 10, 0, help="Adds a single, extreme outlier to a key variable. Watch for this point appearing far from the others on the box plots and scatter plots.")
+        with g_col4:
+            missing_pct = st.slider("Inject Missing Data (%)", 0, 20, 0, help="Randomly removes a percentage of data from one column. Watch the 'Missing Values' KPI increase and note how some plots might change.")
+    
+    # Apply the transformations from the gadgets to the base dataframe
+    df = apply_gadget_transformations(df_base, noise_level, missing_pct, outlier_magnitude, categorical_effect)
 
     st.header("Exploratory Data Analysis Report")
     st.dataframe(df.head())
@@ -6397,73 +6448,70 @@ def render_eda_dashboard():
     cat_cols = df.select_dtypes(exclude=np.number).columns.tolist()
 
     if numeric_cols:
+        st.markdown("### EDA Visualizations")
+        corr_method = st.radio("Select Correlation Method for Heatmap:", ('pearson', 'spearman'), horizontal=True,
+                                   help="**Pearson:** Measures straight-line (linear) relationships. Sensitive to outliers. **Spearman:** Measures any consistent increasing/decreasing (monotonic) relationship, even if it's curved. Robust to outliers.")
+        
+        with st.expander("Learn More: Pearson vs. Spearman Correlation"):
+            st.markdown("""
+            ### Pearson vs. Spearman: The Straight Road and the Winding Trail
+
+            Think of correlation as a way to understand how two process parameters are connected. But not all connections are the same. Choosing the right correlation method is like choosing the right map for your journey.
+
+            #### 🗺️ The Analogy: A Tale of Two Maps
+
+            *   **Pearson is a GPS Driving Map:** It's incredibly precise and powerful, but it works best when it assumes you can travel in a straight line from A to B. It measures the strength of a **linear** relationship. If the road is perfectly straight, the Pearson GPS is the best tool you can have. But if the road is winding, the GPS will get confused and tell you the destination is "not well correlated" with the start, even if you're consistently getting closer.
+
+            *   **Spearman is a Topographical Hiking Map:** It's more robust and doesn't assume the path is straight. It only cares if you are consistently going **uphill or downhill**. It measures the strength of a **monotonic** relationship. It can tell you with great confidence that a winding mountain trail always leads to the summit, even if the path isn't a straight line. It's less precise about the *shape* of the path but more reliable for detecting the *trend*.
+
+            ---
+
+            ### In-Depth Comparison
+
+            | Feature                    | **Pearson Correlation (r)**                                                                    | **Spearman Correlation (ρ, rho)**                                                                 |
+            | -------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+            | **What It Measures**       | The strength and direction of a **linear** relationship between two continuous variables.        | The strength and direction of a **monotonic** relationship between two variables.                 |
+            | **How It Works**           | Calculates the covariance of the two variables divided by the product of their standard deviations, using their **actual values**. | First, it converts the raw data into **ranks**, then calculates the Pearson correlation **on the ranks**. |
+            | **Key Assumption**         | The relationship between variables is linear. The data should ideally be normally distributed. | The relationship is monotonic (as X increases, Y consistently increases or decreases, but not necessarily in a straight line). No assumption about data distribution. |
+            | **Sensitivity to Outliers**| **Very sensitive.** A single outlier can dramatically skew the result.                          | **Highly robust.** Since it uses ranks, an outlier's exact value doesn't matter, only its position. |
+            | **Pros**                   | ✅ More powerful and statistically precise if the assumptions are met.<br>✅ Directly related to the slope of a linear regression. | ✅ Captures non-linear but monotonic relationships.<br>✅ Robust to outliers.<br>✅ Can be used with ordinal data. |
+            | **Cons**                   | ❌ Can be misleading or completely miss strong non-linear relationships.<br>❌ Easily distorted by outliers. | ❌ Less powerful than Pearson if the relationship is truly linear.<br>❌ Loses information about the magnitude of the values. |
+
+            ---
+
+            ### When to Use Which? A Practical Guide
+
+            This is the most important part. Your choice depends on your data and your question.
+
+            #### Use **Pearson** When:
+            *   ✅ **You have visually inspected a scatter plot, and the relationship looks like a straight line.** This is the most important check!
+            *   ✅ Your data is continuous and at least approximately normally distributed.
+            *   ✅ You have checked for and handled any significant outliers.
+            *   ✅ Your ultimate goal is to build a **linear regression model**, as Pearson correlation is a direct measure of the goodness of fit for such a model.
+
+            #### Use **Spearman** When:
+            *   ✅ **The relationship is non-linear but consistently increasing or decreasing.** Think of a saturation curve in a bioassay—it's not a line, but it's monotonic.
+            *   ✅ **Your data contains outliers that you cannot or do not want to remove.** Spearman will give you a much more stable and reliable result.
+            *   ✅ Your data is **ordinal** (e.g., rankings like "low," "medium," "high") or is not normally distributed.
+            *   ✅ You care more about establishing the **existence and direction of a relationship** than you do about its specific linear shape.
+
+            ### The Golden Rule
+            **Always visualize your data with a scatter plot first!** The plot is your best guide. If it looks like a straight line, Pearson is your powerful specialist. If it looks like a curve or has weird points, Spearman is your robust and trustworthy generalist.
+            """)
+        
+        # Generate ALL figures at once using the selected method and the MODIFIED dataframe.
+        figs = plot_eda_dashboard(df, tuple(numeric_cols), tuple(cat_cols), corr_method)
+        
         eda_tabs = st.tabs(["📊 Relationships", "📈 Distributions", "🗂️ Group Analysis"])
 
         with eda_tabs[0]:
-            st.subheader("Bivariate & Multivariate Relationships")
-            corr_method = st.radio("Correlation Method:", ('pearson', 'spearman'), horizontal=True,
-                                   help="Pearson measures linear relationships. Spearman measures monotonic relationships (if one variable goes up, the other goes up, but not necessarily in a straight line).")
-            
-            # --- NEW EDUCATIONAL EXPANDER ADDED HERE ---
-            with st.expander("Learn More: Pearson vs. Spearman Correlation"):
-                st.markdown("""
-                ### Pearson vs. Spearman: The Straight Road and the Winding Trail
-
-                Think of correlation as a way to understand how two process parameters are connected. But not all connections are the same. Choosing the right correlation method is like choosing the right map for your journey.
-
-                #### 🗺️ The Analogy: A Tale of Two Maps
-
-                *   **Pearson is a GPS Driving Map:** It's incredibly precise and powerful, but it works best when it assumes you can travel in a straight line from A to B. It measures the strength of a **linear** relationship. If the road is perfectly straight, the Pearson GPS is the best tool you can have. But if the road is winding, the GPS will get confused and tell you the destination is "not well correlated" with the start, even if you're consistently getting closer.
-
-                *   **Spearman is a Topographical Hiking Map:** It's more robust and doesn't assume the path is straight. It only cares if you are consistently going **uphill or downhill**. It measures the strength of a **monotonic** relationship. It can tell you with great confidence that a winding mountain trail always leads to the summit, even if the path isn't a straight line. It's less precise about the *shape* of the path but more reliable for detecting the *trend*.
-
-                ---
-
-                ### In-Depth Comparison
-
-                | Feature                    | **Pearson Correlation (r)**                                                                    | **Spearman Correlation (ρ, rho)**                                                                 |
-                | -------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-                | **What It Measures**       | The strength and direction of a **linear** relationship between two continuous variables.        | The strength and direction of a **monotonic** relationship between two variables.                 |
-                | **How It Works**           | Calculates the covariance of the two variables divided by the product of their standard deviations, using their **actual values**. | First, it converts the raw data into **ranks**, then calculates the Pearson correlation **on the ranks**. |
-                | **Key Assumption**         | The relationship between variables is linear. The data should ideally be normally distributed. | The relationship is monotonic (as X increases, Y consistently increases or decreases, but not necessarily in a straight line). No assumption about data distribution. |
-                | **Sensitivity to Outliers**| **Very sensitive.** A single outlier can dramatically skew the result.                          | **Highly robust.** Since it uses ranks, an outlier's exact value doesn't matter, only its position. |
-                | **Pros**                   | ✅ More powerful and statistically precise if the assumptions are met.<br>✅ Directly related to the slope of a linear regression. | ✅ Captures non-linear but monotonic relationships.<br>✅ Robust to outliers.<br>✅ Can be used with ordinal data. |
-                | **Cons**                   | ❌ Can be misleading or completely miss strong non-linear relationships.<br>❌ Easily distorted by outliers. | ❌ Less powerful than Pearson if the relationship is truly linear.<br>❌ Loses information about the magnitude of the values. |
-
-                ---
-
-                ### When to Use Which? A Practical Guide
-
-                This is the most important part. Your choice depends on your data and your question.
-
-                #### Use **Pearson** When:
-                *   ✅ **You have visually inspected a scatter plot, and the relationship looks like a straight line.** This is the most important check!
-                *   ✅ Your data is continuous and at least approximately normally distributed.
-                *   ✅ You have checked for and handled any significant outliers.
-                *   ✅ Your ultimate goal is to build a **linear regression model**, as Pearson correlation is a direct measure of the goodness of fit for such a model.
-
-                #### Use **Spearman** When:
-                *   ✅ **The relationship is non-linear but consistently increasing or decreasing.** Think of a saturation curve in a bioassay—it's not a line, but it's monotonic.
-                *   ✅ **Your data contains outliers that you cannot or do not want to remove.** Spearman will give you a much more stable and reliable result.
-                *   ✅ Your data is **ordinal** (e.g., rankings like "low," "medium," "high") or is not normally distributed.
-                *   ✅ You care more about establishing the **existence and direction of a relationship** than you do about its specific linear shape.
-
-                ### The Golden Rule
-                **Always visualize your data with a scatter plot first!** The plot is your best guide. If it looks like a straight line, Pearson is your powerful specialist. If it looks like a curve or has weird points, Spearman is your robust and trustworthy generalist.
-                """)
-            # --- END OF NEW CONTENT ---
-            
-            # Generate and display plots
-            figs = plot_eda_dashboard(df, tuple(numeric_cols), tuple(cat_cols), corr_method)
             st.plotly_chart(figs['heatmap'], use_container_width=True)
             st.plotly_chart(figs['pairplot'], use_container_width=True)
         
         with eda_tabs[1]:
-            st.subheader("Univariate Distributions")
             st.plotly_chart(figs['distributions'], use_container_width=True)
 
         with eda_tabs[2]:
-            st.subheader("Analysis by Categorical Factors")
             if cat_cols:
                 st.plotly_chart(figs['categorical'], use_container_width=True)
             else:

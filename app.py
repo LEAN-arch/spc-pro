@@ -1180,7 +1180,7 @@ def plot_eda_dashboard(df, numeric_cols, cat_cols, corr_method='pearson'):
     numeric_cols = list(numeric_cols)
     cat_cols = list(cat_cols)
     # -----------------------------------------------------------------
-    
+
     figs = {}
 
     # --- Plot 1: Correlation Heatmap (with method selection) ---
@@ -1201,6 +1201,7 @@ def plot_eda_dashboard(df, numeric_cols, cat_cols, corr_method='pearson'):
     fig_pairplot.update_traces(diagonal_visible=False)
     fig_pairplot.update_layout(height=700)
     figs['pairplot'] = fig_pairplot
+
     # --- Plot 3: Rich Univariate Distributions ---
     rows = (len(numeric_cols) + 1) // 2
     fig_dist = make_subplots(rows=rows, cols=2,
@@ -1238,10 +1239,11 @@ def plot_eda_dashboard(df, numeric_cols, cat_cols, corr_method='pearson'):
                               height=300 * rows_cat, showlegend=False)
         figs['categorical'] = fig_cat
     else:
+        # Create an empty figure to avoid a NameError if there are no cat_cols
         figs['categorical'] = go.Figure().update_layout(title_text="<b>4. Group Analysis (No Categorical Variables Found)</b>")
 
     return figs
-
+    
 @st.cache_data
 def plot_ci_concept(n=30):
     """

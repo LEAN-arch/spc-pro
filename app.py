@@ -705,17 +705,37 @@ def plot_atp_radar_chart(project_type, atp_values, achieved_values=None):
     return fig
 
 @st.cache_data
+def plot_pha_matrix(pha_data):
+    """Generates a professional-grade Preliminary Hazard Analysis (PHA) risk matrix."""
+    df = pd.DataFrame(pha_data)
+    fig = go.Figure()
+    risk_levels = {
+        'Low': {'color': 'rgba(44, 160, 44, 0.2)', 'range_s': [1, 2], 'range_l': [1, 2]},
+        'Medium': {'color': 'rgba(255, 193, 7, 0.2)', 'range_s': [[1, 5], [3, 5], [1, 2]], 'range_l': [[3, 4], [1, 2], [3, 4]]},
+        'High': {'color': 'rgba(239, 83, 80, 0.3)', 'range_s': [3, 5], 'range_l': [3, 4]}
+    }
+    for level, props in risk_levels.items():
+        if isinstance(props['range_s'][0], list):
+            for s_range, l_range in zip(props['range_s'], props['range_l']):
+                fig.add_shape(type="rect", x0=s_range[0]-0.5, y0=l_range[0]-0.5, x1=s_range[1]+0.5, y1=l_range[1]+0.5, fillcolor=props['color'], line_width=0, layer='below')
+        else:
+             fig.add_shape(type="rect", x0=props['range_s'][0]-0.5, y0=props['range_l'][0]-0.5, x1=props['range_s'][1]+0.5, y1=props['range_l'][1]+0.5, fillcolor=props['color'], line_width=0, layer='below')
+    fig.add_trace(go.Scatter(x=df['Severity'], y=df['Likelihood'], mode='markers+text', text=df.index + 1, textposition='top center',
+        marker=dict(color=PRIMARY_COLOR, size=20, symbol='diamond'), hovertext=df['Hazard'], hoverinfo='text'))
+    fig.update_layout(title='<b>Preliminary Hazard Analysis (PHA) Risk Matrix</b>',
+                      xaxis_title='<b>Severity of Harm</b>', yaxis_title='<b>Likelihood of Occurrence</b>',
+                      xaxis=dict(tickvals=[1,2,3,4,5], ticktext=['Negligible', 'Minor', 'Serious', 'Critical', 'Catastrophic'], range=[0.5, 5.5]),
+                      yaxis=dict(tickvals=[1,2,3,4], ticktext=['Improbable', 'Remote', 'Occasional', 'Frequent'], range=[0.5, 4.5]))
+    return fig
+
+@st.cache_data
 def plot_fmea_dashboard(fmea_df):
-    """
-    Generates a professional-grade FMEA dashboard with a self-documenting Risk Matrix and Pareto Chart.
-    """
+    """Generates a professional-grade FMEA dashboard with a Risk Matrix and Pareto Chart from a dataframe."""
     df = fmea_df.copy()
     df['RPN_Initial'] = df['S'] * df['O_Initial'] * df['D_Initial']
     df['RPN_Final'] = df['S'] * df['O_Final'] * df['D_Final']
     
-    # --- Plot 1: Professional Risk Matrix ---
     fig_matrix = go.Figure()
-    # Add colored background cells for risk levels
     risk_levels = {
         'Low': {'color': 'rgba(44, 160, 44, 0.2)', 'range_s': [1, 3], 'range_o': [1, 3]},
         'Medium': {'color': 'rgba(255, 193, 7, 0.2)', 'range_s': [[1, 5], [4, 5], [1, 2]], 'range_o': [[4, 5], [1, 3], [1, 3]]},
@@ -724,12 +744,9 @@ def plot_fmea_dashboard(fmea_df):
     for level, props in risk_levels.items():
         if isinstance(props['range_s'][0], list):
             for s_range, o_range in zip(props['range_s'], props['range_o']):
-                fig_matrix.add_shape(type="rect", x0=s_range[0]-0.5, y0=o_range[0]-0.5, x1=s_range[1]+0.5, y1=o_range[1]+0.5,
-                                      fillcolor=props['color'], line_width=0, layer='below')
+                fig_matrix.add_shape(type="rect", x0=s_range[0]-0.5, y0=o_range[0]-0.5, x1=s_range[1]+0.5, y1=o_range[1]+0.5, fillcolor=props['color'], line_width=0, layer='below')
         else:
-            fig_matrix.add_shape(type="rect", x0=props['range_s'][0]-0.5, y0=props['range_o'][0]-0.5, x1=props['range_s'][1]+0.5, y1=props['range_o'][1]+0.5,
-                                  fillcolor=props['color'], line_width=0, layer='below')
-    # Add zone labels
+            fig_matrix.add_shape(type="rect", x0=props['range_s'][0]-0.5, y0=props['range_o'][0]-0.5, x1=props['range_s'][1]+0.5, y1=props['range_o'][1]+0.5, fillcolor=props['color'], line_width=0, layer='below')
     fig_matrix.add_annotation(x=2, y=2, text="<b>LOW RISK</b>", showarrow=False, font=dict(color='green'))
     fig_matrix.add_annotation(x=4.5, y=4.5, text="<b>HIGH RISK</b>", showarrow=False, font=dict(color='red'))
     
@@ -742,14 +759,12 @@ def plot_fmea_dashboard(fmea_df):
         if df.loc[i, 'O_Initial'] != df.loc[i, 'O_Final']:
             fig_matrix.add_annotation(x=df.loc[i, 'S'], y=df.loc[i, 'O_Final'], ax=df.loc[i, 'S'], ay=df.loc[i, 'O_Initial'],
                                       xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowcolor=PRIMARY_COLOR, arrowwidth=2)
-
     fig_matrix.update_layout(title='<b>1. Risk Matrix (Severity vs. Occurrence)</b>',
                              xaxis_title='<b>Severity (S)</b><br>1 (Low) → 5 (High)', yaxis_title='<b>Occurrence (O)</b><br>1 (Low) → 5 (High)',
                              xaxis=dict(tickvals=list(range(1,6)), range=[0.5, 5.5]),
                              yaxis=dict(tickvals=list(range(1,6)), range=[0.5, 5.5]),
                              legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
 
-    # --- Plot 2: RPN Pareto Chart ---
     df_pareto = df[['Failure Mode', 'RPN_Initial', 'RPN_Final']].copy().sort_values('RPN_Initial', ascending=False)
     df_pareto = df_pareto.melt(id_vars='Failure Mode', var_name='Stage', value_name='RPN')
     df_pareto['Stage'] = df_pareto['Stage'].replace({'RPN_Initial': 'Initial', 'RPN_Final': 'Final'})
@@ -761,72 +776,66 @@ def plot_fmea_dashboard(fmea_df):
     fig_pareto.add_hline(y=50, line_dash="dash", line_color="red", annotation_text="Action Threshold")
     fig_pareto.add_annotation(x=len(df['Failure Mode'])-0.5, y=120, text="<b>RPN Scale:</b><br>1-50: Low Risk<br>51-80: Medium Risk<br>>80: High Risk",
                               showarrow=False, align="left", bordercolor="black", borderwidth=1, bgcolor="white")
-
+    
     return fig_matrix, fig_pareto
 
 @st.cache_data
-def plot_pha_matrix(pha_data):
-    """Generates a professional-grade Preliminary Hazard Analysis (PHA) risk matrix."""
-    df = pd.DataFrame(pha_data)
-    fig = go.Figure()
-
-    risk_levels = {
-        'Low': {'color': 'rgba(44, 160, 44, 0.2)', 'range_s': [1, 2], 'range_l': [1, 2]},
-        'Medium': {'color': 'rgba(255, 193, 7, 0.2)', 'range_s': [[1, 5], [3, 5], [1, 2]], 'range_l': [[3, 4], [1, 2], [3, 4]]},
-        'High': {'color': 'rgba(239, 83, 80, 0.3)', 'range_s': [3, 5], 'range_l': [3, 4]}
-    }
-    for level, props in risk_levels.items():
-        if isinstance(props['range_s'][0], list):
-            for s_range, l_range in zip(props['range_s'], props['range_l']):
-                fig.add_shape(type="rect", x0=s_range[0]-0.5, y0=l_range[0]-0.5, x1=s_range[1]+0.5, y1=l_range[1]+0.5,
-                              fillcolor=props['color'], line_width=0, layer='below')
-        else:
-             fig.add_shape(type="rect", x0=props['range_s'][0]-0.5, y0=props['range_l'][0]-0.5, x1=props['range_s'][1]+0.5, y1=props['range_l'][1]+0.5,
-                           fillcolor=props['color'], line_width=0, layer='below')
-
-    fig.add_trace(go.Scatter(
-        x=df['Severity'], y=df['Likelihood'], mode='markers+text',
-        text=df.index + 1, textposition='top center',
-        marker=dict(color=PRIMARY_COLOR, size=20, symbol='diamond'),
-        hovertext=df['Hazard'], hoverinfo='text'
-    ))
-    
-    fig.update_layout(title='<b>Preliminary Hazard Analysis (PHA) Risk Matrix</b>',
-                      xaxis_title='<b>Severity of Harm</b>', yaxis_title='<b>Likelihood of Occurrence</b>',
-                      xaxis=dict(tickvals=[1,2,3,4,5], ticktext=['Negligible', 'Minor', 'Serious', 'Critical', 'Catastrophic'], range=[0.5, 5.5]),
-                      yaxis=dict(tickvals=[1,2,3,4], ticktext=['Improbable', 'Remote', 'Occasional', 'Frequent'], range=[0.5, 4.5]))
-    return fig
-
-# FIX: This is a new, SME-grade function to be added to your app.
-@st.cache_data
 def plot_fta_diagram(initiating_event_prob):
     """Generates a professional-grade Fault Tree Analysis (FTA) diagram."""
-    # Probabilities
-    p_power = 0.001
-    p_pump = 0.005
-    p_sensor = initiating_event_prob / 100.0 # User controlled
+    p_power = 0.001; p_pump = 0.005; p_sensor = initiating_event_prob / 100.0
     p_or_gate = 1 - (1 - p_power) * (1 - p_pump)
-    p_top_event = p_or_gate * p_sensor # AND gate
+    p_top_event = p_or_gate * p_sensor
 
     fig = go.Figure()
-    nodes = {
-        'Top': {'label': f"Top Event:<br>Loss of Cooling<br>P={p_top_event:.4f}", 'x': 0.5, 'y': 0.9},
-        'And1': {'label': "AND", 'x': 0.5, 'y': 0.7, 'shape': 'circle'},
-        'Intermediate': {'label': f"Pump Failure<br>P={p_or_gate:.4f}", 'x': 0.25, 'y': 0.5},
-        'Sensor': {'label': f"Sensor Failure<br>P={p_sensor:.4f}", 'x': 0.75, 'y': 0.5},
-        'Or1': {'label': "OR", 'x': 0.25, 'y': 0.3, 'shape': 'circle'},
-        'Power': {'label': f"Power Loss<br>P={p_power:.4f}", 'x': 0.1, 'y': 0.1},
-        'Pump': {'label': f"Pump Wearout<br>P={p_pump:.4f}", 'x': 0.4, 'y': 0.1}
-    }
+    nodes = {'Top': ("Top Event:<br>Loss of Cooling", 0.5, 0.9, p_top_event),
+             'And1': ("AND", 0.5, 0.7, None),
+             'Intermediate': ("Pump Failure", 0.25, 0.5, p_or_gate),
+             'Sensor': ("Sensor Failure", 0.75, 0.5, p_sensor),
+             'Or1': ("OR", 0.25, 0.3, None),
+             'Power': ("Power Loss", 0.1, 0.1, p_power),
+             'Pump': ("Pump Wearout", 0.4, 0.1, p_pump)}
     links = [('And1', 'Top'), ('Intermediate', 'And1'), ('Sensor', 'And1'), ('Or1', 'Intermediate'), ('Power', 'Or1'), ('Pump', 'Or1')]
 
-    for link in links: fig.add_shape(type="line", x0=nodes[link[0]]['x'], y0=nodes[link[0]]['y'], x1=nodes[link[1]]['x'], y1=nodes[link[1]]['y'])
-    for name, node in nodes.items():
-        color = 'salmon' if 'Top' in name else 'skyblue'
-        fig.add_shape(type="rect", x0=node['x']-0.1, y0=node['y']-0.05, x1=node['x']+0.1, y1=node['y']+0.05, fillcolor=color, line_color='black')
-        fig.add_annotation(x=node['x'], y=node['y'], text=f"<b>{node['label']}</b>", showarrow=False, font=dict(color='black', size=11))
+    for link in links: fig.add_trace(go.Scatter(x=[nodes[link[0]][1], nodes[link[1]][1]], y=[nodes[link[0]][2], nodes[link[1]][2]], mode='lines', line=dict(color='black', width=2)))
     
-    fig.update_layout(title="<b>Fault Tree Analysis (FTA) - Deductive 'Why' Analysis</b>", xaxis=dict(visible=False), yaxis=dict(visible=False))
+    node_x, node_y, node_text, node_color = [], [], [], []
+    for name, (label, x, y, prob) in nodes.items():
+        node_x.append(x); node_y.append(y)
+        full_label = f"<b>{label}</b>" + (f"<br>P={prob:.4f}" if prob is not None else "")
+        node_text.append(full_label)
+        if "AND" in label or "OR" in label: node_color.append('lightgrey')
+        elif "Top Event" in label: node_color.append('salmon')
+        else: node_color.append('skyblue')
+
+    fig.add_trace(go.Scatter(x=node_x, y=node_y, text=node_text, mode='markers+text', textposition="middle center",
+                             marker=dict(size=120, symbol='square', color=node_color, line=dict(width=2, color='black')),
+                             textfont=dict(size=11, color='black')))
+    
+    fig.update_layout(title="<b>Fault Tree Analysis (FTA) - Deductive 'Why' Analysis</b>", xaxis=dict(visible=False), yaxis=dict(visible=False), showlegend=False)
+    return fig
+
+@st.cache_data
+def plot_eta_diagram(initiating_event_prob):
+    """Generates a professional-grade Event Tree Analysis (ETA) diagram."""
+    p_alarm_works, p_operator_responds, p_shutdown_works = 0.99, 0.95, 0.999
+    p_initiating = initiating_event_prob / 100.0
+
+    outcomes = {'Safe Shutdown': p_initiating * p_alarm_works * p_operator_responds * p_shutdown_works,
+                'Minor Spill': p_initiating * p_alarm_works * p_operator_responds * (1 - p_shutdown_works),
+                'Major Incident': p_initiating * (1 - p_alarm_works) + p_initiating * p_alarm_works * (1 - p_operator_responds)}
+
+    fig = go.Figure()
+    # Define nodes and links for the tree structure
+    labels = ["Initiating Event<br>Pump Overheats", "Alarm Functions?", "Operator Responds?", "Auto-Shutdown?", "Safe Shutdown", "Minor Spill", "Major Incident"]
+    parents = ["", labels[0], labels[1], labels[2], labels[3], labels[3], labels[1]]
+    
+    fig.add_trace(go.Treemap(
+        labels=labels, parents=parents,
+        values=[p_initiating, p_initiating*p_alarm_works, p_initiating*p_alarm_works*p_operator_responds, outcomes['Safe Shutdown']+outcomes['Minor Spill'], outcomes['Safe Shutdown'], outcomes['Minor Spill'], outcomes['Major Incident']],
+        textinfo="label+value",
+        marker_colors=['skyblue', 'lightgrey', 'lightgrey', 'lightgrey', 'green', 'orange', 'red']
+    ))
+    fig.update_layout(title="<b>Event Tree Analysis (ETA) - Inductive 'What If' Analysis</b>")
     return fig
 
 # FIX: This is a new, SME-grade function to be added to your app.
@@ -5702,10 +5711,7 @@ def render_qrm_suite():
         st.plotly_chart(fig, use_container_width=True)
 
     elif tool_choice == "Failure Mode and Effects Analysis (FMEA)":
-        project_type = st.selectbox(
-            "Select an FMEA Project Type:",
-            ["Pharma Process (MAb)", "Analytical Assay (ELISA)", "Instrument Qualification (HPLC)", "Software System (LIMS)"]
-        )
+        project_type = st.selectbox( "Select an FMEA Project Type:", ["Pharma Process (MAb)", "Analytical Assay (ELISA)", "Instrument Qualification (HPLC)", "Software System (LIMS)"])
         fmea_templates = {
             "Pharma Process (MAb)": {'Failure Mode': ['Contamination in Bioreactor', 'Incorrect Chromatography Buffer', 'Filter Integrity Failure'],'S': [5, 4, 5],'O_Initial': [2, 3, 2],'D_Initial': [4, 3, 2]},
             "Analytical Assay (ELISA)": {'Failure Mode': ['Incorrect Antibody Lot', 'Operator Pipetting Error', 'Incubation Time Error'],'S': [5, 3, 4],'O_Initial': [2, 4, 3],'D_Initial': [5, 3, 2]},
@@ -5713,15 +5719,14 @@ def render_qrm_suite():
             "Software System (LIMS)": {'Failure Mode': ['Data Corruption on Save', 'Incorrect Calculation Logic', 'Server Downtime'],'S': [5, 5, 4],'O_Initial': [1, 2, 3],'D_Initial': [4, 5, 2]}
         }
         fmea_data = fmea_templates[project_type]
-        
         with st.sidebar:
             st.subheader("FMEA Risk Scoring")
+            st.markdown(f"**Initial Assessment for: {project_type}**")
             for i, mode in enumerate(fmea_data['Failure Mode']):
                 st.markdown(f"--- \n **Failure Mode {i+1}:** *{mode}*")
                 col1, col2 = st.columns(2)
-                fmea_data['O_Initial'][i] = col1.slider(f"Occurrence (O)", 1, 5, fmea_data['O_Initial'][i], key=f"o_{i}")
-                fmea_data['D_Initial'][i] = col2.slider(f"Detection (D)", 1, 5, fmea_data['D_Initial'][i], key=f"d_{i}")
-        
+                fmea_data['O_Initial'][i] = col1.slider(f"Occurrence (O)", 1, 5, fmea_data['O_Initial'][i], key=f"o_{i}", help="How frequently is this failure likely to occur? 1=Very Rare, 5=Very Frequent.")
+                fmea_data['D_Initial'][i] = col2.slider(f"Detection (D)", 1, 5, fmea_data['D_Initial'][i], key=f"d_{i}", help="How likely are we to DETECT this failure? 1=Very Likely, 5=Very Unlikely. (A high score is bad).")
         fmea_data['O_Final'] = fmea_data['O_Initial'].copy()
         fmea_data['D_Final'] = fmea_data['D_Initial'].copy()
         initial_rpn = [s * o * d for s, o, d in zip(fmea_data['S'], fmea_data['O_Initial'], fmea_data['D_Initial'])]
@@ -5746,7 +5751,7 @@ def render_qrm_suite():
         st.markdown("FTA is a top-down, deductive analysis that starts with an undesirable 'Top Event' (a failure) and works backwards to identify all the potential root causes.")
         with st.sidebar:
             st.subheader("FTA Controls")
-            initiating_prob = st.slider("Initiating Event Probability (%)", 0.1, 10.0, 1.0, 0.1, help="Probability of the 'Sensor Failure' base event occurring.")
+            initiating_prob = st.slider("Sensor Failure Probability (%)", 0.1, 10.0, 1.0, 0.1, help="Probability of the 'Sensor Failure' base event occurring.")
         fig = plot_fta_diagram(initiating_prob)
         st.plotly_chart(fig, use_container_width=True)
         

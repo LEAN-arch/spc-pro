@@ -5621,6 +5621,52 @@ def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=2.0):
     return fig, first_ewma_ooc, first_bocpd_ooc
 
 #=============================================================== PSO and AUTOENCODER FINAL ========================================================================================================
+# ==============================================================================
+# HELPER FUNCTIONS & DATA for PSO + Autoencoder Module
+# ==============================================================================
+
+def _pharma_surface(x, y):
+    return 0.5 * (x - 6.5)**2 + 0.01 * (y - 115)**2 + 10 * np.exp(-((x - 5.0)**2 * 2 + (y - 130)**2 * 0.1))
+
+def _assay_surface(x, y):
+    return 2 * (x - 30)**2 + 800 * (y - 1.0)**2 + 12 * np.exp(-((x - 34)**2 * 0.5 + (y - 0.85)**2 * 100))
+
+def _instrument_surface(x, y):
+    return 300 * (x - 1.0)**2 + 0.8 * (y - 40)**2 + 15 * np.exp(-((x - 1.15)**2 * 150 + (y - 36)**2 * 0.5))
+
+def _software_surface(x, y):
+    return 0.001 * (x - 100)**2 + 0.01 * (y - 20)**2 + 10 * np.exp(-(((x - 450)/50)**2 + ((y - 90)/10)**2))
+
+def _ivd_surface(x, y):
+    return 150 * (x - 10)**2 + 0.002 * (y - 20)**2 + 18 * np.exp(-((x - 8.5)**2 * 5 + ((y-80)/10)**2))
+
+PSO_CONTEXTS = {
+    'Pharma Process': {
+        'x_label': 'Metabolic Shift Point (Day)', 'x_range': [4, 9],
+        'y_label': 'Peak VCD (x10⁶ cells/mL)', 'y_range': [80, 140],
+        'surface_func': _pharma_surface
+    },
+    'Assay': {
+        'x_label': 'Incubation Time (min)', 'x_range': [25, 35],
+        'y_label': 'Antibody Concentration (µg/mL)', 'y_range': [0.8, 1.2],
+        'surface_func': _assay_surface
+    },
+    'Instrument': {
+        'x_label': 'Flow Rate (mL/min)', 'x_range': [0.8, 1.2],
+        'y_label': 'Column Temperature (°C)', 'y_range': [35, 45],
+        'surface_func': _instrument_surface
+    },
+    'Software': {
+        'x_label': 'Database Queries / Sec', 'x_range': [50, 500],
+        'y_label': 'Concurrent API Calls', 'y_range': [10, 100],
+        'surface_func': _software_surface
+    },
+    'IVD': {
+        'x_label': 'Sample Volume (µL)', 'x_range': [8, 12],
+        'y_label': 'Reagent Age (Days)', 'y_range': [1, 90],
+        'surface_func': _ivd_surface
+    }
+}
 @st.cache_data
 def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, project_context):
     """
@@ -5628,36 +5674,11 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     This function is cached.
     """
     np.random.seed(42)
-    contexts = {
-        'Pharma Process': {
-            'x_label': 'Metabolic Shift Point (Day)', 'x_range': [4, 9],
-            'y_label': 'Peak VCD (x10⁶ cells/mL)', 'y_range': [80, 140],
-            'surface_func': lambda x, y: 0.5 * (x - 6.5)**2 + 0.01 * (y - 115)**2 + 10 * np.exp(-((x - 5.0)**2 * 2 + (y - 130)**2 * 0.1))
-        },
-        'Assay': {
-            'x_label': 'Incubation Time (min)', 'x_range': [25, 35],
-            'y_label': 'Antibody Concentration (µg/mL)', 'y_range': [0.8, 1.2],
-            'surface_func': lambda x, y: 2 * (x - 30)**2 + 800 * (y - 1.0)**2 + 12 * np.exp(-((x - 34)**2 * 0.5 + (y - 0.85)**2 * 100))
-        },
-        'Instrument': {
-            'x_label': 'Flow Rate (mL/min)', 'x_range': [0.8, 1.2],
-            'y_label': 'Column Temperature (°C)', 'y_range': [35, 45],
-            'surface_func': lambda x, y: 300 * (x - 1.0)**2 + 0.8 * (y - 40)**2 + 15 * np.exp(-((x - 1.15)**2 * 150 + (y - 36)**2 * 0.5))
-        },
-        'Software': {
-            'x_label': 'Database Queries / Sec', 'x_range': [50, 500],
-            'y_label': 'Concurrent API Calls', 'y_range': [10, 100],
-            'surface_func': lambda x, y: 0.001 * (x - 100)**2 + 0.01 * (y - 20)**2 + 10 * np.exp(-(((x - 450)/50)**2 + ((y - 90)/10)**2))
-        },
-        'IVD': {
-            'x_label': 'Sample Volume (µL)', 'x_range': [8, 12],
-            'y_label': 'Reagent Age (Days)', 'y_range': [1, 90],
-            'surface_func': lambda x, y: 150 * (x - 10)**2 + 0.002 * (y - 20)**2 + 18 * np.exp(-((x - 8.5)**2 * 5 + ((y-80)/10)**2))
-        }
-    }
-    context = contexts[project_context]
+    # Use the globally defined context dictionary
+    context = PSO_CONTEXTS[project_context]
     
     def reconstruction_error_surface(x, y):
+        # The function call is now simple and pickle-able
         return context['surface_func'](x, y) + np.random.uniform(0, 0.5, size=x.shape if hasattr(x, 'shape') else 1)
 
     x_range = np.linspace(context['x_range'][0], context['x_range'][1], 100)
@@ -5665,6 +5686,7 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     xx, yy = np.meshgrid(x_range, y_range)
     zz = reconstruction_error_surface(xx, yy)
 
+    # The rest of the PSO logic is unchanged...
     positions = np.random.rand(n_particles, 2)
     positions[:, 0] = positions[:, 0] * (context['x_range'][1] - context['x_range'][0]) + context['x_range'][0]
     positions[:, 1] = positions[:, 1] * (context['y_range'][1] - context['y_range'][0]) + context['y_range'][0]
@@ -5693,24 +5715,6 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
             gbest_score = pbest_scores[current_best_idx]
             
     return zz, x_range, y_range, history, gbest_position, gbest_score, context
-
-def create_pso_figure(zz, x_range, y_range, history, gbest_position, context):
-    """
-    Creates the Plotly figure from the simulation data.
-    This function is NOT cached.
-    """
-    fig = go.Figure(
-        data=[go.Contour(z=zz, x=x_range, y=y_range, colorscale='Inferno', colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)'))],
-        layout=go.Layout(
-            title=f"<b>PSO Red Team: Finding Hidden Failure Modes in a {context['name']}</b>",
-            xaxis_title=context['x_label'], yaxis_title=context['y_label'],
-            updatemenus=[dict(type="buttons", buttons=[dict(label="► Run Simulation", method="animate", args=[None, {"frame": {"duration": 100, "redraw": False}, "fromcurrent": True, "transition": {"duration": 0}}]),
-                                                       dict(label="❚❚ Pause", method="animate", args=[[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate", "transition": {"duration": 0}}])])]
-        ),
-        frames=[go.Frame(data=[go.Scatter(x=h[:, 0], y=h[:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'))]) for h in history]
-    )
-    fig.add_trace(go.Scatter(x=[gbest_position[0]], y=[gbest_position[1]], mode='markers', marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), name='Highest-Risk Condition Found'))
-    return fig
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================

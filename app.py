@@ -942,23 +942,23 @@ def plot_rtm_sankey(completed_streams):
 @st.cache_data
 def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort):
     """
-    Generates a professional-grade DfX dashboard from a given profile and effort allocation.
+    Generates a professional-grade DfX dashboard with a Performance Radar Chart and a Cost Structure Pie Chart comparison.
     """
     profiles = {
         "Pharma Assay (ELISA)": {
-            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost ($)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1],
+            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost (RCU)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1],
             'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
         },
         "Instrument (Liquid Handler)": {
-            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>($/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1],
+            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>(RCU/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1],
             'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
         },
         "Software (LIMS)": {
-            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost ($k)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1],
+            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost (RCU)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1],
             'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
         },
         "Pharma Process (MAb)": {
-            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS ($/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1],
+            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS (RCU/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1],
             'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
         }
     }
@@ -966,19 +966,9 @@ def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_
     efforts = {'mfg': mfg_effort, 'quality': quality_effort, 'sustainability': sustainability_effort, 'ux': ux_effort}
     
     optimized_kpis = profile['baseline'].copy()
-    
     for i in range(len(profile['categories'])):
         total_impact = sum(efforts[k] * profile['impact'][k][i] for k in efforts)
         optimized_kpis[i] += total_impact * (1 if profile['direction'][i] == 1 else -1)
-        if '%' in profile['categories'][i]: optimized_kpis[i] = np.clip(optimized_kpis[i], 0, 100)
-        if 'Score' in profile['categories'][i]: optimized_kpis[i] = np.clip(optimized_kpis[i], 0, 10)
-        
-    kpis = {'baseline': profile['baseline'], 'optimized': optimized_kpis}
-
-    fig_radar = go.Figure()
-    fig_radar.add_trace(go.Scatterpolar(r=profile['baseline'], theta=profile['categories'], fill='toself', name='Baseline Design', line=dict(color='grey')))
-    fig_radar.add_trace(go.Scatterpolar(r=optimized_kpis, theta=profile['categories'], fill='toself', name='DfX Optimized Design', line=dict(color=SUCCESS_GREEN)))
-    fig_radar.update_layout(title="<b>1. Project Performance Profile</b>", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
 
     # Simplified Cost Model for visualization
     def get_cost_breakdown(kpis, p_type):
@@ -992,16 +982,25 @@ def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_
     base_costs = get_cost_breakdown(profile['baseline'], project_type)
     optimized_costs = get_cost_breakdown(optimized_kpis, project_type)
     
+    # --- Create Plots ---
+    # Plot 1: Radar Chart for Performance Profile
+    fig_radar = go.Figure()
+    fig_radar.add_trace(go.Scatterpolar(r=profile['baseline'], theta=profile['categories'], fill='toself', name='Baseline Design', line=dict(color='grey')))
+    fig_radar.add_trace(go.Scatterpolar(r=optimized_kpis, theta=profile['categories'], fill='toself', name='DfX Optimized Design', line=dict(color=SUCCESS_GREEN)))
+    fig_radar.update_layout(title="<b>1. Project Performance Profile</b>", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+
+    # Plot 2: Cost Structure Pie Charts
     fig_cost = make_subplots(rows=1, cols=2, specs=[[{'type':'domain'}, {'type':'domain'}]], subplot_titles=['<b>Baseline Cost Structure</b>', '<b>Optimized Cost Structure</b>'])
-    fig_cost.add_trace(go.Pie(labels=cost_labels, values=base_costs, name="Base", marker_colors=['#636EFA', '#EF553B', '#00CC96', '#AB63FA']), 1, 1)
-    fig_cost.add_trace(go.Pie(labels=cost_labels, values=optimized_costs, name="Optimized", marker_colors=['#636EFA', '#EF553B', '#00CC96', '#AB63FA']), 1, 2)
+    fig_cost.add_trace(go.Pie(labels=cost_labels, values=base_costs, name="Base"), 1, 1)
+    fig_cost.add_trace(go.Pie(labels=cost_labels, values=optimized_costs, name="Optimized"), 1, 2)
     fig_cost.update_traces(hole=.4, hoverinfo="label+percent+value", textinfo='percent', textfont_size=14)
-    fig_cost.update_layout(title_text="<b>2. Lifecycle Cost Breakdown (Total $)</b>", showlegend=False, annotations=[
-        dict(text=f'${sum(base_costs):,.0f}', x=0.18, y=0.5, font_size=20, showarrow=False),
-        dict(text=f'${sum(optimized_costs):,.0f}', x=0.82, y=0.5, font_size=20, showarrow=False)
+    fig_cost.update_layout(title_text="<b>2. Lifecycle Cost Breakdown (Total RCU)</b>", showlegend=False, annotations=[
+        dict(text=f'{sum(base_costs):,.0f} RCU', x=0.18, y=0.5, font_size=20, showarrow=False),
+        dict(text=f'{sum(optimized_costs):,.0f} RCU', x=0.82, y=0.5, font_size=20, showarrow=False)
     ])
     
-    return fig_radar, fig_cost, kpis, profile['categories']
+    kpis_out = {'baseline': profile['baseline'], 'optimized': optimized_kpis}
+    return fig_radar, fig_cost, kpis_out, profile['categories'], base_costs, optimized_costs
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
 
@@ -5617,39 +5616,62 @@ def render_dfx_dashboard():
     **Interactive Demo:** You are the Head of Engineering or Validation.
     1.  Select the **Project Type** you are leading.
     2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
-    3.  Observe the impact in real-time on the **KPI Dashboard** and the **Performance Profile** radar chart.
+    3.  Observe the impact in real-time on the **KPI Dashboard**, including the critical **Risk-Adjusted Cost**.
     """)
     
-    project_type = st.selectbox(
-        "Select a Project Type to Simulate DfX Impact:",
-        ["Pharma Process (MAb)", "Pharma Assay (ELISA)", "Instrument (Liquid Handler)", "Software (LIMS)"]
-    )
+    profiles = {
+        "Pharma Assay (ELISA)": {
+            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost (RCU)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1], 'reliability_idx': 0,
+            'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
+        },
+        "Instrument (Liquid Handler)": {
+            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>(RCU/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1], 'reliability_idx': 1,
+            'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
+        },
+        "Software (LIMS)": {
+            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost (RCU)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1], 'reliability_idx': 2,
+            'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
+        },
+        "Pharma Process (MAb)": {
+            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS (RCU/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1], 'reliability_idx': 4,
+            'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
+        }
+    }
+    
+    project_type = st.selectbox("Select a Project Type to Simulate DfX Impact:", list(profiles.keys()))
+    selected_profile = profiles[project_type]
 
     with st.sidebar:
         st.subheader("DfX Effort Allocation")
-        mfg_effort = st.slider("Manufacturing & Assembly Effort (DFM/DFA)", 0, 10, 5, 1, help="Focus on part count reduction, using standard components, and designing for automated assembly.")
-        quality_effort = st.slider("Quality & Reliability Effort (DFR/DFT)", 0, 10, 5, 1, help="Focus on building in reliability, designing for robust performance, and adding features to make QC testing faster and more accurate.")
-        sustainability_effort = st.slider("Sustainability & Supply Chain Effort (DFE)", 0, 10, 5, 1, help="Focus on using standard/recyclable materials, reducing energy use, and designing for easy disassembly.")
-        ux_effort = st.slider("Service & User Experience Effort (DFS/DFUX)", 0, 10, 5, 1, help="Focus on making the device easy to use, service, and maintain, reducing long-term operational costs and human error.")
+        efforts = {
+            'mfg': st.slider("Manufacturing & Assembly Effort", 0, 10, 5, 1, help="DFM/DFA: Focus on part count reduction, standard components, and automation."),
+            'quality': st.slider("Quality & Reliability Effort", 0, 10, 5, 1, help="DFR/DFT/DFQ: Focus on reliability, robust performance, and fast, accurate QC testing."),
+            'sustainability': st.slider("Sustainability & Supply Chain Effort", 0, 10, 5, 1, help="DFE/DFS: Focus on standard/recyclable materials, energy use, and easy disassembly."),
+            'ux': st.slider("Service & User Experience Effort", 0, 10, 5, 1, help="DFS/DFUX: Focus on ease of use, service, and maintenance.")
+        }
 
-    # --- THIS IS THE CORRECTED FUNCTION CALL ---
-    # Call the cached function with simple, hashable arguments.
-    fig_radar, fig_cost, kpis, categories = plot_dfx_dashboard(
-        project_type=project_type,
-        mfg_effort=mfg_effort,
-        quality_effort=quality_effort,
-        sustainability_effort=sustainability_effort,
-        ux_effort=ux_effort
-    )
-    # --- END OF CORRECTION ---
+    fig_radar, fig_cost, kpis, categories = plot_dfx_dashboard(project_type, efforts)
 
     st.header("Project KPI Dashboard")
-    kpi_cols = st.columns(len(kpis['baseline']))
-    for i, col in enumerate(kpi_cols):
-        base_val = kpis['baseline'][i]
-        opt_val = kpis['optimized'][i]
-        delta = opt_val - base_val
-        col.metric(categories[i].replace('<br>', ' '), f"{opt_val:.1f}", f"{delta:.1f}")
+    # --- NEW RISK-ADJUSTED COST LOGIC ---
+    reliability_idx = selected_profile['reliability_idx']
+    base_reliability = kpis['baseline'][reliability_idx]
+    opt_reliability = kpis['optimized'][reliability_idx]
+    
+    base_total_cost = sum(base_costs)
+    opt_total_cost = sum(optimized_costs)
+
+    # Risk premium is higher for less reliable designs
+    base_risk_premium = 1 + (10 - base_reliability) * 0.05 if "Score" in categories[reliability_idx] else 1 + (100 - base_reliability) * 0.02
+    opt_risk_premium = 1 + (10 - opt_reliability) * 0.05 if "Score" in categories[reliability_idx] else 1 + (100 - opt_reliability) * 0.02
+
+    base_risk_adjusted_cost = base_total_cost * base_risk_premium
+    opt_risk_adjusted_cost = opt_total_cost * opt_risk_premium
+
+    col1, col2 = st.columns(2)
+    col1.metric("Total Cost (RCU)", f"{opt_total_cost:,.0f}", f"{opt_total_cost - base_total_cost:,.0f}")
+    col2.metric("Risk-Adjusted Total Cost (RCU)", f"{opt_risk_adjusted_cost:,.0f}", f"{opt_risk_adjusted_cost - base_risk_adjusted_cost:,.0f}",
+                help="Total Cost including a 'risk premium'. A less reliable or robust design (lower score on KPIs like Uptime or Robustness) is penalized more heavily, reflecting the long-term cost of potential failures.")
 
     st.header("Design Comparison Visualizations")
     col_radar, col_cost = st.columns(2)
@@ -5664,11 +5686,11 @@ def render_dfx_dashboard():
     with tabs[0]:
         st.markdown("""
         **Interpreting the Dashboard:**
-        - **KPI Dashboard:** This is your executive summary. It quantifies the return on investment for your DfX efforts in terms of cost, quality, and performance. The delta shows the improvement over the baseline.
-        - **Performance Profile (Radar Chart):** This visualizes the multi-dimensional impact of your design choices. The goal is to create an "Optimized" profile (green) that meets or exceeds all performance targets for the project.
-        - **Cost Drivers (Bar Chart):** This shows *how* you are achieving your goals. For example, a strong DFM/DFA effort will dramatically reduce the "Manufacturing" and "Assembly" cost drivers.
+        - **KPI Dashboard:** This is your executive summary. It now includes **Risk-Adjusted Cost**, which represents the "true" cost of a design by penalizing lower quality and reliability. Notice how focusing on Quality/Reliability effort can sometimes lower the risk-adjusted cost even if the direct cost increases slightly.
+        - **Performance Profile (Radar Chart):** This visualizes the multi-dimensional impact of your design choices. The goal is to create an "Optimized" profile (green) that meets or exceeds all performance targets.
+        - **Cost Structure (Pie Charts):** This shows *how* you achieved cost savings. The units are **Relative Cost Units (RCU)**, focusing on proportions rather than specific dollar amounts. The total cost is displayed in the center.
         
-        **The Strategic Insight:** DfX is a game of strategic trade-offs. You cannot maximize all attributes simultaneously. A disposable, high-volume product will prioritize low cost (DFM/DFA). A complex, reusable capital instrument will prioritize reliability and serviceability (DFR/DFS). This dashboard allows you to simulate these strategic choices and see their quantifiable impact.
+        **The Strategic Insight:** The most profitable design is not always the one with the lowest initial cost. The **Risk-Adjusted Cost** demonstrates that investing in reliability and quality (DFR/DFQ) can be a financially sound decision by reducing the long-term costs associated with failures, service, and warranty claims.
         """)
     with tabs[1]:
         st.markdown("""

@@ -942,28 +942,27 @@ def plot_rtm_sankey(completed_streams):
 @st.cache_data
 def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort):
     """
-    Generates a professional-grade DfX dashboard from a given profile and effort allocation.
+    Generates a professional-grade DfX dashboard with a Performance Radar Chart and a Cost Structure Pie Chart comparison.
     """
     profiles = {
         "Pharma Assay (ELISA)": {
-            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost (RCU)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1],
+            'categories': ['Robustness', 'Run Time (hrs)', 'Reagent Cost (RCU)', 'Precision (%CV)', 'Ease of Use'], 'baseline': [5, 4.0, 25.0, 18.0, 5], 'direction': [1, -1, -1, -1, 1], 'reliability_idx': 0,
             'impact': {'mfg': [0.1, -0.1, -0.2, 0, 0.1], 'quality': [0.5, -0.05, 0, -0.6, 0.2], 'sustainability': [0, 0, -0.3, 0, 0], 'ux': [0.1, -0.2, 0, 0, 0.7]}
         },
         "Instrument (Liquid Handler)": {
-            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>(RCU/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1],
+            'categories': ['Throughput<br>(plates/hr)', 'Uptime (%)', 'Footprint (m²)', 'Service Cost<br>(RCU/yr)', 'Precision (%CV)'], 'baseline': [20, 95.0, 2.5, 5000, 5.0], 'direction': [1, 1, -1, -1, -1], 'reliability_idx': 1,
             'impact': {'mfg': [0.2, 0.1, -0.2, -0.1, 0], 'quality': [0.1, 0.8, 0, -0.2, -0.6], 'sustainability': [0, 0.1, -0.1, -0.4, 0], 'ux': [0, 0.2, 0, -0.6, 0]}
         },
         "Software (LIMS)": {
-            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost (RCU)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1],
+            'categories': ['Performance<br>(Query Time s)', 'Scalability<br>(Users)', 'Reliability<br>(Uptime %)', 'Compliance<br>Score', 'Dev Cost (RCU)'], 'baseline': [8.0, 100, 99.5, 6, 500], 'direction': [-1, 1, 1, 1, -1], 'reliability_idx': 2,
             'impact': {'mfg': [-0.1, 0.2, 0.2, 0, -0.4], 'quality': [-0.2, 0.1, 0.7, 0.8, 0.2], 'sustainability': [0, 0.5, 0.1, 0, -0.1], 'ux': [-0.4, 0.2, 0, 0.5, 0.1]}
         },
         "Pharma Process (MAb)": {
-            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS (RCU/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1],
+            'categories': ['Yield (g/L)', 'Cycle Time<br>(days)', 'COGS (RCU/g)', 'Purity (%)', 'Robustness<br>(PAR Size)'], 'baseline': [3.0, 18, 100, 98.5, 5], 'direction': [1, -1, -1, 1, 1], 'reliability_idx': 4,
             'impact': {'mfg': [0.3, -0.2, -0.4, 0.1, 0.2], 'quality': [0.1, 0, -0.1, 0.6, 0.8], 'sustainability': [0.05, -0.1, -0.2, 0, 0.1], 'ux': [0, 0, 0, 0, 0]}
         }
     }
     profile = profiles[project_type]
-    # Re-create the efforts dictionary inside the cached function
     efforts = {'mfg': mfg_effort, 'quality': quality_effort, 'sustainability': sustainability_effort, 'ux': ux_effort}
     
     optimized_kpis = profile['baseline'].copy()
@@ -975,7 +974,7 @@ def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_
         
     kpis = {'baseline': profile['baseline'], 'optimized': optimized_kpis}
 
-    # Simplified Cost Model for visualization
+    # Simplified but more realistic Cost Model
     def get_cost_breakdown(kpis, p_type):
         if p_type == "Pharma Assay (ELISA)": return [kpis[2], 10, 5, kpis[1]*2]
         elif p_type == "Instrument (Liquid Handler)": return [15000, 2000, kpis[3], 1000 * (5/kpis[4])]
@@ -987,14 +986,17 @@ def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_
     base_costs = get_cost_breakdown(profile['baseline'], project_type)
     optimized_costs = get_cost_breakdown(optimized_kpis, project_type)
     
+    # --- Create Plots ---
+    # Plot 1: Radar Chart for Performance Profile
     fig_radar = go.Figure()
     fig_radar.add_trace(go.Scatterpolar(r=profile['baseline'], theta=profile['categories'], fill='toself', name='Baseline Design', line=dict(color='grey')))
     fig_radar.add_trace(go.Scatterpolar(r=optimized_kpis, theta=profile['categories'], fill='toself', name='DfX Optimized Design', line=dict(color=SUCCESS_GREEN)))
     fig_radar.update_layout(title="<b>1. Project Performance Profile</b>", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
 
+    # Plot 2: Cost Structure Pie Charts
     fig_cost = make_subplots(rows=1, cols=2, specs=[[{'type':'domain'}, {'type':'domain'}]], subplot_titles=['<b>Baseline Cost Structure</b>', '<b>Optimized Cost Structure</b>'])
-    fig_cost.add_trace(go.Pie(labels=cost_labels, values=base_costs, name="Base"), 1, 1)
-    fig_cost.add_trace(go.Pie(labels=cost_labels, values=optimized_costs, name="Optimized"), 1, 2)
+    fig_cost.add_trace(go.Pie(labels=cost_labels, values=base_costs, name="Base", marker_colors=['#636EFA', '#EF553B', '#00CC96', '#AB63FA']), 1, 1)
+    fig_cost.add_trace(go.Pie(labels=cost_labels, values=optimized_costs, name="Optimized", marker_colors=['#636EFA', '#EF553B', '#00CC96', '#AB63FA']), 1, 2)
     fig_cost.update_traces(hole=.4, hoverinfo="label+percent+value", textinfo='percent', textfont_size=14)
     fig_cost.update_layout(title_text="<b>2. Lifecycle Cost Breakdown (Total RCU)</b>", showlegend=False, annotations=[
         dict(text=f'{sum(base_costs):,.0f} RCU', x=0.18, y=0.5, font_size=20, showarrow=False),
@@ -5619,7 +5621,7 @@ def render_dfx_dashboard():
     **Interactive Demo:** You are the Head of Engineering or Validation.
     1.  Select the **Project Type** you are leading.
     2.  Use the **DfX Effort Sliders** in the sidebar to allocate engineering resources to different design philosophies.
-    3.  Observe the impact in real-time on the **KPI Dashboard** and the **Performance Profile** radar chart.
+    3.  Observe the impact in real-time on the **KPI Dashboard**, including the critical **Risk-Adjusted Cost**.
     """)
     
     profiles = {
@@ -5651,11 +5653,9 @@ def render_dfx_dashboard():
         sustainability_effort = st.slider("Sustainability & Supply Chain Effort", 0, 10, 5, 1, help="DFE/DFS: Focus on standard/recyclable materials, energy use, and easy disassembly.")
         ux_effort = st.slider("Service & User Experience Effort", 0, 10, 5, 1, help="DFS/DFUX: Focus on ease of use, service, and maintenance.")
 
-    # --- THIS IS THE CORRECTED FUNCTION CALL ---
     fig_radar, fig_cost, kpis, categories, base_costs, optimized_costs = plot_dfx_dashboard(
         project_type, mfg_effort, quality_effort, sustainability_effort, ux_effort
     )
-    # --- END OF CORRECTION ---
 
     st.header("Project KPI Dashboard")
     reliability_idx = selected_profile['reliability_idx']
@@ -5675,6 +5675,14 @@ def render_dfx_dashboard():
     col1.metric("Total Cost (RCU)", f"{opt_total_cost:,.0f}", f"{opt_total_cost - base_total_cost:,.0f}")
     col2.metric("Risk-Adjusted Total Cost (RCU)", f"{opt_risk_adjusted_cost:,.0f}", f"{opt_risk_adjusted_cost - base_risk_adjusted_cost:,.0f}",
                 help="Total Cost including a 'risk premium'. A less reliable or robust design is penalized more heavily, reflecting the long-term cost of potential failures.")
+    
+    st.markdown("##### Performance Profile")
+    kpi_cols = st.columns(len(kpis['baseline']))
+    for i, col in enumerate(kpi_cols):
+        base_val = kpis['baseline'][i]
+        opt_val = kpis['optimized'][i]
+        delta = opt_val - base_val
+        col.metric(categories[i].replace('<br>', ' '), f"{opt_val:.1f}", f"{delta:.1f}")
 
     st.header("Design Comparison Visualizations")
     col_radar, col_cost = st.columns(2)
@@ -5689,9 +5697,9 @@ def render_dfx_dashboard():
     with tabs[0]:
         st.markdown("""
         **Interpreting the Dashboard:**
-        - **KPI Dashboard:** This is your executive summary. It now includes **Risk-Adjusted Cost**, which represents the "true" cost of a design by penalizing lower quality and reliability. Notice how focusing on Quality/Reliability effort can sometimes lower the risk-adjusted cost even if the direct cost increases slightly.
+        - **KPI Dashboard:** This is your executive summary. It quantifies the return on investment for your DfX efforts in terms of performance and cost. The **Risk-Adjusted Cost** is the most important metric, as it represents the "true" cost of a design by penalizing lower quality and reliability.
         - **Performance Profile (Radar Chart):** This visualizes the multi-dimensional impact of your design choices. The goal is to create an "Optimized" profile (green) that meets or exceeds all performance targets.
-        - **Cost Structure (Pie Charts):** This shows *how* you achieved cost savings. The units are **Relative Cost Units (RCU)**, focusing on proportions rather than specific dollar amounts. The total cost is displayed in the center.
+        - **Cost Structure (Pie Charts):** This shows *how* you achieved cost savings. The units are **Relative Cost Units (RCU)**, focusing on proportions. The total cost is displayed in the center. A strong DFM/DFA effort will dramatically reduce the proportion of cost attributed to 'Manufacturing/Labor'.
         
         **The Strategic Insight:** The most profitable design is not always the one with the lowest initial cost. The **Risk-Adjusted Cost** demonstrates that investing in reliability and quality (DFR/DFQ) can be a financially sound decision by reducing the long-term costs associated with failures, service, and warranty claims.
         """)
@@ -5708,7 +5716,7 @@ def render_dfx_dashboard():
         - **DFE (Design for Environment):** Designing to reduce environmental footprint, including material selection and end-of-life recycling.
         - **DFS (Design for Serviceability):** Designing a product to be easy to maintain and repair.
         - **DFUX (Design for User Experience):** Optimizing the product for usability and satisfaction by incorporating human factors and ergonomic principles.
-        - **COGS (Cost of Goods Sold):** The direct costs attributable to the production of the goods sold by a company.
+        - **RCU (Relative Cost Unit):** An abstract unit of cost used for strategic planning and comparison when precise dollar amounts are unknown or variable. It focuses on the proportions and relative magnitudes of different cost drivers.
         """)
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: "Over-the-Wall" Engineering**

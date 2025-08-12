@@ -885,22 +885,6 @@ def plot_eta_diagram(eta_data, project_type):
         showlegend=False, margin=dict(l=20, r=20, b=20, t=60)
     )
     return fig
-
-@st.cache_data
-def plot_eta_diagram(eta_data):
-    """Generates a professional-grade Event Tree Analysis (ETA) diagram from a data structure."""
-    fig = go.Figure()
-    nodes, outcomes = eta_data['nodes'], eta_data['outcomes']
-    for path in eta_data['paths']:
-        fig.add_trace(go.Scatter(x=path['x'], y=path['y'], mode='lines', line=dict(color=path['color'])))
-    for name, (label, x, y) in nodes.items():
-        prob = outcomes.get(name, [None])[0]
-        full_label = f"<b>{label}</b>" + (f"<br>P={prob:.2%}" if prob is not None else "")
-        color = 'red' if 'Fail' in name else ('orange' if 'Partial' in name else ('green' if 'Safe' in name else 'skyblue'))
-        fig.add_trace(go.Scatter(x=[x], y=[y], mode='markers', marker=dict(size=25, color=color, line=dict(width=2,color='black'))))
-        fig.add_annotation(x=x, y=y, text=full_label, showarrow=False, yshift=15 if '?' in label else 0)
-    fig.update_layout(title=f"<b>Event Tree Analysis (ETA) for {eta_data['title']}</b>", xaxis=dict(visible=False), yaxis=dict(visible=False), showlegend=False, height=600)
-    return fig
     
 @st.cache_data
 def plot_vmp_flow(project_type):

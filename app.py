@@ -3098,53 +3098,106 @@ def plot_bayesian(prior_type, n_qc=20, k_qc=18, spec_limit=0.90):
     return fig, prior_mean, mle, posterior_mean, (ci_lower, ci_upper), prob_gt_spec
 
 @st.cache_data
-def plot_fty_coq(improvement_effort):
+def plot_fty_coq(project_type, improvement_effort):
     """
-    Generates a professional-grade dashboard for First Time Yield and Cost of Quality.
+    Generates a professional-grade, 4-plot dashboard for FTY and COQ for multiple project types.
     """
-    # 1. --- Define the Baseline ("Before") Process ---
-    steps = ["API Weighing", "Granulation", "Compression", "Coating", "Packaging"]
-    base_fty = [0.99, 0.95, 0.98, 0.97, 0.99]
+    profiles = {
+        "Pharma Process (MAb)": {
+            'steps': ["Cell Culture", "Harvest", "Purification", "Formulation", "Fill/Finish"],
+            'base_fty': [0.98, 0.99, 0.92, 0.97, 0.99],
+            'cost_factors': {'internal': 80000, 'external': 200000}
+        },
+        "Analytical Assay (ELISA)": {
+            'steps': ["Coating", "Blocking", "Sample Add", "Detection", "Analysis"],
+            'base_fty': [0.99, 0.98, 0.95, 0.96, 0.97],
+            'cost_factors': {'internal': 5000, 'external': 20000}
+        },
+        "Instrument Qualification": {
+            'steps': ["URS/FS", "IQ", "OQ", "PQ", "Final Report"],
+            'base_fty': [0.95, 0.99, 0.92, 0.96, 0.98],
+            'cost_factors': {'internal': 10000, 'external': 40000}
+        },
+        "Software System (CSV)": {
+            'steps': ["Requirements", "Design", "Coding", "Testing", "Deployment"],
+            'base_fty': [0.90, 0.95, 0.88, 0.94, 0.99],
+            'cost_factors': {'internal': 25000, 'external': 100000}
+        }
+    }
+    profile = profiles[project_type]
+    steps, base_fty = profile['steps'], profile['base_fty']
     
-    # 2. --- Calculate the Improved ("After") Process ---
-    # Improvement effort (0-10) targets the worst step first
+    # --- Calculate the Improved ("After") Process ---
     improved_fty = base_fty.copy()
+    temp_fty = np.array(improved_fty)
+    effort_applied_per_step = np.zeros(len(steps))
     effort_remaining = improvement_effort
-    while effort_remaining > 0:
-        worst_step_idx = np.argmin(improved_fty)
-        improvement = (1 - improved_fty[worst_step_idx]) * 0.2 * effort_remaining # Each point of effort closes 20% of the gap
-        improved_fty[worst_step_idx] += improvement
-        improved_fty[worst_step_idx] = min(0.999, improved_fty[worst_step_idx]) # Cap improvement
-        effort_remaining -= 1
+    while effort_remaining > 0 and np.min(temp_fty) < 0.999:
+        worst_step_idx = np.argmin(temp_fty)
+        effort_to_apply = 1
+        effort_applied_per_step[worst_step_idx] += effort_to_apply
+        improvement = (1 - temp_fty[worst_step_idx]) * 0.2 * effort_to_apply
+        temp_fty[worst_step_idx] += improvement
+        effort_remaining -= effort_to_apply
+    improved_fty = list(temp_fty)
 
-    # 3. --- Calculate Rolled Throughput Yield (RTY) ---
-    rty_base = np.prod(base_fty)
-    rty_improved = np.prod(improved_fty)
-    
-    # 4. --- Calculate Cost of Quality (COQ) ---
+    rty_base, rty_improved = np.prod(base_fty), np.prod(improved_fty)
+
+    # --- Calculate Cost of Quality (COQ) ---
     base_coq = {
         "Prevention": 20000 + (improvement_effort * 2000), "Appraisal": 30000 + (improvement_effort * 1500),
-        "Internal Failure": 80000 * (1 - rty_base) / (1-0.9), "External Failure": 200000 * (1 - rty_base)**2 / (1-0.9)**2
+        "Internal Failure": profile['cost_factors']['internal'] * (1 - rty_base) / (1-0.9),
+        "External Failure": profile['cost_factors']['external'] * (1 - rty_base)**2 / (1-0.9)**2
     }
     improved_coq = {
         "Prevention": 20000 + (improvement_effort * 2000), "Appraisal": 30000 + (improvement_effort * 1500),
-        "Internal Failure": 80000 * (1 - rty_improved) / (1-0.9), "External Failure": 200000 * (1 - rty_improved)**2 / (1-0.9)**2
+        "Internal Failure": profile['cost_factors']['internal'] * (1 - rty_improved) / (1-0.9),
+        "External Failure": profile['cost_factors']['external'] * (1 - rty_improved)**2 / (1-0.9)**2
     }
 
     # --- PLOTTING ---
-    # Plot 1: Yield Funnel Sankey Diagram
+    # Plot 1: Pareto Chart of Scrap/Rework
+    base_scrap = [1000 * (1 - fty) * np.prod(base_fty[:i]) for i, fty in enumerate(base_fty)]
+    improved_scrap = [1000 * (1 - fty) * np.prod(improved_fty[:i]) for i, fty in enumerate(improved_fty)]
+    df_pareto = pd.DataFrame({'Step': steps, 'Baseline': base_scrap, 'Optimized': improved_scrap}).sort_values('Baseline', ascending=False)
+    
+    fig_pareto = go.Figure()
+    fig_pareto.add_trace(go.Bar(name='Baseline Loss', x=df_pareto['Step'], y=df_pareto['Baseline'], marker_color='grey'))
+    fig_pareto.add_trace(go.Bar(name='Optimized Loss', x=df_pareto['Step'], y=df_pareto['Optimized'], marker_color=SUCCESS_GREEN))
+    fig_pareto.update_layout(title="<b>1. Pareto Chart of Yield Loss</b>", yaxis_title="Units Lost per 1000 Started", barmode='group', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+
+    # Plot 2: SPC Chart of the Weakest Step
+    worst_step_name = df_pareto['Step'].iloc[0]
+    worst_step_idx_orig = steps.index(worst_step_name)
+    
+    np.random.seed(worst_step_idx_orig)
+    base_mean_offset = (1 - base_fty[worst_step_idx_orig]) * 10
+    base_std_dev = (1 - base_fty[worst_step_idx_orig]) * 5 + 1
+    
+    improvement_factor = 1 - (effort_applied_per_step[worst_step_idx_orig] / 10.0) * 0.8
+    improved_mean_offset = base_mean_offset * improvement_factor
+    improved_std_dev = base_std_dev * improvement_factor
+    
+    data = np.random.normal(100 - improved_mean_offset, improved_std_dev, 25)
+    mean, std = 100, 2
+    ucl, lcl = mean + 3*std, mean - 3*std
+    
+    fig_spc = go.Figure()
+    fig_spc.add_trace(go.Scatter(y=data, mode='lines+markers', name='CPP Data', line=dict(color=PRIMARY_COLOR)))
+    fig_spc.add_hline(y=ucl, line=dict(color='red', dash='dash')); fig_spc.add_hline(y=lcl, line=dict(color='red', dash='dash'))
+    fig_spc.add_hline(y=mean, line=dict(color='black', dash='dot'))
+    fig_spc.update_layout(title=f"<b>2. SPC of Critical Parameter for '{worst_step_name}'</b>", yaxis_title="CPP Value", xaxis_title="Batch Number")
+
+    # Plot 3: Yield Funnel Sankey Diagram
     fig_sankey = go.Figure()
     scenarios = {'Baseline': base_fty, 'Optimized': improved_fty}
     for i, (name, ftys) in enumerate(scenarios.items()):
-        labels = ["Input"] + steps + ["Final Output"] + [f"Scrap {j+1}" for j in range(len(steps))]
+        labels = ["Input"] + steps + ["Final Output"] + [f"Scrap/Rework {j+1}" for j in range(len(steps))]
         sources, targets, values = [], [], []
         units_in = 1000
         for j, fty in enumerate(ftys):
-            units_out = units_in * fty
-            scrap = units_in - units_out
-            sources.extend([j, j])
-            targets.extend([j + 1, len(steps) + 1 + j])
-            values.extend([units_out, scrap])
+            units_out, scrap = units_in * fty, units_in * (1 - fty)
+            sources.extend([j, j]); targets.extend([j + 1, len(steps) + 1 + j]); values.extend([units_out, scrap])
             units_in = units_out
         
         fig_sankey.add_trace(go.Sankey(
@@ -3152,24 +3205,25 @@ def plot_fty_coq(improvement_effort):
             node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=labels, color=PRIMARY_COLOR),
             link=dict(source=sources, target=targets, value=values)
         ))
-    fig_sankey.update_layout(title_text="<b>1. Process Yield Funnel (Rolled Throughput Yield)</b>",
+    rty_text = "Right First Time" if "Software" in project_type else "Rolled Throughput Yield"
+    fig_sankey.update_layout(title_text=f"<b>3. Process Yield Funnel ({rty_text})</b>",
                              annotations=[dict(x=0.24, y=1.1, text=f"<b>Baseline (RTY: {rty_base:.1%})</b>", showarrow=False),
                                           dict(x=0.74, y=1.1, text=f"<b>Optimized (RTY: {rty_improved:.1%})</b>", showarrow=False)])
 
-    # Plot 2: Cost of Quality "Iceberg" Chart
+    # Plot 4: Cost of Quality "Iceberg" Chart
     fig_iceberg = go.Figure()
     good_quality_base = base_coq['Prevention'] + base_coq['Appraisal']
     poor_quality_base = base_coq['Internal Failure'] + base_coq['External Failure']
     good_quality_improved = improved_coq['Prevention'] + improved_coq['Appraisal']
     poor_quality_improved = improved_coq['Internal Failure'] + improved_coq['External Failure']
     
-    fig_iceberg.add_trace(go.Bar(x=['Baseline', 'Optimized'], y=[good_quality_base, good_quality_improved], name='Cost of Good Quality (Visible)', marker_color='skyblue'))
-    fig_iceberg.add_trace(go.Bar(x=['Baseline', 'Optimized'], y=[-poor_quality_base, -poor_quality_improved], name='Cost of Poor Quality (Hidden)', marker_color='salmon'))
+    fig_iceberg.add_trace(go.Bar(x=['Baseline', 'Optimized'], y=[good_quality_base, good_quality_improved], name='Cost of Good Quality (Visible Investment)', marker_color='skyblue'))
+    fig_iceberg.add_trace(go.Bar(x=['Baseline', 'Optimized'], y=[-poor_quality_base, -poor_quality_improved], name='Cost of Poor Quality (Hidden Losses)', marker_color='salmon'))
     fig_iceberg.add_hline(y=0, line_color="darkblue", line_width=3)
-    fig_iceberg.update_layout(title="<b>2. The Cost of Quality 'Iceberg'</b>", yaxis_title="Cost (Relative Cost Units)", barmode='relative',
+    fig_iceberg.update_layout(title="<b>4. The Cost of Quality 'Iceberg'</b>", yaxis_title="Cost (Relative Cost Units)", barmode='relative',
                               legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     
-    return fig_sankey, fig_iceberg, rty_base, rty_improved, base_coq, improved_coq
+    return fig_pareto, fig_spc, fig_sankey, fig_iceberg, rty_base, rty_improved, base_coq, improved_coq
 ##=================================================================================================================================================================================================
 ##=======================================================================================END ACT II ===============================================================================================
 ##=================================================================================================================================================================================================
@@ -8335,53 +8389,63 @@ def render_fty_coq():
     
     st.info("""
     **Interactive Demo:** You are the Operations Director.
-    1.  The dashboard shows a baseline 5-step process with its current yield and cost structure.
+    1.  Select the **Project Type** to see a realistic multi-step process.
     2.  Use the **"Process Improvement Effort"** slider in the sidebar to simulate investing in better process controls, training, and validation.
-    3.  Observe the impact: The **Yield Funnel** (top) widens, producing less scrap. The **Cost Iceberg** (bottom) changes shape, as your investment in "Good Quality" shrinks the massive hidden "Poor Quality" costs.
+    3.  Observe the impact across the four-plot dashboard, from root cause to financial outcome.
     """)
 
+    project_type = st.selectbox(
+        "Select a Project Type to Simulate:",
+        ["Pharma Process (MAb)", "Analytical Assay (ELISA)", "Instrument Qualification", "Software System (CSV)"]
+    )
+
     with st.sidebar:
-        st.subheader("DfX Improvement Controls")
+        st.subheader("Improvement Effort Controls")
         improvement_effort = st.slider("Process Improvement Effort", 0, 10, 0, 1,
             help="Simulates the level of investment in process understanding and control (e.g., more validation, better training, improved equipment). Higher effort increases 'Good Quality' costs but dramatically reduces 'Poor Quality' costs and improves yield.")
 
-    fig_sankey, fig_iceberg, rty_base, rty_improved, base_coq, improved_coq = plot_fty_coq(improvement_effort)
+    fig_pareto, fig_spc, fig_sankey, fig_iceberg, rty_base, rty_improved, base_coq, improved_coq = plot_fty_coq(project_type, improvement_effort)
 
     st.header("Process Performance & Cost Dashboard")
     total_coq_base = sum(base_coq.values())
     total_coq_improved = sum(improved_coq.values())
     
+    rty_name = "Right First Time" if "Software" in project_type else "Rolled Throughput Yield (RTY)"
     col1, col2, col3 = st.columns(3)
-    col1.metric("Rolled Throughput Yield (RTY)", f"{rty_improved:.1%}", f"{rty_improved - rty_base:.1%}")
+    col1.metric(rty_name, f"{rty_improved:.1%}", f"{rty_improved - rty_base:.1%}")
     col2.metric("Total Cost of Quality (COQ)", f"{total_coq_improved:,.0f} RCU", f"{total_coq_improved - total_coq_base:,.0f} RCU")
     col3.metric("Return on Quality Investment", f"{(total_coq_base - total_coq_improved) / (improvement_effort*3500 + 1):.1f}x", help="Ratio of cost savings to the investment in prevention/appraisal.")
 
-    st.plotly_chart(fig_sankey, use_container_width=True)
-    st.plotly_chart(fig_iceberg, use_container_width=True)
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        st.plotly_chart(fig_pareto, use_container_width=True)
+        st.plotly_chart(fig_sankey, use_container_width=True)
+    with col_p2:
+        st.plotly_chart(fig_spc, use_container_width=True)
+        st.plotly_chart(fig_iceberg, use_container_width=True)
     
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
-        **Interpreting the Dashboard:**
-        - **Yield Funnel (Sankey Plot):** This shows the flow of product through the manufacturing process. The width of the grey "Scrap" lines represents the yield loss at each step. The final output is the **Rolled Throughput Yield (RTY)**—the probability that a unit will pass through all steps without any defects. Notice how small losses at each step compound into a large overall loss.
-        - **Cost Iceberg (Bar Chart):** This visualizes the Cost of Quality.
-            - **Above the water (Visible Costs):** The "Cost of Good Quality"—money you proactively spend on **Prevention** and **Appraisal**.
-            - **Below the water (Hidden Costs):** The "Cost of Poor Quality"—money you lose due to **Internal and External Failures**.
-        
-        **The Strategic Insight:** As you increase the "Process Improvement Effort," you are investing more in prevention and appraisal (the iceberg tip grows). However, this investment has a highly leveraged effect, dramatically shrinking the hidden failure costs. This demonstrates the core principle of quality management: **an ounce of prevention is worth a pound of cure.**
+        **The 4-Plot Story: A Realistic Improvement Workflow**
+        This dashboard tells a story from left to right, top to bottom, mirroring a real process improvement project.
+        1.  **Where is the problem? (Pareto Chart):** This chart identifies the "vital few" steps causing the most scrap/rework. Your improvement efforts should always start here. Notice how the "Optimized" (green) bar is lowest for the step that was worst in the "Baseline" (grey).
+        2.  **Why is it a problem? (SPC Chart):** This chart provides a statistical root cause for the failure at the worst step. A process with low yield is often unstable or off-center. As you apply improvement effort, this chart becomes more stable and centered, visually linking investment to improved process control.
+        3.  **What is the overall impact? (Sankey Plot):** This shows the cumulative effect of all step yields on the final output (RTY). Improving the worst step has the biggest impact on widening the green "Final Output" flow.
+        4.  **What is the financial consequence? (Iceberg Chart):** This translates the operational improvements into business terms. The investment in better process control (making the iceberg tip bigger) dramatically shrinks the hidden costs of failure (the much larger submerged part).
         """)
     with tabs[1]:
         st.markdown("""
         ##### Glossary of Quality Management Terms
-        - **First Time Yield (FTY):** The percentage of units that pass a single process step without any defects or rework.
+        - **First Time Yield (FTY):** The percentage of units that pass a single process step without any defects or rework. Also known as First Pass Yield.
         - **Rolled Throughput Yield (RTY):** The probability that a unit will pass through all process steps without any defects. It is calculated by multiplying the FTY of all individual steps (`RTY = FTY₁ × FTY₂ × ... × FTYₙ`).
         - **Cost of Quality (COQ):** A methodology that quantifies the total cost of quality-related efforts and deficiencies.
         - **Prevention Costs:** Costs incurred to prevent defects from occurring in the first place (e.g., validation, training, FMEA).
         - **Appraisal Costs:** Costs incurred to detect defects (e.g., inspections, QC testing, audits).
         - **Internal Failure Costs:** Costs of defects found *before* the product is delivered to the customer (e.g., scrap, rework, investigation).
-        - **External Failure Costs:** Costs of defects found *after* the product is delivered to the customer (e.g., recalls, warranty claims, lawsuits, loss of reputation). These are the most damaging costs.
+        - **External Failure Costs:** Costs of defects found *after* the product is delivered to the customer (e.g., recalls, warranty claims, lawsuits). These are the most damaging costs.
         """)
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: "The Firefighting Mentality"**

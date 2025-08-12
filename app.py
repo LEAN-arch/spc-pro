@@ -12071,9 +12071,7 @@ def render_pso_autoencoder():
     #### Purpose & Application: The AI-Powered "Red Team"
     **Purpose:** To deploy an **AI-powered "Red Team"** that relentlessly searches for the hidden weaknesses in your process. This hybrid model uses a **Particle Swarm Optimization (PSO)** algorithm to find the specific combination of process parameters that cause the most "surprise" or deviation from normal, as measured by the reconstruction error of a pre-trained **LSTM Autoencoder**.
     
-    **Strategic Application:** This is a state-of-the-art method for **AI-driven robustness testing and Design Space definition**. Instead of randomly picking points for worst-case analysis, you are using an intelligent swarm to find the true "edges of failure" for high-value systems.
-    - **Define a Robust Design Space:** Identify not just the optimal operating point, but also the "cliffs" or high-risk zones to avoid.
-    - **Proactive Risk Assessment:** Discover unexpected interactions between parameters that could lead to a novel failure mode.
+    **Strategic Application:** This is a state-of-the-art method for **AI-driven robustness testing and Design Space definition**. Instead of randomly picking points for worst-case analysis, you are using an intelligent swarm to find the true "edges of failure" for a high-value process like a monoclonal antibody bioreactor run.
     """)
     
     st.info("""
@@ -12083,8 +12081,7 @@ def render_pso_autoencoder():
     3.  Click **"► Run Simulation"** to watch the swarm converge on the worst-case condition (the green star), which becomes your primary target for a lab-based robustness study.
     """)
 
-    # --- NEW: Context Selector ---
-    project_context = st.selectbox(
+    project_context_name = st.selectbox(
         "Select a Project Context to Simulate:",
         ['Pharma Process', 'Assay', 'Instrument', 'Software', 'IVD'],
         help="The anomaly landscape and parameter names will change to match a realistic scenario for the selected context."
@@ -12098,7 +12095,17 @@ def render_pso_autoencoder():
         cognition = st.slider("Cognition (Personal Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to their own best-found location.")
         social = st.slider("Social (Global Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to the swarm's overall best-found location.")
 
-    fig, best_params, best_score, context = plot_pso_autoencoder(n_particles, n_iterations, inertia, cognition, social, project_context)
+    # --- THIS IS THE CORRECTED LOGIC ---
+    # 1. Run the expensive, cached simulation to get the raw data
+    zz, x_range, y_range, history, best_params, best_score, context = run_pso_simulation(
+        n_particles, n_iterations, inertia, cognition, social, project_context_name
+    )
+    # Add the project context name to the context dictionary for the plot title
+    context['name'] = project_context_name
+    
+    # 2. Create the figure using the fast, non-cached function
+    fig = create_pso_figure(zz, x_range, y_range, history, best_params, context)
+    # --- END OF CORRECTED LOGIC ---
     
     col1, col2 = st.columns([0.7, 0.35])
     with col1:
@@ -12117,10 +12124,10 @@ def render_pso_autoencoder():
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown(f"""
-        **Interpreting the Simulation for a {project_context}:**
-        - **The Landscape:** The heatmap represents the "process health" as understood by an Autoencoder trained on normal data. For the **{project_context}**, the "golden valley" of cool colors is the normal operating region. The peaks (hot colors) are regions where the process behaves in unexpected ways, leading to high reconstruction error. These are the hidden cliffs of failure.
+        **Interpreting the Simulation for a {project_context_name}:**
+        - **The Landscape:** The heatmap represents the "process health" as understood by an Autoencoder trained on normal data. For the **{project_context_name}**, the "golden valley" of cool colors is the normal operating region. The peaks (hot colors) are regions where the process behaves in unexpected ways, leading to high reconstruction error. These are the hidden cliffs of failure.
         - **The Swarm's Journey:** When you press "Play," you are watching an optimization algorithm in action. The particles start randomly, but they communicate and learn. They are collectively pulled towards the area of highest anomaly score, efficiently finding the peak of the risk landscape.
-        - **The Strategic Insight:** This approach automates and supercharges worst-case analysis. Instead of relying on engineers to guess at high-risk conditions for your **{project_context}**, you deploy an AI agent to find them for you. The result is a data-driven, highly defensible candidate for your robustness challenge studies (ICH Q8/Q14).
+        - **The Strategic Insight:** This approach automates and supercharges worst-case analysis. Instead of relying on engineers to guess at high-risk conditions for your **{project_context_name}**, you deploy an AI agent to find them for you. The result is a data-driven, highly defensible candidate for your robustness challenge studies (ICH Q8/Q14).
         """)
     with tabs[1]:
         st.markdown("""
@@ -12152,11 +12159,11 @@ A modern, AI-driven approach to robustness testing treats the problem as a forma
         """)
     with tabs[4]:
         st.markdown("""
-        This advanced hybrid system is a state-of-the-art implementation of the principles of modern process understanding and robustness testing.
+        This advanced hybrid system is a state-of-the-art implementation of the principles of modern process monitoring and control.
         - **ICH Q8(R2) - Pharmaceutical Development:** This tool provides a powerful, data-driven method for exploring the **Design Space** and identifying the "edges of failure," which is a core activity in process characterization. The worst-case conditions it identifies are prime candidates for robustness studies.
         - **FDA Process Validation Guidance (Stage 1 - Process Design):** This approach provides a deep level of "process understanding" that the guidance emphasizes.
         - **ICH Q9 (Quality Risk Management):** This is a form of proactive risk discovery. Instead of just assessing known risks, this system actively searches for new, unknown risk scenarios (combinations of parameters that lead to anomalous states).
-        - **GAMP 5 & 21 CFR Part 11:** As this system uses AI/ML models to inform critical decisions about the process operating range, the models themselves would require a robust validation lifecycle to be used in a GxP environment.
+        - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML models to inform critical decisions about the process operating range, the models themselves would require a robust validation lifecycle to be used in a GxP environment.
         """)
     
 # ==============================================================================

@@ -12148,8 +12148,8 @@ def render_pso_autoencoder():
 
     # --- THIS IS THE NEW, STABLE LOGIC ---
     # 1. Run the expensive, cached simulation. This only reruns when sliders change.
-    zz, x_range, y_range, history, gbest_position, context = run_pso_simulation(
-        n_particles, n_iterations, inertia, cognition, social, project_context_name
+    zz, x_range, y_range, history, gbest_position, best_score, context = run_pso_simulation(
+    n_particles, n_iterations, inertia, cognition, social, project_context_name
     )
     context['name'] = project_context_name
     

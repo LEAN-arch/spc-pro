@@ -11521,6 +11521,8 @@ with st.sidebar:
             "TPP & CQA Cascade",
             "Analytical Target Profile (ATP) Builder",
             "Quality Risk Management (QRM) Suite",
+            "Design Controls & DHF",    
+            "FAT & SAT",        
             "Design for Excellence (DfX)",
             "Validation Master Plan (VMP) Builder",
             "Requirements Traceability Matrix (RTM)"

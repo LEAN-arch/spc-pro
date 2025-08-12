@@ -10812,7 +10812,7 @@ else:
         "Reliability / Survival Analysis": render_survival_analysis,
         "Time Series Analysis": render_time_series_analysis,
         "Multivariate Analysis (MVA)": render_mva_pls,
-        "Predictive QC (Classification)": render_predictive_qc,
+        "Predictive QC (Classification)": render_predictive_qc_models,
         "Explainable AI (XAI)": render_xai_shap,
         "Clustering (Unsupervised)": render_clustering,
         "Anomaly Detection": render_anomaly_detection,

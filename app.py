@@ -5670,15 +5670,15 @@ PSO_CONTEXTS = {
 @st.cache_data
 def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, project_context):
     """
-    Runs the computationally expensive PSO simulation and returns simple data types.
-    This function is cached.
+    Runs the computationally expensive PSO simulation and returns simple, cacheable data types.
+    This function is cached and only reruns when its input sliders change.
     """
     np.random.seed(42)
-    # Use the globally defined context dictionary
+    # NOTE: The PSO_CONTEXTS dictionary and its helper functions (_pharma_surface, etc.)
+    # should be defined globally, outside of any function.
     context = PSO_CONTEXTS[project_context]
     
     def reconstruction_error_surface(x, y):
-        # The function call is now simple and pickle-able
         return context['surface_func'](x, y) + np.random.uniform(0, 0.5, size=x.shape if hasattr(x, 'shape') else 1)
 
     x_range = np.linspace(context['x_range'][0], context['x_range'][1], 100)
@@ -5686,7 +5686,6 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     xx, yy = np.meshgrid(x_range, y_range)
     zz = reconstruction_error_surface(xx, yy)
 
-    # The rest of the PSO logic is unchanged...
     positions = np.random.rand(n_particles, 2)
     positions[:, 0] = positions[:, 0] * (context['x_range'][1] - context['x_range'][0]) + context['x_range'][0]
     positions[:, 1] = positions[:, 1] * (context['y_range'][1] - context['y_range'][0]) + context['y_range'][0]
@@ -5695,7 +5694,6 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     pbest_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
     gbest_idx = np.argmax(pbest_scores)
     gbest_position = pbest_positions[gbest_idx].copy()
-    gbest_score = pbest_scores[gbest_idx]
     history = [positions.copy()]
 
     for _ in range(n_iterations):
@@ -5712,79 +5710,42 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
         current_best_idx = np.argmax(pbest_scores)
         if pbest_scores[current_best_idx] > gbest_score:
             gbest_position = pbest_positions[current_best_idx].copy()
-            gbest_score = pbest_scores[current_best_idx]
             
-    return zz, x_range, y_range, history, gbest_position, gbest_score, context
+    return zz, x_range, y_range, history, gbest_position, context
 
-def create_pso_figure(zz, x_range, y_range, history, gbest_position, context):
+# This function is now also cached. It will only rerun if the DATA from the simulation changes.
+@st.cache_data
+def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, context):
     """
-    Creates a robust, non-flickering animated Plotly figure from the simulation data.
+    Creates the Plotly figure from simple data types. Caching this prevents the figure object
+    from being recreated on every single UI interaction, breaking the rerun loop.
     """
-    # 1. Define the static, unchanging traces that form the background
-    contour_trace = go.Contour(
-        z=zz, 
-        x=x_range, 
-        y=y_range, 
-        colorscale='Inferno', 
-        colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)')
-    )
-    
-    star_trace = go.Scatter(
-        x=[gbest_position[0]], 
-        y=[gbest_position[1]], 
-        mode='markers', 
-        marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), 
-        name='Highest-Risk Condition Found'
-    )
+    contour_trace = go.Contour(z=zz, x=x_range, y=y_range, colorscale='Inferno', colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)'))
+    star_trace = go.Scatter(x=[gbest_position[0]], y=[gbest_position[1]], mode='markers', marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), name='Highest-Risk Condition Found')
+    initial_particle_trace = go.Scatter(x=history[0][:, 0], y=history[0][:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'), name='PSO Particles')
 
-    # 2. Define the initial state of the moving particles
-    initial_particle_trace = go.Scatter(
-        x=history[0][:, 0], 
-        y=history[0][:, 1], 
-        mode='markers', 
-        marker=dict(color='cyan', size=10, symbol='cross'),
-        name='PSO Particles'
-    )
-
-    # 3. Create the list of frames for the animation.
-    # Each frame will now contain ALL traces to prevent the background from disappearing.
     frames = []
     for step_positions in history:
-        frame = go.Frame(
-            data=[
-                contour_trace, 
-                star_trace, 
-                go.Scatter(x=step_positions[:, 0], y=step_positions[:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'))
-            ],
-            name=f"frame_{len(frames)}" # Give each frame a name
-        )
+        frame = go.Frame(data=[go.Scatter(x=step_positions[:, 0], y=step_positions[:, 1], mode='markers')], name=f"frame_{len(frames)}")
         frames.append(frame)
 
-    # 4. Create the figure, starting with the initial state and including all frames
     fig = go.Figure(
         data=[contour_trace, star_trace, initial_particle_trace],
         layout=go.Layout(
             title=f"<b>PSO Red Team: Finding Hidden Failure Modes in a {context['name']}</b>",
-            xaxis_title=context['x_label'], 
-            yaxis_title=context['y_label'],
+            xaxis_title=context['x_label'], yaxis_title=context['y_label'],
             legend=dict(x=0.01, y=0.99),
             updatemenus=[dict(
                 type="buttons",
-                buttons=[dict(label="► Run Simulation",
-                              method="animate",
-                              # The args now specify to play all frames without replacing the layout
-                              args=[None, {"frame": {"duration": 100, "redraw": True},
-                                           "fromcurrent": True, "transition": {"duration": 0}, "mode": "immediate"}]),
-                         dict(label="❚❚ Pause",
-                              method="animate",
-                              args=[[None], {"frame": {"duration": 0, "redraw": False},
-                                            "mode": "immediate", "transition": {"duration": 0}}])
-                ]
-            )]
+                buttons=[dict(label="► Run Simulation", method="animate", args=[None, {"frame": {"duration": 100, "redraw": False}, "fromcurrent": True, "transition": {"duration": 0}}]),
+                         dict(label="❚❚ Pause", method="animate", args=[[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate", "transition": {"duration": 0}}])])]
         ),
         frames=frames
     )
     
+    # Use a more efficient animation update method
+    fig.update(frames=[go.Frame(data=[go.Scatter(x=h[:, 0], y=h[:, 1])], traces=[2]) for h in history])
+
     return fig
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
@@ -12170,17 +12131,17 @@ def render_pso_autoencoder():
         cognition = st.slider("Cognition (Personal Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to their own best-found location.")
         social = st.slider("Social (Global Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to the swarm's overall best-found location.")
 
-    # --- THIS IS THE CORRECTED LOGIC ---
-    # 1. Run the expensive, cached simulation to get the raw data
-    zz, x_range, y_range, history, best_params, best_score, context = run_pso_simulation(
+    # --- THIS IS THE NEW, STABLE LOGIC ---
+    # 1. Run the expensive, cached simulation. This only reruns when sliders change.
+    zz, x_range, y_range, history, gbest_position, context = run_pso_simulation(
         n_particles, n_iterations, inertia, cognition, social, project_context_name
     )
-    # Add the project context name to the context dictionary for the plot title
     context['name'] = project_context_name
     
-    # 2. Create the figure using the fast, non-cached function
-    fig = create_pso_figure(zz, x_range, y_range, history, best_params, context)
-    # --- END OF CORRECTED LOGIC ---
+    # 2. Create the figure from the cached data. This also only reruns when the simulation data changes.
+    fig = create_pso_figure_from_data(zz, tuple(x_range), tuple(y_range), history, tuple(gbest_position), context)
+    # --- END OF NEW LOGIC ---
+    
     
     col1, col2 = st.columns([0.7, 0.35])
     with col1:

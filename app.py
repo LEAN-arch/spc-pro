@@ -5622,14 +5622,12 @@ def plot_lstm_autoencoder_monitoring(drift_rate=0.02, spike_magnitude=2.0):
 
 #=============================================================== PSO and AUTOENCODER FINAL ========================================================================================================
 @st.cache_data
-def plot_pso_autoencoder(n_particles, n_iterations, inertia, cognition, social, project_context):
+def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, project_context):
     """
-    Simulates Particle Swarm Optimization finding the worst-case process parameters
-    based on a simulated autoencoder reconstruction error surface for various contexts.
+    Runs the computationally expensive PSO simulation and returns simple data types.
+    This function is cached.
     """
     np.random.seed(42)
-
-    # --- NEW: Context-specific anomaly landscapes ---
     contexts = {
         'Pharma Process': {
             'x_label': 'Metabolic Shift Point (Day)', 'x_range': [4, 9],
@@ -5667,12 +5665,10 @@ def plot_pso_autoencoder(n_particles, n_iterations, inertia, cognition, social, 
     xx, yy = np.meshgrid(x_range, y_range)
     zz = reconstruction_error_surface(xx, yy)
 
-    # Initialize PSO particles
     positions = np.random.rand(n_particles, 2)
     positions[:, 0] = positions[:, 0] * (context['x_range'][1] - context['x_range'][0]) + context['x_range'][0]
     positions[:, 1] = positions[:, 1] * (context['y_range'][1] - context['y_range'][0]) + context['y_range'][0]
     velocities = np.zeros_like(positions)
-    
     pbest_positions = positions.copy()
     pbest_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
     gbest_idx = np.argmax(pbest_scores)
@@ -5680,7 +5676,6 @@ def plot_pso_autoencoder(n_particles, n_iterations, inertia, cognition, social, 
     gbest_score = pbest_scores[gbest_idx]
     history = [positions.copy()]
 
-    # Run PSO simulation
     for _ in range(n_iterations):
         r1, r2 = np.random.rand(2)
         velocities = (inertia * velocities + cognition * r1 * (pbest_positions - positions) + social * r2 * (gbest_position - positions))
@@ -5696,12 +5691,18 @@ def plot_pso_autoencoder(n_particles, n_iterations, inertia, cognition, social, 
         if pbest_scores[current_best_idx] > gbest_score:
             gbest_position = pbest_positions[current_best_idx].copy()
             gbest_score = pbest_scores[current_best_idx]
+            
+    return zz, x_range, y_range, history, gbest_position, gbest_score, context
 
-    # Create the animated figure
+def create_pso_figure(zz, x_range, y_range, history, gbest_position, context):
+    """
+    Creates the Plotly figure from the simulation data.
+    This function is NOT cached.
+    """
     fig = go.Figure(
         data=[go.Contour(z=zz, x=x_range, y=y_range, colorscale='Inferno', colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)'))],
         layout=go.Layout(
-            title=f"<b>PSO Red Team: Finding Hidden Failure Modes in a {project_context}</b>",
+            title=f"<b>PSO Red Team: Finding Hidden Failure Modes in a {context['name']}</b>",
             xaxis_title=context['x_label'], yaxis_title=context['y_label'],
             updatemenus=[dict(type="buttons", buttons=[dict(label="► Run Simulation", method="animate", args=[None, {"frame": {"duration": 100, "redraw": False}, "fromcurrent": True, "transition": {"duration": 0}}]),
                                                        dict(label="❚❚ Pause", method="animate", args=[[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate", "transition": {"duration": 0}}])])]
@@ -5709,8 +5710,7 @@ def plot_pso_autoencoder(n_particles, n_iterations, inertia, cognition, social, 
         frames=[go.Frame(data=[go.Scatter(x=h[:, 0], y=h[:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'))]) for h in history]
     )
     fig.add_trace(go.Scatter(x=[gbest_position[0]], y=[gbest_position[1]], mode='markers', marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), name='Highest-Risk Condition Found'))
-                             
-    return fig, gbest_position, gbest_score, context
+    return fig
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================
@@ -11869,55 +11869,49 @@ This is a fundamental principle of modern process monitoring for complex, dynami
 # ==============================================================================
 # UI RENDERING FUNCTION (Method 6)
 # ==============================================================================
-def render_lstm_autoencoder_monitoring():
-    """Renders the LSTM Autoencoder + Hybrid Monitoring module."""
-    st.markdown("""
-    #### Purpose & Application: The AI Immune System
-    **Purpose:** To create a sophisticated, self-learning "immune system" for your process. An **LSTM Autoencoder** learns the normal, dynamic "fingerprint" of a healthy multivariate process. It then generates a single health score: the **reconstruction error**. We then deploy a **hybrid monitoring system** on this health score to detect different types of diseases (anomalies).
-    
-    **Strategic Application:** This is a state-of-the-art approach for unsupervised anomaly detection in multivariate time-series data, like that from a complex bioprocess.
-    - **Learns Normal Dynamics:** The LSTM Autoencoder learns the complex, time-dependent correlations between many process parameters.
-    - **One Health Score:** It distills hundreds of parameters into a single, chartable health score.
-    - **Hybrid Detection:** An **EWMA chart** detects slow-onset diseases (gradual degradation), while a **BOCPD algorithm** detects acute events (sudden shocks).
-    """)
-    st.info("""
-    **Interactive Demo:** Use the sliders to introduce two different types of anomalies into the multivariate process.
-    - **`Gradual Drift Rate`**: Controls a slow, creeping deviation in both Temp and pH. Watch the **EWMA chart (orange)** in the bottom plot slowly rise to catch this.
-    - **`Spike Magnitude`**: Controls a sudden shock at time #200. Watch the **BOCPD probability (purple)** in the bottom plot instantly react to this.
-    """)
-    with st.sidebar:
-        st.sidebar.subheader("LSTM Anomaly Controls")
-        drift_slider = st.sidebar.slider("Gradual Drift Rate", 0.0, 0.05, 0.02, 0.005,
-            help="Controls how quickly the process drifts away from its normal behavior after time #100. Simulates gradual equipment degradation.")
-        spike_slider = st.sidebar.slider("Spike Magnitude", 1.0, 5.0, 2.0, 0.5,
-            help="Controls the size of the sudden shock at time #200. Simulates a sudden process fault or sensor failure.")
 
-    fig, ewma_time, bocpd_time = plot_lstm_autoencoder_monitoring(drift_rate=drift_slider, spike_magnitude=spike_slider)
+
+    with st.sidebar:
+        st.subheader("PSO Algorithm Controls")
+        n_particles = st.slider("Number of Particles (Swarm Size)", 10, 100, 30, 5, help="How many 'virtual experiments' are searching the space at once.")
+        n_iterations = st.slider("Number of Iterations", 20, 100, 50, 5, help="How many 'generations' the swarm has to learn and search.")
+        inertia = st.slider("Inertia (Momentum)", 0.4, 0.9, 0.7, 0.1, help="Controls how much the particles tend to keep flying in the same direction, promoting exploration.")
+        cognition = st.slider("Cognition (Personal Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to their own best-found location.")
+        social = st.slider("Social (Global Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to the swarm's overall best-found location.")
+
+    # --- THIS IS THE NEW, CORRECTED LOGIC ---
+    # 1. Run the expensive, cached simulation to get the raw data
+    zz, x_range, y_range, history, best_params, best_score, context = run_pso_simulation(
+        n_particles, n_iterations, inertia, cognition, social, project_context_name
+    )
+    # Add the project context name to the context dictionary for the title
+    context['name'] = project_context_name
     
-    col1, col2 = st.columns([0.7, 0.3])
+    # 2. Create the figure using the fast, non-cached function
+    fig = create_pso_figure(zz, x_range, y_range, history, best_params, context)
+    # --- END OF NEW LOGIC ---
+    
+    col1, col2 = st.columns([0.7, 0.35])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
-        
     with col2:
         st.subheader("Analysis & Interpretation")
-        st.metric("EWMA Drift Detection Time", f"Hour #{ewma_time}" if ewma_time else "Not Detected",
-                  help="Time the EWMA chart alarmed on the slow drift.")
-        st.metric("BOCPD Spike Detection Time", f"Hour #{bocpd_time}" if bocpd_time else "Not Detected",
-                  help="Time the BOCPD algorithm alarmed on the sudden spike.")
+        st.metric(f"Worst-Case {context['x_label']}", f"{best_params[0]:.2f}")
+        st.metric(f"Worst-Case {context['y_label']}", f"{best_params[1]:.2f}")
+        st.metric("Maximum Anomaly Score", f"{best_score:.3f}")
+        st.success("""
+        **Actionable Insight:** The simulation has identified the process conditions most likely to cause an anomalous run. The next step is to design a lab experiment that deliberately targets these conditions to confirm the model's prediction and define the true edge of the process's Design Space.
+        """)
 
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
-        st.markdown("""
-        **A Realistic Workflow & Interpretation:**
-        1.  **Learn the "Fingerprint" (Plot 1):** The LSTM Autoencoder is trained only on data from healthy, successful batches. It learns to reconstruct the normal, correlated dance between Temperature and pH. The dashed lines show the AI's reconstruction.
-        2.  **Generate a Health Score (Plot 2):** When the live process data deviates from normal (due to the drift or spike), the AI struggles to reconstruct it. This failure is quantified as the **Reconstruction Error**, which serves as a single, powerful "health score" for the entire multivariate system.
-        3.  **Deploy a Layered Defense (Plot 3):** Two specialized detectors monitor the health score:
-            - The **EWMA chart (orange)** is insensitive to the sudden spike but accumulates the small, persistent signal from the gradual drift, eventually sounding an alarm.
-            - The **BOCPD algorithm (purple)** ignores the slow drift but instantly detects the abrupt change caused by the spike, signaling an acute event.
-        
-        **The Strategic Insight:** This architecture creates a comprehensive "immune system" for your process. The LSTM Autoencoder is the T-cell that learns "self," and the hybrid monitoring charts are the antibodies and macrophages that detect and classify different types of "non-self" threats.
+        st.markdown(f"""
+        **Interpreting the Simulation for a {project_context_name}:**
+        - **The Landscape:** The heatmap represents the "process health" as understood by an Autoencoder trained on normal data. For the **{project_context_name}**, the "golden valley" of cool colors is the normal operating region. The peaks (hot colors) are regions where the process behaves in unexpected ways, leading to high reconstruction error. These are the hidden cliffs of failure.
+        - **The Swarm's Journey:** When you press "Play," you are watching an optimization algorithm in action. The particles start randomly, but they communicate and learn. They are collectively pulled towards the area of highest anomaly score, efficiently finding the peak of the risk landscape.
+        - **The Strategic Insight:** This approach automates and supercharges worst-case analysis. Instead of relying on engineers to guess at high-risk conditions for your **{project_context_name}**, you deploy an AI agent to find them for you. The result is a data-driven, highly defensible candidate for your robustness challenge studies (ICH Q8/Q14).
         """)
         
     with tabs[1]:

@@ -5686,6 +5686,7 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     xx, yy = np.meshgrid(x_range, y_range)
     zz = reconstruction_error_surface(xx, yy)
 
+    # --- INITIALIZATION FIX IS HERE ---
     positions = np.random.rand(n_particles, 2)
     positions[:, 0] = positions[:, 0] * (context['x_range'][1] - context['x_range'][0]) + context['x_range'][0]
     positions[:, 1] = positions[:, 1] * (context['y_range'][1] - context['y_range'][0]) + context['y_range'][0]
@@ -5694,24 +5695,38 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     pbest_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
     gbest_idx = np.argmax(pbest_scores)
     gbest_position = pbest_positions[gbest_idx].copy()
+    gbest_score = pbest_scores[gbest_idx]  # <-- THIS LINE WAS MISSING
     history = [positions.copy()]
+    # --- END INITIALIZATION FIX ---
 
     for _ in range(n_iterations):
         r1, r2 = np.random.rand(2)
-        velocities = (inertia * velocities + cognition * r1 * (pbest_positions - positions) + social * r2 * (gbest_position - positions))
+        
+        # Velocity update uses gbest_position from the previous step
+        velocities = (inertia * velocities +
+                      cognition * r1 * (pbest_positions - positions) +
+                      social * r2 * (gbest_position - positions))
+        
         positions += velocities
         positions[:, 0] = np.clip(positions[:, 0], context['x_range'][0], context['x_range'][1])
         positions[:, 1] = np.clip(positions[:, 1], context['y_range'][0], context['y_range'][1])
         history.append(positions.copy())
+        
+        # Update personal bests
         current_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
         update_mask = current_scores > pbest_scores
         pbest_positions[update_mask] = positions[update_mask]
         pbest_scores[update_mask] = current_scores[update_mask]
+        
+        # Update global best
         current_best_idx = np.argmax(pbest_scores)
         if pbest_scores[current_best_idx] > gbest_score:
             gbest_position = pbest_positions[current_best_idx].copy()
-            gbest_score = pbest_scores[current_best_idx] 
-    return zz, x_range, y_range, history, gbest_position, context
+            gbest_score = pbest_scores[current_best_idx]
+
+    # --- RETURN FIX IS HERE ---
+    return zz, x_range, y_range, history, gbest_position, gbest_score, context
+    # --- END RETURN FIX ---
 
 # This function is now also cached. It will only rerun if the DATA from the simulation changes.
 @st.cache_data

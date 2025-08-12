@@ -5693,7 +5693,6 @@ def render_qrm_suite():
 
     if tool_choice == "Preliminary Hazard Analysis (PHA)":
         st.markdown("PHA is a high-level, early-stage risk assessment to identify major hazards and prioritize them based on Severity and Likelihood of Occurrence.")
-        # No interactive gadgets needed for this static example
         pha_data = [
             {'Hazard': 'Operator Exposure to Potent API', 'Severity': 4, 'Likelihood': 2},
             {'Hazard': 'Cross-Contamination Between Products', 'Severity': 5, 'Likelihood': 3},
@@ -5726,10 +5725,15 @@ def render_qrm_suite():
         fmea_data['O_Final'] = fmea_data['O_Initial'].copy()
         fmea_data['D_Final'] = fmea_data['D_Initial'].copy()
         initial_rpn = [s * o * d for s, o, d in zip(fmea_data['S'], fmea_data['O_Initial'], fmea_data['D_Initial'])]
+        st.subheader("Proposed Mitigations")
         for i, rpn in enumerate(initial_rpn):
             if rpn >= 50:
-                fmea_data['O_Final'][i] = max(1, fmea_data['O_Initial'][i] - 2)
-                fmea_data['D_Final'][i] = max(1, fmea_data['D_Initial'][i] - 2)
+                st.write(f"**For Failure Mode {i+1}** (*{fmea_data['Failure Mode'][i]}*):")
+                col_mit1, col_mit2 = st.columns(2)
+                reduce_o = col_mit1.toggle(f"Reduce Occurrence", key=f"mit_o_{i}", help=f"Implement a control to make '{fmea_data['Failure Mode'][i]}' less likely.")
+                improve_d = col_mit2.toggle(f"Improve Detection", key=f"mit_d_{i}", help=f"Implement a new check to make it easier to catch '{fmea_data['Failure Mode'][i]}'.")
+                if reduce_o: fmea_data['O_Final'][i] = max(1, fmea_data['O_Initial'][i] - 2)
+                if improve_d: fmea_data['D_Final'][i] = max(1, fmea_data['D_Initial'][i] - 2)
         df_fmea = pd.DataFrame(fmea_data)
         fig_matrix, fig_pareto = plot_fmea_dashboard(df_fmea)
         col_m, col_p = st.columns(2)
@@ -5757,7 +5761,9 @@ def render_qrm_suite():
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-with tabs[0]:
+    
+    # --- THIS ENTIRE BLOCK IS NOW CORRECTLY INDENTED ---
+    with tabs[0]:
         st.markdown("""
         **A validation leader must choose the right risk tool for the right question.** While all these tools analyze risk, they do so from fundamentally different perspectives. Using the wrong tool for your situation can be inefficient at best and dangerously misleading at worst.
 
@@ -5765,30 +5771,15 @@ with tabs[0]:
         ##### A Medical Analogy for Risk Tools
         Think of your process or system as a patient, and you are the lead physician.
 
-        - **PHA is the Annual Physical:**
-          - **Approach:** Broad, high-level, and performed early.
-          - **Question:** "What are the most obvious, major health hazards for a patient of this age and lifestyle?" (e.g., smoking, high blood pressure).
-          - **Use Case:** Use this at the very beginning of a project to quickly identify the "big rock" hazards and set the scope for more detailed analysis. It's a quick, high-level screen.
-
-        - **FMEA is the Full Body System Review:**
-          - **Approach:** Detailed, systematic, and **bottom-up**.
-          - **Question:** "Let's review every organ system (cardiovascular, respiratory, etc.). What are all the ways each part could fail, and what would be the effect?"
-          - **Use Case:** This is the workhorse of risk management. Use it for a line-by-line analysis of a new process or design to ensure no potential failure mode has been overlooked. Its output is a comprehensive, prioritized list of risks.
-
-        - **FTA is the Specialist's Diagnosis for a Critical Symptom:**
-          - **Approach:** Forensic, focused, and **top-down (deductive)**.
-          - **Question:** "The patient has presented with a specific, critical symptom (e.g., 'shortness of breath'). What are all the possible combinations of underlying conditions that could have caused this single outcome?"
-          - **Use Case:** Use this when you have a specific, catastrophic failure you *must* prevent (the "Top Event," e.g., a sterility failure). FTA is a powerful tool for understanding all the complex pathways that could lead to that one specific disaster.
-
-        - **ETA is the Emergency Room Triage:**
-          - **Approach:** Forward-looking, sequential, and **bottom-up (inductive)**.
-          - **Question:** "A specific trauma has just occurred (the 'Initiating Event,' e.g., 'patient has fallen'). What is the sequence of events that follows, and what are the possible final outcomes based on the success or failure of our immediate interventions?"
-          - **Use Case:** Use this when you have a known initiating event (like a power failure) and need to understand the consequences. It is a "what-if" analysis that is excellent for evaluating the robustness of your safety systems (e.g., alarms, backup power, operator response).
-
+        - **PHA is the Annual Physical:** Broad, high-level, and performed early to identify the "big rock" hazards.
+        - **FMEA is the Full Body System Review:** Detailed, systematic, and **bottom-up**. It asks, "What are all the ways each part could fail?"
+        - **FTA is the Specialist's Diagnosis:** Forensic, focused, and **top-down (deductive)**. It asks, "For this critical symptom to occur, what must have gone wrong?"
+        - **ETA is the Emergency Room Triage:** Forward-looking, sequential, and **bottom-up (inductive)**. It asks, "Now that this trauma has occurred, what are the possible outcomes?"
+        
         ---
         ##### Understanding the Analytical Directions
-        - **Bottom-Up (Inductive):** You start with individual **causes** and reason forward to their potential **effects**. You are building up a picture from the details. FMEA and ETA are bottom-up.
-        - **Top-Down (Deductive):** You start with a known **effect** (the failure) and reason backward to deduce the potential **causes**. You are breaking down a large problem into its root components. FTA is top-down.
+        - **Bottom-Up (Inductive):** Start with individual **causes** and reason forward to their potential **effects**. (FMEA & ETA).
+        - **Top-Down (Deductive):** Start with a known **effect** (the failure) and reason backward to deduce the potential **causes**. (FTA).
         """)
     with tabs[1]:
         st.markdown("""
@@ -5797,42 +5788,27 @@ with tabs[0]:
         - **Hazard:** A potential source of harm.
         - **PHA (Preliminary Hazard Analysis):** A tool to identify and prioritize hazards early in the design process.
         - **FMEA (Failure Mode and Effects Analysis):** A systematic, bottom-up method for identifying potential failure modes, their causes, and their effects.
-        - **FTA (Fault Tree Analysis):** A top-down, deductive failure analysis in which an undesired state of a system is analyzed using boolean logic to combine a series of lower-level events.
+        - **FTA (Fault Tree Analysis):** A top-down, deductive failure analysis where an undesired state is analyzed using boolean logic to combine a series of lower-level events.
         - **ETA (Event Tree Analysis):** A bottom-up, inductive logical model that explores the responses of a system to a particular initiating event.
         - **RPN (Risk Priority Number):** The product of Severity, Occurrence, and Detection scores from an FMEA, used to prioritize risks.
         """)
     with tabs[2]:
         st.success("""🟢 **THE GOLDEN RULE:** Risk Assessment is Not a One-Time Event. Quality Risk Management is a continuous lifecycle activity. An initial PHA should inform a more detailed FMEA. The FMEA identifies critical failure modes that might warrant a deep-dive FTA. The effectiveness of the controls identified in the FMEA and FTA should be monitored throughout the product lifecycle, and the risk assessments should be updated whenever new information (e.g., from a deviation or a process change) becomes available.""")
-        ##### **FMEA: The Foundation (1940s) - A Bottom-Up Approach**
-        - **The Problem:** In the late 1940s, the U.S. military was developing increasingly complex systems. The traditional reactive approach of "fly-crash-fix" was becoming unacceptably costly and dangerous. They needed a systematic way to think about failure *before* it happened.
-        - **The 'Aha!' Moment:** The methodology now known as **FMEA** was formalized in military procedures like **MIL-P-1629**. The key insight was to create a structured, **bottom-up** brainstorming process. Engineers would systematically list every single component (the "bottom" of the system), imagine how it could fail (the "Failure Mode"), and trace the consequences up to the system level (the "Effect").
-        - **The Impact:** This proactive mindset was revolutionary. It was famously adopted and refined by **NASA** during the Apollo program. It was later championed by the **automotive industry**, which introduced the **Risk Priority Number (RPN)** as a simple way to prioritize the many failure modes identified.
-
-        ---
-        ##### **FTA & ETA: The Nuclear Age Tools (1960s-70s)**
-        - **The Problem:** While FMEA was excellent for component-level analysis, it struggled with complex system-level interactions. The nuclear power and aerospace industries needed tools to analyze how a series of small, independent failures could combine to cause a single, catastrophic event.
-        - **The 'Aha!' Moment (FTA):** **Fault Tree Analysis (FTA)**, developed in **1962 at Bell Labs** for the Minuteman ICBM program, provided the solution. The genius of FTA is its **top-down, deductive logic**. It starts with the catastrophic "Top Event" (e.g., "Accidental Missile Launch") and works backwards to identify all the combinations of lower-level failures that could lead to it.
-        - **The 'Aha!' Moment (ETA):** **Event Tree Analysis (ETA)** was developed as the logical inverse of FTA. It's a **bottom-up, inductive** tool. It starts with a single "Initiating Event" (e.g., "Loss of Offsite Power") and models the branching sequence of subsequent events to map out all possible final outcomes.
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: From Rockets and Reactors to Pharma
+        These advanced risk management tools were born out of high-consequence industries where failure was not an option.
+        - **FTA** was developed in the early 1960s at Bell Labs for the U.S. Air Force to evaluate the safety of the Minuteman intercontinental ballistic missile (ICBM) launch control system.
+        - **ETA** also has its roots in nuclear and chemical process safety, where it was used to analyze the sequence of events following a critical failure.
+        - **FMEA** originated in the U.S. military in the 1940s and was heavily used by NASA.
         
-        **The Modern Synthesis:** The pharmaceutical industry formally adopted these proven engineering techniques as part of the **ICH Q9** guideline in 2005, integrating the proactive risk management culture of high-hazard industries into the core of pharmaceutical quality systems.
-
-        ---
-        ##### Understanding the Analytical Approaches
-        The terms "bottom-up," "top-down," "deductive," and "inductive" describe the fundamental direction of the analysis.
-
-        - **Bottom-Up (Inductive) - FMEA & ETA:**
-          - **Meaning:** You start with individual parts, causes, or initiating events and work your way up to the system-level consequences. It answers the question: **"If this component fails, *what happens*?"**
-          - **Analogy:** A detective examining individual clues (a footprint, a broken lock) to build a theory of the overall crime.
-
-        - **Top-Down (Deductive) - FTA:**
-          - **Meaning:** You start with a known, undesirable system-level outcome and work your way down to identify all the possible root causes. It answers the question: **"For this disaster to have happened, *what must have gone wrong*?"**
-          - **Analogy:** A detective starting with the fact that a crime was committed and working backwards to deduce the necessary sequence of events and motives that must have led to it.
+        The pharmaceutical industry formally adopted these proven engineering techniques as part of the **ICH Q9** guideline in 2005, integrating the proactive risk management culture of high-hazard industries into the core of pharmaceutical quality systems.
         """)
     with tabs[4]:
         st.markdown("""
         This suite of tools is the direct implementation of the principles outlined in **ICH Q9 - Quality Risk Management**.
-        - **ICH Q9:** This guideline provides a framework for risk management and lists PHA, FMEA, FTA, and ETA as examples of appropriate tools. It emphasizes that the level of effort and formality should be commensurate with the level of risk.
-        - **FDA Process Validation Guidance:** The guidance requires a risk-based approach. These tools provide the documented evidence for how risks were identified and controlled, which in turn justifies the validation strategy.
+        - **ICH Q9:** This guideline provides a framework for risk management and lists PHA, FMEA, FTA, and ETA as examples of appropriate tools.
+        - **FDA Process Validation Guidance:** The guidance requires a risk-based approach. These tools provide the documented evidence for how risks were identified and controlled.
         - **ISO 14971 (Application of risk management to medical devices):** This is the international standard for risk management for medical devices, and it requires the use of a systematic process like FMEA or PHA.
         """)
 #========================================================================================= 4. DESIGN FOR EXCELLENCE (DfX) =====================================================================

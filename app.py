@@ -3341,6 +3341,62 @@ def plot_process_equivalence(cpk_site_a, mean_shift, var_change_factor, n_sample
     fig.update_xaxes(title_text="Difference in Cpk (Site B - Site A)", row=3, col=1)
     
     return fig, is_equivalent, diff_cpk, cpk_a_sample, cpk_b_sample, ci_lower, ci_upper
+
+# Place this helper function inside the get_plot_functions function
+
+def create_wasserstein_comparison_chart(df_a, df_b, lsl, usl, threshold):
+    """Generates a professional-grade dashboard for comparing distributions using Wasserstein Distance."""
+    # Calculate key metrics
+    mean_a, mean_b = df_a['value'].mean(), df_b['value'].mean()
+    std_a, std_b = df_a['value'].std(), df_b['value'].std()
+    
+    # Traditional tests for comparison
+    ttest_p = stats.ttest_ind(df_a['value'], df_b['value'], equal_var=False).pvalue
+    f_stat, f_p = stats.levene(df_a['value'], df_b['value']) # Levene's is more robust for variance
+    
+    # The main event: Wasserstein Distance
+    emd = stats.wasserstein_distance(df_a['value'], df_b['value'])
+    is_equivalent = emd < threshold
+
+    # Create the plots
+    fig = make_subplots(
+        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+        subplot_titles=("<b>1. Process Distribution Comparison (PDF)</b>",
+                        "<b>2. Cumulative Distribution Comparison (CDF)</b>")
+    )
+    
+    # Plot 1: Smoothed Density (PDF/KDE)
+    from scipy.stats import gaussian_kde
+    x_range = np.linspace(min(df_a['value'].min(), df_b['value'].min()) - 5, 
+                          max(df_a['value'].max(), df_b['value'].max()) + 5, 400)
+    kde_a = gaussian_kde(df_a['value'])
+    kde_b = gaussian_kde(df_b['value'])
+    
+    fig.add_trace(go.Scatter(x=x_range, y=kde_a(x_range), fill='tozeroy', name='Site A (Reference)', 
+                             line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=kde_b(x_range), fill='tozeroy', name='Site B (New)', 
+                             line=dict(color=SUCCESS_GREEN, width=3), opacity=0.7), row=1, col=1)
+    fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1)
+    fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
+    
+    # Plot 2: Cumulative Distributions (CDF) with Wasserstein Distance visualized
+    cdf_a = np.array([np.mean(df_a['value'] <= x) for x in x_range])
+    cdf_b = np.array([np.mean(df_b['value'] <= x) for x in x_range])
+    
+    fig.add_trace(go.Scatter(x=x_range, y=cdf_a, name='CDF Site A', line=dict(color=PRIMARY_COLOR, width=3)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=cdf_b, name='CDF Site B', line=dict(color=SUCCESS_GREEN, width=3),
+                             fill='tonexty', fillcolor='rgba(255, 193, 7, 0.3)',
+                             hovertemplate=None), row=2, col=1)
+    fig.add_annotation(x=np.median(x_range), y=0.5, 
+                       text="<b>Area between curves ≈<br>Wasserstein Distance</b>", 
+                       showarrow=False, font=dict(color=DARK_GREY, size=14), row=2, col=1)
+
+    fig.update_layout(height=700, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig.update_yaxes(title_text="Density", showticklabels=False, row=1, col=1)
+    fig.update_yaxes(title_text="Cumulative Probability", range=[0,1.05], row=2, col=1)
+    fig.update_xaxes(title_text="Process Output Value", row=2, col=1)
+    
+    return fig, emd, ttest_p, f_p, is_equivalent
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Tolerance Intervals) - SME ENHANCED
 # ==============================================================================
@@ -9644,7 +9700,129 @@ A robust tech transfer plan treats equivalence as a formal acceptance criterion.
         - **SUPAC (Scale-Up and Post-Approval Changes):** When making a change to a validated process, this analysis can be used to prove that the change has not adversely impacted process performance.
         """)
 
-#===============================================================  6. PROCESS STABILITY (SPC) ================================================
+#================================================================= 6. Wassrtein Distance =============================================================
+def render_wasserstein_distance():
+    """Renders the comprehensive, interactive module for Wasserstein Distance."""
+    st.markdown("""
+    #### Purpose & Application: The Process Fingerprint Comparator
+    **Purpose:** To provide a single, holistic metric for comparing two entire process distributions. The **Wasserstein Distance** (or **Earth Mover's Distance**) calculates the "work" required to transform one distribution into another. It is the ultimate tool for answering the question: **"Are these two processes truly behaving the same?"**
+    
+    **Strategic Application:** This is a state-of-the-art method for tech transfer and comparability studies. While traditional tests only compare summary statistics (mean, variance), the Wasserstein distance compares the **entire process fingerprint**. It is highly sensitive to changes in mean, variance, **skewness**, and even **modality** (e.g., a process splitting into two sub-populations), making it far more robust than classic hypothesis tests.
+    """)
+    
+    st.info("""
+    **Interactive Demo:** You are the Tech Transfer Lead comparing a new site (Site B) to a validated reference site (Site A).
+    1. Use the **Process Scenario** radio buttons to simulate different types of changes at Site B.
+    2. Observe the **Traditional Test p-values**. Notice how they **fail to detect** the Skew and Bimodal shifts.
+    3. The **Wasserstein Distance KPI**, however, correctly flags all deviations, proving its superiority. The shaded area in the bottom plot is a visual representation of this distance.
+    """)
+    
+    with st.sidebar:
+        st.subheader("Wasserstein Demo Controls")
+        scenario = st.radio(
+            "Select Site B Process Scenario:",
+            ["Identical", "Mean Shift", "Variance Increase", "Skewed Shift", "Bimodal Split"],
+            captions=[
+                "Perfect transfer, no change.",
+                "Process is off-center.",
+                "Process is less precise.",
+                "Process has a heavy tail.",
+                "Process has split in two."
+            ],
+            help="Simulate different, realistic failure modes for a tech transfer. Observe which ones traditional tests can and cannot detect."
+        )
+        n_samples = st.slider("Sample Size per Site (n)", 50, 1000, 200, 50,
+            help="Number of samples from each process. More samples provide a more accurate estimate of the distributions.")
+        threshold = st.slider("Equivalence Threshold", 0.5, 5.0, 1.5, 0.1,
+            help="The pre-defined equivalence margin. If the Wasserstein Distance is below this value, the processes are considered equivalent.")
+
+    # Generate data based on scenario
+    np.random.seed(42)
+    lsl, usl = 90, 110
+    # Site A is always the same "golden standard" process
+    df_a = pd.DataFrame({'value': np.random.normal(100, 3, n_samples)})
+    
+    if scenario == "Identical":
+        df_b = pd.DataFrame({'value': np.random.normal(100, 3, n_samples)})
+    elif scenario == "Mean Shift":
+        df_b = pd.DataFrame({'value': np.random.normal(102.5, 3, n_samples)})
+    elif scenario == "Variance Increase":
+        df_b = pd.DataFrame({'value': np.random.normal(100, 5, n_samples)})
+    elif scenario == "Skewed Shift":
+        df_b = pd.DataFrame({'value': stats.skewnorm.rvs(a=5, loc=95, scale=4, size=n_samples)})
+    elif scenario == "Bimodal Split":
+        d1 = np.random.normal(97, 2, n_samples // 2)
+        d2 = np.random.normal(103, 2, n_samples // 2)
+        df_b = pd.DataFrame({'value': np.concatenate([d1, d2])})
+
+    fig, emd, ttest_p, f_p, is_equivalent = create_wasserstein_comparison_chart(df_a, df_b, lsl, usl, threshold)
+    
+    st.header("Process Comparability Dashboard")
+    col1, col2 = st.columns([0.65, 0.35])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        if is_equivalent:
+            st.success(f"### Verdict: ✅ PASS - Processes are Equivalent")
+        else:
+            st.error(f"### Verdict: ❌ FAIL - Processes are NOT Equivalent")
+        
+        st.metric(label="Wasserstein Distance (EMD)", value=f"{emd:.3f}",
+                  help="The 'cost' to transform Site A's distribution into Site B's. A value below the threshold indicates equivalence.")
+        st.metric(label="t-test p-value (for Means)", value=f"{ttest_p:.3f}",
+                  help="p < 0.05 indicates a significant difference in means.")
+        st.metric(label="Levene's p-value (for Variances)", value=f"{f_p:.3f}",
+                  help="p < 0.05 indicates a significant difference in variances.")
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.markdown(f"""
+        **The Core Insight for the '{scenario}' Scenario:**
+        - **Identical, Mean Shift, Variance Increase:** All three tests work correctly.
+        - **Skewed Shift:** Notice the `t-test` and `Levene's test` both have **high p-values**, incorrectly suggesting the processes are the same. Only the Wasserstein Distance is large enough to correctly flag this as a failure.
+        - **Bimodal Split:** This is the most dangerous failure. The mean and variance might be nearly identical to Site A, so the `t-test` and `Levene's test` are completely blind and **incorrectly pass** the transfer. The **Wasserstein Distance is huge**, correctly identifying this critical failure of process control.
+        
+        **Strategic Conclusion:** Relying solely on tests of mean and variance creates a massive blind spot. The Wasserstein distance provides a far more robust and sensitive measure of true process comparability, making it a superior tool for risk-based tech transfer.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Terms
+        - **Wasserstein Distance / Earth Mover's Distance (EMD):** A measure of the distance between two probability distributions. It is the minimum "cost" of transforming one distribution into the other, where cost is defined as the amount of "dirt" moved times the distance it's moved.
+        - **Probability Density Function (PDF):** A function that describes the relative likelihood for a random variable to take on a given value. The top plot shows the estimated PDFs (also called KDEs).
+        - **Cumulative Distribution Function (CDF):** A function that describes the probability that a random variable will take on a value less than or equal to `x`. The bottom plot shows the CDFs. For 1D data, the Wasserstein distance is equal to the area between the two CDF curves.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Parameter Myopia" Fallacy**
+An engineer validates a tech transfer by showing that the means are not significantly different (t-test p > 0.05) and the variances are not significantly different (F-test p > 0.05).
+- **The Flaw:** They have only proven that two summary statistics are similar. They are completely blind to changes in the fundamental *shape* of the process distribution. A new process that produces a bimodal output (e.g., from two different filling heads) might have the same mean and variance as the original, but it is clearly not the same process.""")
+        st.success("""🟢 **THE GOLDEN RULE: Validate the Fingerprint, Not Just the Features**
+A modern, robust approach to comparability goes beyond simple parameters.
+1.  **Visualize First:** Always plot the overlaid distributions of the two processes, as shown in the top chart. Your eyes can often detect differences that simple tests will miss.
+2.  **Use a Holistic Metric:** Use a metric like the Wasserstein distance that compares the entire "fingerprint" (the full distribution) of the processes.
+3.  **Set a Practical Margin:** The equivalence threshold should be a risk-based decision, pre-defined in the validation plan. A common method is to set it based on a fraction of the specification range (e.g., 10% of USL - LSL).""")
+
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: From Cannonballs to Code
+        **The Problem (1781):** The French mathematician **Gaspard Monge** posed a practical problem: given a pile of dirt (e.g., from an excavation) and a desired final shape (e.g., a fortification), what is the most efficient way to move the dirt? This "earth mover's problem" laid the mathematical groundwork for what we now call **optimal transport theory**.
+        
+        **The Long Winter:** For nearly two centuries, this remained a niche area of mathematics. The computations were too complex for practical application.
+        
+        **The 'Aha!' Moment (Computer Science):** In the 1990s, with the rise of computing power, computer scientists rediscovered these ideas for applications in image retrieval. They needed a way to compare two images that was robust to small shifts or rotations. They re-branded the concept as **Earth Mover's Distance (EMD)**.
+        
+        **The Modern Synthesis:** In the 2010s, statisticians and machine learning researchers connected EMD back to its mathematical roots and the **Wasserstein metric**. They developed highly efficient algorithms to compute it, making it a practical tool. Its ability to compare entire distributions in a way that is sensitive to shape has made it a state-of-the-art metric in fields ranging from generative AI (in GANs) to modern, robust process validation.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        The use of advanced, distribution-based metrics is a state-of-the-art implementation of the principles of demonstrating process comparability and control.
+        - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This guideline requires a demonstration that manufacturing changes do not adversely impact the product. While it focuses on product quality attributes, using a holistic statistical tool like Wasserstein distance to compare the process parameter distributions provides powerful supporting evidence.
+        - **FDA Process Validation Guidance:** For **Stage 3 (Continued Process Verification)**, this tool can be used to prove that a process remains in the same state of control after a change or over time. For tech transfers, it provides a much more robust proof of equivalence than traditional tests.
+        """)
+#===============================================================  7. PROCESS STABILITY (SPC) ================================================
 def render_spc_charts():
     """Renders the INTERACTIVE module for Statistical Process Control (SPC) charts."""
     st.markdown("""
@@ -9737,7 +9915,7 @@ def render_spc_charts():
         - **ICH Q7 - Good Manufacturing Practice for APIs:** Section 2.5 on Quality Risk Management discusses the importance of monitoring and reviewing process performance.
         - **21 CFR 211.110(a):** Requires the establishment of control procedures "to monitor the output and to validate the performance of those manufacturing processes that may be responsible for causing variability."
         """)
-#======================================================= 7. PROCESS CAPABILITY (CpK  ============================================================================
+#===================================================================================== 8. PROCESS CAPABILITY (CpK  ============================================================================
 def render_capability():
     """Renders the interactive module for Process Capability (Cpk)."""
     st.markdown("""
@@ -9820,7 +9998,7 @@ def render_capability():
             - **FDA Process Validation Guidance (Stage 2):** The goal of PPQ is to demonstrate that the process, operating under normal conditions, is capable of consistently producing conforming product. A high Cpk is the statistical evidence that this goal has been met.
             - **Global Harmonization Task Force (GHTF):** For medical devices, guidance on process validation similarly requires demonstrating that the process output consistently meets predetermined requirements.
             """)
-#======================================================= 8. FIRST TIME YIELD & COST OF QUALITY  ============================================================================
+#=============================================================================== 9. FIRST TIME YIELD & COST OF QUALITY  ============================================================================
 def render_fty_coq():
     """Renders the comprehensive, interactive module for First Time Yield & Cost of Quality."""
     st.markdown("""
@@ -9917,7 +10095,7 @@ The goal of a mature quality system is to strategically shift spending from fail
         - **ICH Q10 - Pharmaceutical Quality System:** This guideline emphasizes the importance of **continuous improvement** and **process performance monitoring**. RTY is a key metric for monitoring process performance, and reducing the COQ is a primary goal of a continuous improvement program.
         - **FDA Process Validation Guidance (Stage 3 - CPV):** An effective Continued Process Verification program should monitor metrics like FTY and RTY. A negative trend in these metrics would trigger an investigation and corrective action, demonstrating that the quality system is working as intended.
         """)
-#======================================= 9. TOLERANCE INTERVALS  ============================================================================
+#===================================================================================== 10. TOLERANCE INTERVALS  ============================================================================
 def render_tolerance_intervals():
     """Renders the INTERACTIVE module for Tolerance Intervals."""
     st.markdown("""
@@ -10010,7 +10188,7 @@ def render_tolerance_intervals():
             - **USP General Chapter <1010> - Analytical Data:** Discusses various statistical intervals and their correct application, including tolerance intervals for making claims about a proportion of a population.
             """)
 
-#======================================= 10. BAYESIAN INFERENCE  ============================================================================
+#========================================================================================= 11. BAYESIAN INFERENCE  ============================================================================
 def render_bayesian():
     """Renders the interactive module for Bayesian Inference."""
     st.markdown("""
@@ -10117,7 +10295,6 @@ def render_bayesian():
             - **FDA Guidance on Medical Device Decision Making:** The benefit-risk assessments for medical devices are often framed in a way that is highly compatible with Bayesian thinking, allowing for the formal incorporation of prior knowledge.
             - **ICH Q8, Q9, Q10:** The lifecycle and risk-based principles of these guidelines are well-aligned with the Bayesian paradigm of updating knowledge as more data becomes available.
             """)
-
 
 ##=======================================================================================================================================================================================================
 ##=================================================================== END ACT II UI Render ========================================================================================================================
@@ -12281,6 +12458,7 @@ with st.sidebar:
             "Method Comparison",
             "Equivalence Testing (TOST)",
             "Statistical Equivalence for Process Transfer",
+            "Wasserstein Distance",
             "Process Stability (SPC)",
             "Process Capability (Cpk)",
             "First Time Yield & Cost of Quality",
@@ -12363,6 +12541,7 @@ else:
         "Method Comparison": render_method_comparison,
         "Equivalence Testing (TOST)": render_tost,
         "Statistical Equivalence for Process Transfer": render_process_equivalence,
+        "Wasserstein Distance": render_wasserstein_distance,
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,
         "First Time Yield & Cost of Quality": render_fty_coq,

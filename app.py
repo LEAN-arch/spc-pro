@@ -479,7 +479,7 @@ def plot_chronological_timeline():
         fig.add_annotation(x=x_coord, y=y_coord, text=f"<b>{tool['name']}</b>", showarrow=False, yshift=25 if y_coord > 0 else -25, font=dict(size=11, color=tool_color), align="center")
 
     fig.update_layout(title_text='<b>A Chronological Timeline of V&V Analytics</b>', title_font_size=28, title_x=0.5,
-                      xaxis=dict(range=[1800, 2025], showgrid=True), yaxis=dict(visible=False, range=[-8, 8]),
+                      xaxis=dict(range=[1920, 2025], showgrid=True), yaxis=dict(visible=False, range=[-8, 8]),
                       plot_bgcolor='white', paper_bgcolor='white', height=700, margin=dict(l=20, r=20, t=100, b=20), showlegend=False)
     return fig
     

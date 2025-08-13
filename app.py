@@ -399,7 +399,6 @@ def plot_act_grouped_timeline():
 def plot_chronological_timeline():
     """Generates the chronological timeline, now including all tools."""
     all_tools_data = [
-        {'name': 'Linearity & Range', 'year': 1805, 'inventor': 'Legendre/Gauss', 'reason': 'To predict the orbits of celestial bodies from a limited number of observations.'},
         {'name': 'Process Stability', 'year': 1924, 'inventor': 'Walter Shewhart', 'reason': 'The dawn of mass manufacturing (telephones) required new methods for controlling process variation.'},
         {'name': 'Assay Robustness (DOE)', 'year': 1926, 'inventor': 'R.A. Fisher', 'reason': 'To revolutionize agricultural science by efficiently testing multiple factors (fertilizers, varieties) at once.'},
         {'name': 'Confidence Intervals for Proportions', 'year': 1927, 'inventor': 'Edwin B. Wilson', 'reason': 'To solve the poor performance of the standard binomial confidence interval, especially for small samples.'},

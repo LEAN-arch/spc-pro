@@ -5730,70 +5730,34 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
 
 # This function is now also cached. It will only rerun if the DATA from the simulation changes.
 @st.cache_data
-def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, context):
+def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, _context): # <-- UNDERSCORE ADDED HERE
     """
-    Creates a robust, non-flickering animated Plotly figure from the simulation data.
-    This version uses an explicit update method to prevent the background from disappearing.
+    Creates the Plotly figure from simple data types. Caching this prevents the figure object
+    from being recreated on every single UI interaction, breaking the rerun loop.
     """
-    # 1. Define all traces that will appear in the plot.
-    # The background contour plot.
-    contour_trace = go.Contour(
-        z=zz, 
-        x=x_range, 
-        y=y_range, 
-        colorscale='Inferno', 
-        colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)')
-    )
+    # Use the underscored variable inside the function
+    context = _context 
     
-    # The final "best position" star marker.
-    star_trace = go.Scatter(
-        x=[gbest_position[0]], 
-        y=[gbest_position[1]], 
-        mode='markers', 
-        marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), 
-        name='Highest-Risk Condition Found'
-    )
+    contour_trace = go.Contour(z=zz, x=x_range, y=y_range, colorscale='Inferno', colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)'))
+    star_trace = go.Scatter(x=[gbest_position[0]], y=[gbest_position[1]], mode='markers', marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), name='Highest-Risk Condition Found')
+    initial_particle_trace = go.Scatter(x=history[0][:, 0], y=history[0][:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'), name='PSO Particles')
 
-    # The initial state of the moving particles (the swarm).
-    initial_particle_trace = go.Scatter(
-        x=history[0][:, 0], 
-        y=history[0][:, 1], 
-        mode='markers', 
-        marker=dict(color='cyan', size=10, symbol='cross'),
-        name='PSO Particles'
-    )
-
-    # 2. Create the list of frames for the animation.
-    # CRITICAL FIX: Each frame now ONLY contains the data for the trace that is changing.
-    # We will tell Plotly to apply this data to the 3rd trace (index 2) of the figure.
     frames = []
     for step_positions in history:
-        frame = go.Frame(
-            data=[go.Scatter(x=step_positions[:, 0], y=step_positions[:, 1])],
-            traces=[2] # This tells the frame to update the 3rd trace (the particles) and leave the others alone.
-        )
-        frames.append(frame)
+        # Create a new trace for each frame's data
+        frame_trace = go.Scatter(x=step_positions[:, 0], y=step_positions[:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'))
+        frames.append(go.Frame(data=[frame_trace], name=f"frame_{len(frames)}", traces=[2])) # Reference the 3rd trace
 
-    # 3. Create the figure, initializing it with all traces and the complete set of frames.
     fig = go.Figure(
         data=[contour_trace, star_trace, initial_particle_trace],
         layout=go.Layout(
             title=f"<b>PSO Red Team: Finding Hidden Failure Modes in a {context['name']}</b>",
-            xaxis_title=context['x_label'], 
-            yaxis_title=context['y_label'],
-            legend=dict(x=0.01, y=0.99, bgcolor="rgba(255,255,255,0.6)"),
+            xaxis_title=context['x_label'], yaxis_title=context['y_label'],
+            legend=dict(x=0.01, y=0.99),
             updatemenus=[dict(
                 type="buttons",
-                buttons=[dict(label="► Run Simulation",
-                              method="animate",
-                              args=[None, {"frame": {"duration": 100, "redraw": False}, # redraw=False is smoother here
-                                           "fromcurrent": True, "transition": {"duration": 0}, "mode": "immediate"}]),
-                         dict(label="❚❚ Pause",
-                              method="animate",
-                              args=[[None], {"frame": {"duration": 0, "redraw": False},
-                                            "mode": "immediate", "transition": {"duration": 0}}])
-                ]
-            )]
+                buttons=[dict(label="► Run Simulation", method="animate", args=[None, {"frame": {"duration": 100, "redraw": False}, "fromcurrent": True, "transition": {"duration": 0}}]),
+                         dict(label="❚❚ Pause", method="animate", args=[[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate", "transition": {"duration": 0}}])])]
         ),
         frames=frames
     )
@@ -12190,6 +12154,7 @@ def render_pso_autoencoder():
     context['name'] = project_context_name
     
     # 2. Create the figure from the cached data. Pass the unhashable 'context' dict with a leading underscore.
+    # Also pass lists/arrays as tuples to ensure they are hashable.
     fig = create_pso_figure_from_data(zz, tuple(x_range), tuple(y_range), history, tuple(gbest_position), context)
     
     col1, col2 = st.columns([0.7, 0.35])

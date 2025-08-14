@@ -12753,6 +12753,9 @@ Different types of process failures leave different signatures in the data. A ro
 # ==============================================================================
 # UI RENDERING FUNCTION (PSO + Autoencoder)
 # ==============================================================================
+# ==============================================================================
+# UI RENDERING FUNCTION (PSO + Autoencoder) - FINAL, DEFINITIVE FIX
+# ==============================================================================
 def render_pso_autoencoder():
     """Renders the PSO + Autoencoder for worst-case analysis module."""
     st.markdown("""
@@ -12814,7 +12817,6 @@ def render_pso_autoencoder():
         **Actionable Insight:** The simulation has identified the process conditions most likely to cause an anomalous run. The next step is to design a lab experiment that deliberately targets these conditions to confirm the model's prediction and define the true edge of the process's Design Space.
         """)
 
-    # ... (The rest of the function remains the same) ...
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])

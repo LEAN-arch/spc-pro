@@ -3385,7 +3385,7 @@ def plot_multi_process_comparison(df_all, lsl, usl):
 # ==============================================================================
 @st.cache_data
 def plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist,
-                                 df_all=None, tukey_results=None, data_list=None):
+                                 df_all=None, _tukey_results=None, data_list=None):
     """
     Generates a multi-panel dashboard for process comparison.
     Handles 2-process visuals (PDF/CDF) and 3+ process visuals (Tukey HSD, Q-Q plots).
@@ -3421,7 +3421,9 @@ def plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist,
             subplot_titles=("<b>ANOVA Post-Hoc: Tukey's HSD</b>", "<b>Distributional Diagnostics: Q-Q Plots</b>")
         )
         # Plot 1: Tukey's HSD
-        tukey_df = pd.DataFrame(data=tukey_results._results_table.data[1:], columns=tukey_results._results_table.data[0])
+        # --- FIX: Use the underscored variable name ---
+        tukey_df = pd.DataFrame(data=_tukey_results._results_table.data[1:], columns=_tukey_results._results_table.data[0])
+        # --- END FIX ---
         tukey_df = tukey_df.sort_values(by='p-adj')
         colors = ['#EF553B' if p < 0.05 else SUCCESS_GREEN for p in tukey_df['p-adj']]
         fig.add_trace(go.Bar(

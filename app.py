@@ -9897,42 +9897,42 @@ def render_comparability_suite():
 
     with col_plots:
         st.subheader("Visual Evidence")
-        fig_visuals = plot_comparability_visuals(data_a, data_b, lsl, usl, wasserstein_dist)
+        fig_visuals = plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist)
         st.plotly_chart(fig_visuals, use_container_width=True)
 
     with col_verdicts:
         st.subheader("Statistical Verdict Panel")
         
         with st.container(border=True):
-            st.markdown("##### Classical Test: Are the Means Different?")
+            st.markdown("##### **Test 1:** Are the Means Different?")
             st.metric(label="t-test Result", value=f"p = {ttest_p:.3f}")
             if ttest_p < 0.05:
-                st.error("❌ Verdict: FAIL. The means are statistically different.")
+                st.error("❌ **Verdict:** The means are statistically different.")
             else:
-                st.success("✅ Verdict: PASS. There is no evidence of a difference in means.")
+                st.success("✅ **Verdict:** No evidence of a difference in means.")
             st.caption("Tests H₀: Mean A = Mean B")
 
         with st.container(border=True):
-            st.markdown("##### Equivalence Test: Are the Means the Same?")
+            st.markdown("##### **Test 2:** Are the Means the Same?")
             st.metric(label="TOST Result", value="Equivalent" if tost_is_equivalent else "Not Equivalent")
             if tost_is_equivalent:
-                st.success("✅ Verdict: PASS. The means are statistically equivalent.")
+                st.success("✅ **Verdict:** The means are statistically equivalent.")
             else:
-                st.error("❌ Verdict: FAIL. We cannot conclude the means are equivalent.")
-            st.caption(f"Tests if 90% CI [{tost_ci[0]:.2f}, {tost_ci[1]:.2f}] is inside ±{tost_margin}")
+                st.error("❌ **Verdict:** We cannot conclude the means are equivalent.")
+            st.caption(f"Tests if 90% CI for difference [{tost_ci[0]:.2f}, {tost_ci[1]:.2f}] is inside ±{tost_margin}")
 
         with st.container(border=True):
-            st.markdown("##### Distributional Test: Are the Fingerprints the Same?")
-            st.metric(label="Wasserstein Result", value=f"Distance = {wasserstein_dist:.2f}")
+            st.markdown("##### **Test 3:** Are the Fingerprints the Same?")
+            st.metric(label="Wasserstein Result", value=f"Distance = {wasserstein_dist:.2f}", help=f"Threshold for equivalence is < {wasserstein_threshold}")
             if wasserstein_is_equivalent:
-                st.success("✅ Verdict: PASS. The distributions are statistically equivalent.")
+                st.success("✅ **Verdict:** The distributions are statistically equivalent.")
             else:
-                st.error("❌ Verdict: FAIL. The distributions are significantly different.")
-            st.caption(f"Compares entire shape. Threshold for equivalence is < {wasserstein_threshold}")
-
+                st.error("❌ **Verdict:** The distributions are significantly different.")
+            st.caption("Compares entire process shape, not just the mean.")
+    
     st.divider()
 
-    # --- Render Section for Three Processes ---
+    # --- Section for Three Processes ---
     st.header("Multi-Process Comparison: Three Production Lines")
     st.markdown("This visualization is ideal for comparing multiple groups at once, such as different production lines, facilities, or raw material suppliers.")
     data_c = np.random.normal(101, 3.5, n_samples)
@@ -9941,51 +9941,66 @@ def render_comparability_suite():
         pd.DataFrame({'value': data_b, 'Line': 'B'}),
         pd.DataFrame({'value': data_c, 'Line': 'C'})
     ], ignore_index=True)
-    
-    anova_result = f_oneway(
+    data_list = [
         df_all[df_all['Line'] == 'A']['value'],
         df_all[df_all['Line'] == 'B']['value'],
         df_all[df_all['Line'] == 'C']['value']
-    )
+    ]
+    
+    anova_result = f_oneway(*data_list)
+    ad_result = stats.anderson_ksamp(data_list)
+    ad_p_value = ad_result.pvalue
 
-    col_fig2, col_stats2 = st.columns([0.7, 0.3])
+    col_fig2, col_stats2 = st.columns([0.6, 0.4])
     with col_fig2:
         fig_multi = plot_multi_process_comparison(df_all, lsl, usl)
         st.plotly_chart(fig_multi, use_container_width=True)
     with col_stats2:
-        st.subheader("Statistical Analysis (ANOVA)")
-        st.markdown("One-Way ANOVA tests the null hypothesis that the means of all groups are equal.")
-        st.metric("ANOVA p-value", f"{anova_result.pvalue:.4f}")
-        if anova_result.pvalue < 0.05:
-            st.error("❌ Verdict: A significant difference exists between the line means.")
-        else:
-            st.success("✅ Verdict: No evidence of a significant difference between means.")
-        st.markdown("**Interpretation:** The violin plot provides a rich visual comparison of the full distributions, while the ANOVA provides the formal statistical test for the means.")
+        st.subheader("Statistical Verdict Panel")
+        
+        with st.container(border=True):
+            st.markdown("##### **Test 1:** Are the **Means** Different?")
+            st.metric("ANOVA p-value", f"{anova_result.pvalue:.4f}")
+            if anova_result.pvalue < 0.05:
+                st.error("❌ **ANOVA Verdict:** A significant difference exists between the line means.")
+            else:
+                st.success("✅ **ANOVA Verdict:** No evidence of a significant difference between means.")
+        
+        with st.container(border=True):
+            st.markdown("##### **Test 2:** Are the **Distributions** Different?")
+            st.metric("Anderson-Darling p-value", f"{ad_p_value:.4f}")
+            if ad_p_value < 0.05:
+                st.error("❌ **A-D Verdict:** The process distributions are statistically different.")
+            else:
+                st.success("✅ **A-D Verdict:** No evidence that the distributions are different.")
+            st.caption("This is a more powerful test that compares the entire shape, not just the average.")
 
     st.divider()
-    st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Detailed Comparison Table", "✅ The Golden Rule"])
+    st.subheader("Deeper Dive into Comparability Statistics")
+    
+    # --- THIS IS THE CORRECTED TABS SECTION ---
+    tabs = st.tabs(["💡 Method Selection Map", "📋 Detailed Comparison Table", "✅ The Golden Rule", "📖 Theory, History & Math", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
-        **Try these simulations to understand the key differences:**
+        ### Method Selection Map: The Right Tool for the Right Question
+        Choosing the correct statistical method is the most critical decision in a comparability study. Use this guide to select and defend your approach.
 
-        1.  **The Classic Failure (Mean Shift):**
-            - Set `Mean Shift` to `2.5` and `Variance Change` to `1.0`.
-            - **Result:** The T-test correctly detects a difference (p < 0.05). Both equivalence tests correctly fail. All methods agree, as expected.
-
-        2.  **The T-Test's Blind Spot (Variance Increase):**
-            - Set `Mean Shift` to `0.0` and `Variance Change` to `1.8`.
-            - **Result:** The T-test shows **"No evidence of difference"** (p > 0.05) because the means are the same. TOST also passes. But look at the distributions! Site B is clearly less controlled. The **Wasserstein test correctly fails**, proving its superiority in detecting changes beyond just the average.
-
-        **The Strategic Insight:** Your choice of statistical method depends on the risk you are trying to mitigate. If you only care about the long-run average of the process, a t-test or TOST is sufficient. If you care about the process's **consistency, precision, and overall behavior**, the Wasserstein distance is a far more powerful and reliable gatekeeper for a tech transfer.
+        | **Your Question** | **Recommended Tool** | **Why? (Pros)** | **What to Watch Out For (Cons)** |
+        | :--- | :--- | :--- | :--- |
+        | **"Is there *any* difference in the average performance of my 3+ lines?"** | **ANOVA** | **Fast & Simple:** The industry standard for a first-pass check on means. Provides a single p-value to answer the question. | **Doesn't tell you *which* lines differ.** It's a fire alarm, not a firefighter. Only looks at the average, ignoring the shape and spread. |
+        | **"Can I prove my new process *mean* is practically the same as the old one?"** | **TOST** | **Regulatory Standard:** The gold standard for proving bioequivalence and mean equivalence. Forces you to pre-define "practically the same" (the margin Δ). | **Mean-centric:** Can declare two processes equivalent even if their variances are wildly different. The choice of Δ can be contentious. |
+        | **"Do these two measurement methods agree with each other?"** | **Bland-Altman / Deming** | **Diagnoses Bias:** The only method designed to quantify and diagnose the *type* of bias (constant vs. proportional). LoA are clinically/technically interpretable. | **Requires paired data:** You must have measured the exact same set of samples on both methods. Not for comparing independent batches. |
+        | **"Can I prove my new process behaves *identically* to the old one in every way?"** | **Wasserstein or Anderson-Darling** | **Holistic & Robust:** Compares the entire process "fingerprint" (shape, center, spread). Non-parametric, so it's robust to non-normal data. Catches issues like bimodality that all other tests miss. | **Less known to regulators:** May require more explanation in a submission. Requires a pre-defined threshold for equivalence which can be harder to justify than a simple mean difference. |
         """)
     with tabs[1]:
         st.markdown("""
-        | Feature | **T-Test / ANOVA** | **TOST** | **Bland-Altman / Deming** | **Wasserstein Distance** |
+        ### Detailed Comparison of Comparability Methods
+        
+        | Feature | **T-Test / ANOVA** | **TOST** | **Bland-Altman / Deming** | **Wasserstein / Anderson-Darling** |
         | :--- | :--- | :--- | :--- | :--- |
         | **Primary Goal** | Detect a *difference*. | Prove *equivalence*. | Quantify *agreement* & bias. | Quantify *distributional difference*. |
-        | **Key Output** | p-value | p-value or CI vs. Margin | Limits of Agreement (LoA) | Distance Value |
-        | **Null Hypothesis**| H₀: Means are equal | H₀: Means are *different* | (Graphical, no formal H₀) | (Conceptual) H₀: Distributions are identical |
+        | **Key Output** | p-value | p-value or CI vs. Margin | Limits of Agreement (LoA) | Distance Value or p-value |
+        | **Null Hypothesis**| H₀: Means are equal | H₀: Means are *different* | (Graphical, no formal H₀) | H₀: Distributions are identical |
         | **What It Compares** | Only the **means**. | Only the **means**. | **Paired data points** from the same sample. | The **entire distribution** (shape, spread, center). |
         | **Assumptions** | Normality, Equal Variance | Normality | Differences are normal | None (Non-parametric) |
         | **Best For...** | Quick, preliminary checks for differences in the average. | Formal proof of mean equivalence for regulatory submissions (e.g., bioequivalence). | Validating and comparing two measurement systems (e.g., lab instruments). | Robust tech transfer validation; comparing processes sensitive to changes in shape/variability. |
@@ -9997,16 +10012,25 @@ An engineer uses a standard t-test for every comparison. They use a non-signific
         st.success("""🟢 **THE GOLDEN RULE: The Question Dictates the Tool**
 A mature, data-driven culture uses a clear logic for choosing its statistical methods.
 1.  **If proving *difference* matters, use a standard hypothesis test (t-test, ANOVA).**
-2.  **If proving *sameness* matters, use an equivalence test (TOST, Wasserstein Distance).**
+2.  **If proving *sameness* matters, use an equivalence test (TOST, Wasserstein, Anderson-Darling).**
 3.  **If measuring *agreement* matters, use Bland-Altman analysis.**
 By pre-specifying the right tool for the right question in your validation plan, you demonstrate statistical rigor and a deep understanding of your validation objectives.""")
-        st.markdown("---")
+    with tabs[3]:
         st.markdown("""
-        ##### SME Perspective: Why T-Tests Are Intentionally De-emphasized
-        This toolkit deliberately de-emphasizes the 2-Sample T-Test to guide users toward more robust and appropriate methods for V&V.
-        -   **Focus on Superior Methods:** For comparing two groups, TOST and Wasserstein Distance are statistically superior and more appropriate for regulated environments.
-        -   **Prevent Misapplication:** This steers users away from the common statistical fallacy of using a non-significant p-value to incorrectly claim equivalence.
-        -   **Demonstrate Advanced Knowledge:** Choosing to implement TOST *instead of* a t-test demonstrates a deeper level of statistical maturity—understanding *which test is appropriate* for the question being asked.
+        #### Theory, History & Mathematical Context
+        This suite showcases a century of statistical evolution.
+        - **ANOVA (1920s):** Invented by **Sir Ronald A. Fisher** for agricultural experiments. It was a revolutionary way to efficiently test multiple "treatments" (e.g., fertilizers) at once and separate the true signal from the noise of experimental error. It works by partitioning the total sum of squares into components attributable to each group and to the error.
+        - **TOST (1980s):** While the statistical theory was older, it was championed by the **FDA** and statisticians like **Donald Schuirmann** as the solution to the bioequivalence problem for generic drugs. It brilliantly flips the logic of hypothesis testing to prove similarity by testing two null hypotheses of "too different."
+        - **Wasserstein Distance (1781, revived 1990s):** An old mathematical concept from optimal transport theory, it was made practical by computer scientists in the 1990s as "Earth Mover's Distance" and is now a state-of-the-art metric for comparing distributions in AI and statistics. For 1D data, it is simply the area between the two cumulative distribution functions (CDFs).
+        - **Anderson-Darling Test (1952):** Developed by Theodore Anderson and Donald Darling as a powerful test for goodness-of-fit, it was later generalized to the k-sample version shown here, providing a rigorous non-parametric test for distributional equality. It gives more weight to the tails of the distribution, making it very sensitive to outliers and shape changes.
+        """)
+    with tabs[4]:
+        st.markdown("""
+        Using the appropriate statistical method for comparability is a core regulatory expectation.
+        - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This guideline requires a demonstration that manufacturing changes do not adversely impact product quality. The choice of statistical methods is a key component of the comparability protocol.
+        - **FDA Process Validation Guidance:** For Stage 2 (PPQ) and Stage 3 (CPV), statistical methods are required to demonstrate consistency between batches, sites, and over time. Using a tool like Anderson-Darling provides stronger evidence than just comparing means.
+        - **USP <1033> Biological Assay Validation:** Discusses the importance of assessing parallelism and similarity between dose-response curves, which involves principles of comparability.
+        - **21 CFR 820.250 (Statistical Techniques):** Explicitly requires the use of "valid statistical techniques" for verifying process capability and product characteristics. This dashboard is a guide to selecting such valid techniques.
         """)
 #===============================================================  7. PROCESS STABILITY (SPC) ================================================
 def render_spc_charts():

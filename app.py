@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
 import math
+import warnings
+from scipy.stats import Anderson_ksampResult
 from plotly.subplots import make_subplots
 from scipy import stats
 from scipy.stats import beta, norm, t, f, f_oneway

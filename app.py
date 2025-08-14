@@ -12628,7 +12628,6 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-
     # --- FIX: all_tools dictionary and the for loop are now correctly indented inside the 'with st.sidebar:' block ---
     all_tools = {
         "ACT 0: PLANNING & STRATEGY": [
@@ -12781,10 +12780,16 @@ else:
         "PSO + Autoencoder": render_pso_autoencoder,
     }
     
-if view in PAGE_DISPATCHER:
+# Now, use the dispatcher to render the correct page
+view = st.session_state.current_view
+
+if view == 'Introduction':
+    render_introduction_content()
+elif view in PAGE_DISPATCHER:
+    st.header(f"🔧 {view}")
     render_function = PAGE_DISPATCHER[view]
-    render_function() # No arguments passed
+    render_function()
 else:
-    if view != 'Introduction':
-        st.error("Error: Could not find the selected tool to render.")
-    render_introduction_content() # No arguments passed
+    # Fallback to introduction if the view is not found for any reason
+    st.error(f"Error: View '{view}' not found. Returning to Introduction.")
+    render_introduction_content()

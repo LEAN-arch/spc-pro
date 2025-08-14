@@ -4908,19 +4908,13 @@ def wilson_score_interval(p_hat, n, z=1.96):
 # HELPER & PLOTTING FUNCTION (Anomaly Detection) - SME ENHANCED
 # ==============================================================================
 # ==============================================================================
-# HELPER & PLOTTING FUNCTION (Anomaly Detection) - SME ENHANCED
-# ==============================================================================
-# ==============================================================================
-# HELPER & PLOTTING FUNCTION (Anomaly Detection) - FINAL FIX
-# ==============================================================================
-# ==============================================================================
-# HELPER & PLOTTING FUNCTION (Anomaly Detection) - FINAL, ROBUST FIX
+# HELPER & PLOTTING FUNCTION (Anomaly Detection) - ROBUST STATIC TREE VERSION
 # ==============================================================================
 @st.cache_data
-def plot_isolation_forest(contamination_rate=0.1):
+def plot_isolation_forest_static_tree(contamination_rate=0.1):
     """
-    Generates an enhanced, more realistic anomaly detection dashboard, including a
-    visualization of an isolation tree and the distribution of anomaly scores.
+    Generates a robust dashboard with a static, digitally-rendered isolation tree.
+    This version is 100% stable as it removes all external dependencies like graphviz.
     """
     np.random.seed(42)
     n_inliers = 200
@@ -4939,82 +4933,78 @@ def plot_isolation_forest(contamination_rate=0.1):
     y_pred = clf.fit_predict(X)
     anomaly_scores = clf.decision_function(X) * -1
     
-    df = pd.DataFrame(X, columns=['Process Parameter 1', 'Process Parameter 2'])
+    df = pd.DataFrame(X, columns=['X', 'Y'])
     df['Status'] = ['Anomaly' if p == -1 else 'Normal' for p in y_pred]
-    df['Score'] = anomaly_scores
     df['GroundTruth'] = ['Outlier' if gt == 1 else 'Inlier' for gt in ground_truth]
+    df['Score'] = anomaly_scores
 
-    # --- Plotting Dashboard ---
-    fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=("<b>1. Anomaly Detection Results</b>",
-                        "<b>2. Example Isolation Tree</b>",
-                        "<b>3. Distribution of Anomaly Scores</b>"),
-        specs=[[{"rowspan": 2}, {}], [None, {}]]
+    # --- FIGURE 1: Main Scatter Plot ---
+    fig_scatter = px.scatter(
+        df, x='X', y='Y',
+        color='Status', color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
+        symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'},
+        title="<b>1. Anomaly Detection Results</b>"
     )
+    fig_scatter.update_layout(legend=dict(yanchor="top", y=0.98, xanchor="left", x=0.01))
 
-    # --- THIS IS THE CORRECTED PLOTTING LOGIC FOR PLOT 1 ---
-    # Plot 1: Main Scatter Plot (Grid Position 1,1)
-    # Use a loop to robustly add traces, avoiding the IndexError
-    scatter_fig = px.scatter(df, x='Process Parameter 1', y='Process Parameter 2',
-                             color='Status', color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
-                             symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'})
-    for trace in scatter_fig.data:
-        fig.add_trace(trace, row=1, col=1)
-    # --- END OF CORRECTION FOR PLOT 1 ---
+    # --- FIGURE 2: Digital Isolation Tree Visualization ---
+    fig_tree_viz = go.Figure()
+    target_idx = df[df['GroundTruth'] == 'Outlier'].index[0] # Pick the first true outlier to isolate
+    target_point = df.loc[target_idx]
 
-    # Plot 2: Visualize one of the trees (Grid Position 1,2)
-    try:
-        from sklearn.tree import export_graphviz
-        import graphviz
-        
-        single_tree = clf.estimators_[0]
-        dot_data = export_graphviz(single_tree, out_file=None,
-                                   feature_names=['Param 1', 'Param 2'],
-                                   filled=True, rounded=True,
-                                   special_characters=True, max_depth=3)
-        graph = graphviz.Source(dot_data)
-        
-        png_bytes = graph.pipe(format='png')
-        img = Image.open(io.BytesIO(png_bytes))
-        
-        fig.add_layout_image(
-            dict(
-                source=img,
-                xref="x2", yref="y2",
-                x=0.5, y=0.5, sizex=1, sizey=1,
-                xanchor="center", yanchor="middle",
-                sizing="contain", layer="above"
-            )
-        )
-    except (ImportError, FileNotFoundError, graphviz.backend.execute.ExecutableNotFound):
-        fig.add_annotation(
-            xref="x2 domain", yref="y2 domain", x=0.5, y=0.5,
-            text="<b>Graphviz executable not found.</b><br>Install it to see the example tree.",
-            showarrow=False, font=dict(size=14, color='red')
-        )
+    # Plot all points, highlighting the target
+    fig_tree_viz.add_trace(go.Scatter(
+        x=df['X'], y=df['Y'], mode='markers',
+        marker=dict(color='lightgrey', size=5), showlegend=False
+    ))
+    fig_tree_viz.add_trace(go.Scatter(
+        x=[target_point['X']], y=[target_point['Y']], mode='markers',
+        marker=dict(color='red', size=12, symbol='star'), showlegend=False
+    ))
     
-    fig.update_xaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
-    fig.update_yaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
+    # Simulate the isolation splits
+    bounds = {'x_min': df['X'].min(), 'x_max': df['X'].max(), 'y_min': df['Y'].min(), 'y_max': df['Y'].max()}
+    for i in range(5): # Limit to 5 splits for clarity
+        points_in_bounds = df[
+            (df['X'] >= bounds['x_min']) & (df['X'] <= bounds['x_max']) &
+            (df['Y'] >= bounds['y_min']) & (df['Y'] <= bounds['y_max'])
+        ]
+        if len(points_in_bounds) <= 1:
+            break
 
-    # Plot 3: Score Distribution (Grid Position 2,2) - Also use a loop for robustness
-    # The 'GroundTruth' column is fixed and will always have two values, but this is best practice.
-    hist_fig = px.histogram(df, x='Score', color='GroundTruth',
-                               color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
-                               barmode='overlay', marginal='rug')
-    for trace in hist_fig.data:
-        fig.add_trace(trace, row=2, col=2)
+        axis = 'x' if i % 2 == 0 else 'y' # Alternate axes for a clearer visual
+        
+        if axis == 'x':
+            split_val = np.random.uniform(bounds['x_min'], bounds['x_max'])
+            fig_tree_viz.add_shape(type='line', x0=split_val, x1=split_val, y0=bounds['y_min'], y1=bounds['y_max'], line=dict(color='orange', dash='dash'))
+            fig_tree_viz.add_annotation(x=split_val, y=bounds['y_max'], text=f"Split {i+1}", showarrow=False, yshift=10)
+            if target_point['X'] < split_val:
+                bounds['x_max'] = split_val
+            else:
+                bounds['x_min'] = split_val
+        else: # axis == 'y'
+            split_val = np.random.uniform(bounds['y_min'], bounds['y_max'])
+            fig_tree_viz.add_shape(type='line', x0=bounds['x_min'], x1=bounds['x_max'], y0=split_val, y1=split_val, line=dict(color='purple', dash='dash'))
+            fig_tree_viz.add_annotation(x=bounds['x_max'], y=split_val, text=f"Split {i+1}", showarrow=False, xshift=10)
+            if target_point['Y'] < split_val:
+                bounds['y_max'] = split_val
+            else:
+                bounds['y_min'] = split_val
     
-    score_threshold = np.percentile(anomaly_scores, 100 * (1-contamination_rate))
-    fig.add_vline(x=score_threshold, line_dash="dash", line_color="black",
-                  annotation_text="Decision Threshold", row=2, col=2)
+    fig_tree_viz.update_layout(title_text="<b>2. How an Isolation Tree Works</b>", xaxis_title="Parameter 1", yaxis_title="Parameter 2")
 
-    fig.update_layout(height=800, title_text='<b>Anomaly Detection Dashboard: Isolation Forest</b>', title_x=0.5,
-                      showlegend=True, legend=dict(yanchor="top", y=1, xanchor="left", x=0.5))
-    fig.update_xaxes(title_text="Anomaly Score", row=2, col=2)
-    fig.update_yaxes(title_text="Count", row=2, col=2)
+    # --- FIGURE 3: Histogram of Scores ---
+    fig_hist = px.histogram(
+        df, x='Score', color='GroundTruth',
+        color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
+        barmode='overlay', marginal='rug',
+        title="<b>3. Distribution of Anomaly Scores</b>"
+    )
+    score_threshold = np.percentile(anomaly_scores, 100 * (1 - contamination_rate))
+    fig_hist.add_vline(x=score_threshold, line_dash="dash", line_color="black", annotation_text="Decision Threshold")
+    fig_hist.update_layout(showlegend=False)
 
-    return fig, (y_pred == -1).sum()
+    return fig_scatter, fig_hist, fig_tree_viz, (y_pred == -1).sum()
     
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (XAI/SHAP) - SME ENHANCED & PDP FIX
@@ -11918,7 +11908,7 @@ This profiling step is what turns a statistical finding into actionable process 
             """)
 
 def render_anomaly_detection():
-    """Renders the module for unsupervised anomaly detection."""
+    """Renders the module for unsupervised anomaly detection using a stable, static tree."""
     st.markdown("""
     #### Purpose & Application: The AI Bouncer
     **Purpose:** To deploy an **AI Bouncer** for your data-a smart system that identifies rare, unexpected observations (anomalies) without any prior knowledge of what "bad" looks like. It doesn't need a list of troublemakers; it learns the "normal vibe" of the crowd and flags anything that stands out.
@@ -11930,9 +11920,9 @@ def render_anomaly_detection():
 
     st.info("""
     **Interactive Demo:** Use the **Expected Contamination** slider to control the model's sensitivity.
-    1.  Observe the final classification in the **top-left plot**.
-    2.  See how the algorithm works in the **top-right plot**: outliers (anomalies) are isolated with very few "questions" (splits), resulting in short paths.
-    3.  The **bottom plot** shows how this translates to a clean separation of anomaly scores. The slider moves the black decision threshold.
+    1.  Observe the final classification in the **main results plot**.
+    2.  The **digital tree plot** on the right shows how an anomaly (the red star) is rapidly "boxed in" by random splits.
+    3.  The **score distribution plot** shows how this translates to a clean separation of anomaly scores. The slider moves the black decision threshold.
     """)
 
     with st.sidebar:
@@ -11943,69 +11933,76 @@ def render_anomaly_detection():
             help="Your assumption about the percentage of anomalies in the data. This tunes the model's sensitivity by moving the decision threshold."
         )
 
-    fig, num_anomalies = plot_isolation_forest(contamination_rate=contamination_slider/100.0)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            st.metric(label="Total Data Points Scanned", value="215")
-            st.metric(label="Anomalies Flagged by Model", value=f"{num_anomalies}")
+    # The new plotting function returns three separate, stable figures
+    fig_scatter, fig_hist, fig_tree_viz, num_anomalies = plot_isolation_forest_static_tree(contamination_rate=contamination_slider/100.0)
 
-            st.markdown("""
-            **Reading the Dashboard:**
-            - **1. Detection Results:** The model successfully identifies the scattered outliers (red crosses) while classifying the main, correlated data cloud as normal (blue circles).
-            - **2. Example Isolation Tree:** This visualizes how the algorithm thinks. It makes random splits to isolate points. Notice that the leaf nodes at the very top (shallow depth) contain the anomalies, as they are easy to single out.
-            - **3. Score Distribution:** This plot shows the result of the isolation process. The true outliers (red histogram) have much higher anomaly scores because they are easy to isolate. The inliers (grey histogram) have lower scores. The black line is the decision threshold controlled by the `Contamination` slider.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Anomaly Terms
-            - **Anomaly Detection:** The identification of rare items, events, or observations which raise suspicions by differing significantly from the majority of the data.
-            - **Unsupervised Learning:** This approach is unsupervised because it does not require pre-labeled examples of "anomalies" to learn. It learns the structure of "normal" and flags anything that deviates.
-            - **Isolation Forest:** An unsupervised anomaly detection algorithm based on the principle that anomalies are "few and different," making them easier to isolate than normal points.
-            - **Isolation Tree:** A random binary tree used to partition the data. The path length from the root to a leaf node represents how easy it was to isolate a point.
-            - **Anomaly Score:** A score derived from the average path length across all trees in the forest. Anomalies will have a short average path length and thus a high anomaly score.
-            - **Contamination:** A user-defined parameter that sets the expected proportion of anomalies in the dataset. It is used to set the decision threshold on the anomaly scores.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "Glitch Hunter"**
+    # --- NEW STABLE LAYOUT ---
+    st.header("Anomaly Detection Dashboard")
+    col1, col2 = st.columns([0.6, 0.4])
+
+    with col1:
+        st.plotly_chart(fig_scatter, use_container_width=True)
+
+    with col2:
+        st.plotly_chart(fig_tree_viz, use_container_width=True)
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    with tabs[0]:
+        st.metric("Total Data Points Scanned", value="215")
+        st.metric("Anomalies Flagged by Model", value=f"{num_anomalies}")
+
+        st.markdown("""
+        **Reading the Dashboard:**
+        - **1. Detection Results:** The model successfully identifies the scattered outliers (red crosses) while classifying the main data cloud as normal (blue circles).
+        - **2. How an Isolation Tree Works:** This plot visualizes the core concept. The algorithm rapidly "boxes in" an anomalous point (the red star) with a few random, axis-aligned splits. Normal points in the dense cloud would require many more splits to be isolated.
+        - **3. Score Distribution:** This plot shows the result of the isolation process. The true outliers (red histogram) have higher anomaly scores because they are easy to isolate. The black line is the decision threshold controlled by the `Contamination` slider.
+        """)
+    with tabs[1]:
+        st.markdown("""
+        ##### Glossary of Anomaly Terms
+        - **Anomaly Detection:** The identification of rare items, events, or observations which raise suspicions by differing significantly from the majority of the data.
+        - **Unsupervised Learning:** This approach is unsupervised because it does not require pre-labeled examples of "anomalies" to learn. It learns the structure of "normal" and flags anything that deviates.
+        - **Isolation Forest:** An unsupervised anomaly detection algorithm based on the principle that anomalies are "few and different," making them easier to isolate than normal points.
+        - **Isolation Tree:** A random binary tree used to partition the data. The path length from the root to a leaf node represents how easy it was to isolate a point.
+        - **Anomaly Score:** A score derived from the average path length across all trees in the forest. Anomalies will have a short average path length and thus a high anomaly score.
+        - **Contamination:** A user-defined parameter that sets the expected proportion of anomalies in the dataset. It is used to set the decision threshold on the anomaly scores.
+        """)
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Glitch Hunter"**
 When an anomaly is detected, the immediate reaction is to dismiss it as a data error.
 - *"Oh, that's just a sensor glitch. Delete the point and move on."*
 - *"Let's increase the contamination parameter until the alarms go away."*
 This approach treats valuable signals as noise. It's like the bouncer seeing a problem, shrugging, and looking the other way. You are deliberately blinding yourself to potentially critical process information.""")
-            st.success("""🟢 **THE GOLDEN RULE: An Anomaly is a Question, Not an Answer**
+        st.success("""🟢 **THE GOLDEN RULE: An Anomaly is a Question, Not an Answer**
 The goal is to treat every flagged anomaly as the start of a forensic investigation.
 - **The anomaly is the breadcrumb:** When the bouncer flags someone, you ask questions. "What happened in the process at that exact time? Was it a specific operator? A new raw material lot?"
 - **Investigate the weird-but-good:** If a batch that passed all specifications is flagged as an anomaly, it's a golden opportunity. What made it different? Understanding these "good" anomalies is a key to process optimization.""")
 
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: Flipping the Problem on its Head
-            **The Problem:** For decades, "outlier detection" was a purely statistical affair, often done one variable at a time. This falls apart in high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values. Most methods focused on building a complex model of what "normal" data looks like and then flagging anything that didn't fit. This was often slow and brittle.
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: Flipping the Problem on its Head
+        **The Problem:** For decades, "outlier detection" was a purely statistical affair, often done one variable at a time. This falls apart in high-dimensional data where an event might be anomalous not because of one value, but because of a strange *combination* of many values. Most methods focused on building a complex model of what "normal" data looks like and then flagging anything that didn't fit. This was often slow and brittle.
 
-            **The 'Aha!' Moment:** In a 2008 paper, Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou introduced the **Isolation Forest** with a brilliantly counter-intuitive insight. Instead of trying to define "normal," they decided to just try to **isolate** every data point. They reasoned that anomalous points are, by definition, "few and different." This makes them much easier to separate from the rest of the data. Like finding a single red marble in a jar of blue ones, it's easy to "isolate" because it doesn't blend in.
-            
-            **The Impact:** This simple but powerful idea had huge consequences. The algorithm was extremely fast because it didn't need to model the whole dataset; it could often identify an anomaly in just a few steps. It worked well in high dimensions and didn't rely on any assumptions about the data's distribution. The Isolation Forest became a go-to method for unsupervised anomaly detection.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("The algorithm is built on an ensemble of `iTrees` (Isolation Trees). Each `iTree` is a random binary tree built by recursively making random splits on random features.")
-            st.markdown("The **path length** `h(x)` for a point `x` is the number of splits required to isolate it. Anomalies, being different, will have a much shorter average path length across all trees in the forest. The final anomaly score `s(x, n)` for a point is calculated based on its average path length `E(h(x))`:")
-            st.latex(r"s(x, n) = 2^{-\frac{E(h(x))}{c(n)}}")
-            st.markdown("Where `c(n)` is a normalization factor based on the sample size `n`. Scores close to 1 are highly anomalous, while scores much smaller than 0.5 are normal.")
-        with tabs[4]:
-            st.markdown("""
-            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)   
+        **The 'Aha!' Moment:** In a 2008 paper, Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou introduced the **Isolation Forest** with a brilliantly counter-intuitive insight. Instead of trying to define "normal," they decided to just try to **isolate** every data point. They reasoned that anomalous points are, by definition, "few and different." This makes them much easier to separate from the rest of the data. Like finding a single red marble in a jar of blue ones, it's easy to "isolate" because it doesn't blend in.
+        
+        **The Impact:** This simple but powerful idea had huge consequences. The algorithm was extremely fast because it didn't need to model the whole dataset; it could often identify an anomaly in just a few steps. It worked well in high dimensions and didn't rely on any assumptions about the data's distribution. The Isolation Forest became a go-to method for unsupervised anomaly detection.
+        """)
+        st.markdown("#### Mathematical Basis")
+        st.markdown("The algorithm is built on an ensemble of `iTrees` (Isolation Trees). Each `iTree` is a random binary tree built by recursively making random splits on random features.")
+        st.markdown("The **path length** `h(x)` for a point `x` is the number of splits required to isolate it. Anomalies, being different, will have a much shorter average path length across all trees in the forest. The final anomaly score `s(x, n)` for a point is calculated based on its average path length `E(h(x))`:")
+        st.latex(r"s(x, n) = 2^{-\frac{E(h(x))}{c(n)}}")
+        st.markdown("Where `c(n)` is a normalization factor based on the sample size `n`. Scores close to 1 are highly anomalous, while scores much smaller than 0.5 are normal.")
+    with tabs[4]:
+        st.markdown("""
+        These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
+        - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
+        - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
+        - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
+        """)
             
 def render_advanced_ai_concepts():
     """Renders the interactive dashboard for advanced AI concepts in a V&V context."""

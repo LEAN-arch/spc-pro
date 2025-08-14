@@ -3379,21 +3379,26 @@ def plot_multi_process_comparison(df_all, lsl, usl):
     fig.update_traces(meanline_visible=True)
     return fig
 
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Process & Method Comparability Suite) - ROBUST FIX
+# ==============================================================================
 @st.cache_data
-def plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, tost_is_equivalent, wasserstein_dist, wasserstein_thresh, wasserstein_is_equivalent, lsl, usl):
-    """Generates a 4-panel dashboard comparing different statistical comparability methods."""
+def plot_comparability_dashboard(data_a, data_b, tost_ci, tost_margin, lsl, usl):
+    """
+    Generates a 2-panel dashboard showing the process distributions and the TOST verdict.
+    The t-test and Wasserstein verdicts are now handled by st.metric in the UI function.
+    """
     fig = make_subplots(
-        rows=2, cols=2,
+        rows=2, cols=1,
         subplot_titles=(
             "<b>1. The Data: Process Distributions</b>",
-            "<b>2. Classical Test: Are the Means Different?</b> (t-test)",
-            "<b>3. Equivalence Test: Are the Means the Same?</b> (TOST)",
-            "<b>4. Distributional Test: Are the Fingerprints the Same?</b> (Wasserstein)"
+            "<b>2. Equivalence Test Verdict: Are the Means the Same?</b> (TOST)"
         ),
-        vertical_spacing=0.2, horizontal_spacing=0.15
+        row_heights=[0.7, 0.3],
+        vertical_spacing=0.15
     )
 
-    # Plot 1: The Raw Data Distributions (Correct, no changes needed)
+    # Plot 1: The Raw Data Distributions
     x_range = np.linspace(min(data_a.min(), data_b.min()) - 5, max(data_a.max(), data_b.max()) + 5, 400)
     kde_a = stats.gaussian_kde(data_a)
     kde_b = stats.gaussian_kde(data_b)
@@ -3401,41 +3406,21 @@ def plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, 
     fig.add_trace(go.Scatter(x=x_range, y=kde_b(x_range), fill='tozeroy', name='Site B (New)', line=dict(color=SUCCESS_GREEN), opacity=0.7), row=1, col=1)
     fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1)
     fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
-    fig.update_yaxes(showticklabels=False, row=1, col=1)
+    fig.update_yaxes(title_text="Density", showticklabels=False, row=1, col=1)
+    fig.update_xaxes(title_text="Process Output Value", row=1, col=1)
 
-    # Plot 2: T-Test Verdict
-    # --- FIX: Add an invisible trace to force the subplot to render ---
-    fig.add_trace(go.Scatter(x=[0], y=[0], mode='markers', marker=dict(opacity=0)), row=1, col=2)
-    # --- END FIX ---
-    ttest_verdict = "FAIL (Means are different)" if ttest_p < 0.05 else "PASS (No evidence of difference)"
-    ttest_color = '#EF553B' if ttest_p < 0.05 else SUCCESS_GREEN
-    fig.add_annotation(text=f"<b>p-value = {ttest_p:.3f}</b><br>{'❌' if ttest_p < 0.05 else '✅'} {ttest_verdict}",
-                       font=dict(size=18, color=ttest_color), showarrow=False, row=1, col=2)
-
-    # Plot 3: TOST Verdict (Correct, no changes needed)
+    # Plot 2: TOST Verdict Visualization
     ci_lower, ci_upper = tost_ci
+    tost_is_equivalent = (ci_lower >= -tost_margin) and (ci_upper <= tost_margin)
     ci_color = SUCCESS_GREEN if tost_is_equivalent else '#EF553B'
     fig.add_vrect(x0=-tost_margin, x1=tost_margin, fillcolor="rgba(0,128,0,0.1)", layer="below", line_width=0, row=2, col=1)
-    fig.add_trace(go.Scatter(x=[ci_lower, ci_upper], y=[0, 0], mode='lines', line=dict(color=ci_color, width=15)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=[ci_lower, ci_upper], y=[0, 0], mode='lines', line=dict(color=ci_color, width=20)), row=2, col=1)
     fig.add_vline(x=-tost_margin, line=dict(color="red", dash="dash"), row=2, col=1)
     fig.add_vline(x=tost_margin, line=dict(color="red", dash="dash"), row=2, col=1)
     fig.update_yaxes(showticklabels=False, range=[-1, 1], row=2, col=1)
-
-    # Plot 4: Wasserstein Verdict
-    # --- FIX: Add an invisible trace to force the subplot to render ---
-    fig.add_trace(go.Scatter(x=[0], y=[0], mode='markers', marker=dict(opacity=0)), row=2, col=2)
-    # --- END FIX ---
-    wasserstein_color = SUCCESS_GREEN if wasserstein_is_equivalent else '#EF553B'
-    fig.add_annotation(text=f"<b>Distance = {wasserstein_dist:.2f}</b><br>(Threshold = {wasserstein_thresh:.2f})<br>{'✅' if wasserstein_is_equivalent else '❌'} {'Equivalent' if wasserstein_is_equivalent else 'NOT Equivalent'}",
-                       font=dict(size=18, color=wasserstein_color), showarrow=False, row=2, col=2)
-
-    fig.update_layout(height=800, showlegend=False)
-    fig.update_xaxes(title_text="Process Output Value", row=1, col=1)
-    fig.update_xaxes(showticklabels=False, row=1, col=2)
-    fig.update_yaxes(showticklabels=False, row=1, col=2)
     fig.update_xaxes(title_text="Difference in Means (Site B - Site A)", row=2, col=1)
-    fig.update_xaxes(showticklabels=False, row=2, col=2)
-    fig.update_yaxes(showticklabels=False, row=2, col=2)
+
+    fig.update_layout(height=700, showlegend=False)
     return fig
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Tolerance Intervals) - SME ENHANCED
@@ -9877,55 +9862,31 @@ def render_comparability_suite():
     """)
 
     st.info("""
-    **Interactive Demo:** Use the sidebar gadgets to simulate a change in a new process at **Site B**. The four-panel dashboard will instantly update, showing how each statistical method interprets the same data. Your goal is to understand *why* they sometimes give different answers.
+    **Interactive Demo:** You are the Tech Transfer Lead. Use the sidebar gadgets to simulate a change in the new process at **Site B**. The dashboard will instantly update, showing how each statistical method interprets the same data. Your goal is to understand *why* they sometimes give different answers.
     """)
     st.divider()
 
     with st.sidebar:
         st.subheader("Comparability Scenario Gadgets")
-        mean_shift = st.slider(
-            "Mean Shift at Site B", 
-            -5.0, 5.0, 0.0, 0.25,
-            help="Simulates a systematic bias or shift in the process average at the new site. How far is Site B's average from Site A's?"
-        )
-        variance_change = st.slider(
-            "Variance Change Factor at Site B", 
-            0.5, 2.0, 1.0, 0.05,
-            help="Simulates a change in process precision. >1.0 means Site B is more variable (less precise); <1.0 means it is less variable."
-        )
+        mean_shift = st.slider( "Mean Shift at Site B", -5.0, 5.0, 0.0, 0.25, help="Simulates a systematic bias or shift in the process average at the new site. How far is Site B's average from Site A's?")
+        variance_change = st.slider( "Variance Change Factor at Site B", 0.5, 2.0, 1.0, 0.05, help="Simulates a change in process precision. >1.0 means Site B is more variable (less precise); <1.0 means it is less variable.")
         st.markdown("---")
-        tost_margin = st.slider(
-            "TOST Equivalence Margin (Δ)", 0.5, 5.0, 2.0, 0.1,
-            help="The 'goalposts' for the TOST test. Defines the zone where a difference in *means* is considered practically meaningless."
-        )
-        wasserstein_threshold = st.slider(
-            "Wasserstein Equivalence Threshold", 0.5, 5.0, 1.5, 0.1,
-            help="The 'allowance' for the Wasserstein test. Defines the maximum acceptable difference between the entire *distributions*."
-        )
+        tost_margin = st.slider( "TOST Equivalence Margin (Δ)", 0.5, 5.0, 2.0, 0.1, help="The 'goalposts' for the TOST test. Defines the zone where a difference in *means* is considered practically meaningless.")
+        wasserstein_threshold = st.slider( "Wasserstein Equivalence Threshold", 0.5, 5.0, 1.5, 0.1, help="The 'allowance' for the Wasserstein test. Defines the maximum acceptable difference between the entire *distributions*.")
 
     # --- Data Generation & Analysis ---
     np.random.seed(42)
     n_samples = 150
     lsl, usl = 90, 110
-    
-    # Site A (Reference Process)
     data_a = np.random.normal(100, 3, n_samples)
-    
-    # Site B (New Process, controlled by sliders)
     data_b = np.random.normal(100 + mean_shift, 3 * variance_change, n_samples)
-    
-    # 1. T-Test for Difference
     ttest_p = stats.ttest_ind(data_a, data_b, equal_var=False).pvalue
-    
-    # 2. TOST for Equivalence of Means
     diff_mean = np.mean(data_b) - np.mean(data_a)
     std_err_diff = np.sqrt(np.var(data_a, ddof=1)/n_samples + np.var(data_b, ddof=1)/n_samples)
     df_welch = (std_err_diff**4) / (((np.var(data_a, ddof=1)/n_samples)**2 / (n_samples-1)) + ((np.var(data_b, ddof=1)/n_samples)**2 / (n_samples-1)))
     ci_margin = stats.t.ppf(0.95, df_welch) * std_err_diff
     tost_ci = (diff_mean - ci_margin, diff_mean + ci_margin)
     tost_is_equivalent = (tost_ci[0] >= -tost_margin) and (tost_ci[1] <= tost_margin)
-    
-    # 3. Wasserstein for Equivalence of Distributions
     wasserstein_dist = stats.wasserstein_distance(data_a, data_b)
     wasserstein_is_equivalent = wasserstein_dist < wasserstein_threshold
 
@@ -9933,43 +9894,64 @@ def render_comparability_suite():
     st.header("The Comparability Method Showdown: Two Processes")
     st.markdown("This dashboard compares two processes (e.g., a sending and receiving site in a tech transfer).")
     
-    # --- THIS IS THE FIX: Render the dashboard plot and the info column separately, not inside st.columns ---
-    fig_dashboard = plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, tost_is_equivalent, wasserstein_dist, wasserstein_threshold, wasserstein_is_equivalent, lsl, usl)
-    st.plotly_chart(fig_dashboard, use_container_width=True)
-    
-    # The info box can be rendered after the plot
-    with st.expander("Show/Hide Key Performance Indicators"):
-        c1, c2, c3 = st.columns(3)
-        c1.metric("t-test p-value (for Means)", f"{ttest_p:.3f}", help="p < 0.05 indicates a significant difference in means.")
-        c2.metric("TOST Verdict", "Equivalent" if tost_is_equivalent else "Not Equivalent", help="Is the 90% CI for the mean difference inside the margin?")
-        c3.metric("Wasserstein Verdict", "Equivalent" if wasserstein_is_equivalent else "Not Equivalent", help="Is the total distributional distance below the threshold?")
-    # --- END OF FIX ---
+    col_fig, col_verdict = st.columns([0.6, 0.4])
+
+    with col_fig:
+        fig_dashboard = plot_comparability_dashboard(data_a, data_b, tost_ci, tost_margin, lsl, usl)
+        st.plotly_chart(fig_dashboard, use_container_width=True)
+
+    with col_verdict:
+        st.subheader("Statistical Verdict Panel")
+        
+        st.markdown("##### 2. Classical Test (t-test)")
+        st.metric(label="Are the means different?", value=f"p = {ttest_p:.3f}")
+        if ttest_p < 0.05:
+            st.error("❌ Verdict: FAIL. The means are statistically different.")
+        else:
+            st.success("✅ Verdict: PASS. There is no evidence of a difference in means.")
+        st.caption("Tests H₀: Mean A = Mean B")
+        st.markdown("---")
+
+        st.markdown("##### 3. Equivalence Test (TOST)")
+        st.metric(label="Are the means the same?", value="Equivalent" if tost_is_equivalent else "Not Equivalent")
+        if tost_is_equivalent:
+            st.success("✅ Verdict: PASS. The means are statistically equivalent.")
+        else:
+            st.error("❌ Verdict: FAIL. We cannot conclude the means are equivalent.")
+        st.caption(f"Tests if 90% CI for difference [{tost_ci[0]:.2f}, {tost_ci[1]:.2f}] is inside ±{tost_margin}")
+        st.markdown("---")
+        
+        st.markdown("##### 4. Distributional Test (Wasserstein)")
+        st.metric(label="Are the fingerprints the same?", value=f"Dist = {wasserstein_dist:.2f}", help=f"Threshold for equivalence is < {wasserstein_threshold}")
+        if wasserstein_is_equivalent:
+            st.success("✅ Verdict: PASS. The distributions are statistically equivalent.")
+        else:
+            st.error("❌ Verdict: FAIL. The distributions are significantly different.")
+        st.caption("Compares the entire process shape, not just the mean.")
     
     st.divider()
 
-    # --- NEW SECTION: Three-Line Comparison ---
+    # --- NEW SECTION: Three-Line Comparison (This part was already correct) ---
     st.header("Multi-Process Comparison: Three Production Lines")
     st.markdown("This visualization is ideal for comparing multiple groups at once, such as different production lines, facilities, or raw material suppliers.")
-    # Generate data for three lines based on the Site A/B simulation
-    data_c = np.random.normal(101, 3.5, n_samples) # A third, slightly different line
+    data_c = np.random.normal(101, 3.5, n_samples)
     df_all = pd.concat([
         pd.DataFrame({'value': data_a, 'Line': 'A'}),
         pd.DataFrame({'value': data_b, 'Line': 'B'}),
         pd.DataFrame({'value': data_c, 'Line': 'C'})
     ], ignore_index=True)
     
-    # Perform ANOVA as the statistical test for 3+ groups
     anova_result = f_oneway(
         df_all[df_all['Line'] == 'A']['value'],
         df_all[df_all['Line'] == 'B']['value'],
         df_all[df_all['Line'] == 'C']['value']
     )
 
-    col_fig, col_stats = st.columns([0.7, 0.3])
-    with col_fig:
+    col_fig2, col_stats2 = st.columns([0.7, 0.3])
+    with col_fig2:
         fig_multi = plot_multi_process_comparison(df_all, lsl, usl)
         st.plotly_chart(fig_multi, use_container_width=True)
-    with col_stats:
+    with col_stats2:
         st.subheader("Statistical Analysis (ANOVA)")
         st.markdown("One-Way ANOVA tests the null hypothesis that the means of all groups are equal.")
         st.metric("ANOVA p-value", f"{anova_result.pvalue:.4f}")

@@ -3383,22 +3383,23 @@ def plot_multi_process_comparison(df_all, lsl, usl):
 # HELPER & PLOTTING FUNCTION (Process & Method Comparability Suite) - ROBUST FIX
 # ==============================================================================
 @st.cache_data
-def plot_comparability_dashboard(data_a, data_b, tost_ci, tost_margin, lsl, usl):
+def plot_comparability_visuals(data_a, data_b, lsl, usl, wasserstein_dist):
     """
-    Generates a 2-panel dashboard showing the process distributions and the TOST verdict.
-    The t-test and Wasserstein verdicts are now handled by st.metric in the UI function.
+    Generates a 2-panel plot showing the visual evidence for process comparison:
+    1. Overlaid Probability Density Functions (PDFs) to visualize shape.
+    2. Overlaid Cumulative Distribution Functions (CDFs) to visualize Wasserstein distance.
     """
     fig = make_subplots(
         rows=2, cols=1,
+        shared_xaxes=True,
         subplot_titles=(
-            "<b>1. The Data: Process Distributions</b>",
-            "<b>2. Equivalence Test Verdict: Are the Means the Same?</b> (TOST)"
+            "<b>1. Visual Evidence: Process Distributions (PDFs)</b>",
+            "<b>2. Visual Evidence: Cumulative Distributions (CDFs)</b>"
         ),
-        row_heights=[0.7, 0.3],
-        vertical_spacing=0.15
+        vertical_spacing=0.1
     )
 
-    # Plot 1: The Raw Data Distributions
+    # Plot 1: Overlaid PDFs (the "shape")
     x_range = np.linspace(min(data_a.min(), data_b.min()) - 5, max(data_a.max(), data_b.max()) + 5, 400)
     kde_a = stats.gaussian_kde(data_a)
     kde_b = stats.gaussian_kde(data_b)
@@ -3407,20 +3408,18 @@ def plot_comparability_dashboard(data_a, data_b, tost_ci, tost_margin, lsl, usl)
     fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1)
     fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
     fig.update_yaxes(title_text="Density", showticklabels=False, row=1, col=1)
-    fig.update_xaxes(title_text="Process Output Value", row=1, col=1)
 
-    # Plot 2: TOST Verdict Visualization
-    ci_lower, ci_upper = tost_ci
-    tost_is_equivalent = (ci_lower >= -tost_margin) and (ci_upper <= tost_margin)
-    ci_color = SUCCESS_GREEN if tost_is_equivalent else '#EF553B'
-    fig.add_vrect(x0=-tost_margin, x1=tost_margin, fillcolor="rgba(0,128,0,0.1)", layer="below", line_width=0, row=2, col=1)
-    fig.add_trace(go.Scatter(x=[ci_lower, ci_upper], y=[0, 0], mode='lines', line=dict(color=ci_color, width=20)), row=2, col=1)
-    fig.add_vline(x=-tost_margin, line=dict(color="red", dash="dash"), row=2, col=1)
-    fig.add_vline(x=tost_margin, line=dict(color="red", dash="dash"), row=2, col=1)
-    fig.update_yaxes(showticklabels=False, range=[-1, 1], row=2, col=1)
-    fig.update_xaxes(title_text="Difference in Means (Site B - Site A)", row=2, col=1)
-
-    fig.update_layout(height=700, showlegend=False)
+    # Plot 2: Overlaid CDFs (visualizing Wasserstein distance)
+    cdf_a = np.array([np.mean(data_a <= x) for x in x_range])
+    cdf_b = np.array([np.mean(data_b <= x) for x in x_range])
+    fig.add_trace(go.Scatter(x=x_range, y=cdf_a, name='CDF Site A', line=dict(color=PRIMARY_COLOR, width=3)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=cdf_b, name='CDF Site B', line=dict(color=SUCCESS_GREEN, width=3), fill='tonexty', fillcolor='rgba(255, 193, 7, 0.3)'), row=2, col=1)
+    fig.add_annotation(x=np.median(x_range), y=0.5, text=f"<b>Area between curves ≈<br>Wasserstein Distance: {wasserstein_dist:.2f}</b>",
+                       showarrow=False, font=dict(color=DARK_GREY, size=14), bgcolor='rgba(255, 193, 7, 0.5)', borderpad=4, row=2, col=1)
+    fig.update_yaxes(title_text="Cumulative Prob.", range=[0, 1.05], row=2, col=1)
+    fig.update_xaxes(title_text="Process Output Value", row=2, col=1)
+    
+    fig.update_layout(height=600, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Tolerance Intervals) - SME ENHANCED
@@ -9890,48 +9889,50 @@ def render_comparability_suite():
     wasserstein_dist = stats.wasserstein_distance(data_a, data_b)
     wasserstein_is_equivalent = wasserstein_dist < wasserstein_threshold
 
-    # --- Render Dashboard ---
+    # --- Render Dashboard for Two Processes ---
     st.header("The Comparability Method Showdown: Two Processes")
-    st.markdown("This dashboard compares two processes (e.g., a sending and receiving site in a tech transfer).")
+    st.markdown("This dashboard compares two processes (e.g., a sending site vs. a receiving site).")
     
-    col_fig, col_verdict = st.columns([0.6, 0.4])
+    col_plots, col_verdicts = st.columns([0.6, 0.4])
 
-    with col_fig:
-        fig_dashboard = plot_comparability_dashboard(data_a, data_b, tost_ci, tost_margin, lsl, usl)
-        st.plotly_chart(fig_dashboard, use_container_width=True)
+    with col_plots:
+        st.subheader("Visual Evidence")
+        fig_visuals = plot_comparability_visuals(data_a, data_b, lsl, usl, wasserstein_dist)
+        st.plotly_chart(fig_visuals, use_container_width=True)
 
-    with col_verdict:
+    with col_verdicts:
         st.subheader("Statistical Verdict Panel")
         
-        st.markdown("##### 2. Classical Test (t-test)")
-        st.metric(label="Are the means different?", value=f"p = {ttest_p:.3f}")
-        if ttest_p < 0.05:
-            st.error("❌ Verdict: FAIL. The means are statistically different.")
-        else:
-            st.success("✅ Verdict: PASS. There is no evidence of a difference in means.")
-        st.caption("Tests H₀: Mean A = Mean B")
-        st.markdown("---")
+        with st.container(border=True):
+            st.markdown("##### Classical Test: Are the Means Different?")
+            st.metric(label="t-test Result", value=f"p = {ttest_p:.3f}")
+            if ttest_p < 0.05:
+                st.error("❌ Verdict: FAIL. The means are statistically different.")
+            else:
+                st.success("✅ Verdict: PASS. There is no evidence of a difference in means.")
+            st.caption("Tests H₀: Mean A = Mean B")
 
-        st.markdown("##### 3. Equivalence Test (TOST)")
-        st.metric(label="Are the means the same?", value="Equivalent" if tost_is_equivalent else "Not Equivalent")
-        if tost_is_equivalent:
-            st.success("✅ Verdict: PASS. The means are statistically equivalent.")
-        else:
-            st.error("❌ Verdict: FAIL. We cannot conclude the means are equivalent.")
-        st.caption(f"Tests if 90% CI for difference [{tost_ci[0]:.2f}, {tost_ci[1]:.2f}] is inside ±{tost_margin}")
-        st.markdown("---")
-        
-        st.markdown("##### 4. Distributional Test (Wasserstein)")
-        st.metric(label="Are the fingerprints the same?", value=f"Dist = {wasserstein_dist:.2f}", help=f"Threshold for equivalence is < {wasserstein_threshold}")
-        if wasserstein_is_equivalent:
-            st.success("✅ Verdict: PASS. The distributions are statistically equivalent.")
-        else:
-            st.error("❌ Verdict: FAIL. The distributions are significantly different.")
-        st.caption("Compares the entire process shape, not just the mean.")
-    
+        with st.container(border=True):
+            st.markdown("##### Equivalence Test: Are the Means the Same?")
+            st.metric(label="TOST Result", value="Equivalent" if tost_is_equivalent else "Not Equivalent")
+            if tost_is_equivalent:
+                st.success("✅ Verdict: PASS. The means are statistically equivalent.")
+            else:
+                st.error("❌ Verdict: FAIL. We cannot conclude the means are equivalent.")
+            st.caption(f"Tests if 90% CI [{tost_ci[0]:.2f}, {tost_ci[1]:.2f}] is inside ±{tost_margin}")
+
+        with st.container(border=True):
+            st.markdown("##### Distributional Test: Are the Fingerprints the Same?")
+            st.metric(label="Wasserstein Result", value=f"Distance = {wasserstein_dist:.2f}")
+            if wasserstein_is_equivalent:
+                st.success("✅ Verdict: PASS. The distributions are statistically equivalent.")
+            else:
+                st.error("❌ Verdict: FAIL. The distributions are significantly different.")
+            st.caption(f"Compares entire shape. Threshold for equivalence is < {wasserstein_threshold}")
+
     st.divider()
 
-    # --- NEW SECTION: Three-Line Comparison (This part was already correct) ---
+    # --- Render Section for Three Processes ---
     st.header("Multi-Process Comparison: Three Production Lines")
     st.markdown("This visualization is ideal for comparing multiple groups at once, such as different production lines, facilities, or raw material suppliers.")
     data_c = np.random.normal(101, 3.5, n_samples)
@@ -9956,15 +9957,14 @@ def render_comparability_suite():
         st.markdown("One-Way ANOVA tests the null hypothesis that the means of all groups are equal.")
         st.metric("ANOVA p-value", f"{anova_result.pvalue:.4f}")
         if anova_result.pvalue < 0.05:
-            st.error("❌ FAIL: There is a statistically significant difference between the means of the production lines.")
+            st.error("❌ Verdict: A significant difference exists between the line means.")
         else:
-            st.success("✅ PASS: There is no evidence of a significant difference between the means.")
+            st.success("✅ Verdict: No evidence of a significant difference between means.")
         st.markdown("**Interpretation:** The violin plot provides a rich visual comparison of the full distributions, while the ANOVA provides the formal statistical test for the means.")
 
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Detailed Comparison Table", "✅ The Golden Rule"])
-
     with tabs[0]:
         st.markdown("""
         **Try these simulations to understand the key differences:**
@@ -9979,9 +9979,7 @@ def render_comparability_suite():
 
         **The Strategic Insight:** Your choice of statistical method depends on the risk you are trying to mitigate. If you only care about the long-run average of the process, a t-test or TOST is sufficient. If you care about the process's **consistency, precision, and overall behavior**, the Wasserstein distance is a far more powerful and reliable gatekeeper for a tech transfer.
         """)
-
     with tabs[1]:
-        st.subheader("Detailed Comparison of Comparability Methods")
         st.markdown("""
         | Feature | **T-Test / ANOVA** | **TOST** | **Bland-Altman / Deming** | **Wasserstein Distance** |
         | :--- | :--- | :--- | :--- | :--- |
@@ -9992,7 +9990,6 @@ def render_comparability_suite():
         | **Assumptions** | Normality, Equal Variance | Normality | Differences are normal | None (Non-parametric) |
         | **Best For...** | Quick, preliminary checks for differences in the average. | Formal proof of mean equivalence for regulatory submissions (e.g., bioequivalence). | Validating and comparing two measurement systems (e.g., lab instruments). | Robust tech transfer validation; comparing processes sensitive to changes in shape/variability. |
         """)
-
     with tabs[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "One-Tool-Fits-All" Fallacy**
 An engineer uses a standard t-test for every comparison. They use a non-significant p-value to claim equivalence, and use correlation to claim two methods agree.
@@ -10003,11 +10000,10 @@ A mature, data-driven culture uses a clear logic for choosing its statistical me
 2.  **If proving *sameness* matters, use an equivalence test (TOST, Wasserstein Distance).**
 3.  **If measuring *agreement* matters, use Bland-Altman analysis.**
 By pre-specifying the right tool for the right question in your validation plan, you demonstrate statistical rigor and a deep understanding of your validation objectives.""")
-        
         st.markdown("---")
         st.markdown("""
         ##### SME Perspective: Why T-Tests Are Intentionally De-emphasized
-        This toolkit deliberately omits a standalone 2-Sample T-Test module to guide users toward more robust and appropriate methods for V&V.
+        This toolkit deliberately de-emphasizes the 2-Sample T-Test to guide users toward more robust and appropriate methods for V&V.
         -   **Focus on Superior Methods:** For comparing two groups, TOST and Wasserstein Distance are statistically superior and more appropriate for regulated environments.
         -   **Prevent Misapplication:** This steers users away from the common statistical fallacy of using a non-significant p-value to incorrectly claim equivalence.
         -   **Demonstrate Advanced Knowledge:** Choosing to implement TOST *instead of* a t-test demonstrates a deeper level of statistical maturity—understanding *which test is appropriate* for the question being asked.

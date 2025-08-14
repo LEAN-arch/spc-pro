@@ -3385,18 +3385,20 @@ def plot_multi_process_comparison(df_all, lsl, usl):
 # ==============================================================================
 @st.cache_data
 def plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist,
-                                 df_all=None, _tukey_results=None, data_list=None):
+                                 is_multi_process_mode=False,
+                                 tukey_p_adj=None, tukey_group_pairs=None,
+                                 qq_data_list=None, line_names=None):
     """
     Generates a multi-panel dashboard for process comparison.
-    Handles 2-process visuals (PDF/CDF) and 3+ process visuals (Tukey HSD, Q-Q plots).
+    Accepts only simple, hashable data types for robust caching.
     """
-    if df_all is None: # Two-process mode
+    if not is_multi_process_mode: # Two-process mode
         fig = make_subplots(
             rows=2, cols=1, shared_xaxes=True,
             subplot_titles=("<b>1. Visual Evidence: Process Distributions (PDFs)</b>", "<b>2. Visual Evidence: Cumulative Distributions (CDFs)</b>"),
             vertical_spacing=0.1
         )
-        x_range = np.linspace(min(data_a.min(), data_b.min()) - 5, max(data_a.max(), data_b.max()) + 5, 400)
+        x_range = np.linspace(min(data_a) - 5, max(data_a) + 5, 400)
         kde_a, kde_b = stats.gaussian_kde(data_a), stats.gaussian_kde(data_b)
         fig.add_trace(go.Scatter(x=x_range, y=kde_a(x_range), fill='tozeroy', name='Site A (Reference)', line=dict(color=PRIMARY_COLOR)), row=1, col=1)
         fig.add_trace(go.Scatter(x=x_range, y=kde_b(x_range), fill='tozeroy', name='Site B (New)', line=dict(color=SUCCESS_GREEN), opacity=0.7), row=1, col=1)
@@ -3421,32 +3423,24 @@ def plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist,
             subplot_titles=("<b>ANOVA Post-Hoc: Tukey's HSD</b>", "<b>Distributional Diagnostics: Q-Q Plots</b>")
         )
         # Plot 1: Tukey's HSD
-        # --- FIX: Use the underscored variable name ---
-        tukey_df = pd.DataFrame(data=_tukey_results._results_table.data[1:], columns=_tukey_results._results_table.data[0])
-        # --- END FIX ---
-        tukey_df = tukey_df.sort_values(by='p-adj')
-        colors = ['#EF553B' if p < 0.05 else SUCCESS_GREEN for p in tukey_df['p-adj']]
+        colors = ['#EF553B' if p < 0.05 else SUCCESS_GREEN for p in tukey_p_adj]
         fig.add_trace(go.Bar(
-            x=tukey_df['p-adj'],
-            y=[f"{g1}-{g2}" for g1, g2 in zip(tukey_df['group1'], tukey_df['group2'])],
-            orientation='h', marker_color=colors,
-            text=[f"p={p:.3f}" for p in tukey_df['p-adj']],
-            textposition='auto'
+            x=tukey_p_adj, y=tukey_group_pairs, orientation='h', marker_color=colors,
+            text=[f"p={p:.3f}" for p in tukey_p_adj], textposition='auto'
         ), row=1, col=1)
         fig.add_vline(x=0.05, line_dash="dash", line_color="red", row=1, col=1, annotation_text="p=0.05")
         fig.update_xaxes(title_text="Adjusted p-value", range=[0,1], row=1, col=1)
         fig.update_yaxes(title_text="Pairwise Comparison", categoryorder='total ascending', row=1, col=1)
         
         # Plot 2: Q-Q Plots
-        line_names = df_all['Line'].unique()
-        qq_a_sorted = np.sort(data_list[0])
+        qq_a_sorted = np.sort(qq_data_list[0])
         for i in range(1, len(line_names)):
-            qq_b_sorted = np.sort(data_list[i])
-            # Interpolate to match lengths for plotting
+            qq_b_sorted = np.sort(qq_data_list[i])
             interp_func = np.interp(np.linspace(0, 1, len(qq_a_sorted)), np.linspace(0, 1, len(qq_b_sorted)), qq_b_sorted)
             fig.add_trace(go.Scatter(x=qq_a_sorted, y=interp_func, mode='markers', name=f'{line_names[i]} vs. {line_names[0]}'), row=1, col=2)
         
-        min_val = df_all['value'].min(); max_val = df_all['value'].max()
+        all_qq_data = np.concatenate(qq_data_list)
+        min_val, max_val = all_qq_data.min(), all_qq_data.max()
         fig.add_shape(type='line', x0=min_val, y0=min_val, x1=max_val, y1=max_val, line=dict(color='red', dash='dash'), row=1, col=2)
         fig.update_xaxes(title_text=f"Quantiles of Reference ({line_names[0]})", row=1, col=2)
         fig.update_yaxes(title_text="Quantiles of Comparison Lines", scaleanchor="x2", scaleratio=1, row=1, col=2)
@@ -9899,8 +9893,8 @@ def render_comparability_suite():
 
     with st.sidebar:
         st.subheader("Two-Process Scenario Gadgets")
-        mean_shift_b = st.slider( "Mean Shift at Site B", -5.0, 5.0, 0.0, 0.25, help="Simulates a systematic bias or shift in the process average at Site B.")
-        variance_change_b = st.slider( "Variance Change Factor at Site B", 0.5, 2.0, 1.0, 0.05, help="Simulates a change in process precision at Site B. >1.0 is more variable.")
+        mean_shift_b = st.slider("Mean Shift at Site B", -5.0, 5.0, 0.0, 0.25, help="Simulates a systematic bias or shift in the process average at Site B.")
+        variance_change_b = st.slider("Variance Change Factor at Site B", 0.5, 2.0, 1.0, 0.05, help="Simulates a change in process precision at Site B. >1.0 is more variable.")
         
         st.subheader("Multi-Process Scenario Gadget")
         multi_process_scenario = st.radio(
@@ -9910,8 +9904,8 @@ def render_comparability_suite():
         )
 
         st.subheader("Equivalence Criteria")
-        tost_margin = st.slider( "TOST Equivalence Margin (Δ)", 0.5, 5.0, 2.0, 0.1, help="The 'goalposts' for the TOST test for means.")
-        wasserstein_threshold = st.slider( "Wasserstein Equivalence Threshold", 0.5, 5.0, 1.5, 0.1, help="The allowance for the Wasserstein test for distributions.")
+        tost_margin = st.slider("TOST Equivalence Margin (Δ)", 0.5, 5.0, 2.0, 0.1, help="The 'goalposts' for the TOST test for means.")
+        wasserstein_threshold = st.slider("Wasserstein Equivalence Threshold", 0.5, 5.0, 1.5, 0.1, help="The allowance for the Wasserstein test for distributions.")
 
     # --- Data Generation & Analysis for TWO Processes ---
     np.random.seed(42)
@@ -9934,36 +9928,30 @@ def render_comparability_suite():
     st.markdown("This dashboard compares two processes (e.g., a sending site vs. a receiving site).")
     
     col_plots, col_verdicts = st.columns([0.6, 0.4])
-
     with col_plots:
         st.subheader("Visual Evidence")
         fig_visuals = plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist)
         st.plotly_chart(fig_visuals, use_container_width=True)
-
     with col_verdicts:
         st.subheader("Statistical Verdict Panel")
-        
         with st.container(border=True):
             st.markdown("##### **Test 1:** Are the Means Different?")
             st.metric(label="t-test Result", value=f"p = {ttest_p:.3f}")
             if ttest_p < 0.05: st.error("❌ **Verdict:** The means are statistically different.")
             else: st.success("✅ **Verdict:** No evidence of a difference in means.")
             st.caption("Tests H₀: Mean A = Mean B")
-
         with st.container(border=True):
             st.markdown("##### **Test 2:** Are the Means the Same?")
             st.metric(label="TOST Result", value="Equivalent" if tost_is_equivalent else "Not Equivalent")
             if tost_is_equivalent: st.success("✅ **Verdict:** The means are statistically equivalent.")
             else: st.error("❌ **Verdict:** We cannot conclude the means are equivalent.")
             st.caption(f"Tests if 90% CI [{tost_ci[0]:.2f}, {tost_ci[1]:.2f}] is inside ±{tost_margin}")
-
         with st.container(border=True):
             st.markdown("##### **Test 3:** Are the Fingerprints the Same?")
             st.metric(label="Wasserstein Result", value=f"Distance = {wasserstein_dist:.2f}", help=f"Threshold for equivalence is < {wasserstein_threshold}")
             if wasserstein_is_equivalent: st.success("✅ **Verdict:** The distributions are statistically equivalent.")
             else: st.error("❌ **Verdict:** The distributions are significantly different.")
             st.caption("Compares entire process shape, not just the mean.")
-    
     st.divider()
 
     # --- Section for Three Processes ---
@@ -10014,7 +10002,22 @@ def render_comparability_suite():
     if anova_result.pvalue < 0.05:
         st.subheader("ANOVA Post-Hoc Analysis: Diagnosing the Difference")
         st.markdown("Since the ANOVA test was significant (p < 0.05), we must now investigate *which specific lines* are different from each other. The **Tukey's HSD** test performs all pairwise comparisons while the **Q-Q Plots** help visualize how the distributions differ in shape.")
-        fig_posthoc = plot_comparability_dashboard(None, None, lsl, usl, None, df_all=df_all, tukey_results=tukey_results, data_list=data_list)
+        
+        # --- ROBUST FIX: Extract simple data from the complex tukey_results object ---
+        tukey_df_simple = pd.DataFrame(data=tukey_results._results_table.data[1:], columns=tukey_results._results_table.data[0])
+        tukey_df_simple = tukey_df_simple.sort_values(by='p-adj')
+        tukey_p_adj_list = tukey_df_simple['p-adj'].tolist()
+        tukey_pairs_list = [f"{g1}-{g2}" for g1, g2 in zip(tukey_df_simple['group1'], tukey_df_simple['group2'])]
+        # --- END OF FIX ---
+
+        fig_posthoc = plot_comparability_dashboard(
+            data_a=None, data_b=None, lsl=lsl, usl=usl, wasserstein_dist=None,
+            is_multi_process_mode=True,
+            tukey_p_adj=tukey_p_adj_list,
+            tukey_group_pairs=tukey_pairs_list,
+            qq_data_list=[d.tolist() for d in data_list], # Convert pandas Series to simple lists
+            line_names=df_all['Line'].unique().tolist()
+        )
         st.plotly_chart(fig_posthoc, use_container_width=True)
 
     st.divider()

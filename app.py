@@ -12653,7 +12653,7 @@ else:
         "Advanced Stability Design": render_stability_design,
         "Method Comparison": render_method_comparison,
         "Equivalence Testing (TOST)": render_tost,
-        "Wasserstein Distance": lambda: render_wasserstein_distance(plots),
+        "Wasserstein Distance": render_wasserstein_distance,
         "Process & Method Comparability Suite": render_comparability_suite,
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,
@@ -12685,10 +12685,20 @@ else:
         "PSO + Autoencoder": render_pso_autoencoder,
     }
     
-    # --- FIX: This block is now correctly indented to be at the same level as the PAGE_DISPATCHER dictionary ---
-    if view in PAGE_DISPATCHER:
-        PAGE_DISPATCHER[view]()
-    else:
+if view in PAGE_DISPATCHER:
+    # Get the function object from the dispatcher
+    render_function = PAGE_DISPATCHER[view]
+    
+    # Call the function, passing all necessary engine components
+    # The render function will only use the ones it needs.
+    render_function(
+        plots=plots, 
+        active_df=filtered_active_df, 
+        data_engine=data_engine, 
+        reporter=reporter
+    )
+else:
+    # Default back to introduction if a view is not found
+    if view != 'Introduction':
         st.error("Error: Could not find the selected tool to render.")
-        st.session_state.current_view = 'Introduction'
-        st.rerun()
+    render_introduction_content(plots=plots, active_df=filtered_active_df, data_engine=data_engine, reporter=reporter)

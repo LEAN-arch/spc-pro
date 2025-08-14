@@ -18,13 +18,19 @@ import statsmodels.api as sm
 from statsmodels.formula.api import ols
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from statsmodels.tsa.arima.model import ARIMA
+# --- NEW IMPORTS FOR FORECASTING SUITE ---
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.tsa.api import ETSModel
+from tbats import TBATS
+# --- END NEW IMPORTS ---
 from prophet import Prophet
 from sklearn.metrics import silhouette_score 
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.cluster import KMeans
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, mean_absolute_error
 from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA
 from sklearn.inspection import PartialDependenceDisplay
@@ -322,7 +328,7 @@ def plot_act_grouped_timeline():
         {'name': 'Multivariate SPC', 'act': 3, 'year': 1931, 'inventor': 'Harold Hotelling', 'desc': 'Hotelling develops the multivariate analog to the t-test.'},
         {'name': 'Stability Analysis (Shelf-Life)', 'act': 3, 'year': 1993, 'inventor': 'ICH', 'desc': 'ICH guidelines formalize statistical shelf-life estimation.'},
         {'name': 'Reliability / Survival Analysis', 'act': 3, 'year': 1958, 'inventor': 'Kaplan & Meier', 'desc': 'Kaplan-Meier estimator for time-to-event data.'},
-        {'name': 'Time Series Analysis', 'act': 3, 'year': 1970, 'inventor': 'Box & Jenkins', 'desc': 'Box & Jenkins publish their seminal work on ARIMA models.'},
+        {'name': 'Time Series Forecasting Suite', 'act': 3, 'year': 1970, 'inventor': 'Box/Jenkins', 'desc': 'A suite of models (Holt-Winters, SARIMA, Prophet) for forecasting.'},
         {'name': 'Multivariate Analysis (MVA)', 'act': 3, 'year': 1975, 'inventor': 'Herman Wold', 'desc': 'Partial Least Squares for modeling complex process data.'},
         {'name': 'Predictive QC (Classification)', 'act': 3, 'year': 1958, 'inventor': 'David Cox', 'desc': 'Cox develops Logistic Regression for binary outcomes.'},
         {'name': 'Explainable AI (XAI)', 'act': 3, 'year': 2017, 'inventor': 'Lundberg et al.', 'desc': 'Methods like SHAP to open the AI "black box".'},
@@ -421,7 +427,7 @@ def plot_chronological_timeline():
         {'name': 'Kalman Filter + Residual Chart', 'year': 1960, 'inventor': 'Rudolf E. Kálmán', 'reason': 'The Apollo program needed a way to navigate to the moon using noisy sensor data, requiring optimal state estimation.'},
         {'name': 'LOD & LOQ', 'year': 1968, 'inventor': 'Lloyd Currie (NIST)', 'reason': 'To create a harmonized, statistically rigorous framework for defining the sensitivity of analytical methods.'},
         {'name': 'FAT & SAT', 'year': 1970, 'inventor': 'Good Engineering Practice', 'reason': 'To de-risk large capital projects by finding issues at the factory, not the final site.'},
-        {'name': 'Time Series Analysis', 'year': 1970, 'inventor': 'Box & Jenkins', 'reason': 'To provide a comprehensive statistical methodology for forecasting and control in industrial and economic processes.'},
+        {'name': 'Time Series Forecasting Suite', 'year': 1970, 'inventor': 'Box & Jenkins', 'reason': 'To provide a comprehensive statistical methodology for forecasting and control in industrial and economic processes.'},
         {'name': 'Multivariate Analysis (MVA)', 'year': 1975, 'inventor': 'Herman Wold', 'reason': 'To model "data-rich but theory-poor" systems in social science, later adapted for chemometrics.'},
         {'name': 'Core Validation Parameters', 'year': 1980, 'inventor': 'ICH / FDA', 'reason': 'Globalization of the pharmaceutical industry required harmonized standards for drug approval.'},
         {'name': 'Requirements Traceability Matrix', 'year': 1980, 'inventor': 'Systems Engineering', 'reason': 'To manage complexity in large-scale projects, ensuring all requirements are built and tested.'},
@@ -503,7 +509,7 @@ def create_toolkit_conceptual_map():
         'Validation & Qualification': ['Process Capability (Cpk)', 'Tolerance Intervals', 'Reliability / Survival Analysis', 'Stability Analysis (Shelf-Life)', 'Sample Size for Qualification', 'Statistical Equivalence for Process Transfer', 'Advanced Stability Design', 'First Time Yield & Cost of Quality'],
         'Predictive Modeling': ['Linearity & Range', 'Non-Linear Regression (4PL/5PL)', 'Multivariate Analysis (MVA)', 'Predictive QC (Classification)', 'Explainable AI (XAI)'],
         'Unsupervised Learning': ['Clustering (Unsupervised)', 'Anomaly Detection', 'LSTM Autoencoder', 'PSO + Autoencoder'],
-        'Time Series & Sequential': ['Time Series Analysis', 'BOCPD + ML Features', 'Kalman Filter + Residual Chart', 'TCN + CUSUM', 'RL for Chart Tuning', 'Advanced AI Concepts']
+        'Time Series & Sequential': ['Time Series Forecasting Suite', 'BOCPD + ML Features', 'Kalman Filter + Residual Chart', 'TCN + CUSUM', 'RL for Chart Tuning', 'Advanced AI Concepts']
     }
     tool_origins = {
         'TPP & CQA Cascade': 'Biostatistics', 'Analytical Target Profile (ATP) Builder': 'Biostatistics', 'Quality Risk Management (QRM) Suite': 'Industrial Quality Control', 
@@ -516,7 +522,7 @@ def create_toolkit_conceptual_map():
         'Process Capability (Cpk)': 'Industrial Quality Control', 'Tolerance Intervals': 'Statistics', 'Reliability / Survival Analysis': 'Biostatistics', 'Stability Analysis (Shelf-Life)': 'Biostatistics', 'Sample Size for Qualification': 'Industrial Quality Control', 'Statistical Equivalence for Process Transfer': 'Biostatistics', 'Advanced Stability Design': 'Biostatistics', 'First Time Yield & Cost of Quality': 'Industrial Quality Control',
         'Linearity & Range': 'Statistics', 'Non-Linear Regression (4PL/5PL)': 'Biostatistics', 'Multivariate Analysis (MVA)': 'Data Science / ML', 'Predictive QC (Classification)': 'Data Science / ML', 'Explainable AI (XAI)': 'Data Science / ML',
         'Clustering (Unsupervised)': 'Data Science / ML', 'Anomaly Detection': 'Data Science / ML', 'LSTM Autoencoder': 'Data Science / ML', 'PSO + Autoencoder': 'Data Science / ML',
-        'Time Series Analysis': 'Statistics', 'BOCPD + ML Features': 'Data Science / ML', 'Kalman Filter + Residual Chart': 'Statistics', 'TCN + CUSUM': 'Data Science / ML', 'RL for Chart Tuning': 'Data Science / ML', 'Advanced AI Concepts': 'Data Science / ML'
+        'Time Series Forecasting Suite': 'Statistics', 'BOCPD + ML Features': 'Data Science / ML', 'Kalman Filter + Residual Chart': 'Statistics', 'TCN + CUSUM': 'Data Science / ML', 'RL for Chart Tuning': 'Data Science / ML', 'Advanced AI Concepts': 'Data Science / ML'
     }
     origin_colors = {'Statistics': '#1f77b4', 'Biostatistics': '#2ca02c', 'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728', 'Structure': '#6A5ACD'}
 
@@ -4324,99 +4330,120 @@ def plot_ewma_cusum_comparison(shift_size=0.75, scenario='Sudden Shift'):
 # HELPER & PLOTTING FUNCTION (Time Series) - SME ENHANCED
 # ==============================================================================
 @st.cache_data
-def plot_time_series_analysis(trend_strength=10, noise_sd=2, changepoint_strength=0.0):
+def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoint_strength):
     """
-    Generates an enhanced, more realistic time series dashboard, including a changepoint
-    scenario, forecast intervals, and essential ARIMA diagnostics (residuals, ACF).
+    Generates a dynamic time series and fits five different forecasting models to it.
     """
     np.random.seed(42)
-    periods = 104
-    changepoint_loc = 60 # Location of the trend changepoint
-    dates = pd.date_range(start='2020-01-01', periods=periods, freq='W')
+    periods = 156 # 3 years of weekly data
+    n_forecast = 26 # Forecast 6 months
+    dates = pd.date_range(start='2021-01-01', periods=periods, freq='W')
     
-    # --- Dynamic Data Generation with Changepoint ---
-    trend1 = np.linspace(50, 50 + trend_strength, changepoint_loc)
-    end_val = trend1[-1]
-    trend2 = np.linspace(end_val, end_val + (trend_strength + changepoint_strength), periods - changepoint_loc)
-    trend = np.concatenate([trend1, trend2])
+    # 1. Generate Data
+    # Trend
+    if trend_type == 'Multiplicative':
+        trend = 100 * np.exp(np.arange(periods) * 0.01)
+    else: # Additive
+        trend = 100 + 0.5 * np.arange(periods)
     
-    seasonality = 5 * np.sin(np.arange(periods) * (2*np.pi/52.14))
-    noise = np.random.normal(0, noise_sd, periods)
-    
+    # Seasonality
+    seasonality = np.zeros(periods)
+    if seasonality_type == 'Single (Yearly)':
+        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / 52))
+    elif seasonality_type == 'Multiple (Yearly + Quarterly)':
+        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / 52)) + 7 * np.sin(np.arange(periods) * (2 * np.pi / 13))
+
+    # Changepoint
+    changepoint_loc = 104
+    trend[changepoint_loc:] += changepoint_strength * np.arange(periods - changepoint_loc)
+        
+    # Noise
+    noise = np.random.normal(0, noise_level, periods)
     y = trend + seasonality + noise
+    
     df = pd.DataFrame({'ds': dates, 'y': y})
+    train, test = df.iloc[:-n_forecast], df.iloc[-n_forecast:]
     
-    train, test = df.iloc[:90], df.iloc[90:]
+    # 2. Fit Models & Forecast
+    forecasts = {}
+    mae_scores = {}
+    
+    # Holt-Winters
+    try:
+        hw_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
+        hw_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
+        hw = ExponentialSmoothing(train['y'], trend=hw_trend, seasonal=hw_seasonal, seasonal_periods=52).fit()
+        forecasts['Holt-Winters'] = hw.forecast(n_forecast)
+    except Exception:
+        forecasts['Holt-Winters'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # --- Re-fit models on the dynamic data ---
-    m_prophet = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False).fit(train)
-    future = m_prophet.make_future_dataframe(periods=14, freq='W')
-    fc_prophet = m_prophet.predict(future)
+    # SARIMA
+    try:
+        sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=(1,1,0,52)).fit(disp=False)
+        forecasts['SARIMA'] = sarima.get_forecast(steps=n_forecast).predicted_mean
+    except Exception:
+        forecasts['SARIMA'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    m_arima = ARIMA(train['y'], order=(5,1,0)).fit()
-    fc_arima = m_arima.get_forecast(steps=14).summary_frame(alpha=0.2) # 80% CI
+    # Prophet
+    try:
+        prophet_growth = 'logistic' if trend_type == 'Multiplicative' else 'linear'
+        if prophet_growth == 'logistic':
+            train_prophet = train.copy()
+            train_prophet['cap'] = train_prophet['y'].max() * 1.5
+        else:
+            train_prophet = train
+        
+        m_prophet = Prophet(growth=prophet_growth).fit(train_prophet)
+        
+        future = m_prophet.make_future_dataframe(periods=n_forecast, freq='W')
+        if prophet_growth == 'logistic':
+            future['cap'] = train_prophet['cap'][0]
+            
+        fc_prophet = m_prophet.predict(future)
+        forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
+    except Exception:
+        forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+        
+    # ETS
+    try:
+        ets_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
+        ets_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
+        ets = ETSModel(train['y'], error="add", trend=ets_trend, seasonal=ets_seasonal, seasonal_periods=52).fit()
+        forecasts['ETS'] = ets.forecast(n_forecast)
+    except Exception:
+        forecasts['ETS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # --- Dynamic KPI Calculation (Mean Absolute Error) ---
-    mae_prophet = np.mean(np.abs(fc_prophet['yhat'].iloc[-14:].values - test['y'].values))
-    mae_arima = np.mean(np.abs(fc_arima['mean'].values - test['y'].values))
-    
-    # --- ARIMA Diagnostics ---
-    from statsmodels.graphics.tsaplots import plot_acf
-    residuals_arima = m_arima.resid
-    
-    # --- Plotting Dashboard ---
-    fig = make_subplots(
-        rows=2, cols=2,
-        specs=[[{"colspan": 2}, None], [{}, {}]],
-        subplot_titles=("<b>1. Forecast vs. Actual Data</b>",
-                        "<b>2. ARIMA Residuals Over Time</b>", "<b>3. ARIMA Residuals ACF Plot</b>"),
-        vertical_spacing=0.2
-    )
-    
-    # Plot 1: Main Forecast
-    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')), row=1, col=1)
-    fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat_upper'], mode='lines', line=dict(width=0), showlegend=False), row=1, col=1)
-    fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat_lower'], mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(255,0,0,0.1)', name='Prophet 80% CI'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean_ci_upper'], mode='lines', line=dict(width=0), showlegend=False), row=1, col=1)
-    fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean_ci_lower'], mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(0,128,0,0.1)', name='ARIMA 80% CI'), row=1, col=1)
-    
-    fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat'], mode='lines', name='Prophet Forecast', line=dict(dash='dash', color='red')), row=1, col=1)
-    fig.add_trace(go.Scatter(x=test['ds'], y=fc_arima['mean'], mode='lines', name='ARIMA Forecast', line=dict(dash='dash', color='green')), row=1, col=1)
-    
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # Draw the vertical lines WITHOUT annotation text first.
-    forecast_start_date = train['ds'].iloc[-1]
-    changepoint_date = df['ds'][changepoint_loc]
-    fig.add_vline(x=forecast_start_date, line_width=2, line_dash="dash", line_color="grey")
-    fig.add_vline(x=changepoint_date, line_width=2, line_dash="dot", line_color="purple")
-    
-    # Now, add the annotations separately using fig.add_annotation for full control.
-    fig.add_annotation(x=forecast_start_date, y=0.05, yref="paper", text="Forecast Start",
-                       showarrow=False, xshift=10, font=dict(color="grey"))
-    fig.add_annotation(x=changepoint_date, y=0.95, yref="paper", text="Trend Changepoint",
-                       showarrow=False, xshift=-10, font=dict(color="purple"))
-    # --- END OF CORRECTION ---
+    # TBATS
+    try:
+        seasonal_periods = []
+        if seasonality_type == 'Single (Yearly)':
+            seasonal_periods = [52]
+        elif seasonality_type == 'Multiple (Yearly + Quarterly)':
+            seasonal_periods = [52, 13]
+            
+        estimator = TBATS(seasonal_periods=seasonal_periods, use_trend=True)
+        fitted_model = estimator.fit(train['y'])
+        forecasts['TBATS'] = fitted_model.forecast(steps=n_forecast)
+    except Exception:
+        forecasts['TBATS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # Plot 2: ARIMA Residuals
-    fig.add_trace(go.Scatter(x=train['ds'][1:], y=residuals_arima[1:], mode='lines', name='Residuals'), row=2, col=1)
-    fig.add_hline(y=0, line_dash='dash', line_color='black', row=2, col=1)
+    # 3. Calculate MAE and Plot
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')))
+    fig.add_vline(x=train['ds'].iloc[-1], line_dash="dash", line_color="grey", annotation_text="Forecast Start")
 
-    # Plot 3: ARIMA ACF
-    acf_vals = sm.tsa.acf(residuals_arima, nlags=20)
-    fig.add_trace(go.Bar(x=np.arange(1, 21), y=acf_vals[1:], name='ACF'), row=2, col=2)
-    fig.add_shape(type='line', x0=0.5, x1=20.5, y0=1.96/np.sqrt(len(residuals_arima)), y1=1.96/np.sqrt(len(residuals_arima)), line=dict(color='red', dash='dash'), row=2, col=2)
-    fig.add_shape(type='line', x0=0.5, x1=20.5, y0=-1.96/np.sqrt(len(residuals_arima)), y1=-1.96/np.sqrt(len(residuals_arima)), line=dict(color='red', dash='dash'), row=2, col=2)
+    colors = px.colors.qualitative.Plotly
+    for i, (name, fc) in enumerate(forecasts.items()):
+        fc_series = pd.Series(fc, index=test['ds'])
+        if not fc_series.isna().all() and len(fc_series) == len(test['y']):
+            mae_scores[name] = mean_absolute_error(test['y'], fc_series)
+            fig.add_trace(go.Scatter(x=test['ds'], y=fc_series, mode='lines', name=name, line=dict(dash='dot', color=colors[i])))
+            
+    fig.update_layout(title="<b>Competitive Forecasts vs. Actual Data</b>", xaxis_title="Date", yaxis_title="Value",
+                      legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    
+    return fig, mae_scores
 
-    fig.update_layout(height=800, title_text='<b>Time Series Forecasting & Diagnostics Dashboard</b>',
-                      legend=dict(yanchor="top", y=0.98, xanchor="left", x=0.01))
-    fig.update_xaxes(title_text="Date", row=1, col=1)
-    fig.update_yaxes(title_text="Process Value", row=1, col=1)
-    fig.update_xaxes(title_text="Date", row=2, col=1)
-    fig.update_yaxes(title_text="Residual Value", row=2, col=1)
-    fig.update_xaxes(title_text="Lag", row=2, col=2)
-    fig.update_yaxes(title_text="Autocorrelation", row=2, col=2)
-                      
-    return fig, mae_arima, mae_prophet
 
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Stability Analysis) - SME ENHANCED
@@ -11396,110 +11423,228 @@ The core principle of survival analysis is that censored data is not missing dat
             - **ICH Q1E:** The principles can also be applied to stability data to model the "time to Out-of-Specification (OOS)" event.
             """)
 #======================================================================== 7. TIME SERIES ANALYSIS ACT III ============================================================================
-def render_time_series_analysis():
-    """Renders the module for Time Series analysis."""
+# ==============================================================================
+# UI RENDERING FUNCTION (Time Series Forecasting Suite) - COMPLETE SME VERSION
+# ==============================================================================
+def render_time_series_suite():
+    """Renders the comprehensive, interactive module for the Time Series Forecasting Suite."""
     st.markdown("""
-    #### Purpose & Application: The Watchmaker vs. The Smartwatch
-    **Purpose:** To model and forecast time-dependent data by understanding its internal structure, such as trend, seasonality, and autocorrelation. This module compares two powerful philosophies for this task.
+    #### Purpose & Application: The Modern Forecaster's Toolkit
+    **Purpose:** To compare and contrast a suite of powerful time series forecasting models, from classical statistical methods to modern automated libraries. This tool demonstrates that there is no single "best" model; the optimal choice depends entirely on the underlying structure of your data.
     
-    **Strategic Application:** This is fundamental for demand forecasting, resource planning, and proactive process monitoring.
-    - **⌚ ARIMA (The Classical Watchmaker):** A powerful "white-box" model. Like a master watchmaker, you must understand every gear, but you get a highly interpretable model that excels at short-term forecasting of stable processes.
-    - **📱 Prophet (The Modern Smartwatch):** A modern, automated tool from Meta. It is designed to handle complex seasonalities, holidays, and changing trends with minimal user input, making it ideal for forecasting at scale.
+    **Strategic Application:** This dashboard serves as a decision-making and training tool for anyone involved in demand planning, resource forecasting, or process monitoring. It allows you to simulate different real-world data scenarios (e.g., a sudden trend change, multiple seasonalities) and instantly see which forecasting model performs best, providing a clear rationale for your choice of tool.
     """)
-    
     st.info("""
-    **Interactive Demo:** Use the sliders to change the underlying structure of the time series data. 
-    - **`Trend Changepoint`**: Introduce an abrupt change in the trend's slope. Notice how Prophet (red) adapts more easily than the rigid ARIMA model (green).
-    - **`Random Noise`**: Observe how forecasting becomes more difficult and forecast intervals widen as the data gets noisier.
-    - **Check the `ACF Plot`**: A good ARIMA model should have no significant bars outside the red lines, indicating the residuals are random noise.
+    **Interactive Demo:** Use the sidebar controls to create different forecasting challenges.
+    - Set **Seasonality** to `Multiple` to see where Prophet and TBATS shine.
+    - Add a **Trend Changepoint** to challenge the more rigid classical models.
+    - The KPI metrics will update to show the **Mean Absolute Error (MAE)** for each model, with the winner highlighted.
     """)
-
     with st.sidebar:
-        st.sidebar.subheader("Time Series Controls")
-        trend_slider = st.sidebar.slider("📈 Trend Strength", 0, 50, 10, 5)
-        noise_slider = st.sidebar.slider("🎲 Random Noise (SD)", 0.5, 10.0, 2.0, 0.5)
-        # --- NEW SLIDER ADDED HERE ---
-        changepoint_slider = st.sidebar.slider("🔄 Trend Changepoint Strength", -50.0, 50.0, 0.0, 5.0,
-            help="Controls the magnitude of an abrupt change in the trend's slope halfway through the data. Prophet is designed to handle this well.")
-    
-    fig, mae_arima, mae_prophet = plot_time_series_analysis(
-        trend_strength=trend_slider,
-        noise_sd=noise_slider,
-        changepoint_strength=changepoint_slider
-    )
-    
-    col1, col2 = st.columns([0.7, 0.3])
+        st.subheader("Time Series Data Controls")
+        trend_type = st.radio("Trend Type", ['Additive', 'Multiplicative'], help="Additive: linear growth. Multiplicative: exponential growth.")
+        seasonality_type = st.radio("Seasonality Type", ['None', 'Single (Yearly)', 'Multiple (Yearly + Quarterly)'])
+        noise_level = st.slider("Noise Level (SD)", 1.0, 20.0, 5.0, 1.0)
+        changepoint_strength = st.slider("Trend Changepoint Strength", -5.0, 5.0, 0.0, 0.5, help="Simulates an abrupt change in the trend's slope 2/3 of the way through the data.")
+
+    fig, mae_scores = plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoint_strength)
+
+    st.header("Forecasting Suite Dashboard")
+    col1, col2 = st.columns([0.65, 0.35])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
-        
     with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        st.subheader("Model Performance (MAE)")
+        st.markdown("Lower Mean Absolute Error (MAE) is better.")
         
-        with tabs[0]:
-            st.metric(label="⌚ ARIMA Forecast Error (MAE)", value=f"{mae_arima:.2f} units")
-            st.metric(label="📱 Prophet Forecast Error (MAE)", value=f"{mae_prophet:.2f} units")
-
-            st.markdown("""
-            **Reading the Dashboard:**
-            - **1. Main Forecast:** This plot shows the historical data and the two competing forecasts, including their 80% confidence intervals.
-            - **2. ARIMA Residuals:** These are the one-step-ahead forecast errors from the ARIMA model. For a good model, this plot should look like random white noise with no discernible pattern.
-            - **3. ARIMA Residuals ACF:** The Autocorrelation Function plot is the key diagnostic. It shows the correlation of the residuals with their own past values. **If any bars go outside the red significance lines, it means there is still predictable structure in the errors that the model has failed to capture.**
-
-            **The Core Strategic Insight:** Prophet's main advantage is its automatic flexibility. Introduce a large **Trend Changepoint**, and watch Prophet's forecast adjust while the linear-trending ARIMA model fails to adapt, resulting in a much higher forecast error.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Time Series Terms
-            - **Time Series:** A sequence of data points indexed in time order.
-            - **Trend:** The long-term direction of the series (e.g., increasing, decreasing, or flat).
-            - **Seasonality:** A distinct, repeating pattern in the data that occurs at regular intervals (e.g., daily, weekly, yearly).
-            - **ARIMA (AutoRegressive Integrated Moving Average):** A class of statistical models for analyzing and forecasting time series data. It models the relationships between an observation and its own past values and past forecast errors.
-            - **Prophet:** A forecasting procedure developed by Facebook. It is an additive model that fits non-linear trends with yearly, weekly, and daily seasonality, plus holiday effects.
-            - **ACF (Autocorrelation Function):** A plot that shows the correlation of a time series with its own past values (lags). It is a key tool for diagnosing the fit of an ARIMA model.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "Blind Forecasting" Fallacy**
-An analyst takes a column of data, feeds it into `model.fit()` and `model.predict()`, and presents the resulting line without checking the diagnostics.
-- **The Flaw:** They've made no attempt to validate the model's assumptions. The residuals might show a clear pattern or the ACF plot might have significant lags, proving the model is wrong. This "black box" approach produces a forecast that is fragile and untrustworthy.""")
-            st.success("""🟢 **THE GOLDEN RULE: Decompose, Validate, and Monitor**
-A robust forecasting process is disciplined and applies regardless of the model you use.
-1.  **Decompose and Understand:** Before modeling, visualize the data to understand its trend, seasonality, and any changepoints.
-2.  **Fit and Diagnose:** After fitting a model, **always** analyze its residuals. The residuals must look like random noise. The ACF plot of the residuals is the statistical proof of this.
-3.  **Validate on a Test Set:** The model's true performance is only revealed when it is tested on data it has never seen before.""")
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: Two Cultures of Forecasting
-            **The Problem (The Classical Era):** Before the 1970s, forecasting was often an ad-hoc affair. There was no single, rigorous methodology that combined modeling, estimation, and validation into a coherent whole. 
-
-            **The 'Aha!' Moment (ARIMA):** In their seminal 1970 book *Time Series Analysis: Forecasting and Control*, statisticians **George Box** and **Gwilym Jenkins** changed everything. They provided a comprehensive, step-by-step methodology for time series modeling. The **Box-Jenkins method**—a rigorous process of model identification (using ACF/PACF plots), parameter estimation, and diagnostic checking—became the undisputed gold standard for decades. The ARIMA model is the heart of this methodology, a testament to deep statistical theory.
-
-            **The Problem (The Modern Era):** Fast forward to the 2010s. **Facebook** faced a new kind of challenge: thousands of internal analysts, not all of them statisticians, needed to generate high-quality forecasts for business metrics at scale. The manual, expert-driven Box-Jenkins method was too slow and complex for this environment.
+        if mae_scores:
+            best_model = min(mae_scores, key=mae_scores.get)
+            for name, score in sorted(mae_scores.items(), key=lambda item: item[1]):
+                st.markdown(f"**{name}:** `{score:.2f}` {'🥇' if name == best_model else ''}")
+        else:
+            st.warning("No models could be successfully fitted to the data.")
             
-            **The 'Aha!' Moment (Prophet):** In 2017, their Core Data Science team released **Prophet**. It was designed from the ground up for automation, performance, and intuitive tuning. Its key insight was to treat forecasting as a curve-fitting problem, making it robust to missing data and shifts in trend, and allowing analysts to easily incorporate domain knowledge like holidays. It sacrificed some of the statistical purity of ARIMA for massive gains in usability and scale.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("- **ARIMA (AutoRegressive Integrated Moving Average):** A linear model that explains a series based on its own past.")
-            st.latex(r"Y'_t = \sum_{i=1}^{p} \phi_i Y'_{t-i} + \sum_{j=1}^{q} \theta_j \epsilon_{t-j} + \epsilon_t")
-            st.markdown("""
-              - **AR (p):** The model uses the relationship between an observation `Y'` and its own `p` past values.
-              - **I (d):** `Y'` is the series after being **d**ifferenced `d` times to make it stationary.
-              - **MA (q):** The model uses the relationship between an observation and the residual errors `ε` from its `q` past forecasts.
-            """)
-            st.markdown("- **Prophet:** A decomposable additive model.")
-            st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
-            st.markdown(r"""
-            Where `g(t)` is a saturating growth trend with automatic changepoint detection, `s(t)` models complex seasonality using Fourier series, `h(t)` is for holidays, and `ε` is the error.
-            """)
-        with tabs[4]:
-            st.markdown("""
-            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
+    st.divider()
+    st.subheader("Deeper Dive: Model Selection & Comparison")
+    
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "💡 Method Selection Map", "📊 Scoring Table", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+
+    with tabs[0]:
+        st.subheader("How to Interpret the Dashboard: A Guided Tour")
+        st.markdown("""
+        This interactive dashboard is a virtual laboratory for time series analysis. By manipulating the "ground truth" of the data in the sidebar, you can discover each model's unique strengths and weaknesses.
+
+        ##### The Main Plot: The Arena of Competition
+        The primary chart shows all five models competing to forecast the future (the period after the grey dashed line). The black line is the truth they are all trying to predict. The **Mean Absolute Error (MAE)** on the right is the final scorecard—the model with the lowest score is the winner for that specific scenario.
+
+        ---
+        ##### Challenge 1: The Multi-Seasonality Problem
+        1.  In the sidebar, set **Seasonality Type** to `Multiple (Yearly + Quarterly)`.
+        2.  **Observe:** Notice how the forecasts from **Prophet** and **TBATS** closely track the complex, bumpy seasonal pattern. The other models, which can only handle a single seasonality, produce a much smoother, less accurate forecast.
+        3.  **Conclusion:** The MAE scores will confirm that Prophet and TBATS are the superior models for this type of data. This is their primary superpower.
+
+        ---
+        ##### Challenge 2: The Trend Changepoint Problem
+        1.  Set **Seasonality Type** back to `Single (Yearly)`.
+        2.  In the sidebar, increase the **Trend Changepoint Strength** to a significant positive or negative value.
+        3.  **Observe:** The classical models like SARIMA and Holt-Winters struggle to adapt to the sudden change in the trend's slope after the changepoint. Their forecasts will continue on the old trajectory for too long. **Prophet**, which is specifically designed to detect and adapt to changepoints, will often produce a more accurate forecast.
+        4.  **Conclusion:** For business data where strategies or market conditions can change abruptly, Prophet's flexibility provides a significant advantage.
+        
+        ---
+        ##### The Core Strategic Insight
+        The most important takeaway is that **there is no universally "best" forecasting model**. The winner is determined by the data's underlying structure. A mature data science or V&V program doesn't have a favorite model; it has a **portfolio of models** and a disciplined process for selecting the right one for the job. This dashboard is designed to build that selection intuition.
+        """)
+
+    with tabs[1]:
+        st.subheader("From Reactive Firefighting to Proactive Control")
+        st.markdown("""
+        This section outlines the strategic business case for implementing a robust forecasting program within a manufacturing or quality control environment. It moves beyond the technical details to answer the critical question: "Why should we invest in this capability?"
+        
+        #### The Problem: Operating in the Dark
+        Without a formal forecasting capability, an organization is fundamentally reactive. It is "flying blind" and can only respond to events *after* they have occurred. Key decisions about production planning, inventory levels, and resource allocation are based on gut feelings, historical averages, or simple linear extrapolations, which are often wrong.
+        
+        #### The Impact of the Problem: A Cascade of Hidden Costs
+        This reactive state creates a cascade of tangible and intangible costs that are often misdiagnosed as "the cost of doing business":
+        - **Operational Inefficiency:** Overproduction of reagents leads to waste; underproduction leads to stock-outs and production delays. Staffing is misaligned with true workload, leading to periods of costly overtime followed by periods of idle time.
+        - **Supply Chain Instability:** Inability to accurately forecast demand for a product or consumption of raw materials leads to the "bullwhip effect," causing amplified supply disruptions and expedited shipping costs.
+        - **Quality & Compliance Risk:** A gradual, negative trend in a process parameter (like yield or purity) may go unnoticed for months. By the time it's detected, a lengthy, painful investigation is required, and significant amounts of at-risk product may have been produced, leading to deviations and potential regulatory scrutiny.
+        
+        #### The Solution: A Validated Forecasting Program
+        The solution is to implement a structured, multi-stage forecasting program that transforms data from a historical record into a forward-looking strategic asset.
+        1.  **Descriptive Phase (Understand the Past):** Use EDA and decomposition to understand the historical patterns, trends, and seasonalities in your key processes.
+        2.  **Predictive Phase (Forecast the Future):** Use a competitive suite of models (as shown in this dashboard) to create a statistically validated forecast for key parameters. This includes generating **prediction intervals**—a high-confidence "cone of uncertainty" where future values are expected to fall.
+        3.  **Prescriptive Phase (Drive Better Decisions):** The forecast becomes the basis for action. The prediction intervals can be used as **dynamic control limits** in a Continued Process Verification (CPV) program. A forecast of high future demand can trigger early raw material orders, preventing a future bottleneck.
+        
+        #### The Consequences: A Tale of Two Futures
+        The decision to implement or neglect a forecasting program has profound consequences for the business.
+
+        | Consequence | **❌ Without Forecasting (The Reactive World)** | **✅ With Forecasting (The Proactive World)** |
+        | :--- | :--- | :--- |
+        | **Culture** | Firefighting and crisis management. Decisions are based on anecdote and reaction. | Data-driven and strategic. Decisions are based on forward-looking evidence. |
+        | **Costs** | High hidden costs from scrap, rework, expedited freight, and unplanned downtime. | Optimized inventory and resource allocation. Minimized waste and operational delays. |
+        | **Compliance** | Frequent deviations from unexplained process drift. Lengthy, reactive root cause investigations. | Early warning of process drifts triggers proactive investigation, preventing deviations. Forecasts provide objective evidence for planning. |
+        | **Performance** | Unpredictable production schedules and chronic instability. | Stable, predictable process performance. Improved on-time delivery and supply chain reliability. |
+        """)
+
+    with tabs[2]:
+        st.markdown("""
+        ### Method Selection Map: A Strategic Decision Framework
+        Choosing your statistical weapon is the most critical decision in a forecasting study. This is not just a technical choice; it's a strategic one that impacts the reliability, interpretability, and scalability of your results. Use this guide to select and defend your approach based on the specific question you need to answer for your process or business.
+
+        | **Your Data's Primary Feature** | **Recommended Tool** | **Why? (Pros)** | **What to Watch Out For (Cons)** |
+        | :--- | :--- | :--- | :--- |
+        | **Clean, simple trend and single, regular seasonality.** | **Holt-Winters / ETS** | **The Craftsman:** Highly interpretable, fast, and robust for classic time series data. It directly models the components you can see, making it easy to explain. | **Single Seasonality Only:** Cannot handle multiple overlapping cycles (e.g., weekly and yearly). It's a specialist tool for a specific type of data. |
+        | **Strong autocorrelation; need for statistical rigor and defensibility.** | **SARIMA** | **The Watchmaker:** The gold standard for statistical formality. Excellent for short-term forecasts on stable processes where the "memory" of the process is important. Unbeatable for regulatory submissions that require deep statistical justification. | **Requires Expertise:** Difficult to tune the 7+ parameters correctly. The mandatory "stationarity" requirement means you're modeling changes, not absolute values, which can complicate interpretation for business stakeholders. |
+        | **Multiple seasonalities, holidays, trend changes, and messy data.** | **Prophet** | **The Smartwatch:** Highly automated, robust to messy data, and excels at fitting multiple seasonalities. Its intuitive parameters make it easy to incorporate domain knowledge (e.g., a planned shutdown). | **Less Statistically Formal:** It's a pragmatic engineering tool, not a rigorous statistical model. It can be a "black box" and may not capture complex autocorrelation structures as well as SARIMA. |
+        | **Multiple, complex, and non-integer seasonalities (e.g., 5.5-day cycles).** | **TBATS** | **The Music Producer:** The specialist for very complex seasonality. It can decompose signals like a sound engineer, isolating multiple overlapping frequencies. Highly automated. | **Computationally Slow:** Can be the slowest model to fit. The complex combination of components (Box-Cox, Fourier terms, ARMA errors) can be very difficult to interpret and explain. |
+        | **Complex, non-linear patterns without clear seasonality; multivariate inputs.** | **Deep Learning (LSTM/TCN)** | **The AI Pattern Recognizer:** Can learn any pattern from sufficient data. Excellent for multivariate forecasting (e.g., predicting yield from temperature, pH, and feed rate simultaneously). | **Requires Huge Data:** Needs much more data than statistical models. It's a "black box" with low interpretability and is computationally expensive to train and validate. |
+        """)
+
+    with tabs[3]:
+        st.markdown("""
+        ### Scoring Table: Model Capabilities at a Glance
+        This table provides a high-level comparison of the models' strengths across key attributes for a typical V&V or business user.
+        
+        *(Scored ⭐ to ⭐⭐⭐⭐⭐, where ⭐⭐⭐⭐⭐ is Excellent/Natively Supported)*
+
+        | Feature | Holt-Winters | ARIMA | SARIMA | Prophet | TBATS | ETS (MFLES) |
+        | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+        | **Interpretability** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
+        | <small>*SME Commentary*</small>| <small>Components are intuitive.</small> | <small>Coefficients are clear.</small>| <small>Seasonal terms add complexity.</small>| <small>Decomposition is clear.</small>| <small>Very complex internal state.</small>| <small>Components are intuitive.</small>|
+        | **Automation** | ⭐⭐⭐ | ⭐ | ⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+        | <small>*SME Commentary*</small>| <small>Smoothing params can be fit.</small> | <small>Requires manual ACF/PACF.</small>| <small>Manual tuning is hard.</small>| <small>Excellent "out of the box."</small>| <small>Fully automated selection.</small>| <small>Automated model selection.</small>|
+        | **Speed** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
+        | <small>*SME Commentary*</small>| <small>Very fast recursive equations.</small> | <small>Fast for simple models.</small>| <small>Seasonal fitting is slower.</small>| <small>Fast (uses Stan for fitting).</small>| <small>Can be very slow to optimize.</small>| <small>Fast state-space calculation.</small>|
+        | **Trend Handling** | Linear | Requires Differencing | Requires Differencing | Piecewise Linear | Flexible | Additive/Multiplicative |
+        | <small>*SME Commentary*</small>| <small>Simple linear/damped.</small> | <small>Removes trend to model changes.</small>| <small>Removes trend to model changes.</small>| <small>Auto-detects changepoints.</small>| <small>Can model complex trends.</small>| <small>Can model exponential growth.</small>|
+        | **Single Seasonality**| ⭐⭐⭐⭐⭐ | N/A | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+        | <small>*SME Commentary*</small>| <small>Its primary use case.</small> | <small>N/A</small>| <small>Its primary use case.</small>| <small>Handles it easily.</small>| <small>Handles it easily.</small>| <small>Its primary use case.</small>|
+        | **Multiple Seasons**| ⭐ | ⭐ | ⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ |
+        | <small>*SME Commentary*</small>| <small>Not supported.</small> | <small>Not supported.</small>| <small>Not supported.</small>| <small>**Best in class.**</small>| <small>**Best in class.**</small>| <small>Not supported.</small>|
+        | **Robustness to Gaps** | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ |
+        | <small>*SME Commentary*</small>| <small>Requires imputation.</small> | <small>Requires imputation.</small>| <small>Requires imputation.</small>| <small>Handles missing data natively.</small>| <small>Can handle some missing data.</small>| <small>Can handle some missing data.</small>|
+        | **Exogenous Variables** | ⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
+        | <small>*SME Commentary*</small>| <small>Not standard.</small> | <small>ARIMAX is a standard extension.</small>| <small>SARIMAX is standard.</small>| <small>Easy to add 'regressors'.</small>| <small>Can be added.</small>| <small>Can be added.</small>|
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        ##### Glossary of Forecasting Models
+        - **Holt-Winters:** A triple exponential smoothing model that explicitly models level, trend, and a single seasonal component by giving exponentially decaying weight to past observations.
+          - *SME Insight:* Think of it as a manager who keeps three numbers on a whiteboard: the current average (level), the weekly growth (trend), and the fact that sales always dip in July (seasonality). They update these three numbers after each new data point comes in.
+        
+        - **ARIMA (AutoRegressive Integrated Moving Average):** A class of models that explains a series based on its own past values (AR), the degree of differencing needed to make it stationary (I), and its past forecast errors (MA).
+          - *SME Insight:* This is the classical watchmaker's approach. It assumes the underlying process is stable and can be described by a few precise relationships between its own past "ticks" and "tocks." It's not interested in the absolute value, but in the rhythm and memory of the process.
+
+        - **SARIMA (Seasonal ARIMA):** An extension of ARIMA that adds seasonal components (`P, D, Q, m`) to model a single, fixed seasonal pattern. It is the classical gold standard for seasonal data.
+          - *SME Insight:* This is the watchmaker who also has a calendar. It understands both the short-term rhythm (ARIMA) and the long-term annual rhythm (SARIMA).
+
+        - **Prophet:** An automated, decomposable model from Meta. It treats forecasting as a curve-fitting problem, fitting trend, multiple seasonalities, and holiday effects as separate components.
+          - *SME Insight:* Think of it as a modern sound engineer mixing a track. It has separate faders for the bassline (trend), the weekly drumbeat (weekly seasonality), the yearly synth melody (yearly seasonality), and special effects for holidays. It finds the best mix of all these components to match the song of your data.
+
+        - **ETS (Error, Trend, Seasonality / ExponenTial Smoothing):** A powerful state-space framework for all exponential smoothing models. It can flexibly handle additive or multiplicative components for error, trend, and seasonality.
+          - *SME Insight:* This is the growth specialist. The key feature is its ability to handle **multiplicative** trend (exponential growth) and seasonality (seasonal swings that get bigger as the level increases), which is very common in business data.
+
+        - **TBATS (Trigonometric, Box-Cox, ARMA, Trend, Seasonal):** A highly complex, automated state-space model that can handle multiple and complex seasonalities using trigonometric Fourier terms.
+          - *SME Insight:* This is the "kitchen sink" model. It throws every known statistical trick at the problem: transformations for non-linearity (Box-Cox), Fourier terms for complex seasonality (Trigonometric), and ARMA for the errors. It's powerful but can be a black box.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        #### Theory, History & Mathematical Context
+        The models in this suite represent a fascinating evolution of thought, driven by changing industrial needs and computational power.
+
+        - **The Pragmatic Era - Exponential Smoothing (1950s):** The core ideas behind **Holt-Winters** and **ETS** were developed by Robert Goodell Brown, Charles Holt, and Peter Winters. In the post-war industrial boom, they needed simple, efficient methods for inventory forecasting that could be computed by hand or with mechanical calculators. Their solution—exponentially weighted averages—was intuitive, fast, and good enough for the job.
+
+        - **The Rigor Revolution - Box-Jenkins (1970):** George Box and Gwilym Jenkins published their seminal work, *Time Series Analysis: Forecasting and Control*. This was a monumental shift. They introduced the **ARIMA** methodology, bringing a new level of statistical rigor to the field. They championed a disciplined cycle of model **identification** (using ACF/PACF plots), **estimation**, and **diagnostic checking**. **SARIMA** was the natural extension for seasonal data, becoming the academic and statistical gold standard for decades.
+
+        - **The Unification Era - State-Space Models (1990s-2000s):** For years, exponential smoothing and ARIMA were seen as separate, competing philosophies. Researchers like Rob Hyndman and his colleagues showed they were two sides of the same coin. They developed the **ETS** and **TBATS** models, which placed all of these methods into a single, unified state-space framework. This allowed for a more systematic and automated approach to model selection and, crucially, the calculation of robust prediction intervals.
+
+        - **The Scale Era - Engineering Meets Statistics (2017):** Facebook's Core Data Science team faced a problem of scale: thousands of non-expert analysts needed to generate high-quality forecasts for business metrics. The manual, expert-driven Box-Jenkins method was too slow. They released **Prophet**, a model designed not for statistical purity, but for robust, scalable, and intuitive forecasting of business time series. Its focus on automation, intuitive parameters, and handling messy data represented a major shift towards a more engineering-driven approach to forecasting.
+        
+        ---
+        #### Mathematical Basis
+        - **Holt-Winters (Additive):** A set of three recursive smoothing equations.
+        """)
+        st.latex(r'''
+        \begin{aligned}
+        \text{Level: } & L_t = \alpha(y_t - S_{t-m}) + (1-\alpha)(L_{t-1} + T_{t-1}) \\
+        \text{Trend: } & T_t = \beta(L_t - L_{t-1}) + (1-\beta)T_{t-1} \\
+        \text{Seasonality: } & S_t = \gamma(y_t - L_t) + (1-\gamma)S_{t-m}
+        \end{aligned}
+        ''')
+        st.markdown(r"Where `α, β, γ` are smoothing parameters and `m` is the seasonal period.")
+        st.markdown("- **SARIMA:** A linear model that explains a series based on its own past, using backshift notation `B`.")
+        st.latex(r"\phi_p(B)\Phi_P(B^m)(1-B)^d(1-B^m)^D y_t = \theta_q(B)\Theta_Q(B^m)\epsilon_t")
+        st.markdown(r"""
+        Where `ϕ` and `θ` are non-seasonal AR/MA polynomials, and `Φ` and `Θ` are seasonal AR/MA polynomials.
+        """)
+        st.markdown("- **Prophet:** A decomposable additive model.")
+        st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
+        st.markdown(r"""
+        Where `g(t)` is a piecewise linear trend, `s(t)` models seasonality using Fourier series, `h(t)` is for holidays, and `ε` is the error.
+        """)
+
+    with tabs[6]:
+        st.markdown("""
+        ### Regulatory & Compliance Context
+        While "forecasting" is not a specific GxP activity, the use of time series models to monitor, control, and make decisions about a validated process is a core component of a modern, data-driven Pharmaceutical Quality System.
+
+        #### The Golden Thread: From Monitoring to Proactive Control
+        1.  **Stage 1: Basic Monitoring (ICH Q7, 21 CFR 211):** At a minimum, manufacturers are required to monitor critical process parameters. This is often done retrospectively.
+        2.  **Stage 2: Continued Process Verification (CPV) (FDA Process Validation Guidance, Stage 3):** This is where forecasting becomes essential. A validated time series model can establish a **dynamic control band** (prediction intervals) for a process parameter. An observation falling outside this band can serve as an early warning of a potential drift, allowing for proactive investigation long before a standard SPC chart would alarm.
+        3.  **Stage 3: Process Analytical Technology (PAT) (FDA PAT Guidance):** This is the most advanced application. A robust, validated forecasting model is a key element of a **"digital twin"** of the process. It can be used for:
+            -   **Feed-forward Control:** If the model forecasts a future deviation, it can trigger an automated adjustment to another parameter to counteract the problem before it occurs.
+            -   **Real-Time Release Testing (RTRT):** A highly accurate model that forecasts a Critical Quality Attribute (CQA) can be used as part of the evidence package to release a batch without waiting for the final, slow laboratory test.
+
+        #### Validation Requirements (GAMP 5 & 21 CFR Part 11)
+        If a forecasting model is used to make any GxP decision (e.g., triggering an alarm in a CPV program, justifying a batch release under RTRT), the model and the software it runs on are considered a **Computerized System** and must be fully validated. The validation package would need to include:
+        -   **URS/FS:** A formal document defining the model's intended use, the data inputs, the required prediction accuracy, and the outputs.
+        -   **Model Validation:** Objective evidence (e.g., performance on a held-out test set, backtesting on historical data) demonstrating the model is accurate and reliable for its intended purpose.
+        -   **Change Control:** A procedure for managing the model lifecycle, including how and when the model will be retrained, re-validated, and deployed.
+        
+        > **Bottom Line:** In a regulated environment, a forecasting model is not just a statistical tool; it is a validated piece of software whose performance and reliability must be documented and controlled.
+        """)
 #========================================================================== 8. MULTIVARIATE ANALYSIS (MVA) ACT III============================================================================
 def render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
@@ -12946,7 +13091,7 @@ with st.sidebar:
             "Multivariate SPC",
             "Stability Analysis (Shelf-Life)",
             "Reliability / Survival Analysis",
-            "Time Series Analysis",
+            "Time Series Forecasting Suite",
             "Multivariate Analysis (MVA)",
             "Predictive QC (Classification)",
             "Explainable AI (XAI)",
@@ -13032,7 +13177,7 @@ else:
         "Stability Analysis (Shelf-Life)": render_stability_analysis,
         "Reliability / Survival Analysis": render_survival_analysis,
         "Time Series Analysis": render_time_series_analysis,
-        "Multivariate Analysis (MVA)": render_mva_pls,
+        "Time Series Forecasting Suite": render_time_series_suite,
         "Predictive QC (Classification)": render_classification_models,
         "Explainable AI (XAI)": render_xai_shap,
         "Clustering (Unsupervised)": render_clustering,

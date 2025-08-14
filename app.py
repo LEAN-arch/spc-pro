@@ -12639,19 +12639,9 @@ else:
     }
     
 if view in PAGE_DISPATCHER:
-    # Get the function object from the dispatcher
     render_function = PAGE_DISPATCHER[view]
-    
-    # Call the function, passing all necessary engine components
-    # The render function will only use the ones it needs.
-    render_function(
-        plots=plots, 
-        active_df=filtered_active_df, 
-        data_engine=data_engine, 
-        reporter=reporter
-    )
+    render_function() # No arguments passed
 else:
-    # Default back to introduction if a view is not found
     if view != 'Introduction':
         st.error("Error: Could not find the selected tool to render.")
-    render_introduction_content(plots=plots, active_df=filtered_active_df, data_engine=data_engine, reporter=reporter)
+    render_introduction_content() # No arguments passed

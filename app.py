@@ -3393,7 +3393,7 @@ def plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, 
         vertical_spacing=0.2, horizontal_spacing=0.15
     )
 
-    # Plot 1: The Raw Data Distributions
+    # Plot 1: The Raw Data Distributions (Correct, no changes needed)
     x_range = np.linspace(min(data_a.min(), data_b.min()) - 5, max(data_a.max(), data_b.max()) + 5, 400)
     kde_a = stats.gaussian_kde(data_a)
     kde_b = stats.gaussian_kde(data_b)
@@ -3404,12 +3404,15 @@ def plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, 
     fig.update_yaxes(showticklabels=False, row=1, col=1)
 
     # Plot 2: T-Test Verdict
+    # --- FIX: Add an invisible trace to force the subplot to render ---
+    fig.add_trace(go.Scatter(x=[0], y=[0], mode='markers', marker=dict(opacity=0)), row=1, col=2)
+    # --- END FIX ---
     ttest_verdict = "FAIL (Means are different)" if ttest_p < 0.05 else "PASS (No evidence of difference)"
     ttest_color = '#EF553B' if ttest_p < 0.05 else SUCCESS_GREEN
     fig.add_annotation(text=f"<b>p-value = {ttest_p:.3f}</b><br>{'❌' if ttest_p < 0.05 else '✅'} {ttest_verdict}",
                        font=dict(size=18, color=ttest_color), showarrow=False, row=1, col=2)
 
-    # Plot 3: TOST Verdict
+    # Plot 3: TOST Verdict (Correct, no changes needed)
     ci_lower, ci_upper = tost_ci
     ci_color = SUCCESS_GREEN if tost_is_equivalent else '#EF553B'
     fig.add_vrect(x0=-tost_margin, x1=tost_margin, fillcolor="rgba(0,128,0,0.1)", layer="below", line_width=0, row=2, col=1)
@@ -3419,6 +3422,9 @@ def plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, 
     fig.update_yaxes(showticklabels=False, range=[-1, 1], row=2, col=1)
 
     # Plot 4: Wasserstein Verdict
+    # --- FIX: Add an invisible trace to force the subplot to render ---
+    fig.add_trace(go.Scatter(x=[0], y=[0], mode='markers', marker=dict(opacity=0)), row=2, col=2)
+    # --- END FIX ---
     wasserstein_color = SUCCESS_GREEN if wasserstein_is_equivalent else '#EF553B'
     fig.add_annotation(text=f"<b>Distance = {wasserstein_dist:.2f}</b><br>(Threshold = {wasserstein_thresh:.2f})<br>{'✅' if wasserstein_is_equivalent else '❌'} {'Equivalent' if wasserstein_is_equivalent else 'NOT Equivalent'}",
                        font=dict(size=18, color=wasserstein_color), showarrow=False, row=2, col=2)

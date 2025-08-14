@@ -5886,7 +5886,7 @@ PSO_CONTEXTS = {
 @st.cache_data
 def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, project_context):
     """
-    Runs the computationally expensive PSO simulation and returns simple, cacheable data types.
+    Runs the PSO simulation and returns only the necessary data for a static plot.
     """
     np.random.seed(42)
     context = PSO_CONTEXTS[project_context]
@@ -5899,7 +5899,6 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     xx, yy = np.meshgrid(x_range, y_range)
     zz = reconstruction_error_surface(xx, yy)
 
-    # --- INITIALIZATION FIX IS HERE ---
     positions = np.random.rand(n_particles, 2)
     positions[:, 0] = positions[:, 0] * (context['x_range'][1] - context['x_range'][0]) + context['x_range'][0]
     positions[:, 1] = positions[:, 1] * (context['y_range'][1] - context['y_range'][0]) + context['y_range'][0]
@@ -5908,21 +5907,19 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     pbest_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
     gbest_idx = np.argmax(pbest_scores)
     gbest_position = pbest_positions[gbest_idx].copy()
-    gbest_score = pbest_scores[gbest_idx]  # <-- This line was missing, which could cause a crash
-    history = [positions.copy()]
-    # --- END INITIALIZATION FIX ---
+    gbest_score = pbest_scores[gbest_idx]
+    
+    # Store only the initial position
+    history_start = positions.copy()
 
-    for _ in range(n_iterations):
+    for _ in range(n_iterations - 1):
         r1, r2 = np.random.rand(2)
-        
         velocities = (inertia * velocities +
                       cognition * r1 * (pbest_positions - positions) +
                       social * r2 * (gbest_position - positions))
-        
         positions += velocities
         positions[:, 0] = np.clip(positions[:, 0], context['x_range'][0], context['x_range'][1])
         positions[:, 1] = np.clip(positions[:, 1], context['y_range'][0], context['y_range'][1])
-        history.append(positions.copy())
         
         current_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
         update_mask = current_scores > pbest_scores
@@ -5933,39 +5930,58 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
         if pbest_scores[current_best_idx] > gbest_score:
             gbest_position = pbest_positions[current_best_idx].copy()
             gbest_score = pbest_scores[current_best_idx]
+            
+    # Store only the final position
+    history_end = positions.copy()
 
-    return zz, x_range, y_range, history, gbest_position, gbest_score, context
+    return zz, x_range, y_range, history_start, history_end, gbest_position, gbest_score, context
 
 @st.cache_data
-def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, _context):
+def create_pso_static_figure(zz, x_range, y_range, history_start, history_end, gbest_position, _context):
     """
-    Creates the Plotly figure from simple data types. Caching this prevents the figure object
-    from being recreated on every single UI interaction.
+    Creates a static Plotly figure from the PSO simulation results.
     """
     context = _context 
     
-    contour_trace = go.Contour(z=zz, x=x_range, y=y_range, colorscale='Inferno', colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)'))
-    star_trace = go.Scatter(x=[gbest_position[0]], y=[gbest_position[1]], mode='markers', marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), name='Highest-Risk Condition Found')
-    initial_particle_trace = go.Scatter(x=history[0][:, 0], y=history[0][:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'), name='PSO Particles')
+    fig = go.Figure()
 
-    frames = []
-    for step_positions in history:
-        # Create a new trace for each frame's data
-        frame_trace = go.Scatter(x=step_positions[:, 0], y=step_positions[:, 1], mode='markers', marker=dict(color='cyan', size=10, symbol='cross'))
-        frames.append(go.Frame(data=[frame_trace], name=f"frame_{len(frames)}", traces=[2])) # Reference the 3rd trace
+    # Layer 1: The anomaly landscape
+    fig.add_trace(go.Contour(
+        z=zz, x=x_range, y=y_range, 
+        colorscale='Inferno', 
+        colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)')
+    ))
 
-    fig = go.Figure(
-        data=[contour_trace, star_trace, initial_particle_trace],
-        layout=go.Layout(
-            title=f"<b>PSO Red Team: Finding Hidden Failure Modes in a {context['name']}</b>",
-            xaxis_title=context['x_label'], yaxis_title=context['y_label'],
-            legend=dict(x=0.01, y=0.99),
-            updatemenus=[dict(
-                type="buttons",
-                buttons=[dict(label="► Run Simulation", method="animate", args=[None, {"frame": {"duration": 100, "redraw": False}, "fromcurrent": True, "transition": {"duration": 0}}]),
-                         dict(label="❚❚ Pause", method="animate", args=[[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate", "transition": {"duration": 0}}])])]
-        ),
-        frames=frames
+    # Layer 2: The initial random positions of the swarm
+    fig.add_trace(go.Scatter(
+        x=history_start[:, 0], y=history_start[:, 1], 
+        mode='markers', 
+        marker=dict(color='white', size=8, symbol='x'), 
+        name='Initial Search Positions'
+    ))
+
+    # Layer 3: The final converged positions of the swarm
+    fig.add_trace(go.Scatter(
+        x=history_end[:, 0], y=history_end[:, 1], 
+        mode='markers', 
+        marker=dict(color='cyan', size=8, symbol='circle'), 
+        name='Final Search Positions'
+    ))
+    
+    # Layer 4: The best-found solution
+    fig.add_trace(go.Scatter(
+        x=[gbest_position[0]], y=[gbest_position[1]], 
+        mode='markers', 
+        marker=dict(color='lime', size=18, symbol='star', line=dict(width=2, color='black')), 
+        name='Highest-Risk Condition Found'
+    ))
+
+    fig.update_layout(
+        title=f"<b>PSO Search Result: Finding Hidden Failure Modes in a {context['name']}</b>",
+        xaxis_title=context['x_label'], 
+        yaxis_title=context['y_label'],
+        legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
+        height=600
     )
     
     return fig
@@ -12756,8 +12772,8 @@ def render_pso_autoencoder():
     st.info("""
     **Interactive Demo:** You are the Head of Process Robustness.
     1.  **Select a Project Context** to see a realistic "anomaly landscape" learned by a pre-trained Autoencoder. Hotter colors are more abnormal.
-    2.  Use the **PSO Parameters** in the sidebar to control how the swarm (cyan crosses) searches this landscape.
-    3.  Click **"► Run Simulation"** to watch the swarm converge on the worst-case condition (the green star), which becomes your primary target for a lab-based robustness study.
+    2.  Use the **PSO Parameters** in the sidebar to control the search. The static plot will update to show the final result of the simulation.
+    3.  Observe how the swarm starts randomly (white 'x') and converges (cyan circles) on the worst-case condition (green star).
     """)
 
     project_context_name = st.selectbox(
@@ -12774,32 +12790,25 @@ def render_pso_autoencoder():
         cognition = st.slider("Cognition (Personal Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to their own best-found location.")
         social = st.slider("Social (Global Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to the swarm's overall best-found location.")
 
-    # 1. Run the expensive, cached simulation to get the raw data
-    zz, x_range, y_range, history, gbest_position, best_score, context_from_cache = run_pso_simulation(
+    # 1. Run the expensive simulation to get the raw data. Caching prevents re-runs.
+    zz, x_range, y_range, history_start, history_end, gbest_position, best_score, context_from_cache = run_pso_simulation(
         n_particles, n_iterations, inertia, cognition, social, project_context_name
     )
     
-    # --- BUG FIX #1: PREVENT CACHE MUTATION ---
-    # Make a copy of the context dictionary before modifying it.
-    # This stops Streamlit from re-running the expensive simulation on every interaction.
+    # Make a copy to prevent cache mutation warnings.
     context = context_from_cache.copy()
     context['name'] = project_context_name
-    # --- END BUG FIX #1 ---
     
-    # 2. Create the figure from the cached data.
-    fig = create_pso_figure_from_data(zz, tuple(x_range), tuple(y_range), history, tuple(gbest_position), context)
+    # 2. Create the new STATIC figure from the cached data.
+    fig = create_pso_static_figure(zz, tuple(x_range), tuple(y_range), history_start, history_end, tuple(gbest_position), context)
     
-    col1, col2 = st.columns([0.7, 0.35])
+    col1, col2 = st.columns([0.65, 0.35])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        # --- BUG FIX #2: CORRECT VARIABLE NAME ---
-        # Changed `best_params` to the correct variable `gbest_position`.
-        # This stops the NameError that was causing the app to crash and flicker.
         st.metric(f"Worst-Case {context['x_label']}", f"{gbest_position[0]:.2f}")
         st.metric(f"Worst-Case {context['y_label']}", f"{gbest_position[1]:.2f}")
-        # --- END BUG FIX #2 ---
         st.metric("Maximum Anomaly Score", f"{best_score:.3f}")
         st.success("""
         **Actionable Insight:** The simulation has identified the process conditions most likely to cause an anomalous run. The next step is to design a lab experiment that deliberately targets these conditions to confirm the model's prediction and define the true edge of the process's Design Space.
@@ -12812,7 +12821,7 @@ def render_pso_autoencoder():
         st.markdown(f"""
         **Interpreting the Simulation for a {project_context_name}:**
         - **The Landscape:** The heatmap represents the "process health" as understood by an Autoencoder trained on normal data. For the **{project_context_name}**, the "golden valley" of cool colors is the normal operating region. The peaks (hot colors) are regions where the process behaves in unexpected ways, leading to high reconstruction error. These are the hidden cliffs of failure.
-        - **The Swarm's Journey:** When you press "Play," you are watching an optimization algorithm in action. The particles start randomly, but they communicate and learn. They are collectively pulled towards the area of highest anomaly score, efficiently finding the peak of the risk landscape.
+        - **The Swarm's Journey:** The plot shows the final state of the PSO search. The particles started randomly (**white 'x' markers**) but communicated and learned, converging on the area of highest anomaly score (**cyan circles**). The **green star** marks the single highest-risk condition found by any particle.
         - **The Strategic Insight:** This approach automates and supercharges worst-case analysis. Instead of relying on engineers to guess at high-risk conditions for your **{project_context_name}**, you deploy an AI agent to find them for you. The result is a data-driven, highly defensible candidate for your robustness challenge studies (ICH Q8/Q14).
         """)
         

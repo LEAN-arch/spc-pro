@@ -9700,7 +9700,7 @@ A robust tech transfer plan treats equivalence as a formal acceptance criterion.
 #============================================================================================SPECIAL SECTION COMPARING METHODS (ANOVA/T-TEST, WASSERSTEIN, TOST =====================================================================
 #=========================================================================================================================================================================================================
 #================================================================= 6. Wassrtein Distance =============================================================
-def render_wasserstein_distance:
+def render_wasserstein_distance():
     """Renders the comprehensive, interactive module for Wasserstein Distance."""
     st.markdown("""
     #### Purpose & Application: The Process Fingerprint Comparator

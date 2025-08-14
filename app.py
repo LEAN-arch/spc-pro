@@ -12,7 +12,7 @@ import plotly.express as px
 import math
 from plotly.subplots import make_subplots
 from scipy import stats
-from scipy.stats import beta, norm, t, f
+from scipy.stats import beta, norm, t, f, f_oneway
 from scipy.optimize import curve_fit
 import statsmodels.api as sm
 from statsmodels.formula.api import ols

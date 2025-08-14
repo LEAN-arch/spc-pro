@@ -17,6 +17,7 @@ prophet~=1.1.5
 shap~=0.45.0
 ipython==8.22.2 
 xgboost==2.0.3
+tbats
 
 # --- Visualization ---
 plotly~=5.18.0

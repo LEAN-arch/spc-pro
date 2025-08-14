@@ -3422,7 +3422,7 @@ def plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist,
         # Plot 1: Tukey's HSD
         tukey_df = pd.DataFrame(data=tukey_results._results_table.data[1:], columns=tukey_results._results_table.data[0])
         tukey_df = tukey_df.sort_values(by='p-adj')
-        colors = [SUCCESS_GREEN if p < 0.05 else PRIMARY_COLOR for p in tukey_df['p-adj']]
+        colors = ['#EF553B' if p < 0.05 else SUCCESS_GREEN for p in tukey_df['p-adj']]
         fig.add_trace(go.Bar(
             x=tukey_df['p-adj'],
             y=[f"{g1}-{g2}" for g1, g2 in zip(tukey_df['group1'], tukey_df['group2'])],
@@ -3430,7 +3430,7 @@ def plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist,
             text=[f"p={p:.3f}" for p in tukey_df['p-adj']],
             textposition='auto'
         ), row=1, col=1)
-        fig.add_vline(x=0.05, line_dash="dash", line_color="red", row=1, col=1)
+        fig.add_vline(x=0.05, line_dash="dash", line_color="red", row=1, col=1, annotation_text="p=0.05")
         fig.update_xaxes(title_text="Adjusted p-value", range=[0,1], row=1, col=1)
         fig.update_yaxes(title_text="Pairwise Comparison", categoryorder='total ascending', row=1, col=1)
         
@@ -9985,7 +9985,6 @@ def render_comparability_suite():
     ], ignore_index=True)
     data_list = [df_all[df_all['Line'] == 'A']['value'], df_all[df_all['Line'] == 'B']['value'], df_all[df_all['Line'] == 'C']['value']]
     
-    from statsmodels.stats.multicomp import pairwise_tukeyhsd
     anova_result = f_oneway(*data_list)
     ad_result = stats.anderson_ksamp(data_list)
     ad_p_value = ad_result.pvalue
@@ -10011,7 +10010,7 @@ def render_comparability_suite():
 
     if anova_result.pvalue < 0.05:
         st.subheader("ANOVA Post-Hoc Analysis: Diagnosing the Difference")
-        st.markdown("Since the ANOVA test was significant, we must now investigate *which specific lines* are different from each other. The **Tukey's HSD** test performs all pairwise comparisons while controlling the overall error rate.")
+        st.markdown("Since the ANOVA test was significant (p < 0.05), we must now investigate *which specific lines* are different from each other. The **Tukey's HSD** test performs all pairwise comparisons while the **Q-Q Plots** help visualize how the distributions differ in shape.")
         fig_posthoc = plot_comparability_dashboard(None, None, lsl, usl, None, df_all=df_all, tukey_results=tukey_results, data_list=data_list)
         st.plotly_chart(fig_posthoc, use_container_width=True)
 

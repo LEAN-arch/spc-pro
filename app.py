@@ -5876,7 +5876,7 @@ PSO_CONTEXTS = {
 @st.cache_data
 def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, project_context):
     """
-    Runs the PSO simulation and returns only the necessary data for a static plot.
+    Runs the PSO simulation and returns only simple, cacheable data types.
     """
     np.random.seed(42)
     context = PSO_CONTEXTS[project_context]
@@ -5899,7 +5899,6 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     gbest_position = pbest_positions[gbest_idx].copy()
     gbest_score = pbest_scores[gbest_idx]
     
-    # Store only the initial position
     history_start = positions.copy()
 
     for _ in range(n_iterations - 1):
@@ -5921,44 +5920,35 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
             gbest_position = pbest_positions[current_best_idx].copy()
             gbest_score = pbest_scores[current_best_idx]
             
-    # Store only the final position
     history_end = positions.copy()
-
-    return zz, x_range, y_range, history_start, history_end, gbest_position, gbest_score, context
+    
+    # Return ONLY simple, hashable types. Do not return the context dictionary.
+    return zz, x_range, y_range, history_start, history_end, gbest_position, gbest_score
 
 @st.cache_data
-def create_pso_static_figure(zz, x_range, y_range, history_start, history_end, gbest_position, _context):
+def create_pso_static_figure(zz, x_range, y_range, history_start, history_end, gbest_position, context_name, x_label, y_label):
     """
-    Creates a static Plotly figure from the PSO simulation results.
+    Creates a static Plotly figure from the PSO simulation results using only simple data types.
     """
-    context = _context 
-    
     fig = go.Figure()
 
-    # Layer 1: The anomaly landscape
     fig.add_trace(go.Contour(
         z=zz, x=x_range, y=y_range, 
         colorscale='Inferno', 
         colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)')
     ))
-
-    # Layer 2: The initial random positions of the swarm
     fig.add_trace(go.Scatter(
         x=history_start[:, 0], y=history_start[:, 1], 
         mode='markers', 
         marker=dict(color='white', size=8, symbol='x'), 
         name='Initial Search Positions'
     ))
-
-    # Layer 3: The final converged positions of the swarm
     fig.add_trace(go.Scatter(
         x=history_end[:, 0], y=history_end[:, 1], 
         mode='markers', 
         marker=dict(color='cyan', size=8, symbol='circle'), 
         name='Final Search Positions'
     ))
-    
-    # Layer 4: The best-found solution
     fig.add_trace(go.Scatter(
         x=[gbest_position[0]], y=[gbest_position[1]], 
         mode='markers', 
@@ -5967,9 +5957,9 @@ def create_pso_static_figure(zz, x_range, y_range, history_start, history_end, g
     ))
 
     fig.update_layout(
-        title=f"<b>PSO Search Result: Finding Hidden Failure Modes in a {context['name']}</b>",
-        xaxis_title=context['x_label'], 
-        yaxis_title=context['y_label'],
+        title=f"<b>PSO Search Result: Finding Hidden Failure Modes in a {context_name}</b>",
+        xaxis_title=x_label, 
+        yaxis_title=y_label,
         legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)'),
         height=600
     )
@@ -12768,8 +12758,8 @@ def render_pso_autoencoder():
     
     st.info("""
     **Interactive Demo:** You are the Head of Process Robustness.
-    1.  **Select a Project Context** to see a realistic "anomaly landscape" learned by a pre-trained Autoencoder. Hotter colors are more abnormal.
-    2.  Use the **PSO Parameters** in the sidebar to control the search. The static plot will update to show the final result of the simulation.
+    1.  **Select a Project Context** to see a realistic "anomaly landscape". Hotter colors are more abnormal.
+    2.  Use the **PSO Parameters** in the sidebar to control the search. The static plot and KPIs will update instantly.
     3.  Observe how the swarm starts randomly (white 'x') and converges (cyan circles) on the worst-case condition (green star).
     """)
 
@@ -12787,25 +12777,32 @@ def render_pso_autoencoder():
         cognition = st.slider("Cognition (Personal Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to their own best-found location.")
         social = st.slider("Social (Global Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to the swarm's overall best-found location.")
 
-    # 1. Run the expensive simulation to get the raw data. Caching prevents re-runs.
-    zz, x_range, y_range, history_start, history_end, gbest_position, best_score, context_from_cache = run_pso_simulation(
+    # 1. Run the expensive simulation. It now returns only simple data types, allowing the cache to work correctly.
+    zz, x_range, y_range, history_start, history_end, gbest_position, best_score = run_pso_simulation(
         n_particles, n_iterations, inertia, cognition, social, project_context_name
     )
     
-    # Make a copy to prevent cache mutation warnings.
-    context = context_from_cache.copy()
-    context['name'] = project_context_name
+    # 2. Get the labels from the global dictionary for plotting.
+    context_info = PSO_CONTEXTS[project_context_name]
+    x_label = context_info['x_label']
+    y_label = context_info['y_label']
     
-    # 2. Create the new STATIC figure from the cached data.
-    fig = create_pso_static_figure(zz, tuple(x_range), tuple(y_range), history_start, history_end, tuple(gbest_position), context)
+    # 3. Create the static figure using only simple, hashable arguments.
+    fig = create_pso_static_figure(
+        zz, tuple(x_range), tuple(y_range), history_start, history_end, tuple(gbest_position),
+        project_context_name, x_label, y_label
+    )
     
     col1, col2 = st.columns([0.65, 0.35])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        st.metric(f"Worst-Case {context['x_label']}", f"{gbest_position[0]:.2f}")
-        st.metric(f"Worst-Case {context['y_label']}", f"{gbest_position[1]:.2f}")
+        # --- BUG FIX #2: CORRECT VARIABLE NAME ---
+        # Changed `best_params` to the correct variable `gbest_position`.
+        st.metric(f"Worst-Case {x_label}", f"{gbest_position[0]:.2f}")
+        st.metric(f"Worst-Case {y_label}", f"{gbest_position[1]:.2f}")
+        # --- END BUG FIX #2 ---
         st.metric("Maximum Anomaly Score", f"{best_score:.3f}")
         st.success("""
         **Actionable Insight:** The simulation has identified the process conditions most likely to cause an anomalous run. The next step is to design a lab experiment that deliberately targets these conditions to confirm the model's prediction and define the true edge of the process's Design Space.

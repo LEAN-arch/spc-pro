@@ -5882,14 +5882,13 @@ PSO_CONTEXTS = {
         'surface_func': _ivd_surface
     }
 }
+
 @st.cache_data
 def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, project_context):
     """
     Runs the computationally expensive PSO simulation and returns simple, cacheable data types.
     """
     np.random.seed(42)
-    # NOTE: The PSO_CONTEXTS dictionary and its helper functions (_pharma_surface, etc.)
-    # should be defined globally, outside of any function.
     context = PSO_CONTEXTS[project_context]
     
     def reconstruction_error_surface(x, y):
@@ -5916,7 +5915,6 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     for _ in range(n_iterations):
         r1, r2 = np.random.rand(2)
         
-        # Velocity update uses gbest_position from the previous step
         velocities = (inertia * velocities +
                       cognition * r1 * (pbest_positions - positions) +
                       social * r2 * (gbest_position - positions))
@@ -5926,19 +5924,16 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
         positions[:, 1] = np.clip(positions[:, 1], context['y_range'][0], context['y_range'][1])
         history.append(positions.copy())
         
-        # Update personal bests
         current_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
         update_mask = current_scores > pbest_scores
         pbest_positions[update_mask] = positions[update_mask]
         pbest_scores[update_mask] = current_scores[update_mask]
         
-        # Update global best
         current_best_idx = np.argmax(pbest_scores)
         if pbest_scores[current_best_idx] > gbest_score:
             gbest_position = pbest_positions[current_best_idx].copy()
             gbest_score = pbest_scores[current_best_idx]
 
-    # --- RETURN FIX IS HERE ---
     return zz, x_range, y_range, history, gbest_position, gbest_score, context
     # --- END RETURN FIX ---
 
@@ -12750,12 +12745,6 @@ Different types of process failures leave different signatures in the data. A ro
 
 
 #======================================================================== PSO and AUTOENCODER FINAL UI =============================================================
-# ==============================================================================
-# UI RENDERING FUNCTION (PSO + Autoencoder)
-# ==============================================================================
-# ==============================================================================
-# UI RENDERING FUNCTION (PSO + Autoencoder) - FINAL, DEFINITIVE FIX
-# ==============================================================================
 def render_pso_autoencoder():
     """Renders the PSO + Autoencoder for worst-case analysis module."""
     st.markdown("""

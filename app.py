@@ -13026,13 +13026,13 @@ else:
         "PSO + Autoencoder": render_pso_autoencoder,
     }
     
-# Now, use the dispatcher to render the correct page
+# --- Main Content Area Dispatcher ---
 view = st.session_state.current_view
 
 if view == 'Introduction':
     render_introduction_content()
 elif view in PAGE_DISPATCHER:
-    st.header(f"🔧 {view}")
+    # st.header(f"🔧 {view}") # This line is already inside each render function
     render_function = PAGE_DISPATCHER[view]
     render_function()
 else:

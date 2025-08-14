@@ -13176,7 +13176,7 @@ else:
         "Multivariate SPC": render_multivariate_spc,
         "Stability Analysis (Shelf-Life)": render_stability_analysis,
         "Reliability / Survival Analysis": render_survival_analysis,
-        "Time Series Analysis": render_time_series_analysis,
+        "Time Series Forecasting Suite": render_time_series_suite,
         "Time Series Forecasting Suite": render_time_series_suite,
         "Predictive QC (Classification)": render_classification_models,
         "Explainable AI (XAI)": render_xai_shap,

@@ -3374,101 +3374,110 @@ def plot_two_process_dashboard(data_a, data_b, lsl, usl, wasserstein_dist, paire
     Generates a multi-panel dashboard for deep comparison of TWO processes.
     Includes distributional plots and a Bland-Altman plot for paired data.
     """
+    # This spec creates a large plot on the left and two smaller plots on the right
     specs = [
-        [{"rowspan": 2}, {"type": "xy"}],
+        [{"rowspan": 2}, {}],
         [None, {}]
     ]
     fig = make_subplots(
         rows=2, cols=2,
         column_widths=[0.6, 0.4],
         subplot_titles=(
-            "<b>1. Process Distributions (PDFs)</b>",
+            "<b>1. Process Distributions (PDF & CDF)</b>",
             "<b>2. Bland-Altman Agreement Plot</b>",
-            "<b>3. Cumulative Distributions (CDFs)</b>"
+            None # Title for 2,1 is handled by the main title
         ),
-        specs=specs, vertical_spacing=0.15
+        specs=specs, vertical_spacing=0.15, horizontal_spacing=0.1
     )
 
-    # Plot 1 & 3: Distributional Plots
+    # --- Plot 1 (Left, Spanning Two Rows) ---
+    # PDF
     x_range = np.linspace(min(data_a.min(), data_b.min()) - 5, max(data_a.max(), data_b.max()) + 5, 400)
     kde_a = stats.gaussian_kde(data_a)
     kde_b = stats.gaussian_kde(data_b)
     fig.add_trace(go.Scatter(x=x_range, y=kde_a(x_range), fill='tozeroy', name='Process A (Reference)', line=dict(color=PRIMARY_COLOR)), row=1, col=1)
     fig.add_trace(go.Scatter(x=x_range, y=kde_b(x_range), fill='tozeroy', name='Process B (New)', line=dict(color=SUCCESS_GREEN), opacity=0.7), row=1, col=1)
-    fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1)
-    fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
-    fig.update_yaxes(title_text="Density", showticklabels=False, row=1, col=1)
-    fig.update_xaxes(title_text="Process Output Value", row=2, col=1)
     
+    # CDF on secondary y-axis
     cdf_a = np.array([np.mean(data_a <= x) for x in x_range])
     cdf_b = np.array([np.mean(data_b <= x) for x in x_range])
-    fig.add_trace(go.Scatter(x=x_range, y=cdf_a, name='CDF A', line=dict(color=PRIMARY_COLOR, width=3)), row=2, col=1)
-    fig.add_trace(go.Scatter(x=x_range, y=cdf_b, name='CDF B', line=dict(color=SUCCESS_GREEN, width=3), fill='tonexty', fillcolor='rgba(255, 193, 7, 0.3)'), row=2, col=1)
-    fig.add_annotation(x=np.median(x_range), y=0.5, text=f"<b>Area between curves ≈<br>Wasserstein Dist: {wasserstein_dist:.2f}</b>",
-                       showarrow=False, font=dict(color=DARK_GREY, size=12), bgcolor='rgba(255, 193, 7, 0.5)', borderpad=4, row=2, col=1)
-    fig.update_yaxes(title_text="Cumulative Prob.", range=[0, 1.05], row=2, col=1)
-
-    # Plot 2: Bland-Altman Plot
+    fig.add_trace(go.Scatter(x=x_range, y=cdf_a, name='CDF A', line=dict(color=PRIMARY_COLOR, width=2, dash='dash'), yaxis="y2"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=cdf_b, name='CDF B', line=dict(color=SUCCESS_GREEN, width=2, dash='dash'), yaxis="y2"), row=1, col=1)
+    
+    fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1)
+    fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
+    
+    # --- Plot 2 (Top Right): Bland-Altman ---
     if paired_df is not None:
         mean_diff = paired_df['Difference'].mean()
         std_diff = paired_df['Difference'].std(ddof=1)
         upper_loa = mean_diff + 1.96 * std_diff
         lower_loa = mean_diff - 1.96 * std_diff
         fig.add_trace(go.Scatter(x=paired_df['Average'], y=paired_df['Difference'], mode='markers', name='Samples'), row=1, col=2)
-        fig.add_hline(y=mean_diff, line=dict(color='blue'), name='Mean Bias', row=1, col=2)
+        fig.add_hline(y=mean_diff, line=dict(color='blue'), name='Mean Bias', row=1, col=2, annotation_text=f"Bias={mean_diff:.2f}")
         fig.add_hline(y=upper_loa, line=dict(color='red', dash='dash'), name='Upper LoA', row=1, col=2)
         fig.add_hline(y=lower_loa, line=dict(color='red', dash='dash'), name='Lower LoA', row=1, col=2)
-        fig.update_xaxes(title_text="Average of Methods", row=1, col=2)
-        fig.update_yaxes(title_text="Difference (B - A)", row=1, col=2)
     else:
         fig.add_annotation(text="Bland-Altman requires paired data.<br>Data is independent.", showarrow=False, row=1, col=2)
+        # Add invisible trace to render the empty plot
+        fig.add_trace(go.Scatter(x=[0], y=[0], mode='markers', marker=dict(opacity=0)), row=1, col=2)
 
-    fig.update_layout(height=700, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+
+    # --- Plot 3 (Bottom Right): Wasserstein Visualization ---
+    # We will use an annotation here instead of a full plot to keep it clean
+    fig.add_annotation(text=f"<b>Wasserstein Distance</b><br>(Area between CDFs)<br><span style='font-size: 24px;'>{wasserstein_dist:.3f}</span>",
+                       font=dict(size=16), showarrow=False, row=2, col=2)
+    # Add invisible trace to render the empty plot
+    fig.add_trace(go.Scatter(x=[0], y=[0], mode='markers', marker=dict(opacity=0)), row=2, col=2)
+    
+    # --- Layout Updates ---
+    fig.update_layout(
+        height=700,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        yaxis=dict(title="Density", showticklabels=False),
+        yaxis2=dict(title="Cumulative Prob.", overlaying='y', side='right', range=[0, 1.05]),
+        xaxis=dict(title="Process Output Value"),
+        yaxis3=dict(title="Difference (B - A)"),
+        xaxis3=dict(title="Average of Methods"),
+        yaxis4=dict(visible=False),
+        xaxis4=dict(visible=False)
+    )
     return fig
 
 @st.cache_data
-def plot_multi_process_diagnostics(df_all, tukey_results, data_list):
+def plot_multi_process_comparison(df_all, lsl, usl):
     """
-    Generates a 2-panel diagnostic plot for multi-process comparisons:
-    1. Tukey's HSD plot to identify which means are different.
-    2. Pairwise Q-Q plots to diagnose how distributions differ in shape.
+    Generates a violin plot to compare the distributions of three or more processes.
     """
-    fig = make_subplots(
-        rows=1, cols=2,
-        subplot_titles=("<b>ANOVA Post-Hoc: Tukey's HSD</b>", "<b>Distributional Diagnostics: Q-Q Plots</b>")
-    )
-    # Plot 1: Tukey's HSD
-    tukey_df = pd.DataFrame(data=tukey_results._results_table.data[1:], columns=tukey_results._results_table.data[0])
-    tukey_df = tukey_df.sort_values(by='p-adj')
-    colors = ['#EF553B' if p < 0.05 else SUCCESS_GREEN for p in tukey_df['p-adj']]
-    fig.add_trace(go.Bar(
-        x=tukey_df['p-adj'],
-        y=[f"{g1}-{g2}" for g1, g2 in zip(tukey_df['group1'], tukey_df['group2'])],
-        orientation='h', marker_color=colors,
-        text=[f"p={p:.3f}" for p in tukey_df['p-adj']],
-        textposition='inside'
-    ), row=1, col=1)
-    fig.add_vline(x=0.05, line_dash="dash", line_color="red", row=1, col=1, annotation_text="p=0.05")
-    fig.update_xaxes(title_text="Adjusted p-value", range=[0,1.05], row=1, col=1)
-    fig.update_yaxes(title_text="Pairwise Comparison", categoryorder='total ascending', row=1, col=1)
-    
-    # Plot 2: Q-Q Plots
+    fig = go.Figure()
     line_names = df_all['Line'].unique()
-    qq_a_sorted = np.sort(data_list[0])
-    for i in range(1, len(line_names)):
-        qq_b_sorted = np.sort(data_list[i])
-        interp_func = np.interp(np.linspace(0, 1, len(qq_a_sorted)), np.linspace(0, 1, len(qq_b_sorted)), qq_b_sorted)
-        fig.add_trace(go.Scatter(x=qq_a_sorted, y=interp_func, mode='markers', name=f'{line_names[i]} vs. {line_names[0]}'), row=1, col=2)
+    colors = px.colors.qualitative.Plotly
     
-    all_qq_data = np.concatenate(data_list)
-    min_val, max_val = all_qq_data.min(), all_qq_data.max()
-    fig.add_shape(type='line', x0=min_val, y0=min_val, x1=max_val, y1=max_val, line=dict(color='red', dash='dash'), row=1, col=2)
-    fig.update_xaxes(title_text=f"Quantiles of Reference Line ({line_names[0]})", row=1, col=2)
-    fig.update_yaxes(title_text="Quantiles of Comparison Lines", scaleanchor="x2", scaleratio=1, row=1, col=2)
-    
-    fig.update_layout(height=400, showlegend=True, legend=dict(yanchor="bottom", y=0.01))
+    for i, line in enumerate(line_names):
+        subset = df_all[df_all['Line'] == line]['value']
+        fig.add_trace(go.Violin(
+            x=subset, 
+            y0=line, 
+            name=f'Line {line}', 
+            orientation='h', 
+            side='positive', 
+            width=1.5, 
+            points='all', 
+            pointpos=0, 
+            jitter=0.1, 
+            line_color=colors[i % len(colors)]
+        ))
+        
+    fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>")
+    fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>")
+    fig.update_layout(
+        title="<b>Process Distribution Comparison</b>", 
+        xaxis_title="Process Output Value", 
+        yaxis_title="Production Line",
+        legend_title="Production Line"
+    )
+    fig.update_traces(meanline_visible=True)
     return fig
-
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Process & Method Comparability Suite) - ROBUST FIX
 # ==============================================================================

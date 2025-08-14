@@ -9887,14 +9887,14 @@ def render_comparability_suite():
     """)
 
     st.info("""
-    **Interactive Demo:** You are the Tech Transfer Lead. Use the sidebar gadgets to simulate different tech transfer scenarios. The dashboards will instantly update, showing how each statistical method interprets the same data. Your goal is to understand *why* different tests are needed for different questions.
+    **Interactive Demo:** Use the sidebar gadgets to simulate different tech transfer scenarios. The dashboards will instantly update, showing how each statistical method interprets the same data. Your goal is to understand *why* different tests are needed for different questions.
     """)
     st.divider()
 
     with st.sidebar:
         st.subheader("Two-Process Scenario Gadgets")
-        mean_shift_b = st.slider("Mean Shift at Site B", -5.0, 5.0, 0.0, 0.25, help="Simulates a systematic bias or shift in the process average at Site B.")
-        variance_change_b = st.slider("Variance Change Factor at Site B", 0.5, 2.0, 1.0, 0.05, help="Simulates a change in process precision at Site B. >1.0 is more variable.")
+        mean_shift_b = st.slider( "Mean Shift at Site B", -5.0, 5.0, 0.0, 0.25, help="Simulates a systematic bias or shift in the process average at Site B.")
+        variance_change_b = st.slider( "Variance Change Factor at Site B", 0.5, 2.0, 1.0, 0.05, help="Simulates a change in process precision at Site B. >1.0 is more variable.")
         
         st.subheader("Multi-Process Scenario Gadget")
         multi_process_scenario = st.radio(
@@ -9904,8 +9904,8 @@ def render_comparability_suite():
         )
 
         st.subheader("Equivalence Criteria")
-        tost_margin = st.slider("TOST Equivalence Margin (Δ)", 0.5, 5.0, 2.0, 0.1, help="The 'goalposts' for the TOST test for means.")
-        wasserstein_threshold = st.slider("Wasserstein Equivalence Threshold", 0.5, 5.0, 1.5, 0.1, help="The allowance for the Wasserstein test for distributions.")
+        tost_margin = st.slider( "TOST Equivalence Margin (Δ)", 0.5, 5.0, 2.0, 0.1, help="The 'goalposts' for the TOST test for means.")
+        wasserstein_threshold = st.slider( "Wasserstein Equivalence Threshold", 0.5, 5.0, 1.5, 0.1, help="The allowance for the Wasserstein test for distributions.")
 
     # --- Data Generation & Analysis for TWO Processes ---
     np.random.seed(42)
@@ -9930,7 +9930,7 @@ def render_comparability_suite():
     col_plots, col_verdicts = st.columns([0.6, 0.4])
     with col_plots:
         st.subheader("Visual Evidence")
-        fig_visuals = plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist)
+        fig_visuals = plot_comparability_dashboard(data_a.tolist(), data_b.tolist(), lsl, usl, wasserstein_dist)
         st.plotly_chart(fig_visuals, use_container_width=True)
     with col_verdicts:
         st.subheader("Statistical Verdict Panel")
@@ -9954,10 +9954,12 @@ def render_comparability_suite():
             st.caption("Compares entire process shape, not just the mean.")
     st.divider()
 
-    # --- Section for Three Processes ---
+    # --- RENDER SECTION FOR THREE PROCESSES ---
     st.header("Multi-Process Comparison: Three Production Lines")
     st.markdown("This section extends the comparison to three or more groups, requiring different statistical tools.")
     
+    # --- THIS IS THE CORRECTED LOGIC BLOCK ---
+    # 1. Generate data for three lines based on the selected multi-process scenario
     data_a_multi = np.random.normal(100, 3, n_samples)
     if multi_process_scenario == "All Lines Equivalent":
         data_b_multi = np.random.normal(100, 3, n_samples)
@@ -9969,6 +9971,7 @@ def render_comparability_suite():
         data_b_multi = np.random.normal(100, 3, n_samples)
         data_c_multi = np.random.normal(100, 5, n_samples)
 
+    # 2. Assemble the fresh data into the DataFrame and list for plotting and testing
     df_all = pd.concat([
         pd.DataFrame({'value': data_a_multi, 'Line': 'A'}),
         pd.DataFrame({'value': data_b_multi, 'Line': 'B'}),
@@ -9976,10 +9979,12 @@ def render_comparability_suite():
     ], ignore_index=True)
     data_list = [df_all[df_all['Line'] == 'A']['value'], df_all[df_all['Line'] == 'B']['value'], df_all[df_all['Line'] == 'C']['value']]
     
+    # 3. Perform all statistical tests on the fresh data
     anova_result = f_oneway(*data_list)
     ad_result = stats.anderson_ksamp(data_list)
     ad_p_value = ad_result.pvalue
     tukey_results = pairwise_tukeyhsd(endog=df_all['value'], groups=df_all['Line'], alpha=0.05)
+    # --- END OF CORRECTED LOGIC BLOCK ---
 
     col_fig2, col_stats2 = st.columns([0.6, 0.4])
     with col_fig2:
@@ -10003,19 +10008,17 @@ def render_comparability_suite():
         st.subheader("ANOVA Post-Hoc Analysis: Diagnosing the Difference")
         st.markdown("Since the ANOVA test was significant (p < 0.05), we must now investigate *which specific lines* are different from each other. The **Tukey's HSD** test performs all pairwise comparisons while the **Q-Q Plots** help visualize how the distributions differ in shape.")
         
-        # --- ROBUST FIX: Extract simple data from the complex tukey_results object ---
         tukey_df_simple = pd.DataFrame(data=tukey_results._results_table.data[1:], columns=tukey_results._results_table.data[0])
         tukey_df_simple = tukey_df_simple.sort_values(by='p-adj')
         tukey_p_adj_list = tukey_df_simple['p-adj'].tolist()
         tukey_pairs_list = [f"{g1}-{g2}" for g1, g2 in zip(tukey_df_simple['group1'], tukey_df_simple['group2'])]
-        # --- END OF FIX ---
 
         fig_posthoc = plot_comparability_dashboard(
             data_a=None, data_b=None, lsl=lsl, usl=usl, wasserstein_dist=None,
             is_multi_process_mode=True,
             tukey_p_adj=tukey_p_adj_list,
             tukey_group_pairs=tukey_pairs_list,
-            qq_data_list=[d.tolist() for d in data_list], # Convert pandas Series to simple lists
+            qq_data_list=[d.tolist() for d in data_list], 
             line_names=df_all['Line'].unique().tolist()
         )
         st.plotly_chart(fig_posthoc, use_container_width=True)

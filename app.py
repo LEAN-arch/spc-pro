@@ -3378,6 +3378,59 @@ def plot_multi_process_comparison(df_all, lsl, usl):
     fig.update_layout(title="<b>Process Distribution Comparison</b>", xaxis_title="Process Output Value", yaxis_title="Production Line")
     fig.update_traces(meanline_visible=True)
     return fig
+
+@st.cache_data
+def plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, tost_is_equivalent, wasserstein_dist, wasserstein_thresh, wasserstein_is_equivalent, lsl, usl):
+    """Generates a 4-panel dashboard comparing different statistical comparability methods."""
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=(
+            "<b>1. The Data: Process Distributions</b>",
+            "<b>2. Classical Test: Are the Means Different?</b> (t-test)",
+            "<b>3. Equivalence Test: Are the Means the Same?</b> (TOST)",
+            "<b>4. Distributional Test: Are the Fingerprints the Same?</b> (Wasserstein)"
+        ),
+        vertical_spacing=0.2, horizontal_spacing=0.15
+    )
+
+    # Plot 1: The Raw Data Distributions
+    x_range = np.linspace(min(data_a.min(), data_b.min()) - 5, max(data_a.max(), data_b.max()) + 5, 400)
+    kde_a = stats.gaussian_kde(data_a)
+    kde_b = stats.gaussian_kde(data_b)
+    fig.add_trace(go.Scatter(x=x_range, y=kde_a(x_range), fill='tozeroy', name='Site A (Reference)', line=dict(color=PRIMARY_COLOR)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=kde_b(x_range), fill='tozeroy', name='Site B (New)', line=dict(color=SUCCESS_GREEN), opacity=0.7), row=1, col=1)
+    fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1)
+    fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
+    fig.update_yaxes(showticklabels=False, row=1, col=1)
+
+    # Plot 2: T-Test Verdict
+    ttest_verdict = "FAIL (Means are different)" if ttest_p < 0.05 else "PASS (No evidence of difference)"
+    ttest_color = '#EF553B' if ttest_p < 0.05 else SUCCESS_GREEN
+    fig.add_annotation(text=f"<b>p-value = {ttest_p:.3f}</b><br>{'❌' if ttest_p < 0.05 else '✅'} {ttest_verdict}",
+                       font=dict(size=18, color=ttest_color), showarrow=False, row=1, col=2)
+
+    # Plot 3: TOST Verdict
+    ci_lower, ci_upper = tost_ci
+    ci_color = SUCCESS_GREEN if tost_is_equivalent else '#EF553B'
+    fig.add_vrect(x0=-tost_margin, x1=tost_margin, fillcolor="rgba(0,128,0,0.1)", layer="below", line_width=0, row=2, col=1)
+    fig.add_trace(go.Scatter(x=[ci_lower, ci_upper], y=[0, 0], mode='lines', line=dict(color=ci_color, width=15)), row=2, col=1)
+    fig.add_vline(x=-tost_margin, line=dict(color="red", dash="dash"), row=2, col=1)
+    fig.add_vline(x=tost_margin, line=dict(color="red", dash="dash"), row=2, col=1)
+    fig.update_yaxes(showticklabels=False, range=[-1, 1], row=2, col=1)
+
+    # Plot 4: Wasserstein Verdict
+    wasserstein_color = SUCCESS_GREEN if wasserstein_is_equivalent else '#EF553B'
+    fig.add_annotation(text=f"<b>Distance = {wasserstein_dist:.2f}</b><br>(Threshold = {wasserstein_thresh:.2f})<br>{'✅' if wasserstein_is_equivalent else '❌'} {'Equivalent' if wasserstein_is_equivalent else 'NOT Equivalent'}",
+                       font=dict(size=18, color=wasserstein_color), showarrow=False, row=2, col=2)
+
+    fig.update_layout(height=800, showlegend=False)
+    fig.update_xaxes(title_text="Process Output Value", row=1, col=1)
+    fig.update_xaxes(showticklabels=False, row=1, col=2)
+    fig.update_yaxes(showticklabels=False, row=1, col=2)
+    fig.update_xaxes(title_text="Difference in Means (Site B - Site A)", row=2, col=1)
+    fig.update_xaxes(showticklabels=False, row=2, col=2)
+    fig.update_yaxes(showticklabels=False, row=2, col=2)
+    return fig
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Tolerance Intervals) - SME ENHANCED
 # ==============================================================================
@@ -9812,34 +9865,86 @@ def render_comparability_suite():
     """Renders the new, high-level suite for comparing all comparability methods."""
     st.markdown("""
     #### Purpose & Application: The Statistician's Decision Guide
-    **Purpose:** To provide a strategic framework for selecting the correct statistical tool to compare groups or methods. This suite moves beyond a single tool to create a **decision-making dashboard** that contrasts the goals, strengths, and weaknesses of four foundational comparability techniques.
+    **Purpose:** To provide a strategic framework for selecting the correct statistical tool to compare groups or methods. This suite moves beyond a single tool to create a **decision-making dashboard** that contrasts the goals, strengths, and weaknesses of foundational comparability techniques.
     
     **Strategic Application:** This is a masterclass in statistical thinking for V&V. It addresses the most common questions and pitfalls in comparability studies, ensuring that a leader can confidently choose and defend the most appropriate statistical method for any given validation scenario.
     """)
 
     st.info("""
-    **This is a high-level guide.** Use the **Method Selection Guide** to determine the right tool for your problem, then explore the **Detailed Comparison Table** to understand the nuances of each approach.
+    **Interactive Demo:** You are the Tech Transfer Lead. Use the sidebar gadgets to simulate a change in the new process at **Site B**. The four-panel dashboard will instantly update, showing how each statistical method interprets the same data. Your goal is to understand *why* they sometimes give different answers.
     """)
     st.divider()
 
-    tabs = st.tabs(["💡 Method Selection Guide", "📋 Detailed Comparison Table", "✅ The Golden Rule"])
+    with st.sidebar:
+        st.subheader("Comparability Scenario Gadgets")
+        mean_shift = st.slider(
+            "Mean Shift at Site B", 
+            -5.0, 5.0, 0.0, 0.25,
+            help="Simulates a systematic bias or shift in the process average at the new site. How far is Site B's average from Site A's?"
+        )
+        variance_change = st.slider(
+            "Variance Change Factor at Site B", 
+            0.5, 2.0, 1.0, 0.05,
+            help="Simulates a change in process precision. >1.0 means Site B is more variable (less precise); <1.0 means it is less variable."
+        )
+        st.markdown("---")
+        tost_margin = st.slider(
+            "TOST Equivalence Margin (Δ)", 0.5, 5.0, 2.0, 0.1,
+            help="The 'goalposts' for the TOST test. Defines the zone where a difference in *means* is considered practically meaningless."
+        )
+        wasserstein_threshold = st.slider(
+            "Wasserstein Equivalence Threshold", 0.5, 5.0, 1.5, 0.1,
+            help="The 'allowance' for the Wasserstein test. Defines the maximum acceptable difference between the entire *distributions*."
+        )
+
+    # --- Data Generation & Analysis ---
+    np.random.seed(42)
+    n_samples = 150
+    lsl, usl = 90, 110
+    
+    # Site A (Reference Process)
+    data_a = np.random.normal(100, 3, n_samples)
+    
+    # Site B (New Process, controlled by sliders)
+    data_b = np.random.normal(100 + mean_shift, 3 * variance_change, n_samples)
+    
+    # 1. T-Test for Difference
+    ttest_p = stats.ttest_ind(data_a, data_b, equal_var=False).pvalue
+    
+    # 2. TOST for Equivalence of Means
+    diff_mean = np.mean(data_b) - np.mean(data_a)
+    std_err_diff = np.sqrt(np.var(data_a, ddof=1)/n_samples + np.var(data_b, ddof=1)/n_samples)
+    df_welch = (std_err_diff**4) / (((np.var(data_a, ddof=1)/n_samples)**2 / (n_samples-1)) + ((np.var(data_b, ddof=1)/n_samples)**2 / (n_samples-1)))
+    ci_margin = stats.t.ppf(0.95, df_welch) * std_err_diff
+    tost_ci = (diff_mean - ci_margin, diff_mean + ci_margin)
+    tost_is_equivalent = (tost_ci[0] >= -tost_margin) and (tost_ci[1] <= tost_margin)
+    
+    # 3. Wasserstein for Equivalence of Distributions
+    wasserstein_dist = stats.wasserstein_distance(data_a, data_b)
+    wasserstein_is_equivalent = wasserstein_dist < wasserstein_threshold
+
+    # --- Render Dashboard ---
+    st.header("The Comparability Method Showdown")
+    fig = plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, tost_is_equivalent, wasserstein_dist, wasserstein_threshold, wasserstein_is_equivalent, lsl, usl)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "📋 Detailed Comparison Table", "✅ The Golden Rule"])
 
     with tabs[0]:
-        st.subheader("Method Selection Guide: The Right Tool for the Right Question")
         st.markdown("""
-        **1. What is your fundamental question?**
-        -   **A) "Is there *any* statistically significant difference between the means of my 3+ groups?"**
-            -   ➡️ Use **One-Way ANOVA**. It's a fast, simple test for detecting differences in the average. If the p-value is low, you have evidence of a difference in means. It's a good *first screening tool*.
-        -   **B) "Are my two processes/methods functionally *the same* for all practical purposes?"**
-            -   This is a question of **equivalence or agreement**, not difference. Proceed to question 2.
+        **Try these simulations to understand the key differences:**
 
-        **2. Are you comparing *measurement methods* or *manufacturing processes*?**
-        -   **A) Measurement Methods (e.g., a new QC test vs. a reference standard):** Your primary concern is **agreement** and diagnosing **bias**.
-            -   ➡️ Use **Bland-Altman Analysis** to quantify the limits of agreement and assess if they are clinically/technically acceptable.
-            -   ➡️ Use **Passing-Bablok or Deming Regression** to diagnose the *type* of bias (constant vs. proportional).
-        -   **B) Manufacturing Processes (e.g., Tech Transfer Site A vs. Site B):** Your primary concern is proving that the *overall behavior and output* are statistically indistinguishable.
-            -   ➡️ Use **TOST (Two One-Sided Tests)** if your CQA is well-behaved (normal) and your primary goal is to prove the *means* are equivalent within a defined margin (Δ).
-            -   ➡️ Use **Wasserstein Distance** for a more robust and comprehensive proof of equivalence that compares the entire process distribution. This is the superior method if you suspect changes in variance, skewness, or shape.
+        1.  **The Classic Failure (Mean Shift):**
+            - Set `Mean Shift` to `2.5` and `Variance Change` to `1.0`.
+            - **Result:** The T-test correctly detects a difference (p < 0.05). Both equivalence tests correctly fail. All methods agree, as expected.
+
+        2.  **The T-Test's Blind Spot (Variance Increase):**
+            - Set `Mean Shift` to `0.0` and `Variance Change` to `1.8`.
+            - **Result:** The T-test shows **"No evidence of difference"** (p > 0.05) because the means are the same. TOST also passes. But look at the distributions! Site B is clearly less controlled. The **Wasserstein test correctly fails**, proving its superiority in detecting changes beyond just the average.
+
+        **The Strategic Insight:** Your choice of statistical method depends on the risk you are trying to mitigate. If you only care about the long-run average of the process, a t-test or TOST is sufficient. If you care about the process's **consistency, precision, and overall behavior**, the Wasserstein distance is a far more powerful and reliable gatekeeper for a tech transfer.
         """)
 
     with tabs[1]:
@@ -9868,7 +9973,7 @@ By pre-specifying the right tool for the right question in your validation plan,
         
         st.markdown("---")
         st.markdown("""
-        ##### SME Perspective: Why T-Tests Are Intentionally Omitted
+        ##### SME Perspective: Why T-Tests Are Intentionally De-emphasized
         This toolkit deliberately omits a standalone 2-Sample T-Test module to guide users toward more robust and appropriate methods for V&V.
         -   **Focus on Superior Methods:** For comparing two groups, TOST and Wasserstein Distance are statistically superior and more appropriate for regulated environments.
         -   **Prevent Misapplication:** This steers users away from the common statistical fallacy of using a non-significant p-value to incorrectly claim equivalence.

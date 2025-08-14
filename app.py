@@ -4996,10 +4996,14 @@ def plot_isolation_forest(contamination_rate=0.1):
     # The `row` and `col` arguments have been changed from (2,1) to (2,2).
     fig.add_trace(px.histogram(df, x='Score', color='GroundTruth',
                                color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
-                               barmode='overlay', marginal='rug').data[0], row=2, col=2)
+                               barmode='overlay', marginal='rug').data[0], row=2, col=2) # <-- FIX HERE
     fig.add_trace(px.histogram(df, x='Score', color='GroundTruth',
                            color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
-                           barmode='overlay', marginal='rug').data[1], row=2, col=2)
+                           barmode='overlay', marginal='rug').data[1], row=2, col=2) # <-- FIX HERE
+    
+    score_threshold = np.percentile(anomaly_scores, 100 * (1-contamination_rate))
+    fig.add_vline(x=score_threshold, line_dash="dash", line_color="black",
+                  annotation_text="Decision Threshold", row=2, col=2) 
     
     score_threshold = np.percentile(anomaly_scores, 100 * (1-contamination_rate))
     fig.add_vline(x=score_threshold, line_dash="dash", line_color="black",

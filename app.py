@@ -3382,8 +3382,11 @@ def plot_multi_process_comparison(df_all, lsl, usl):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Process & Method Comparability Suite) - ROBUST FIX
 # ==============================================================================
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Process & Method Comparability Suite) - RESTORED
+# ==============================================================================
 @st.cache_data
-def plot_comparability_visuals(data_a, data_b, lsl, usl, wasserstein_dist):
+def plot_comparability_dashboard(data_a, data_b, lsl, usl, wasserstein_dist):
     """
     Generates a 2-panel plot showing the visual evidence for process comparison:
     1. Overlaid Probability Density Functions (PDFs) to visualize shape.
@@ -9977,8 +9980,6 @@ def render_comparability_suite():
 
     st.divider()
     st.subheader("Deeper Dive into Comparability Statistics")
-    
-    # --- THIS IS THE CORRECTED TABS SECTION ---
     tabs = st.tabs(["💡 Method Selection Map", "📋 Detailed Comparison Table", "✅ The Golden Rule", "📖 Theory, History & Math", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""

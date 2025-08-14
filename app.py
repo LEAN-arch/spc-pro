@@ -4547,19 +4547,15 @@ def plot_survival_analysis(group_b_lifetime=30, censor_rate=0.2):
     results = logrank_test(time_A, time_B, event_observed_A, event_observed_B)
     p_value = results.p_value
 
-    # --- Plotting ---
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # Specify the `types` for each subplot in the `specs` argument.
-    # Row 1 is a standard 'xy' plot. Row 2 is a 'table'.
     fig = make_subplots(
-        rows=2, cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.05,
-        row_heights=[0.8, 0.2],
-        specs=[[{"type": "xy"}],
-               [{"type": "table"}]],
-        subplot_titles=("<b>Kaplan-Meier Survival Estimates</b>",) # Title only for the first plot
-    )
+            rows=2, cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+            row_heights=[0.8, 0.2],
+            specs=[[{"type": "xy"}],        # The first plot is a standard xy plot
+                   [{"type": "table"}]],    # The second plot is explicitly a table
+            subplot_titles=("<b>Kaplan-Meier Survival Estimates</b>",)
+        )
     # --- END OF CORRECTION ---
     
     # Plot curves with confidence intervals
@@ -5885,7 +5881,6 @@ PSO_CONTEXTS = {
 def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, project_context):
     """
     Runs the computationally expensive PSO simulation and returns simple, cacheable data types.
-    This function is cached and only reruns when its input sliders change.
     """
     np.random.seed(42)
     # NOTE: The PSO_CONTEXTS dictionary and its helper functions (_pharma_surface, etc.)
@@ -5942,14 +5937,12 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     return zz, x_range, y_range, history, gbest_position, gbest_score, context
     # --- END RETURN FIX ---
 
-# This function is now also cached. It will only rerun if the DATA from the simulation changes.
 @st.cache_data
-def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, _context): # <-- UNDERSCORE ADDED HERE
+def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, _context):
     """
     Creates the Plotly figure from simple data types. Caching this prevents the figure object
-    from being recreated on every single UI interaction, breaking the rerun loop.
+    from being recreated on every single UI interaction.
     """
-    # Use the underscored variable inside the function
     context = _context 
     
     contour_trace = go.Contour(z=zz, x=x_range, y=y_range, colorscale='Inferno', colorbar=dict(title='Anomaly Score<br>(AE Recon. Error)'))
@@ -12683,15 +12676,14 @@ def render_pso_autoencoder():
 
     # --- THIS IS THE NEW, CORRECTED LOGIC ---
     # 1. Run the expensive, cached simulation to get the raw data
-    zz, x_range, y_range, history, best_params, best_score, context = run_pso_simulation(
+    # 1. Run the expensive, cached simulation to get the raw data
+    zz, x_range, y_range, history, gbest_position, best_score, context = run_pso_simulation(
         n_particles, n_iterations, inertia, cognition, social, project_context_name
     )
-    # Add the project context name to the context dictionary for the title
     context['name'] = project_context_name
     
-    # 2. Create the figure using the fast, non-cached function
-    fig = create_pso_figure(zz, x_range, y_range, history, best_params, context)
-    # --- END OF NEW LOGIC ---
+    # 2. Create the figure from the cached data. Pass lists/arrays as tuples.
+    fig = create_pso_figure_from_data(zz, tuple(x_range), tuple(y_range), history, tuple(gbest_position), context)
     
     col1, col2 = st.columns([0.7, 0.35])
     with col1:

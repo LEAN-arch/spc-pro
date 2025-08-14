@@ -12573,7 +12573,7 @@ with st.sidebar:
             "Equivalence Testing (TOST)",
             "Statistical Equivalence for Process Transfer",
             "Wasserstein Distance",
-            "Process & Method Comparability Suite"
+            "Process & Method Comparability Suite",
             "Process Stability (SPC)",
             "Process Capability (Cpk)",
             "First Time Yield & Cost of Quality",

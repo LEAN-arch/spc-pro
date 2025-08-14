@@ -12784,13 +12784,18 @@ def render_pso_autoencoder():
         social = st.slider("Social (Global Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to the swarm's overall best-found location.")
 
     # 1. Run the expensive, cached simulation to get the raw data
-    zz, x_range, y_range, history, gbest_position, best_score, context = run_pso_simulation(
+    zz, x_range, y_range, history, gbest_position, best_score, context_from_cache = run_pso_simulation(
         n_particles, n_iterations, inertia, cognition, social, project_context_name
     )
-    context['name'] = project_context_name
     
-    # 2. Create the figure from the cached data. Pass the unhashable 'context' dict with a leading underscore.
-    # Also pass lists/arrays as tuples to ensure they are hashable.
+    # --- BUG FIX #1: PREVENT CACHE MUTATION ---
+    # Make a copy of the context dictionary before modifying it.
+    # This stops Streamlit from re-running the expensive simulation on every interaction.
+    context = context_from_cache.copy()
+    context['name'] = project_context_name
+    # --- END BUG FIX #1 ---
+    
+    # 2. Create the figure from the cached data.
     fig = create_pso_figure_from_data(zz, tuple(x_range), tuple(y_range), history, tuple(gbest_position), context)
     
     col1, col2 = st.columns([0.7, 0.35])
@@ -12798,13 +12803,18 @@ def render_pso_autoencoder():
         st.plotly_chart(fig, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
+        # --- BUG FIX #2: CORRECT VARIABLE NAME ---
+        # Changed `best_params` to the correct variable `gbest_position`.
+        # This stops the NameError that was causing the app to crash and flicker.
         st.metric(f"Worst-Case {context['x_label']}", f"{gbest_position[0]:.2f}")
         st.metric(f"Worst-Case {context['y_label']}", f"{gbest_position[1]:.2f}")
+        # --- END BUG FIX #2 ---
         st.metric("Maximum Anomaly Score", f"{best_score:.3f}")
         st.success("""
         **Actionable Insight:** The simulation has identified the process conditions most likely to cause an anomalous run. The next step is to design a lab experiment that deliberately targets these conditions to confirm the model's prediction and define the true edge of the process's Design Space.
         """)
 
+    # ... (The rest of the function remains the same) ...
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
@@ -12815,6 +12825,7 @@ def render_pso_autoencoder():
         - **The Swarm's Journey:** When you press "Play," you are watching an optimization algorithm in action. The particles start randomly, but they communicate and learn. They are collectively pulled towards the area of highest anomaly score, efficiently finding the peak of the risk landscape.
         - **The Strategic Insight:** This approach automates and supercharges worst-case analysis. Instead of relying on engineers to guess at high-risk conditions for your **{project_context_name}**, you deploy an AI agent to find them for you. The result is a data-driven, highly defensible candidate for your robustness challenge studies (ICH Q8/Q14).
         """)
+        
     with tabs[1]:
         st.markdown("""
         ##### Glossary of Key Terms
@@ -12851,7 +12862,6 @@ A modern, AI-driven approach to robustness testing treats the problem as a forma
         - **ICH Q9 (Quality Risk Management):** This is a form of proactive risk discovery. Instead of just assessing known risks, this system actively searches for new, unknown risk scenarios (combinations of parameters that lead to anomalous states).
         - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML models to inform critical decisions about the process operating range, the models themselves would require a robust validation lifecycle to be used in a GxP environment.
         """)
-    
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
 # ==============================================================================

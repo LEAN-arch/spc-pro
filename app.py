@@ -9968,13 +9968,13 @@ A modern, robust approach to comparability goes beyond simple parameters.
 #=============================================================================================  COMPARISON OF COMPARE METHODS =================================================================================
 
     def render_two_process_suite():
-    """Renders the suite for comparing TWO processes or methods."""
-    st.markdown("""
-    #### Purpose & Application: The Head-to-Head Showdown
-    **Purpose:** To provide a deep, multi-faceted comparison of **two processes or methods**. This suite is designed for classic V&V scenarios like tech transfer (Site A vs. Site B) or new method validation (New Method vs. Gold Standard).
-    
-    **Strategic Application:** This dashboard forces a clear-eyed view of comparability by answering three distinct questions: Are they different? Are they equivalent? Do they agree? The choice of method depends entirely on the question you are required to answer for your validation plan.
-    """)
+        """Renders the suite for comparing TWO processes or methods."""
+        st.markdown("""
+        #### Purpose & Application: The Head-to-Head Showdown
+        **Purpose:** To provide a deep, multi-faceted comparison of **two processes or methods**. This suite is designed for classic V&V scenarios like tech transfer (Site A vs. Site B) or new method validation (New Method vs. Gold Standard).
+        
+        **Strategic Application:** This dashboard forces a clear-eyed view of comparability by answering three distinct questions: Are they different? Are they equivalent? Do they agree? The choice of method depends entirely on the question you are required to answer for your validation plan.
+        """)
 
     with st.sidebar:
         st.subheader("Two-Process Scenario Gadgets")

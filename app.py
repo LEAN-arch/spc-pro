@@ -3345,53 +3345,6 @@ def plot_process_equivalence(cpk_site_a, mean_shift, var_change_factor, n_sample
 ## =====================================================================================================================================================================================================================================
 ##================================================================================== SPECIAL SET / METHOD COMPARISON ANOVA, t-test, TOST, Wassertein DISTANCE ==========================================================================
 #=======================================================================================================================================================================================================================================
-@st.cache_resource
-def get_plot_functions(pci_colors):
-    """
-    Defines all plotting functions. This is the final, fully corrected and complete version.
-    """
-    PLOT_THEME = {"font": {"family": "Arial, sans-serif"}, "title": {"font": {"size": 18, "color": "#333333"}, "x": 0.05, "xanchor": "left"}, "legend": {"font": {"size": 11}}, "xaxis": {"gridcolor": "#f0f0f0", "linecolor": "#e0e0e0"}, "yaxis": {"gridcolor": "#f0f0f0", "linecolor": "#e0e0e0"}, "plot_bgcolor": "rgba(255, 255, 255, 1)", "paper_bgcolor": "rgba(255, 255, 255, 1)", "margin": {"l": 50, "r": 50, "t": 80, "b": 50}}
-    PRIMARY_COLOR, SUCCESS_GREEN, DARK_GREY = "#0068C9", "#2ca02c", "#333333"
-
-    def create_mini_trend_chart(df, y_col, good_when='up'):
-        if df is None or len(df) < 2:
-            fig = go.Figure()
-            fig.update_layout(height=80, margin=dict(l=0, r=0, t=5, b=25), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            fig.update_xaxes(visible=False); fig.update_yaxes(visible=False)
-            return fig
-        is_up = df[y_col].iloc[-1] > df[y_col].iloc[0]
-        is_good = (is_up and good_when == 'up') or (not is_up and good_when == 'down')
-        line_color = pci_colors['accent_good'] if is_good else pci_colors['accent_bad']
-        fill_color = f"rgba({int(line_color[1:3], 16)}, {int(line_color[3:5], 16)}, {int(line_color[5:7], 16)}, 0.1)"
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df[y_col], mode='lines', line=dict(width=2, color=line_color), fill='tozeroy', fillcolor=fill_color))
-        fig.add_trace(go.Scatter(x=[df.index[-1]], y=[df[y_col].iloc[-1]], mode='markers', marker=dict(size=8, color=line_color, line=dict(width=1, color='white'))))
-        fig.update_layout(height=80, margin=dict(l=5, r=40, t=5, b=30), showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', yaxis=dict(visible=True, showgrid=False, side='right', nticks=3), xaxis=dict(visible=True, showgrid=False, tickvals=[df.index[0], df.index[-1]], tickformat='%b<br>%Y'))
-        return fig
-
-    def create_gantt_chart(df):
-        df_sorted = df.sort_values("start_date", ascending=False)
-        df_sorted['text'] = df_sorted['type'] + ' (' + df_sorted['pm'] + ')'
-        status_color_map = df_sorted['health_status'].map({'On Track': pci_colors['primary'], 'At Risk': pci_colors['accent_bad']}).tolist()
-        fig = go.Figure()
-        fig.add_trace(go.Bar(y=df_sorted['name'], x=df_sorted['end_date'] - df_sorted['start_date'], base=df_sorted['start_date'], orientation='h', marker_color='#EAECEE', name='Full Duration', hoverinfo='none', text=df_sorted['text'], textposition='inside', insidetextanchor='middle', insidetextfont=dict(color='black', size=10)))
-        fig.add_trace(go.Bar(y=df_sorted['name'], x=df_sorted['progress_end'] - df_sorted['start_date'], base=df_sorted['start_date'], orientation='h', marker_color=status_color_map, name='Progress', customdata=np.stack((df_sorted['pm'], df_sorted['health_status'], df_sorted['progress_pct'], df_sorted['start_date'], df_sorted['end_date']), axis=-1), hovertemplate="<b>%{y}</b><br>------------------<br><b>Status:</b> %{customdata[1]}<br><b>Lead:</b> %{customdata[0]}<br><b>Progress:</b> %{customdata[2]:.0%}<br><b>Timeline:</b> %{customdata[3]|%b %d, %Y} - %{customdata[4]|%b %d, %Y}<extra></extra>"))
-        fig.add_trace(go.Scatter(x=df_sorted['end_date'], y=df_sorted['name'], mode='markers', marker=dict(color=pci_colors['accent_neutral'], symbol='diamond', size=10), name='End Date Milestone', hoverinfo='none'))
-        fig.update_layout(**PLOT_THEME, title_text='<b>Initiative Roadmap & Status</b>', barmode='stack', showlegend=False, height=max(400, len(df_sorted) * 50), yaxis_autorange="reversed", xaxis_title="Timeline (Dates)")
-        fig.add_vline(x=pd.Timestamp.now(), line_width=2, line_dash="dash", line_color="black")
-        fig.add_annotation(x=pd.Timestamp.now(), y=1.05, yref="paper", showarrow=False, text="Today", font=dict(color="black", size=12))
-        return fig
-        
-    def create_eac_vs_budget_chart(df):
-        df_sorted = df.copy(); df_sorted['variance'] = df_sorted['eac_usd'] - df_sorted['budget_usd']; df_sorted['color'] = np.where(df_sorted['variance'] > 0, pci_colors['accent_bad'], pci_colors['primary'])
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=df_sorted['name'], y=df_sorted['eac_usd'], marker_color=df_sorted['color'], name='EAC'))
-        fig.add_trace(go.Scatter(x=df_sorted['name'], y=df_sorted['budget_usd'], mode='markers', marker=dict(color='black', symbol='line-ew-open', size=12, line=dict(width=2)), name='Budget'))
-        for _, row in df_sorted.iterrows():
-            fig.add_annotation(x=row['name'], y=row['eac_usd'], text=f"<b>{'+' if row['variance'] > 0 else ''}${row['variance']:,.0f}</b>", showarrow=False, yshift=10, font={'color': row['color'], 'size': 10})
-        fig.update_traces(customdata=df_sorted[['budget_usd', 'eac_usd', 'variance']], hovertemplate=("<b>%{x}</b><br>" + "------------------<br>" + "Budget: <b>$%{customdata[0]:,.0f}</b><br>" + "EAC: <b>$%{customdata[1]:,.0f}</b><br>" + "Variance: <b>$%{customdata[2]:,.0f}</b><extra></extra>"))
-        fig.update_layout(**(PLOT_THEME | {"title_text":'<b>Forecasted Budget Performance</b>', "height":400, "yaxis_title": "Amount (USD)", "xaxis_title":"Active Projects", "showlegend": False}))
-        return fig
 
     def plot_two_process_wasserstein(df_a, df_b, lsl, usl, threshold):
         mean_a, mean_b = df_a['value'].mean(), df_b['value'].mean()

@@ -9871,7 +9871,7 @@ def render_comparability_suite():
     """)
 
     st.info("""
-    **Interactive Demo:** You are the Tech Transfer Lead. Use the sidebar gadgets to simulate a change in the new process at **Site B**. The four-panel dashboard will instantly update, showing how each statistical method interprets the same data. Your goal is to understand *why* they sometimes give different answers.
+    **Interactive Demo:** Use the sidebar gadgets to simulate a change in a new process at **Site B**. The four-panel dashboard will instantly update, showing how each statistical method interprets the same data. Your goal is to understand *why* they sometimes give different answers.
     """)
     st.divider()
 
@@ -9924,9 +9924,54 @@ def render_comparability_suite():
     wasserstein_is_equivalent = wasserstein_dist < wasserstein_threshold
 
     # --- Render Dashboard ---
-    st.header("The Comparability Method Showdown")
-    fig = plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, tost_is_equivalent, wasserstein_dist, wasserstein_threshold, wasserstein_is_equivalent, lsl, usl)
-    st.plotly_chart(fig, use_container_width=True)
+    st.header("The Comparability Method Showdown: Two Processes")
+    st.markdown("This dashboard compares two processes (e.g., a sending and receiving site in a tech transfer).")
+    
+    # --- THIS IS THE FIX: Render the dashboard plot and the info column separately, not inside st.columns ---
+    fig_dashboard = plot_comparability_dashboard(data_a, data_b, ttest_p, tost_ci, tost_margin, tost_is_equivalent, wasserstein_dist, wasserstein_threshold, wasserstein_is_equivalent, lsl, usl)
+    st.plotly_chart(fig_dashboard, use_container_width=True)
+    
+    # The info box can be rendered after the plot
+    with st.expander("Show/Hide Key Performance Indicators"):
+        c1, c2, c3 = st.columns(3)
+        c1.metric("t-test p-value (for Means)", f"{ttest_p:.3f}", help="p < 0.05 indicates a significant difference in means.")
+        c2.metric("TOST Verdict", "Equivalent" if tost_is_equivalent else "Not Equivalent", help="Is the 90% CI for the mean difference inside the margin?")
+        c3.metric("Wasserstein Verdict", "Equivalent" if wasserstein_is_equivalent else "Not Equivalent", help="Is the total distributional distance below the threshold?")
+    # --- END OF FIX ---
+    
+    st.divider()
+
+    # --- NEW SECTION: Three-Line Comparison ---
+    st.header("Multi-Process Comparison: Three Production Lines")
+    st.markdown("This visualization is ideal for comparing multiple groups at once, such as different production lines, facilities, or raw material suppliers.")
+    # Generate data for three lines based on the Site A/B simulation
+    data_c = np.random.normal(101, 3.5, n_samples) # A third, slightly different line
+    df_all = pd.concat([
+        pd.DataFrame({'value': data_a, 'Line': 'A'}),
+        pd.DataFrame({'value': data_b, 'Line': 'B'}),
+        pd.DataFrame({'value': data_c, 'Line': 'C'})
+    ], ignore_index=True)
+    
+    # Perform ANOVA as the statistical test for 3+ groups
+    anova_result = f_oneway(
+        df_all[df_all['Line'] == 'A']['value'],
+        df_all[df_all['Line'] == 'B']['value'],
+        df_all[df_all['Line'] == 'C']['value']
+    )
+
+    col_fig, col_stats = st.columns([0.7, 0.3])
+    with col_fig:
+        fig_multi = plot_multi_process_comparison(df_all, lsl, usl)
+        st.plotly_chart(fig_multi, use_container_width=True)
+    with col_stats:
+        st.subheader("Statistical Analysis (ANOVA)")
+        st.markdown("One-Way ANOVA tests the null hypothesis that the means of all groups are equal.")
+        st.metric("ANOVA p-value", f"{anova_result.pvalue:.4f}")
+        if anova_result.pvalue < 0.05:
+            st.error("❌ FAIL: There is a statistically significant difference between the means of the production lines.")
+        else:
+            st.success("✅ PASS: There is no evidence of a significant difference between the means.")
+        st.markdown("**Interpretation:** The violin plot provides a rich visual comparison of the full distributions, while the ANOVA provides the formal statistical test for the means.")
 
     st.divider()
     st.subheader("Deeper Dive")

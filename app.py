@@ -5876,7 +5876,7 @@ PSO_CONTEXTS = {
 @st.cache_data
 def run_pso_simulation(n_particles, n_iterations, project_context, landscape_complexity=1.0, noise_level=0.5):
     """
-    Runs the PSO simulation on a dynamically generated landscape.
+    Runs the PSO simulation on a dynamically generated landscape controlled by sliders.
     """
     np.random.seed(42)
     context = PSO_CONTEXTS[project_context]
@@ -5893,7 +5893,7 @@ def run_pso_simulation(n_particles, n_iterations, project_context, landscape_com
     xx, yy = np.meshgrid(x_range, y_range)
     zz = reconstruction_error_surface(xx, yy)
 
-    # --- PSO Algorithm (using fixed, sensible parameters) ---
+    # --- PSO Algorithm (using fixed, sensible internal parameters) ---
     inertia, cognition, social = 0.7, 1.5, 1.5
     positions = np.random.rand(n_particles, 2)
     positions[:, 0] = positions[:, 0] * (context['x_range'][1] - context['x_range'][0]) + context['x_range'][0]
@@ -5928,6 +5928,7 @@ def run_pso_simulation(n_particles, n_iterations, project_context, landscape_com
             
     history_end = positions.copy()
     
+    # Return ONLY simple, hashable types. The context dictionary is not returned.
     return zz, x_range, y_range, history_start, history_end, gbest_position, gbest_score
 @st.cache_data
 def create_pso_static_figure(zz, x_range, y_range, history_start, history_end, gbest_position, context_name, x_label, y_label):
@@ -12763,19 +12764,19 @@ A modern, AI-driven approach to robustness testing treats the problem as a forma
 
 #======================================================================== PSO and AUTOENCODER FINAL UI =============================================================
 def render_pso_autoencoder():
-    """Renders the PSO + Autoencoder for worst-case analysis module."""
+    """Renders the PSO + Autoencoder module with a stable static plot and intuitive controls."""
     st.markdown("""
     #### Purpose & Application: The AI-Powered "Red Team"
     **Purpose:** To deploy an **AI-powered "Red Team"** that relentlessly searches for the hidden weaknesses in your process. This hybrid model uses a **Particle Swarm Optimization (PSO)** algorithm to find the specific combination of process parameters that cause the most "surprise" or deviation from normal, as measured by the reconstruction error of a pre-trained **LSTM Autoencoder**.
     
-    **Strategic Application:** This is a state-of-the-art method for **AI-driven robustness testing and Design Space definition**. Instead of randomly picking points for worst-case analysis, you are using an intelligent swarm to find the true "edges of failure" for a high-value process like a monoclonal antibody bioreactor run.
+    **Strategic Application:** This is a state-of-the-art method for **AI-driven robustness testing and Design Space definition**. Instead of randomly picking points for worst-case analysis, you are using an intelligent swarm to find the true "edges of failure" for a high-value process.
     """)
     
     st.info("""
-    **Interactive Demo:** You are the Head of Process Robustness.
-    1.  **Select a Project Context** to see a realistic "anomaly landscape". Hotter colors are more abnormal.
-    2.  Use the **PSO Parameters** in the sidebar to control the search. The static plot and KPIs will update instantly.
-    3.  Observe how the swarm starts randomly (white 'x') and converges (cyan circles) on the worst-case condition (green star).
+    **Interactive Demo:** You are the Process Scientist. Use the sidebar sliders to change the **Process Anomaly Landscape** itself.
+    - **`Landscape Complexity`**: Adds more "hills and valleys," making it harder for the AI to find the true global peak.
+    - **`Noise Level`**: Adds random noise, making the signal harder to distinguish.
+    - Observe how the PSO algorithm performs on the challenge you've created. The KPIs and plot will now update correctly.
     """)
 
     project_context_name = st.selectbox(
@@ -12784,17 +12785,21 @@ def render_pso_autoencoder():
         help="The anomaly landscape and parameter names will change to match a realistic scenario for the selected context."
     )
 
+    # --- NEW, MORE INTUITIVE SLIDERS ---
     with st.sidebar:
-        st.subheader("PSO Algorithm Controls")
-        n_particles = st.slider("Number of Particles (Swarm Size)", 10, 100, 30, 5, help="How many 'virtual experiments' are searching the space at once.")
-        n_iterations = st.slider("Number of Iterations", 20, 100, 50, 5, help="How many 'generations' the swarm has to learn and search.")
-        inertia = st.slider("Inertia (Momentum)", 0.4, 0.9, 0.7, 0.1, help="Controls how much the particles tend to keep flying in the same direction, promoting exploration.")
-        cognition = st.slider("Cognition (Personal Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to their own best-found location.")
-        social = st.slider("Social (Global Best)", 0.5, 2.5, 1.5, 0.1, help="How strongly particles are attracted to the swarm's overall best-found location.")
+        st.subheader("Process Landscape Controls")
+        complexity_slider = st.slider("Landscape Complexity", 0.0, 5.0, 1.0, 0.5, 
+            help="Controls how 'rugged' the anomaly surface is. High values create many local peaks, making the search harder.")
+        noise_slider = st.slider("Noise Level", 0.0, 5.0, 0.5, 0.5, 
+            help="Controls the amount of random noise on the surface, which can obscure the true peak.")
 
-    # 1. Run the expensive simulation. It now returns only simple data types, allowing the cache to work correctly.
+    # 1. Run the simulation with the new landscape controls and a fixed set of PSO parameters.
+    # The function call now correctly matches the function definition.
     zz, x_range, y_range, history_start, history_end, gbest_position, best_score = run_pso_simulation(
-        n_particles, n_iterations, inertia, cognition, social, project_context_name
+        n_particles=50, n_iterations=75, 
+        project_context=project_context_name,
+        landscape_complexity=complexity_slider,
+        noise_level=noise_slider
     )
     
     # 2. Get the labels from the global dictionary for plotting.
@@ -12818,22 +12823,23 @@ def render_pso_autoencoder():
         st.metric(f"Worst-Case {x_label}", f"{gbest_position[0]:.2f}")
         st.metric(f"Worst-Case {y_label}", f"{gbest_position[1]:.2f}")
         # --- END BUG FIX #2 ---
-        st.metric("Maximum Anomaly Score", f"{best_score:.3f}")
+        st.metric("Maximum Anomaly Score Found", f"{best_score:.3f}")
         st.success("""
         **Actionable Insight:** The simulation has identified the process conditions most likely to cause an anomalous run. The next step is to design a lab experiment that deliberately targets these conditions to confirm the model's prediction and define the true edge of the process's Design Space.
         """)
 
+    # The "Deeper Dive" tabs can remain as they are.
     st.divider()
     st.subheader("Deeper Dive")
     tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown(f"""
         **Interpreting the Simulation for a {project_context_name}:**
-        - **The Landscape:** The heatmap represents the "process health" as understood by an Autoencoder trained on normal data. For the **{project_context_name}**, the "golden valley" of cool colors is the normal operating region. The peaks (hot colors) are regions where the process behaves in unexpected ways, leading to high reconstruction error. These are the hidden cliffs of failure.
-        - **The Swarm's Journey:** The plot shows the final state of the PSO search. The particles started randomly (**white 'x' markers**) but communicated and learned, converging on the area of highest anomaly score (**cyan circles**). The **green star** marks the single highest-risk condition found by any particle.
-        - **The Strategic Insight:** This approach automates and supercharges worst-case analysis. Instead of relying on engineers to guess at high-risk conditions for your **{project_context_name}**, you deploy an AI agent to find them for you. The result is a data-driven, highly defensible candidate for your robustness challenge studies (ICH Q8/Q14).
+        - **The Landscape:** The heatmap represents the "process health" as understood by an Autoencoder. The peaks (hot colors) are regions where the process behaves in unexpected ways.
+        - **The Swarm's Journey:** The plot shows the final state of the PSO search. The particles started randomly (**white 'x' markers**) and converged on the area of highest anomaly score (**cyan circles**). The **green star** marks the single highest-risk condition found.
+        - **The Strategic Insight:** This approach automates and supercharges worst-case analysis. Instead of relying on engineers to guess at high-risk conditions, you deploy an AI agent to find them for you.
         """)
-        
+    # ... (rest of tabs are unchanged and correct) ...
     with tabs[1]:
         st.markdown("""
         ##### Glossary of Key Terms

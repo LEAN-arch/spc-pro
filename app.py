@@ -5908,7 +5908,7 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
     pbest_scores = reconstruction_error_surface(positions[:, 0], positions[:, 1])
     gbest_idx = np.argmax(pbest_scores)
     gbest_position = pbest_positions[gbest_idx].copy()
-    gbest_score = pbest_scores[gbest_idx]  # <-- THIS LINE WAS MISSING
+    gbest_score = pbest_scores[gbest_idx]  # <-- This line was missing, which could cause a crash
     history = [positions.copy()]
     # --- END INITIALIZATION FIX ---
 
@@ -5935,7 +5935,6 @@ def run_pso_simulation(n_particles, n_iterations, inertia, cognition, social, pr
             gbest_score = pbest_scores[current_best_idx]
 
     return zz, x_range, y_range, history, gbest_position, gbest_score, context
-    # --- END RETURN FIX ---
 
 @st.cache_data
 def create_pso_figure_from_data(zz, x_range, y_range, history, gbest_position, _context):

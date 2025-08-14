@@ -3345,40 +3345,42 @@ def plot_process_equivalence(cpk_site_a, mean_shift, var_change_factor, n_sample
 ## =====================================================================================================================================================================================================================================
 ##================================================================================== SPECIAL SET / METHOD COMPARISON ANOVA, t-test, TOST, Wassertein DISTANCE ==========================================================================
 #=======================================================================================================================================================================================================================================
+@st.cache_data
+def plot_two_process_wasserstein(df_a, df_b, lsl, usl, threshold):
+    mean_a, mean_b = df_a['value'].mean(), df_b['value'].mean()
+    ttest_p = stats.ttest_ind(df_a['value'], df_b['value'], equal_var=False).pvalue
+    _, f_p = stats.levene(df_a['value'], df_b['value'])
+    emd = stats.wasserstein_distance(df_a['value'], df_b['value'])
+    is_equivalent = emd < threshold
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, subplot_titles=("<b>1. Process Distribution Comparison (PDF)</b>", "<b>2. Cumulative Distribution Comparison (CDF)</b>"))
+    from scipy.stats import gaussian_kde
+    x_range = np.linspace(min(df_a['value'].min(), df_b['value'].min()) - 5, max(df_a['value'].max(), df_b['value'].max()) + 5, 400)
+    kde_a, kde_b = gaussian_kde(df_a['value']), gaussian_kde(df_b['value'])
+    fig.add_trace(go.Scatter(x=x_range, y=kde_a(x_range), fill='tozeroy', name='Site A (Reference)', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=kde_b(x_range), fill='tozeroy', name='Site B (New)', line=dict(color=SUCCESS_GREEN, width=3), opacity=0.7), row=1, col=1)
+    fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1); fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
+    cdf_a = np.array([np.mean(df_a['value'] <= x) for x in x_range]); cdf_b = np.array([np.mean(df_b['value'] <= x) for x in x_range])
+    fig.add_trace(go.Scatter(x=x_range, y=cdf_a, name='CDF Site A', line=dict(color=PRIMARY_COLOR, width=3)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=x_range, y=cdf_b, name='CDF Site B', line=dict(color=SUCCESS_GREEN, width=3), fill='tonexty', fillcolor='rgba(255, 193, 7, 0.3)', hovertemplate=None), row=2, col=1)
+    fig.add_annotation(x=np.median(x_range), y=0.5, text="<b>Area between curves ≈<br>Wasserstein Distance</b>", showarrow=False, font=dict(color=DARK_GREY, size=14), row=2, col=1)
+    fig.update_layout(height=700, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig.update_yaxes(title_text="Density", showticklabels=False, row=1, col=1); fig.update_yaxes(title_text="Cumulative Probability", range=[0,1.05], row=2, col=1); fig.update_xaxes(title_text="Process Output Value", row=2, col=1)
+    return fig, emd, ttest_p, f_p, is_equivalent
 
-    def plot_two_process_wasserstein(df_a, df_b, lsl, usl, threshold):
-        mean_a, mean_b = df_a['value'].mean(), df_b['value'].mean()
-        ttest_p = stats.ttest_ind(df_a['value'], df_b['value'], equal_var=False).pvalue
-        _, f_p = stats.levene(df_a['value'], df_b['value'])
-        emd = stats.wasserstein_distance(df_a['value'], df_b['value'])
-        is_equivalent = emd < threshold
-        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, subplot_titles=("<b>1. Process Distribution Comparison (PDF)</b>", "<b>2. Cumulative Distribution Comparison (CDF)</b>"))
-        from scipy.stats import gaussian_kde
-        x_range = np.linspace(min(df_a['value'].min(), df_b['value'].min()) - 5, max(df_a['value'].max(), df_b['value'].max()) + 5, 400)
-        kde_a, kde_b = gaussian_kde(df_a['value']), gaussian_kde(df_b['value'])
-        fig.add_trace(go.Scatter(x=x_range, y=kde_a(x_range), fill='tozeroy', name='Site A (Reference)', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=1)
-        fig.add_trace(go.Scatter(x=x_range, y=kde_b(x_range), fill='tozeroy', name='Site B (New)', line=dict(color=SUCCESS_GREEN, width=3), opacity=0.7), row=1, col=1)
-        fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1); fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
-        cdf_a = np.array([np.mean(df_a['value'] <= x) for x in x_range]); cdf_b = np.array([np.mean(df_b['value'] <= x) for x in x_range])
-        fig.add_trace(go.Scatter(x=x_range, y=cdf_a, name='CDF Site A', line=dict(color=PRIMARY_COLOR, width=3)), row=2, col=1)
-        fig.add_trace(go.Scatter(x=x_range, y=cdf_b, name='CDF Site B', line=dict(color=SUCCESS_GREEN, width=3), fill='tonexty', fillcolor='rgba(255, 193, 7, 0.3)', hovertemplate=None), row=2, col=1)
-        fig.add_annotation(x=np.median(x_range), y=0.5, text="<b>Area between curves ≈<br>Wasserstein Distance</b>", showarrow=False, font=dict(color=DARK_GREY, size=14), row=2, col=1)
-        fig.update_layout(height=700, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-        fig.update_yaxes(title_text="Density", showticklabels=False, row=1, col=1); fig.update_yaxes(title_text="Cumulative Probability", range=[0,1.05], row=2, col=1); fig.update_xaxes(title_text="Process Output Value", row=2, col=1)
-        return fig, emd, ttest_p, f_p, is_equivalent
+@st.cache_data
+def plot_multi_process_comparison(df_all, lsl, usl):
+    fig = go.Figure()
+    for line, color in zip(['A', 'B', 'C'], [PRIMARY_COLOR, '#636EFA', SUCCESS_GREEN]):
+        subset = df_all[df_all['Line'] == line]['value']
+        fig.add_trace(go.Violin(x=subset, y0=line, name=f'Line {line}', orientation='h', side='positive', width=1.5, points='all', pointpos=0, jitter=0.1, line_color=color))
+    fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>")
+    fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>")
+    fig.update_layout(title="<b>Process Distribution Comparison</b>", xaxis_title="Process Output Value", yaxis_title="Production Line")
+    fig.update_traces(meanline_visible=True)
+    return fig
 
-    def plot_multi_process_comparison(df_all, lsl, usl):
-        fig = go.Figure()
-        for line, color in zip(['A', 'B', 'C'], [PRIMARY_COLOR, '#636EFA', SUCCESS_GREEN]):
-            subset = df_all[df_all['Line'] == line]['value']
-            fig.add_trace(go.Violin(x=subset, y0=line, name=f'Line {line}', orientation='h', side='positive', width=1.5, points='all', pointpos=0, jitter=0.1, line_color=color))
-        fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>")
-        fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>")
-        fig.update_layout(title="<b>Process Distribution Comparison</b>", xaxis_title="Process Output Value", yaxis_title="Production Line")
-        fig.update_traces(meanline_visible=True)
-        return fig
         
-    return {
+return {
         'global_hub': lambda df: px.scatter_geo(df, lat='lat', lon='lon', size='active_initiatives', color='harmonization_index', hover_name='location_name', projection='natural earth', size_max=40, color_continuous_scale='RdYlGn', range_color=[85, 100], custom_data=['harmonization_index', 'active_initiatives', 'at_risk_projects']).update_traces(hovertemplate="<b>%{hover_name}</b><br>------------------<br>Harmonization Index: <b>%{customdata[0]}%</b><br>Active Initiatives: <b>%{customdata[1]}</b><br>At-Risk Projects: <b>%{customdata[2]}</b><extra></extra>").update_layout(**(PLOT_THEME | {"title_text": '<b>Global COE Performance Hub</b>', "geo": dict(bgcolor='rgba(0,0,0,0)', landcolor='#E5ECF6', lakecolor='#a4c4f4'), "height": 500, "margin": {"r":0,"t":40,"l":0,"b":0}, "coloraxis_colorbar": dict(title="Harmonization (%)")})),
         'gantt': create_gantt_chart,
         'eac_vs_budget': create_eac_vs_budget_chart,
@@ -9753,7 +9755,10 @@ def render_wasserstein_distance():
         d2 = np.random.normal(103, 2, n_samples // 2)
         df_b = pd.DataFrame({'value': np.concatenate([d1, d2])})
 
-    fig, emd, ttest_p, f_p, is_equivalent = plots['wasserstein_2_process'](df_a, df_b, lsl, usl, threshold)
+    # --- THIS IS THE KEY CHANGE ---
+    # The function is now called directly from the global scope.
+    fig, emd, ttest_p, f_p, is_equivalent = plot_two_process_wasserstein(df_a, df_b, lsl, usl, threshold)
+    # --- END OF KEY CHANGE ---
     
     st.header("Process Comparability Dashboard")
     col1, col2 = st.columns([0.65, 0.35])

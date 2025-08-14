@@ -4907,6 +4907,9 @@ def wilson_score_interval(p_hat, n, z=1.96):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Anomaly Detection) - SME ENHANCED
 # ==============================================================================
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Anomaly Detection) - SME ENHANCED
+# ==============================================================================
 @st.cache_data
 def plot_isolation_forest(contamination_rate=0.1):
     """
@@ -4945,12 +4948,50 @@ def plot_isolation_forest(contamination_rate=0.1):
     )
 
     # Plot 1: Main Scatter Plot (Grid Position 1,1)
-    # ... (code for scatter plot) ...
+    fig.add_trace(px.scatter(df, x='Process Parameter 1', y='Process Parameter 2',
+                             color='Status', color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
+                             symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'}
+                            ).data[0], row=1, col=1)
+    fig.add_trace(px.scatter(df, x='Process Parameter 1', y='Process Parameter 2',
+                         color='Status', color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
+                         symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'}
+                        ).data[1], row=1, col=1)
 
     # Plot 2: Visualize one of the trees (Grid Position 1,2)
-    # ... (code for visualizing the tree) ...
+    try:
+        from sklearn.tree import export_graphviz
+        import graphviz
+        
+        single_tree = clf.estimators_[0]
+        dot_data = export_graphviz(single_tree, out_file=None,
+                                   feature_names=['Param 1', 'Param 2'],
+                                   filled=True, rounded=True,
+                                   special_characters=True, max_depth=3)
+        graph = graphviz.Source(dot_data)
+        
+        png_bytes = graph.pipe(format='png')
+        img = Image.open(io.BytesIO(png_bytes))
+        
+        fig.add_layout_image(
+            dict(
+                source=img,
+                xref="x2", yref="y2",
+                x=0.5, y=0.5, sizex=1, sizey=1,
+                xanchor="center", yanchor="middle",
+                sizing="contain", layer="above"
+            )
+        )
+    except (ImportError, FileNotFoundError, graphviz.backend.execute.ExecutableNotFound):
+        fig.add_annotation(
+            xref="x2 domain", yref="y2 domain", x=0.5, y=0.5,
+            text="<b>Graphviz executable not found.</b><br>Install it to see the example tree.",
+            showarrow=False, font=dict(size=14, color='red')
+        )
     
-    # --- THIS IS THE CORRECTED BLOCK YOU ASKED ABOUT ---
+    fig.update_xaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
+    fig.update_yaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
+
+    # --- FIX: Corrected subplot position from (2,1) to (2,2) ---
     # Plot 3: Score Distribution (Grid Position 2,2)
     fig.add_trace(px.histogram(df, x='Score', color='GroundTruth',
                                color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
@@ -4962,7 +5003,7 @@ def plot_isolation_forest(contamination_rate=0.1):
     score_threshold = np.percentile(anomaly_scores, 100 * (1-contamination_rate))
     fig.add_vline(x=score_threshold, line_dash="dash", line_color="black",
                   annotation_text="Decision Threshold", row=2, col=2)
-    # --- END OF THE BLOCK ---
+    # --- END OF FIX ---
 
     fig.update_layout(height=800, title_text='<b>Anomaly Detection Dashboard: Isolation Forest</b>', title_x=0.5,
                       showlegend=True, legend=dict(yanchor="top", y=1, xanchor="left", x=0.5))

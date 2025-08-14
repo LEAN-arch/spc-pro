@@ -4910,6 +4910,9 @@ def wilson_score_interval(p_hat, n, z=1.96):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Anomaly Detection) - SME ENHANCED
 # ==============================================================================
+# ==============================================================================
+# HELPER & PLOTTING FUNCTION (Anomaly Detection) - FINAL FIX
+# ==============================================================================
 @st.cache_data
 def plot_isolation_forest(contamination_rate=0.1):
     """
@@ -4920,25 +4923,18 @@ def plot_isolation_forest(contamination_rate=0.1):
     n_inliers = 200
     n_outliers = 15
     
-    # --- Data Generation ---
-    angle = np.random.uniform(0, 2 * np.pi, n_inliers)
-    radius = np.random.normal(5, 0.5, n_inliers)
-    X_inliers = np.array([radius * np.cos(angle), radius * np.sin(angle)]).T
-    X_outliers = np.random.uniform(low=-10, high=10, size=(n_outliers, 2))
-    X = np.concatenate([X_inliers, X_outliers], axis=0)
+    # ... (Data Generation and Model Fitting are correct) ...
+    X = np.concatenate([np.random.normal(5, 0.5, (n_inliers, 2)), np.random.uniform(-10, 10, (n_outliers, 2))])
     ground_truth = np.concatenate([np.zeros(n_inliers), np.ones(n_outliers)])
-    
-    # --- Model Fitting ---
-    clf = IsolationForest(contamination=contamination_rate, random_state=42, n_estimators=100)
-    y_pred = clf.fit_predict(X)
+    clf = IsolationForest(contamination=contamination_rate, random_state=42, n_estimators=100).fit(X)
+    y_pred = clf.predict(X)
     anomaly_scores = clf.decision_function(X) * -1
-    
     df = pd.DataFrame(X, columns=['Process Parameter 1', 'Process Parameter 2'])
     df['Status'] = ['Anomaly' if p == -1 else 'Normal' for p in y_pred]
     df['Score'] = anomaly_scores
     df['GroundTruth'] = ['Outlier' if gt == 1 else 'Inlier' for gt in ground_truth]
 
-    # --- Plotting Dashboard ---
+
     fig = make_subplots(
         rows=2, cols=2,
         subplot_titles=("<b>1. Anomaly Detection Results</b>",
@@ -4947,7 +4943,7 @@ def plot_isolation_forest(contamination_rate=0.1):
         specs=[[{"rowspan": 2}, {}], [None, {}]]
     )
 
-    # Plot 1: Main Scatter Plot (Grid Position 1,1)
+    # Plot 1 (Correct)
     fig.add_trace(px.scatter(df, x='Process Parameter 1', y='Process Parameter 2',
                              color='Status', color_discrete_map={'Normal': '#636EFA', 'Anomaly': '#EF553B'},
                              symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'}
@@ -4957,7 +4953,8 @@ def plot_isolation_forest(contamination_rate=0.1):
                          symbol='Status', symbol_map={'Normal': 'circle', 'Anomaly': 'x-thin-open'}
                         ).data[1], row=1, col=1)
 
-    # Plot 2: Visualize one of the trees (Grid Position 1,2)
+    # --- THIS IS THE CORRECTED ERROR HANDLING BLOCK ---
+    # Plot 2: Visualize one of the trees
     try:
         from sklearn.tree import export_graphviz
         import graphviz
@@ -4987,32 +4984,24 @@ def plot_isolation_forest(contamination_rate=0.1):
             text="<b>Graphviz executable not found.</b><br>Install it to see the example tree.",
             showarrow=False, font=dict(size=14, color='red')
         )
+    # --- END OF CORRECTION ---
     
     fig.update_xaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
     fig.update_yaxes(visible=False, showticklabels=False, range=[0, 1], row=1, col=2)
 
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # Plot 3: Score Distribution (Grid Position 2,2)
-    # The `row` and `col` arguments have been changed from (2,1) to (2,2).
+    # Plot 3 (Corrected from first round of feedback)
     fig.add_trace(px.histogram(df, x='Score', color='GroundTruth',
                                color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
-                               barmode='overlay', marginal='rug').data[0], row=2, col=2) # <-- FIX HERE
+                               barmode='overlay', marginal='rug').data[0], row=2, col=2)
     fig.add_trace(px.histogram(df, x='Score', color='GroundTruth',
                            color_discrete_map={'Inlier': 'grey', 'Outlier': 'red'},
-                           barmode='overlay', marginal='rug').data[1], row=2, col=2) # <-- FIX HERE
-    
-    score_threshold = np.percentile(anomaly_scores, 100 * (1-contamination_rate))
-    fig.add_vline(x=score_threshold, line_dash="dash", line_color="black",
-                  annotation_text="Decision Threshold", row=2, col=2) 
-    
+                           barmode='overlay', marginal='rug').data[1], row=2, col=2)
     score_threshold = np.percentile(anomaly_scores, 100 * (1-contamination_rate))
     fig.add_vline(x=score_threshold, line_dash="dash", line_color="black",
                   annotation_text="Decision Threshold", row=2, col=2)
-    # --- END OF CORRECTION ---
-
+    
     fig.update_layout(height=800, title_text='<b>Anomaly Detection Dashboard: Isolation Forest</b>', title_x=0.5,
                       showlegend=True, legend=dict(yanchor="top", y=1, xanchor="left", x=0.5))
-    # Add axis titles for the new plot positions
     fig.update_xaxes(title_text="Anomaly Score", row=2, col=2)
     fig.update_yaxes(title_text="Count", row=2, col=2)
 

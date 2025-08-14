@@ -3348,7 +3348,7 @@ def plot_process_equivalence(cpk_site_a, mean_shift, var_change_factor, n_sample
 @st.cache_resource
 def get_plot_functions(pci_colors):
     """
-    Defines all plotting functions. This is the final, fully corrected version.
+    Defines all plotting functions. This is the final, fully corrected and complete version.
     """
     PLOT_THEME = {"font": {"family": "Arial, sans-serif"}, "title": {"font": {"size": 18, "color": "#333333"}, "x": 0.05, "xanchor": "left"}, "legend": {"font": {"size": 11}}, "xaxis": {"gridcolor": "#f0f0f0", "linecolor": "#e0e0e0"}, "yaxis": {"gridcolor": "#f0f0f0", "linecolor": "#e0e0e0"}, "plot_bgcolor": "rgba(255, 255, 255, 1)", "paper_bgcolor": "rgba(255, 255, 255, 1)", "margin": {"l": 50, "r": 50, "t": 80, "b": 50}}
     PRIMARY_COLOR, SUCCESS_GREEN, DARK_GREY = "#0068C9", "#2ca02c", "#333333"
@@ -3393,7 +3393,6 @@ def get_plot_functions(pci_colors):
         fig.update_layout(**(PLOT_THEME | {"title_text":'<b>Forecasted Budget Performance</b>', "height":400, "yaxis_title": "Amount (USD)", "xaxis_title":"Active Projects", "showlegend": False}))
         return fig
 
-    # <<< NEW HELPER PLOT FUNCTION for Two-Process Comparison >>>
     def plot_two_process_wasserstein(df_a, df_b, lsl, usl, threshold):
         mean_a, mean_b = df_a['value'].mean(), df_b['value'].mean()
         ttest_p = stats.ttest_ind(df_a['value'], df_b['value'], equal_var=False).pvalue
@@ -3415,7 +3414,6 @@ def get_plot_functions(pci_colors):
         fig.update_yaxes(title_text="Density", showticklabels=False, row=1, col=1); fig.update_yaxes(title_text="Cumulative Probability", range=[0,1.05], row=2, col=1); fig.update_xaxes(title_text="Process Output Value", row=2, col=1)
         return fig, emd, ttest_p, f_p, is_equivalent
 
-    # <<< NEW HELPER PLOT FUNCTION for Multi-Process Comparison >>>
     def plot_multi_process_comparison(df_all, lsl, usl):
         fig = go.Figure()
         for line, color in zip(['A', 'B', 'C'], [PRIMARY_COLOR, '#636EFA', SUCCESS_GREEN]):
@@ -3426,7 +3424,7 @@ def get_plot_functions(pci_colors):
         fig.update_layout(title="<b>Process Distribution Comparison</b>", xaxis_title="Process Output Value", yaxis_title="Production Line")
         fig.update_traces(meanline_visible=True)
         return fig
-
+        
     return {
         'global_hub': lambda df: px.scatter_geo(df, lat='lat', lon='lon', size='active_initiatives', color='harmonization_index', hover_name='location_name', projection='natural earth', size_max=40, color_continuous_scale='RdYlGn', range_color=[85, 100], custom_data=['harmonization_index', 'active_initiatives', 'at_risk_projects']).update_traces(hovertemplate="<b>%{hover_name}</b><br>------------------<br>Harmonization Index: <b>%{customdata[0]}%</b><br>Active Initiatives: <b>%{customdata[1]}</b><br>At-Risk Projects: <b>%{customdata[2]}</b><extra></extra>").update_layout(**(PLOT_THEME | {"title_text": '<b>Global COE Performance Hub</b>', "geo": dict(bgcolor='rgba(0,0,0,0)', landcolor='#E5ECF6', lakecolor='#a4c4f4'), "height": 500, "margin": {"r":0,"t":40,"l":0,"b":0}, "coloraxis_colorbar": dict(title="Harmonization (%)")})),
         'gantt': create_gantt_chart,
@@ -9869,7 +9867,7 @@ A modern, robust approach to comparability goes beyond simple parameters.
         - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This guideline requires a demonstration that manufacturing changes do not adversely impact the product. While it focuses on product quality attributes, using a holistic statistical tool like Wasserstein distance to compare the process parameter distributions provides powerful supporting evidence.
         - **FDA Process Validation Guidance:** For **Stage 3 (Continued Process Verification)**, this tool can be used to prove that a process remains in the same state of control after a change or over time. For tech transfers, it provides a much more robust proof of equivalence than traditional tests.
         """)
-
+#=============================================================================================  COMPARISON OF COMPARE METHODS =================================================================================
 def render_comparability_suite():
     """Renders the new, high-level suite for comparing all comparability methods."""
     st.markdown("""

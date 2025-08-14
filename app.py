@@ -3342,60 +3342,107 @@ def plot_process_equivalence(cpk_site_a, mean_shift, var_change_factor, n_sample
     return fig, is_equivalent, diff_cpk, cpk_a_sample, cpk_b_sample, ci_lower, ci_upper
 
 # Place this helper function inside the get_plot_functions function
+## =====================================================================================================================================================================================================================================
+##================================================================================== SPECIAL SET / METHOD COMPARISON ANOVA, t-test, TOST, Wassertein DISTANCE ==========================================================================
+#=======================================================================================================================================================================================================================================
+@st.cache_resource
+def get_plot_functions(pci_colors):
+    """
+    Defines all plotting functions. This is the final, fully corrected version.
+    """
+    PLOT_THEME = {"font": {"family": "Arial, sans-serif"}, "title": {"font": {"size": 18, "color": "#333333"}, "x": 0.05, "xanchor": "left"}, "legend": {"font": {"size": 11}}, "xaxis": {"gridcolor": "#f0f0f0", "linecolor": "#e0e0e0"}, "yaxis": {"gridcolor": "#f0f0f0", "linecolor": "#e0e0e0"}, "plot_bgcolor": "rgba(255, 255, 255, 1)", "paper_bgcolor": "rgba(255, 255, 255, 1)", "margin": {"l": 50, "r": 50, "t": 80, "b": 50}}
+    PRIMARY_COLOR, SUCCESS_GREEN, DARK_GREY = "#0068C9", "#2ca02c", "#333333"
 
-def create_wasserstein_comparison_chart(df_a, df_b, lsl, usl, threshold):
-    """Generates a professional-grade dashboard for comparing distributions using Wasserstein Distance."""
-    # Calculate key metrics
-    mean_a, mean_b = df_a['value'].mean(), df_b['value'].mean()
-    std_a, std_b = df_a['value'].std(), df_b['value'].std()
-    
-    # Traditional tests for comparison
-    ttest_p = stats.ttest_ind(df_a['value'], df_b['value'], equal_var=False).pvalue
-    f_stat, f_p = stats.levene(df_a['value'], df_b['value']) # Levene's is more robust for variance
-    
-    # The main event: Wasserstein Distance
-    emd = stats.wasserstein_distance(df_a['value'], df_b['value'])
-    is_equivalent = emd < threshold
+    def create_mini_trend_chart(df, y_col, good_when='up'):
+        if df is None or len(df) < 2:
+            fig = go.Figure()
+            fig.update_layout(height=80, margin=dict(l=0, r=0, t=5, b=25), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig.update_xaxes(visible=False); fig.update_yaxes(visible=False)
+            return fig
+        is_up = df[y_col].iloc[-1] > df[y_col].iloc[0]
+        is_good = (is_up and good_when == 'up') or (not is_up and good_when == 'down')
+        line_color = pci_colors['accent_good'] if is_good else pci_colors['accent_bad']
+        fill_color = f"rgba({int(line_color[1:3], 16)}, {int(line_color[3:5], 16)}, {int(line_color[5:7], 16)}, 0.1)"
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df[y_col], mode='lines', line=dict(width=2, color=line_color), fill='tozeroy', fillcolor=fill_color))
+        fig.add_trace(go.Scatter(x=[df.index[-1]], y=[df[y_col].iloc[-1]], mode='markers', marker=dict(size=8, color=line_color, line=dict(width=1, color='white'))))
+        fig.update_layout(height=80, margin=dict(l=5, r=40, t=5, b=30), showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', yaxis=dict(visible=True, showgrid=False, side='right', nticks=3), xaxis=dict(visible=True, showgrid=False, tickvals=[df.index[0], df.index[-1]], tickformat='%b<br>%Y'))
+        return fig
 
-    # Create the plots
-    fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
-        subplot_titles=("<b>1. Process Distribution Comparison (PDF)</b>",
-                        "<b>2. Cumulative Distribution Comparison (CDF)</b>")
-    )
-    
-    # Plot 1: Smoothed Density (PDF/KDE)
-    from scipy.stats import gaussian_kde
-    x_range = np.linspace(min(df_a['value'].min(), df_b['value'].min()) - 5, 
-                          max(df_a['value'].max(), df_b['value'].max()) + 5, 400)
-    kde_a = gaussian_kde(df_a['value'])
-    kde_b = gaussian_kde(df_b['value'])
-    
-    fig.add_trace(go.Scatter(x=x_range, y=kde_a(x_range), fill='tozeroy', name='Site A (Reference)', 
-                             line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=x_range, y=kde_b(x_range), fill='tozeroy', name='Site B (New)', 
-                             line=dict(color=SUCCESS_GREEN, width=3), opacity=0.7), row=1, col=1)
-    fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1)
-    fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
-    
-    # Plot 2: Cumulative Distributions (CDF) with Wasserstein Distance visualized
-    cdf_a = np.array([np.mean(df_a['value'] <= x) for x in x_range])
-    cdf_b = np.array([np.mean(df_b['value'] <= x) for x in x_range])
-    
-    fig.add_trace(go.Scatter(x=x_range, y=cdf_a, name='CDF Site A', line=dict(color=PRIMARY_COLOR, width=3)), row=2, col=1)
-    fig.add_trace(go.Scatter(x=x_range, y=cdf_b, name='CDF Site B', line=dict(color=SUCCESS_GREEN, width=3),
-                             fill='tonexty', fillcolor='rgba(255, 193, 7, 0.3)',
-                             hovertemplate=None), row=2, col=1)
-    fig.add_annotation(x=np.median(x_range), y=0.5, 
-                       text="<b>Area between curves ≈<br>Wasserstein Distance</b>", 
-                       showarrow=False, font=dict(color=DARK_GREY, size=14), row=2, col=1)
+    def create_gantt_chart(df):
+        df_sorted = df.sort_values("start_date", ascending=False)
+        df_sorted['text'] = df_sorted['type'] + ' (' + df_sorted['pm'] + ')'
+        status_color_map = df_sorted['health_status'].map({'On Track': pci_colors['primary'], 'At Risk': pci_colors['accent_bad']}).tolist()
+        fig = go.Figure()
+        fig.add_trace(go.Bar(y=df_sorted['name'], x=df_sorted['end_date'] - df_sorted['start_date'], base=df_sorted['start_date'], orientation='h', marker_color='#EAECEE', name='Full Duration', hoverinfo='none', text=df_sorted['text'], textposition='inside', insidetextanchor='middle', insidetextfont=dict(color='black', size=10)))
+        fig.add_trace(go.Bar(y=df_sorted['name'], x=df_sorted['progress_end'] - df_sorted['start_date'], base=df_sorted['start_date'], orientation='h', marker_color=status_color_map, name='Progress', customdata=np.stack((df_sorted['pm'], df_sorted['health_status'], df_sorted['progress_pct'], df_sorted['start_date'], df_sorted['end_date']), axis=-1), hovertemplate="<b>%{y}</b><br>------------------<br><b>Status:</b> %{customdata[1]}<br><b>Lead:</b> %{customdata[0]}<br><b>Progress:</b> %{customdata[2]:.0%}<br><b>Timeline:</b> %{customdata[3]|%b %d, %Y} - %{customdata[4]|%b %d, %Y}<extra></extra>"))
+        fig.add_trace(go.Scatter(x=df_sorted['end_date'], y=df_sorted['name'], mode='markers', marker=dict(color=pci_colors['accent_neutral'], symbol='diamond', size=10), name='End Date Milestone', hoverinfo='none'))
+        fig.update_layout(**PLOT_THEME, title_text='<b>Initiative Roadmap & Status</b>', barmode='stack', showlegend=False, height=max(400, len(df_sorted) * 50), yaxis_autorange="reversed", xaxis_title="Timeline (Dates)")
+        fig.add_vline(x=pd.Timestamp.now(), line_width=2, line_dash="dash", line_color="black")
+        fig.add_annotation(x=pd.Timestamp.now(), y=1.05, yref="paper", showarrow=False, text="Today", font=dict(color="black", size=12))
+        return fig
+        
+    def create_eac_vs_budget_chart(df):
+        df_sorted = df.copy(); df_sorted['variance'] = df_sorted['eac_usd'] - df_sorted['budget_usd']; df_sorted['color'] = np.where(df_sorted['variance'] > 0, pci_colors['accent_bad'], pci_colors['primary'])
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=df_sorted['name'], y=df_sorted['eac_usd'], marker_color=df_sorted['color'], name='EAC'))
+        fig.add_trace(go.Scatter(x=df_sorted['name'], y=df_sorted['budget_usd'], mode='markers', marker=dict(color='black', symbol='line-ew-open', size=12, line=dict(width=2)), name='Budget'))
+        for _, row in df_sorted.iterrows():
+            fig.add_annotation(x=row['name'], y=row['eac_usd'], text=f"<b>{'+' if row['variance'] > 0 else ''}${row['variance']:,.0f}</b>", showarrow=False, yshift=10, font={'color': row['color'], 'size': 10})
+        fig.update_traces(customdata=df_sorted[['budget_usd', 'eac_usd', 'variance']], hovertemplate=("<b>%{x}</b><br>" + "------------------<br>" + "Budget: <b>$%{customdata[0]:,.0f}</b><br>" + "EAC: <b>$%{customdata[1]:,.0f}</b><br>" + "Variance: <b>$%{customdata[2]:,.0f}</b><extra></extra>"))
+        fig.update_layout(**(PLOT_THEME | {"title_text":'<b>Forecasted Budget Performance</b>', "height":400, "yaxis_title": "Amount (USD)", "xaxis_title":"Active Projects", "showlegend": False}))
+        return fig
 
-    fig.update_layout(height=700, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    fig.update_yaxes(title_text="Density", showticklabels=False, row=1, col=1)
-    fig.update_yaxes(title_text="Cumulative Probability", range=[0,1.05], row=2, col=1)
-    fig.update_xaxes(title_text="Process Output Value", row=2, col=1)
-    
-    return fig, emd, ttest_p, f_p, is_equivalent
+    # <<< NEW HELPER PLOT FUNCTION for Two-Process Comparison >>>
+    def plot_two_process_wasserstein(df_a, df_b, lsl, usl, threshold):
+        mean_a, mean_b = df_a['value'].mean(), df_b['value'].mean()
+        ttest_p = stats.ttest_ind(df_a['value'], df_b['value'], equal_var=False).pvalue
+        _, f_p = stats.levene(df_a['value'], df_b['value'])
+        emd = stats.wasserstein_distance(df_a['value'], df_b['value'])
+        is_equivalent = emd < threshold
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, subplot_titles=("<b>1. Process Distribution Comparison (PDF)</b>", "<b>2. Cumulative Distribution Comparison (CDF)</b>"))
+        from scipy.stats import gaussian_kde
+        x_range = np.linspace(min(df_a['value'].min(), df_b['value'].min()) - 5, max(df_a['value'].max(), df_b['value'].max()) + 5, 400)
+        kde_a, kde_b = gaussian_kde(df_a['value']), gaussian_kde(df_b['value'])
+        fig.add_trace(go.Scatter(x=x_range, y=kde_a(x_range), fill='tozeroy', name='Site A (Reference)', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=x_range, y=kde_b(x_range), fill='tozeroy', name='Site B (New)', line=dict(color=SUCCESS_GREEN, width=3), opacity=0.7), row=1, col=1)
+        fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>", row=1, col=1); fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>", row=1, col=1)
+        cdf_a = np.array([np.mean(df_a['value'] <= x) for x in x_range]); cdf_b = np.array([np.mean(df_b['value'] <= x) for x in x_range])
+        fig.add_trace(go.Scatter(x=x_range, y=cdf_a, name='CDF Site A', line=dict(color=PRIMARY_COLOR, width=3)), row=2, col=1)
+        fig.add_trace(go.Scatter(x=x_range, y=cdf_b, name='CDF Site B', line=dict(color=SUCCESS_GREEN, width=3), fill='tonexty', fillcolor='rgba(255, 193, 7, 0.3)', hovertemplate=None), row=2, col=1)
+        fig.add_annotation(x=np.median(x_range), y=0.5, text="<b>Area between curves ≈<br>Wasserstein Distance</b>", showarrow=False, font=dict(color=DARK_GREY, size=14), row=2, col=1)
+        fig.update_layout(height=700, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        fig.update_yaxes(title_text="Density", showticklabels=False, row=1, col=1); fig.update_yaxes(title_text="Cumulative Probability", range=[0,1.05], row=2, col=1); fig.update_xaxes(title_text="Process Output Value", row=2, col=1)
+        return fig, emd, ttest_p, f_p, is_equivalent
+
+    # <<< NEW HELPER PLOT FUNCTION for Multi-Process Comparison >>>
+    def plot_multi_process_comparison(df_all, lsl, usl):
+        fig = go.Figure()
+        for line, color in zip(['A', 'B', 'C'], [PRIMARY_COLOR, '#636EFA', SUCCESS_GREEN]):
+            subset = df_all[df_all['Line'] == line]['value']
+            fig.add_trace(go.Violin(x=subset, y0=line, name=f'Line {line}', orientation='h', side='positive', width=1.5, points='all', pointpos=0, jitter=0.1, line_color=color))
+        fig.add_vline(x=lsl, line_dash="dot", line_color="darkred", annotation_text="<b>LSL</b>")
+        fig.add_vline(x=usl, line_dash="dot", line_color="darkred", annotation_text="<b>USL</b>")
+        fig.update_layout(title="<b>Process Distribution Comparison</b>", xaxis_title="Process Output Value", yaxis_title="Production Line")
+        fig.update_traces(meanline_visible=True)
+        return fig
+
+    return {
+        'global_hub': lambda df: px.scatter_geo(df, lat='lat', lon='lon', size='active_initiatives', color='harmonization_index', hover_name='location_name', projection='natural earth', size_max=40, color_continuous_scale='RdYlGn', range_color=[85, 100], custom_data=['harmonization_index', 'active_initiatives', 'at_risk_projects']).update_traces(hovertemplate="<b>%{hover_name}</b><br>------------------<br>Harmonization Index: <b>%{customdata[0]}%</b><br>Active Initiatives: <b>%{customdata[1]}</b><br>At-Risk Projects: <b>%{customdata[2]}</b><extra></extra>").update_layout(**(PLOT_THEME | {"title_text": '<b>Global COE Performance Hub</b>', "geo": dict(bgcolor='rgba(0,0,0,0)', landcolor='#E5ECF6', lakecolor='#a4c4f4'), "height": 500, "margin": {"r":0,"t":40,"l":0,"b":0}, "coloraxis_colorbar": dict(title="Harmonization (%)")})),
+        'gantt': create_gantt_chart,
+        'eac_vs_budget': create_eac_vs_budget_chart,
+        'risk_matrix': lambda df: (fig := px.scatter(df, x="predicted_risk", y="strategic_value", size="budget_usd", color="health_status", hover_name="name", size_max=50, color_discrete_map={"On Track": pci_colors['primary'], "At Risk": pci_colors['accent_bad']}), mid_risk := df['predicted_risk'].median(), mid_value := df['strategic_value'].median(), fig.add_shape(type="line", x0=mid_risk, y0=0, x1=mid_risk, y1=11, line=dict(color="grey", dash="dash")), fig.add_shape(type="line", x0=0, y0=mid_value, x1=1, y1=mid_value, line=dict(color="grey", dash="dash")), fig.add_annotation(x=0.02, y=mid_value, xref="paper", yref="y", text="Lower Value", showarrow=False, yshift=10), fig.add_annotation(x=0.02, y=mid_value, xref="paper", yref="y", text="Higher Value", showarrow=False, yshift=-10), fig.add_annotation(x=mid_risk, y=0.02, xref="x", yref="paper", text="Lower Risk", showarrow=False, xshift=-10), fig.add_annotation(x=mid_risk, y=0.02, xref="x", yref="paper", text="Higher Risk", showarrow=False, xshift=10), fig.update_layout(**(PLOT_THEME | {"title_text": "<b>Project Risk & Value Matrix</b>", "xaxis_title": "ML-Predicted Delay Risk (%)", "yaxis_title": "Strategic Value (Points)", "xaxis": {'tickformat': '.0%'}, "yaxis": {'range': [0, 11]}})))[0],
+        'qms_funnel': lambda df: go.Figure(go.Funnel(y=df['status'], x=df['count'], textposition="inside", textinfo="value+percent previous", marker={"color": [pci_colors['primary'], pci_colors['secondary'], pci_colors['accent_neutral'], pci_colors['accent_good']], "line": {"width": [4, 2, 2, 1], "color": "white"}}, connector={"line": {"color": "lightgrey", "dash": "dot", "width": 2}})).update_layout(**(PLOT_THEME | {"title_text": '<b>QMS Funnel</b>', "height": 400, "margin": dict(t=80, b=10)})),
+        'team_utilization': lambda df: px.bar(df.sort_values('utilization_pct'), x='utilization_pct', y='name', orientation='h', color='utilization_pct', color_continuous_scale='RdYlGn_r', range_color=[50, 110], text='utilization_pct', labels={'name': 'Team Member', 'utilization_pct': 'Utilization (%)'}).update_traces(texttemplate='<b>%{text:.0f}%</b>', textposition='inside', insidetextanchor='middle', hovertemplate='<b>%{y}</b><br>Utilization: <b>%{x}%</b><extra></extra>').update_layout(**(PLOT_THEME | {"title_text":'<b>Team Utilization & Capacity</b>', "height":400, "coloraxis_showscale":False, "xaxis_title":"Utilization (%)"})).add_vline(x=100, line_dash="dash", line_color='black', annotation_text="Target Capacity", annotation_position="bottom right"),
+        'optimizer_scatter': lambda full_df, selected_df: (fig := px.scatter(full_df, x="predicted_risk", y="strategic_value", size="budget_usd", color_discrete_sequence=['lightgrey'], hover_name='name', custom_data=full_df[['strategic_value', 'predicted_risk', 'budget_usd']]), fig.update_traces(hovertemplate="<b>%{hovertext}</b><br>------------------<br>Value: %{customdata[0]} | Risk: %{customdata[1]:.0%}<br>Budget: $%{customdata[2]:,.0f}<extra></extra>"), fig.add_trace(go.Scatter(x=selected_df['predicted_risk'], y=selected_df['strategic_value'], mode='markers', marker=dict(size=selected_df['budget_usd'] / 20000, color=pci_colors['primary'], line=dict(width=2, color='white')), name='Selected for Portfolio', hovertemplate='<b>%{hovertext}</b> (Selected)<extra></extra>', hovertext=selected_df['name'])), fig.update_layout(**(PLOT_THEME | {"title_text": "<b>Optimized Portfolio Selection</b>", "showlegend": False, "xaxis_title": 'ML-Predicted Delay Risk (%)', "yaxis_title": 'Strategic Value (Points)', "xaxis": {'tickformat': '.0%'}})))[0],
+        'harmonization_progress': lambda df: px.bar(df, x='progress', y='initiative', orientation='h', text='progress', labels={'initiative': 'Global Initiative', 'progress': 'Completion (%)'}).update_traces(marker_color=pci_colors['primary'], texttemplate='<b>%{text}%</b>', textposition='auto').update_layout(**(PLOT_THEME | {"title_text": '<b>Harmonization Initiative Progress</b>', "height": 400, "xaxis_range": [0,100], "xaxis_title": "Completion (%)"})),
+        'skills_matrix_heatmap': lambda df: px.imshow(df, text_auto=True, aspect="auto", color_continuous_scale='Blues', labels=dict(x="Technical Skill", y="Team Member", color="Proficiency")).update_layout(**(PLOT_THEME | {"title_text": '<b>Team Skills Matrix</b>'})),
+        'capa_aging_chart': lambda df: px.bar(df, x='Aging Bucket', y='Count', text='Count', color='Aging Bucket', color_discrete_sequence=px.colors.sequential.Reds).update_layout(**(PLOT_THEME | {"title_text": '<b>CAPA Aging Report</b>', "yaxis_title": "Number of Open CAPAs", "xaxis_title": "Age (Days)", "showlegend": False})),
+        'root_cause_pareto': lambda df: (fig := go.Figure(), fig.add_trace(go.Bar(x=df['Root Cause'], y=df['Count'], name='Count', marker_color=pci_colors['primary'])), fig.add_trace(go.Scatter(x=df['Root Cause'], y=df['Cumulative %'], name='Cumulative %', yaxis='y2', line=dict(color=pci_colors['accent_neutral']))), fig.update_layout(**(PLOT_THEME | {"title_text": "<b>Deviation Root Cause Analysis (Pareto)</b>", "yaxis_title": "Deviation Count", "yaxis2": dict(title='Cumulative Percentage', overlaying='y', side='right', tickformat='.0%', range=[0, 101])})))[0],
+        'wasserstein_2_process': plot_two_process_wasserstein,
+        'wasserstein_3_process': plot_multi_process_comparison,
+        'mini_trend_chart': create_mini_trend_chart,
+    }
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Tolerance Intervals) - SME ENHANCED
 # ==============================================================================
@@ -9698,7 +9745,9 @@ A robust tech transfer plan treats equivalence as a formal acceptance criterion.
         - **Technology Transfer (ICH Q10):** A robust tech transfer protocol should have pre-defined acceptance criteria. Proving statistical equivalence of process capability is a state-of-the-art criterion.
         - **SUPAC (Scale-Up and Post-Approval Changes):** When making a change to a validated process, this analysis can be used to prove that the change has not adversely impacted process performance.
         """)
-
+#=======================================================================================================================================================================================================
+#============================================================================================SPECIAL SECTION COMPARING METHODS (ANOVA/T-TEST, WASSERSTEIN, TOST =====================================================================
+#=========================================================================================================================================================================================================
 #================================================================= 6. Wassrtein Distance =============================================================
 def render_wasserstein_distance():
     """Renders the comprehensive, interactive module for Wasserstein Distance."""
@@ -9728,12 +9777,11 @@ def render_wasserstein_distance():
                 "Process has a heavy tail.",
                 "Process has split in two."
             ],
+            key="wasserstein_scenario",
             help="Simulate different, realistic failure modes for a tech transfer. Observe which ones traditional tests can and cannot detect."
         )
-        n_samples = st.slider("Sample Size per Site (n)", 50, 1000, 200, 50,
-            help="Number of samples from each process. More samples provide a more accurate estimate of the distributions.")
-        threshold = st.slider("Equivalence Threshold", 0.5, 5.0, 1.5, 0.1,
-            help="The pre-defined equivalence margin. If the Wasserstein Distance is below this value, the processes are considered equivalent.")
+        n_samples = st.slider("Sample Size per Site (n)", 50, 1000, 200, 50, key="wasserstein_n")
+        threshold = st.slider("Equivalence Threshold", 0.5, 5.0, 1.5, 0.1, key="wasserstein_thresh")
 
     # Generate data based on scenario
     np.random.seed(42)
@@ -9754,7 +9802,7 @@ def render_wasserstein_distance():
         d2 = np.random.normal(103, 2, n_samples // 2)
         df_b = pd.DataFrame({'value': np.concatenate([d1, d2])})
 
-    fig, emd, ttest_p, f_p, is_equivalent = create_wasserstein_comparison_chart(df_a, df_b, lsl, usl, threshold)
+    fig, emd, ttest_p, f_p, is_equivalent = plots['wasserstein_2_process'](df_a, df_b, lsl, usl, threshold)
     
     st.header("Process Comparability Dashboard")
     col1, col2 = st.columns([0.65, 0.35])
@@ -9820,6 +9868,73 @@ A modern, robust approach to comparability goes beyond simple parameters.
         The use of advanced, distribution-based metrics is a state-of-the-art implementation of the principles of demonstrating process comparability and control.
         - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This guideline requires a demonstration that manufacturing changes do not adversely impact the product. While it focuses on product quality attributes, using a holistic statistical tool like Wasserstein distance to compare the process parameter distributions provides powerful supporting evidence.
         - **FDA Process Validation Guidance:** For **Stage 3 (Continued Process Verification)**, this tool can be used to prove that a process remains in the same state of control after a change or over time. For tech transfers, it provides a much more robust proof of equivalence than traditional tests.
+        """)
+
+def render_comparability_suite():
+    """Renders the new, high-level suite for comparing all comparability methods."""
+    st.markdown("""
+    #### Purpose & Application: The Statistician's Decision Guide
+    **Purpose:** To provide a strategic framework for selecting the correct statistical tool to compare groups or methods. This suite moves beyond a single tool to create a **decision-making dashboard** that contrasts the goals, strengths, and weaknesses of four foundational comparability techniques.
+    
+    **Strategic Application:** This is a masterclass in statistical thinking for V&V. It addresses the most common questions and pitfalls in comparability studies, ensuring that a leader can confidently choose and defend the most appropriate statistical method for any given validation scenario.
+    """)
+
+    st.info("""
+    **This is a high-level guide.** Use the **Method Selection Guide** to determine the right tool for your problem, then explore the **Detailed Comparison Table** to understand the nuances of each approach.
+    """)
+    st.divider()
+
+    tabs = st.tabs(["💡 Method Selection Guide", "📋 Detailed Comparison Table", "✅ The Golden Rule"])
+
+    with tabs[0]:
+        st.subheader("Method Selection Guide: The Right Tool for the Right Question")
+        st.markdown("""
+        **1. What is your fundamental question?**
+        -   **A) "Is there *any* statistically significant difference between the means of my 3+ groups?"**
+            -   ➡️ Use **One-Way ANOVA**. It's a fast, simple test for detecting differences in the average. If the p-value is low, you have evidence of a difference in means. It's a good *first screening tool*.
+        -   **B) "Are my two processes/methods functionally *the same* for all practical purposes?"**
+            -   This is a question of **equivalence or agreement**, not difference. Proceed to question 2.
+
+        **2. Are you comparing *measurement methods* or *manufacturing processes*?**
+        -   **A) Measurement Methods (e.g., a new QC test vs. a reference standard):** Your primary concern is **agreement** and diagnosing **bias**.
+            -   ➡️ Use **Bland-Altman Analysis** to quantify the limits of agreement and assess if they are clinically/technically acceptable.
+            -   ➡️ Use **Passing-Bablok or Deming Regression** to diagnose the *type* of bias (constant vs. proportional).
+        -   **B) Manufacturing Processes (e.g., Tech Transfer Site A vs. Site B):** Your primary concern is proving that the *overall behavior and output* are statistically indistinguishable.
+            -   ➡️ Use **TOST (Two One-Sided Tests)** if your CQA is well-behaved (normal) and your primary goal is to prove the *means* are equivalent within a defined margin (Δ).
+            -   ➡️ Use **Wasserstein Distance** for a more robust and comprehensive proof of equivalence that compares the entire process distribution. This is the superior method if you suspect changes in variance, skewness, or shape.
+        """)
+
+    with tabs[1]:
+        st.subheader("Detailed Comparison of Comparability Methods")
+        st.markdown("""
+        | Feature | **T-Test / ANOVA** | **TOST** | **Bland-Altman / Deming** | **Wasserstein Distance** |
+        | :--- | :--- | :--- | :--- | :--- |
+        | **Primary Goal** | Detect a *difference*. | Prove *equivalence*. | Quantify *agreement* & bias. | Quantify *distributional difference*. |
+        | **Key Output** | p-value | p-value or CI vs. Margin | Limits of Agreement (LoA) | Distance Value |
+        | **Null Hypothesis**| H₀: Means are equal | H₀: Means are *different* | (Graphical, no formal H₀) | (Conceptual) H₀: Distributions are identical |
+        | **What It Compares** | Only the **means**. | Only the **means**. | **Paired data points** from the same sample. | The **entire distribution** (shape, spread, center). |
+        | **Assumptions** | Normality, Equal Variance | Normality | Differences are normal | None (Non-parametric) |
+        | **Best For...** | Quick, preliminary checks for differences in the average. | Formal proof of mean equivalence for regulatory submissions (e.g., bioequivalence). | Validating and comparing two measurement systems (e.g., lab instruments). | Robust tech transfer validation; comparing processes sensitive to changes in shape/variability. |
+        """)
+
+    with tabs[2]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "One-Tool-Fits-All" Fallacy**
+An engineer uses a standard t-test for every comparison. They use a non-significant p-value to claim equivalence, and use correlation to claim two methods agree.
+- **The Flaw:** This is a chain of statistical errors. Each question requires a specialized tool. Using the wrong tool gives a statistically invalid and dangerously misleading answer.""")
+        st.success("""🟢 **THE GOLDEN RULE: The Question Dictates the Tool**
+A mature, data-driven culture uses a clear logic for choosing its statistical methods.
+1.  **If proving *difference* matters, use a standard hypothesis test (t-test, ANOVA).**
+2.  **If proving *sameness* matters, use an equivalence test (TOST, Wasserstein Distance).**
+3.  **If measuring *agreement* matters, use Bland-Altman analysis.**
+By pre-specifying the right tool for the right question in your validation plan, you demonstrate statistical rigor and a deep understanding of your validation objectives.""")
+        
+        st.markdown("---")
+        st.markdown("""
+        ##### SME Perspective: Why T-Tests Are Intentionally Omitted
+        This toolkit deliberately omits a standalone 2-Sample T-Test module to guide users toward more robust and appropriate methods for V&V.
+        -   **Focus on Superior Methods:** For comparing two groups, TOST and Wasserstein Distance are statistically superior and more appropriate for regulated environments.
+        -   **Prevent Misapplication:** This steers users away from the common statistical fallacy of using a non-significant p-value to incorrectly claim equivalence.
+        -   **Demonstrate Advanced Knowledge:** Choosing to implement TOST *instead of* a t-test demonstrates a deeper level of statistical maturity—understanding *which test is appropriate* for the question being asked.
         """)
 #===============================================================  7. PROCESS STABILITY (SPC) ================================================
 def render_spc_charts():
@@ -12458,6 +12573,7 @@ with st.sidebar:
             "Equivalence Testing (TOST)",
             "Statistical Equivalence for Process Transfer",
             "Wasserstein Distance",
+            "Process & Method Comparability Suite"
             "Process Stability (SPC)",
             "Process Capability (Cpk)",
             "First Time Yield & Cost of Quality",
@@ -12541,6 +12657,7 @@ else:
         "Equivalence Testing (TOST)": render_tost,
         "Statistical Equivalence for Process Transfer": render_process_equivalence,
         "Wasserstein Distance": render_wasserstein_distance,
+        "Process & Method Comparability Suite": render_comparability_suite,
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,
         "First Time Yield & Cost of Quality": render_fty_coq,

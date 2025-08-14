@@ -10040,81 +10040,85 @@ def render_two_process_suite():
             st.metric(label="t-test Result", value=f"p = {ttest_p:.3f}")
             if ttest_p < 0.05: st.error("❌ **Verdict:** The means are statistically different.")
             else: st.success("✅ **Verdict:** No evidence of a difference in means.")
+            st.caption("Tests H₀: Mean A = Mean B")
         with st.container(border=True):
             st.markdown("##### **Test 2:** Are the Means the Same?")
             st.metric(label="TOST Result", value="Equivalent" if tost_is_equivalent else "Not Equivalent")
             if tost_is_equivalent: st.success("✅ **Verdict:** The means are statistically equivalent.")
             else: st.error("❌ **Verdict:** Cannot conclude equivalence.")
+            st.caption(f"Tests if 90% CI [{tost_ci[0]:.2f}, {tost_ci[1]:.2f}] is inside ±{tost_margin}")
         with st.container(border=True):
-            st.markdown("##### **Test 3:** Are the Distributions the Same?")
-            st.metric(label="Wasserstein Result", value=f"Distance = {wasserstein_dist:.2f}")
+            st.markdown("##### **Test 3:** Are the Fingerprints the Same?")
+            st.metric(label="Wasserstein Result", value=f"Distance = {wasserstein_dist:.2f}", help=f"Threshold for equivalence is < {wasserstein_threshold}")
             if wasserstein_is_equivalent: st.success("✅ **Verdict:** The distributions are statistically equivalent.")
             else: st.error("❌ **Verdict:** The distributions are significantly different.")
+            st.caption("Compares entire process shape, not just the mean.")
 
     st.divider()
     st.subheader("Deeper Dive into Two-Process Comparison")
-    tabs = st.tabs(["💡 Method Selection Map", "📋 Detailed Comparison Table", "📋 Glossary", "✅ The Golden Rule", "📖 Theory, History & Math", "🏛️ Regulatory & Compliance"])
     
+    tabs = st.tabs(["💡 Key Insights (The Courtroom Analogy)", "📋 Glossary", "✅ The Golden Rule", "📖 Theory, History & Math", "🏛️ Regulatory & Compliance"])
+
     with tabs[0]:
         st.markdown("""
-        ### Method Selection Map: A Strategic Decision Framework
-        Choosing your statistical weapon is the most critical decision in a comparability study. Use this guide to select and defend your approach based on the specific question you need to answer.
+        ### Why "Failing to Prove Difference" is NOT "Proving Similarity"
+        A user correctly asked: *"Shouldn't 'how different' something is be the opposite of 'how similar' it is?"* While true in conversation, it is dangerously false in statistics. This distinction is the most important concept in validation and tech transfer.
 
-        | **Your Question** | **Recommended Tool** | **Why? (Pros)** | **What to Watch Out For (Cons)** |
-        | :--- | :--- | :--- | :--- |
-        | **"Is there *any* evidence of a difference in the average performance of my 3+ lines?"** | **ANOVA** | **The Universal Screener:** Fast, simple, and the industry standard for a first-pass check on means. It provides a single p-value to answer the global question of "any difference?" | **Doesn't tell you *which* lines differ.** It's a fire alarm, not a firefighter. It is strictly mean-centric, completely blind to changes in process variability or shape. |
-        | **"Can I *prove* my new process mean is practically the same as the old one?"** | **TOST (Equivalence Testing)** | **The Regulatory Gold Standard:** The only method that correctly frames the hypothesis to prove similarity. Forces a crucial, upfront conversation about what "practically the same" means (the margin Δ). | **Mean-centric:** Can declare two processes equivalent even if their variances are wildly different. The choice of the margin Δ can be difficult to justify and is often a point of regulatory scrutiny. |
-        | **"How well do my two measurement methods agree across their entire range?"** | **Bland-Altman / Deming** | **The Bias Detective:** The only method designed to quantify and diagnose the *type* of bias (constant vs. proportional). The Limits of Agreement are directly interpretable in the units of the measurement, making them clinically and technically relevant. | **Requires Paired Data:** You must have measured the exact same set of samples on both methods. It is completely inappropriate for comparing independent batches from two processes. |
-        | **"Can I prove my new process behaves *identically* to the old one, considering its entire fingerprint?"** | **Wasserstein or Anderson-Darling** | **The Holistic Guardian:** The most powerful and robust approach. It compares the entire process "fingerprint" (shape, center, spread). Non-parametric, so it's immune to non-normal data. It is the only method here guaranteed to catch dangerous changes like bimodality. | **Less Familiar to Regulators:** May require more explanation in a submission. Selecting a defensible equivalence threshold for the Wasserstein distance can be more challenging than for the mean-based TOST. |
+        #### The Courtroom Analogy: Innocent Until Proven Guilty
+        Think of a standard hypothesis test (like a **t-test**) as a criminal trial.
+        -   **The Null Hypothesis (H₀):** "The defendant is innocent." (The process means are the same: `μ₁ = μ₂`).
+        -   **The Goal of the Prosecutor (You):** To gather enough evidence (data) to reject H₀ and prove guilt "beyond a reasonable doubt."
+        -   **The p-value:** The strength of your evidence. A small p-value (p < 0.05) is like having overwhelming DNA evidence.
+
+        Now, consider the two possible verdicts:
+        1.  **Verdict: "Guilty" (p < 0.05):** You reject H₀. You have strong evidence to conclude the means are different. This is a definitive conclusion.
+        2.  **Verdict: "Not Guilty" (p > 0.05):** You **fail to reject** H₀. The verdict is **NOT "Innocent."** It simply means the prosecutor did not present enough evidence. This could be because the defendant is truly innocent, OR because the experiment was **underpowered** (too much noise, too few samples). A t-test cannot tell the difference.
+
+        > **This is why a non-significant p-value from a t-test is an inconclusive result and can NEVER be used to claim two processes are the same.**
+
+        #### Equivalence Testing (TOST): Flipping the Burden of Proof
+        **TOST** flips the courtroom on its head. It assumes the processes are **"Different Until Proven Similar."**
+        -   **The Null Hypothesis (H₀):** "The processes are meaningfully different." (The difference is outside our acceptable margin `Δ`).
+        -   **The Goal (You):** To gather enough strong evidence to reject this H₀ and prove that any difference is, in fact, practically meaningless.
+        
+        > **This is why TOST is the correct, rigorous tool for validation.** It forces you to make a strong, positive claim of similarity, which is exactly what regulators and quality systems require.
         """)
-
+        
     with tabs[1]:
         st.markdown("""
-        ### Detailed Comparison of Comparability Methods
-        
-        | Feature | **T-Test / ANOVA** | **TOST** | **Bland-Altman / Deming** | **Wasserstein / Anderson-Darling** |
-        | :--- | :--- | :--- | :--- | :--- |
-        | **Primary Goal** | Detect a *difference*. | Prove statistical *equivalence*. | Quantify *agreement* & diagnose bias. | Quantify *distributional difference*. |
-        | **Key Output** | p-value | p-value or 90% CI vs. Margin | Limits of Agreement (LoA) | Distance Value or p-value |
-        | **Null Hypothesis**| H₀: Means are equal | H₀: Means are *different* | (Graphical, no formal H₀) | H₀: Distributions are identical |
-        | **What It Compares** | Only the **means**. | Only the **means**. | **Paired data points** from the same sample. | The **entire distribution** (shape, spread, center). |
-        | **Assumptions** | Normality, Equal Variance | Normality | Differences are normal | None (Non-parametric) |
-        | **Strengths** | Simple, fast, universally understood. | Rigorous proof of similarity. Regulatory standard for bioequivalence. | Excellent for method validation. Results are clinically interpretable. | Extremely robust. Sensitive to all types of change. Non-parametric. |
-        | **Weaknesses** | Cannot prove equivalence. Blind to variance/shape changes. | Only compares means. Margin selection is critical. | Requires paired data. Not for comparing independent groups. | Can be less powerful for simple mean shifts. Threshold selection can be complex. |
-        | **Best For...** | Quick, preliminary checks for differences in the average. | Formal proof of mean equivalence for regulatory submissions (e.g., bioequivalence). | Validating and comparing two measurement systems (e.g., lab instruments). | Robust tech transfer validation; comparing processes sensitive to changes in shape/variability. |
+        ##### Glossary of Two-Process Comparison Terms
+        - **t-test:** A statistical hypothesis test used to determine if there is a significant difference between the means of two groups. Its null hypothesis is that the means are equal.
+        - **TOST (Two One-Sided Tests):** An equivalence test that uses two one-sided t-tests to formally prove that the difference between two means is within a pre-defined margin. Its null hypothesis is that the means are meaningfully different.
+        - **Wasserstein Distance:** A non-parametric metric that quantifies the "distance" between two entire probability distributions, sensitive to changes in mean, variance, and shape.
+        - **Bland-Altman Plot:** A graphical method for comparing two **paired** measurement methods. It plots the difference between the two methods against their average to visualize bias and limits of agreement. It is not suitable for comparing independent groups.
+        - **Paired vs. Independent Data:** Paired data comes from measuring the same sample/subject twice (e.g., with Method A and Method B). Independent data comes from two separate, unrelated groups (e.g., Batch A vs. Batch B).
         """)
 
     with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: The "One-Tool-Fits-All" Fallacy**
-An engineer uses a standard t-test for every comparison. They see a non-significant p-value (e.g., p=0.3) and triumphantly declare that their tech transfer was a success because the two sites are "statistically the same." They use a correlation coefficient (R²) to claim two measurement methods agree.
-- **The Flaw:** This is a chain of fundamental statistical errors. A non-significant p-value is an **absence of evidence**, not evidence of absence. The study may simply have been underpowered. Correlation does not imply agreement. This approach is not just wrong; it is a serious compliance risk that could hide a critical process failure.""")
+        st.error("""🔴 **THE INCORRECT APPROACH: The "p > 0.05" Fallacy**
+An engineer runs a t-test on data from two manufacturing sites. The p-value is 0.40. They write in the validation report: "Because p > 0.05, we have shown the two sites are statistically equivalent."
+- **The Flaw:** This is a critical statistical error. They have only shown an **absence of evidence for a difference**, which is not the same as **evidence of absence of a difference**. An auditor would immediately reject this conclusion as statistically invalid.""")
         st.success("""🟢 **THE GOLDEN RULE: The Question Dictates the Tool**
 A mature, data-driven culture uses a clear logic for choosing its statistical methods, and this choice is pre-specified in the validation plan.
-1.  **If proving *difference* matters, use a standard hypothesis test (t-test, ANOVA).** This is the language of scientific discovery. The default assumption is that things are the same, and you need strong evidence to reject that.
-2.  **If proving *sameness* matters, use an equivalence test (TOST, Wasserstein, Anderson-Darling).** This is the language of engineering and compliance. The default assumption is that things are different, and you need strong evidence to prove they are practically the same.
-3.  **If measuring *agreement* matters, use Bland-Altman analysis.** This is the language of metrology and diagnostics. The goal is not a binary pass/fail but to quantify the interchangeability of two measurement systems.
-By pre-specifying the right tool for the right question in your validation plan, you demonstrate statistical rigor and a deep understanding of your validation objectives.""")
+1.  **If you need to prove *difference* (e.g., scientific discovery), use a t-test.**
+2.  **If you need to prove *sameness* (e.g., validation/tech transfer), use an equivalence test (TOST, Wasserstein).**
+3.  **If you need to measure *agreement* (e.g., method validation), use Bland-Altman analysis.**""")
 
     with tabs[3]:
         st.markdown("""
         #### Theory, History & Mathematical Context
-        This suite showcases a century of statistical evolution, driven by distinct industrial and scientific needs.
-        - **ANOVA (1920s):** Invented by **Sir Ronald A. Fisher** for agricultural experiments at Rothamsted. It was a revolutionary way to efficiently test multiple "treatments" (e.g., fertilizers) at once. Its mathematical genius lies in **partitioning variance**: it breaks down the total variation in the data into a component *between* the groups and a component *within* the groups. The F-statistic is the ratio of these two variances. If the variation between groups is large relative to the variation within them, we conclude the means are different.
-        
-        - **TOST (1980s):** While the statistical theory was older, it was championed by the **FDA** and statisticians like **Donald Schuirmann** as the solution to the bioequivalence problem for generic drugs. It brilliantly flips the logic of hypothesis testing. Instead of one null hypothesis of "no difference" (`H₀: μ₁ - μ₂ = 0`), it tests two null hypotheses of "too different": `H₀₁: μ₁ - μ₂ ≤ -Δ` and `H₀₂: μ₁ - μ₂ ≥ +Δ`. You must reject **both** to prove equivalence.
-
-        - **Wasserstein Distance (1781, revived 1990s):** An old mathematical concept from optimal transport theory, it was made practical by computer scientists in the 1990s as "Earth Mover's Distance" and is now a state-of-the-art metric for comparing distributions in AI and statistics. For 1D data, its value is simply the **area between the two cumulative distribution functions (CDFs)**. This is why it captures differences in mean, variance, and shape simultaneously.
-
-        - **Anderson-Darling Test (1952):** Developed by Theodore Anderson and Donald Darling as a powerful test for goodness-of-fit. Its k-sample version is a rigorous non-parametric test for distributional equality. Mathematically, it calculates a weighted squared distance between the empirical distribution functions, with the weights chosen to give more emphasis to the **tails of the distribution**. This makes it very sensitive to outliers and shape changes, which is often where process failures first become apparent.
+        - **t-test (1908):** Invented by **William Sealy Gosset** ("Student") at the Guinness brewery to handle small samples. It asks, "How likely is it to see a difference this large between my samples if the true means were actually identical?"
+        - **TOST (1980s):** Championed by **Donald Schuirmann** at the FDA to solve the bioequivalence problem for generic drugs. It flips the t-test's logic by asking two questions: "Is there strong evidence that the difference is *not* unacceptably low?" AND "Is there strong evidence that the difference is *not* unacceptably high?" You must prove both to conclude equivalence.
+        - **Bland-Altman (1986):** A direct response by **Martin Bland and Douglas Altman** to the rampant misuse of correlation for method comparison. Their brilliantly simple plot of `Difference vs. Average` directly visualizes the key clinical and technical questions: What is the average bias, and what is the expected range of disagreement for a future sample?
         """)
-
+        
     with tabs[4]:
         st.markdown("""
         Using the appropriate statistical method for comparability is a core regulatory expectation and a cornerstone of a robust Quality Management System.
-        - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This guideline is the primary driver. It requires a demonstration that manufacturing changes do not adversely impact product quality. The choice of statistical methods and acceptance criteria is a key component of the comparability protocol. Using advanced methods like Anderson-Darling provides stronger evidence of comparability than simple mean-based tests.
-        - **FDA Process Validation Guidance:** For **Stage 2 (Process Qualification)** during a tech transfer, and especially for **Stage 3 (Continued Process Verification)** when monitoring a process over time or after a change, statistical methods are required to demonstrate consistency. This suite provides the tools to do so rigorously.
-        - **ICH Q9 - Quality Risk Management:** The choice of statistical method is a risk-based decision. For a high-risk change, a more comprehensive test like Anderson-Darling would be expected. For a low-risk change, a simpler test of means like TOST might be justifiable. The rationale must be documented.
-        - **21 CFR 820.250 (Statistical Techniques):** This regulation for medical devices explicitly requires the use of "valid statistical techniques" for verifying process capability and product characteristics. This dashboard is a guide to selecting and justifying such valid techniques. The documentation generated from this analysis would be a key part of the Design History File (DHF) or batch records.
+        - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This guideline is the primary driver for these studies. It requires a demonstration that manufacturing changes do not adversely impact product quality. The choice of statistical methods and acceptance criteria is a key component of the comparability protocol.
+        - **FDA Process Validation Guidance:** For Stage 2 (PPQ) during a tech transfer, and especially for Stage 3 (CPV) when monitoring a process over time or after a change, statistical methods are required to demonstrate consistency.
+        - **USP <1224> - Transfer of Analytical Procedures:** Explicitly mentions "Comparative Testing" as a transfer option, for which these statistical tools are the standard methods of analysis.
+        - **21 CFR 820.250 (Statistical Techniques):** Explicitly requires the use of "valid statistical techniques." This suite is a guide to selecting such valid techniques.
         """)
 
 def render_multi_process_suite():

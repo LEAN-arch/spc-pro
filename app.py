@@ -16,6 +16,7 @@ from scipy.stats import beta, norm, t, f, f_oneway
 from scipy.optimize import curve_fit
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from statsmodels.tsa.arima.model import ARIMA
 from prophet import Prophet
 from sklearn.metrics import silhouette_score 

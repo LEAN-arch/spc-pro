@@ -4435,6 +4435,95 @@ def plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_le
     fig.update_layout(title="<b>Competitive Forecasts vs. Actual Data</b>", xaxis_title="Date", yaxis_title="Value",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig, mae_scores
+#=============================================================================================== ADVANCED TIME SERIES =========================================================================================================
+
+def plot_prophet_tbats_suite(trend_type, seasonality_type, noise_level, changepoint_strength):
+    """
+    Generates a dynamic time series and fits ONLY Prophet and TBATS.
+    This is computationally intensive and should not be cached.
+    """
+    np.random.seed(42)
+    periods = 96
+    n_forecast = 12
+    dates = pd.date_range(start='2015-01-01', periods=periods, freq='MS')
+    
+    # 1. Generate Data
+    if trend_type == 'Multiplicative':
+        trend = 50 * np.exp(np.arange(periods) * 0.02)
+    else: 
+        trend = 100 + 0.5 * np.arange(periods)
+    seasonality = np.zeros(periods)
+    seasonal_period_1 = 12
+    seasonal_period_2 = 3
+    if seasonality_type == 'Single (Yearly)':
+        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_1))
+    elif seasonality_type == 'Multiple (Yearly + Quarterly)':
+        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_1)) + 7 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_2))
+    changepoint_loc = 72
+    trend[changepoint_loc:] += changepoint_strength * np.arange(periods - changepoint_loc)
+    noise = np.random.normal(0, noise_level, periods)
+    y = trend + seasonality + noise
+    df = pd.DataFrame({'ds': dates, 'y': y})
+    train, test = df.iloc[:-n_forecast], df.iloc[-n_forecast:]
+    
+    # 2. Fit ONLY Prophet and TBATS
+    forecasts = {}
+    mae_scores = {}
+    
+    @contextlib.contextmanager
+    def suppress_stdout():
+        with open(os.devnull, 'w') as fnull:
+            import sys
+            saved_stdout = sys.stdout
+            sys.stdout = fnull
+            try:
+                yield
+            finally:
+                sys.stdout = saved_stdout
+
+    # Prophet
+    try:
+        with suppress_stdout():
+            m_prophet = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
+            if seasonality_type == 'Multiple (Yearly + Quarterly)':
+                m_prophet.add_seasonality(name='quarterly', period=365.25/4, fourier_order=5)
+            m_prophet.fit(train)
+        future = m_prophet.make_future_dataframe(periods=n_forecast, freq='MS')
+        fc_prophet = m_prophet.predict(future)
+        forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
+    except Exception:
+        forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+        
+    # TBATS
+    try:
+        seasonal_periods = []
+        if seasonality_type == 'Single (Yearly)':
+            seasonal_periods = [seasonal_period_1]
+        elif seasonality_type == 'Multiple (Yearly + Quarterly)':
+            seasonal_periods = [seasonal_period_1, seasonal_period_2]
+        estimator = TBATS(seasonal_periods=seasonal_periods, use_trend=True)
+        with suppress_stdout():
+            fitted_model = estimator.fit(train['y'])
+        forecasts['TBATS'] = fitted_model.forecast(steps=n_forecast)
+    except Exception:
+        forecasts['TBATS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+
+    # 3. Calculate MAE and Plot
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')))
+    forecast_start_date = train['ds'].iloc[-1]
+    fig.add_shape(type="line", x0=forecast_start_date, y0=0, x1=forecast_start_date, y1=1, yref="paper", line=dict(color="grey", dash="dash"))
+    fig.add_annotation(x=forecast_start_date, y=1, yref="paper", text="Forecast Start", showarrow=False, yshift=10)
+    colors = {'Prophet': px.colors.qualitative.Plotly[3], 'TBATS': px.colors.qualitative.Plotly[4]}
+    for name, fc in forecasts.items():
+        fc_series = pd.Series(fc, index=test['ds'])
+        if not fc_series.isna().all() and len(fc_series) == len(test['y']):
+            mae_scores[name] = mean_absolute_error(test['y'], fc_series)
+            fig.add_trace(go.Scatter(x=test['ds'], y=fc_series, mode='lines', name=name, line=dict(dash='dot', color=colors[name])))
+    fig.update_layout(title="<b>Advanced Forecasts (Prophet vs. TBATS)</b>", xaxis_title="Date", yaxis_title="Value",
+                      legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    return fig, mae_scores
+
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Stability Analysis) - SME ENHANCED
 # ==============================================================================
@@ -11606,6 +11695,80 @@ def render_time_series_suite():
         
         > **Bottom Line:** In a regulated environment, a forecasting model is not just a statistical tool; it is a validated piece of software whose performance and reliability must be documented and controlled.
         """)
+#=============================================================================================== ADVANCED TIME SERIES ============================================================================================================================
+def render_prophet_tbats_suite():
+    """Renders the advanced, computationally intensive suite for Prophet and TBATS."""
+    st.markdown("""
+    #### Purpose & Application: The Heavy-Duty Forecasting Engine
+    **Purpose:** To provide a dedicated environment for comparing two of the most powerful and automated forecasting libraries: **Prophet** and **TBATS**. This module is designed to handle complex scenarios with multiple seasonalities that challenge simpler models.
+    """)
+    st.warning("""
+    **Performance Notice:** This module is computationally intensive and may take **10-30 seconds** to run after clicking the button, especially on a shared platform. This is a normal part of fitting these complex models.
+    """)
+    
+    if 'pt_cache' not in st.session_state:
+        st.session_state.pt_cache = {}
+        st.session_state.pt_fig = None
+        st.session_state.pt_mae_scores = {}
+
+    with st.sidebar:
+        st.subheader("Advanced Forecasting Controls")
+        trend_type_pt = st.radio("Trend Type", ['Additive', 'Multiplicative'], key='pt_trend')
+        seasonality_type_pt = st.radio("Seasonality Type", ['Single (Yearly)', 'Multiple (Yearly + Quarterly)'], key='pt_season')
+        noise_level_pt = st.slider("Noise Level (SD)", 1.0, 20.0, 5.0, 1.0, key='pt_noise')
+        changepoint_strength_pt = st.slider("Trend Changepoint Strength", -5.0, 5.0, 0.0, 0.5, help="Simulates an abrupt change in the trend's slope.", key='pt_cp')
+
+        if st.button("🚀 Run Advanced Analysis", use_container_width=True):
+            cache_key = (trend_type_pt, seasonality_type_pt, noise_level_pt, changepoint_strength_pt)
+            if cache_key in st.session_state.pt_cache:
+                st.toast("Loading results from cache!", icon="⚡")
+                fig, mae_scores = st.session_state.pt_cache[cache_key]
+                st.session_state.pt_fig = fig
+                st.session_state.pt_mae_scores = mae_scores
+            else:
+                with st.spinner("Fitting Prophet & TBATS... This will take a moment."):
+                    fig, mae_scores = plot_prophet_tbats_suite(trend_type_pt, seasonality_type_pt, noise_level_pt, changepoint_strength_pt)
+                    st.session_state.pt_fig = fig
+                    st.session_state.pt_mae_scores = mae_scores
+                    st.session_state.pt_cache[cache_key] = (fig, mae_scores)
+            st.rerun()
+
+    st.header("Advanced Forecasting Dashboard")
+    
+    if st.session_state.pt_fig is None:
+        st.info("Configure your scenario in the sidebar and click 'Run Advanced Analysis' to see the results.")
+    else:
+        col1, col2 = st.columns([0.65, 0.35])
+        with col1:
+            st.plotly_chart(st.session_state.pt_fig, use_container_width=True)
+        with col2:
+            st.subheader("Model Performance (MAE)")
+            st.markdown("Lower Mean Absolute Error (MAE) is better.")
+            mae_scores = st.session_state.pt_mae_scores
+            if mae_scores:
+                best_model = min(mae_scores, key=mae_scores.get)
+                for name, score in sorted(mae_scores.items(), key=lambda item: item[1]):
+                    st.markdown(f"**{name}:** `{score:.2f}` {'🥇' if name == best_model else ''}")
+            else:
+                st.warning("No models could be successfully fitted to the data.")
+            
+    st.divider()
+    st.subheader("Deeper Dive: Prophet vs. TBATS")
+    tabs = st.tabs(["💡 Head-to-Head Comparison", "✅ The Golden Rule"])
+    with tabs[0]:
+        st.markdown("""
+        | Feature | **Prophet (The Smartwatch)** | **TBATS (The Music Producer)** |
+        | :--- | :--- | :--- |
+        | **Philosophy** | A pragmatic, decomposable curve-fitting model. | A rigorous, unified statistical state-space model. |
+        | **Strengths** | **Excellent with messy data:** Handles missing values, outliers, and trend changepoints natively. **Easy to add domain knowledge** (e.g., holidays, special events). | **Handles complex seasonality:** The only model that can handle multiple, overlapping, and even non-integer seasonal patterns (e.g., a 7-day cycle and a 30.5-day cycle). |
+        | **Weaknesses** | Does not explicitly model autocorrelation (ARMA errors), which can make it less accurate for short-term forecasts on very stable processes. | Can be very slow to fit. The complex combination of components can be harder to interpret than Prophet's simple decomposition. |
+        | **Best For...** | Business forecasting at scale, especially with human-generated data that has holidays, multiple seasons, and trend shifts. | High-frequency data with multiple, complex seasonal patterns where statistical rigor is valued. |
+        """)
+    with tabs[1]:
+        st.success("""
+        🟢 **THE GOLDEN RULE FOR ADVANCED FORECASTING: Let the Data Decide**
+        When faced with complex data, both Prophet and TBATS are powerful tools. A robust workflow does not pick a favorite but runs them in a head-to-head competition on a held-out test set. The model with the best performance on the test set, as measured by a metric like Mean Absolute Error (MAE), is the one you should trust for your application. This dashboard is designed to facilitate exactly this kind of data-driven model selection.
+        """)
 #========================================================================== 8. MULTIVARIATE ANALYSIS (MVA) ACT III============================================================================
 def render_mva_pls():
     """Renders the module for Multivariate Analysis (PLS)."""
@@ -13053,6 +13216,7 @@ with st.sidebar:
             "Stability Analysis (Shelf-Life)",
             "Reliability / Survival Analysis",
             "Time Series Forecasting Suite",
+            "Advanced Forecasting (Prophet & TBATS)",
             "Multivariate Analysis (MVA)",
             "Predictive QC (Classification)",
             "Explainable AI (XAI)",
@@ -13138,7 +13302,7 @@ else:
         "Stability Analysis (Shelf-Life)": render_stability_analysis,
         "Reliability / Survival Analysis": render_survival_analysis,
         "Time Series Forecasting Suite": render_time_series_suite,
-        "Time Series Forecasting Suite": render_time_series_suite,
+        "Advanced Forecasting (Prophet & TBATS)": render_prophet_tbats_suite,
         "Predictive QC (Classification)": render_classification_models,
         "Explainable AI (XAI)": render_xai_shap,
         "Clustering (Unsupervised)": render_clustering,

@@ -6402,34 +6402,34 @@ def render_atp_builder():
         - **Avoiding "Gold-Plating":** This visualization helps teams determine if their requirements are reasonable. If the blue polygon is vastly larger than what is necessary for the intended use, it signals that the project may be "gold-plating" the requirements, leading to excessive development time and cost.
         """)
     with tabs[1]:
-    st.markdown("""
-    ### The Business Case: From a "Science Project" to a Fit-for-Purpose Asset
-
-    #### The Problem: The Method Transfer Chasm
-    There is a deep, often unacknowledged, cultural and operational chasm between the worlds of Analytical Development (AD) and Quality Control (QC).
-    - **The AD World:** Focuses on discovery, flexibility, and peak performance. Methods are often run by highly skilled PhDs on perfectly maintained instruments with low throughput. Their goal is to prove a scientific concept.
-    - **The QC World:** Focuses on robustness, speed, and simplicity. Methods must be run 24/7 by technicians with variable skill levels on instruments with a heavy workload. Their goal is to produce a compliant, reliable result, every single time, as quickly as possible.
-
-    When a method is developed in the AD world and "thrown over the wall" to QC without a formal contract, it is destined to fail in the more demanding routine environment.
-
-    #### The Impact: The OOS Investigation Black Hole
-    This failure is a massive, hidden cost center and a source of profound operational drag.
-    - **Extended Batch Release Cycles:** An unreliable QC method generates frequent invalid assays, forcing re-tests that can add days or even weeks to the batch release cycle time, directly delaying revenue recognition.
-    - **The OOS Investigation Black Hole:** A batch fails its specification. A costly Out-of-Specification (OOS) investigation is launched. After weeks of investigation, the root cause is often inconclusive or defaults to "analyst error," because no one suspects the officially "validated" method itself is the problem. This wastes hundreds of man-hours and destroys trust.
-    - **Increased Headcount & Capital:** The QC lab's headcount swells to manage the high rate of re-tests and investigations. The business may even purchase more instruments to cope with the perceived "capacity issue," when the real problem is the inefficiency of the method.
-
-    #### The Solution: The ATP as a Negotiated Service Level Agreement (SLA)
-    The Analytical Target Profile is the tool that bridges the chasm. It is a formal, **negotiated Service Level Agreement (SLA)** between the method developer (AD) and the end user (QC), facilitated by Quality Assurance. Before significant development work begins, all parties come to the table to quantitatively define the "contract" for the new method.
-
-    This is not a scientific discussion; it is a business and operational one. The questions are not "what is possible?" but "what is required?":
-    - *What is the minimum precision (%CV) needed to reliably stay within the product's specification limits?*
-    - *What is the maximum run time we can tolerate to meet our batch release goals?*
-    - *What level of robustness is required for this method to be run successfully by any qualified analyst on any qualified instrument?*
-
-    #### The Consequences: A High-Speed Engine for Batch Release
-    - **Without This:** The QC lab is a perpetual bottleneck, a source of organizational friction, and a significant compliance risk. Method transfer is a high-stakes gamble based on hope.
-    - **With This:** The ATP transforms method development from a high-risk R&D "science project" into a **predictable engineering discipline with guaranteed business outcomes**. The resulting method is guaranteed to be **fit-for-purpose**, leading to smooth, successful transfers. The QC lab becomes a reliable, high-speed engine for batch release, enabling faster revenue recognition and building a culture of data-driven collaboration between departments.
-    """)
+        st.markdown("""
+        ### The Business Case: From a "Science Project" to a Fit-for-Purpose Asset
+    
+        #### The Problem: The Method Transfer Chasm
+        There is a deep, often unacknowledged, cultural and operational chasm between the worlds of Analytical Development (AD) and Quality Control (QC).
+        - **The AD World:** Focuses on discovery, flexibility, and peak performance. Methods are often run by highly skilled PhDs on perfectly maintained instruments with low throughput. Their goal is to prove a scientific concept.
+        - **The QC World:** Focuses on robustness, speed, and simplicity. Methods must be run 24/7 by technicians with variable skill levels on instruments with a heavy workload. Their goal is to produce a compliant, reliable result, every single time, as quickly as possible.
+    
+        When a method is developed in the AD world and "thrown over the wall" to QC without a formal contract, it is destined to fail in the more demanding routine environment.
+    
+        #### The Impact: The OOS Investigation Black Hole
+        This failure is a massive, hidden cost center and a source of profound operational drag.
+        - **Extended Batch Release Cycles:** An unreliable QC method generates frequent invalid assays, forcing re-tests that can add days or even weeks to the batch release cycle time, directly delaying revenue recognition.
+        - **The OOS Investigation Black Hole:** A batch fails its specification. A costly Out-of-Specification (OOS) investigation is launched. After weeks of investigation, the root cause is often inconclusive or defaults to "analyst error," because no one suspects the officially "validated" method itself is the problem. This wastes hundreds of man-hours and destroys trust.
+        - **Increased Headcount & Capital:** The QC lab's headcount swells to manage the high rate of re-tests and investigations. The business may even purchase more instruments to cope with the perceived "capacity issue," when the real problem is the inefficiency of the method.
+    
+        #### The Solution: The ATP as a Negotiated Service Level Agreement (SLA)
+        The Analytical Target Profile is the tool that bridges the chasm. It is a formal, **negotiated Service Level Agreement (SLA)** between the method developer (AD) and the end user (QC), facilitated by Quality Assurance. Before significant development work begins, all parties come to the table to quantitatively define the "contract" for the new method.
+    
+        This is not a scientific discussion; it is a business and operational one. The questions are not "what is possible?" but "what is required?":
+        - *What is the minimum precision (%CV) needed to reliably stay within the product's specification limits?*
+        - *What is the maximum run time we can tolerate to meet our batch release goals?*
+        - *What level of robustness is required for this method to be run successfully by any qualified analyst on any qualified instrument?*
+    
+        #### The Consequences: A High-Speed Engine for Batch Release
+        - **Without This:** The QC lab is a perpetual bottleneck, a source of organizational friction, and a significant compliance risk. Method transfer is a high-stakes gamble based on hope.
+        - **With This:** The ATP transforms method development from a high-risk R&D "science project" into a **predictable engineering discipline with guaranteed business outcomes**. The resulting method is guaranteed to be **fit-for-purpose**, leading to smooth, successful transfers. The QC lab becomes a reliable, high-speed engine for batch release, enabling faster revenue recognition and building a culture of data-driven collaboration between departments.
+        """)
     with tabs[2]:
         st.markdown("""
         ##### Glossary of Performance Attributes

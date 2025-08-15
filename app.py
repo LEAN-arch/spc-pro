@@ -4353,7 +4353,7 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
     n_forecast = 26 # Forecast 6 months
     dates = pd.date_range(start='2021-01-01', periods=periods, freq='W')
     
-    # 1. Generate Data (Unchanged)
+    # 1. Generate Data
     if trend_type == 'Multiplicative':
         trend = 100 * np.exp(np.arange(periods) * 0.01)
     else: # Additive
@@ -4370,10 +4370,23 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
     df = pd.DataFrame({'ds': dates, 'y': y})
     train, test = df.iloc[:-n_forecast], df.iloc[-n_forecast:]
     
-    # 2. Fit Models & Forecast (Unchanged, but includes the previous fix for verbose output)
+    # 2. Fit Models & Forecast
     forecasts = {}
     mae_scores = {}
     
+    # Context manager to suppress stdout for noisy libraries
+    @contextlib.contextmanager
+    def suppress_stdout():
+        with open(os.devnull, 'w') as fnull:
+            import sys
+            saved_stdout = sys.stdout
+            sys.stdout = fnull
+            try:
+                yield
+            finally:
+                sys.stdout = saved_stdout
+
+    # Holt-Winters
     try:
         hw_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
         hw_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
@@ -4381,18 +4394,25 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
         forecasts['Holt-Winters'] = hw.forecast(n_forecast)
     except Exception:
         forecasts['Holt-Winters'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+
+    # SARIMA
     try:
         sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=(1,1,0,52)).fit(disp=False)
         forecasts['SARIMA'] = sarima.get_forecast(steps=n_forecast).predicted_mean
     except Exception:
         forecasts['SARIMA'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+
+    # Prophet --- WRAP fit() call in suppress_stdout ---
     try:
-        m_prophet = Prophet().fit(train)
+        with suppress_stdout():
+            m_prophet = Prophet().fit(train)
         future = m_prophet.make_future_dataframe(periods=n_forecast, freq='W')
         fc_prophet = m_prophet.predict(future)
         forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
     except Exception:
         forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+        
+    # ETS
     try:
         ets_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
         ets_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
@@ -4400,6 +4420,8 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
         forecasts['ETS'] = ets.forecast(n_forecast)
     except Exception:
         forecasts['ETS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+
+    # TBATS
     try:
         seasonal_periods = []
         if seasonality_type == 'Single (Yearly)':
@@ -4407,16 +4429,6 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
         elif seasonality_type == 'Multiple (Yearly + Quarterly)':
             seasonal_periods = [52, 13]
         estimator = TBATS(seasonal_periods=seasonal_periods, use_trend=True)
-        import sys
-        @contextlib.contextmanager
-        def suppress_stdout():
-            with open(os.devnull, 'w') as fnull:
-                saved_stdout = sys.stdout
-                sys.stdout = fnull
-                try:
-                    yield
-                finally:
-                    sys.stdout = saved_stdout
         with suppress_stdout():
             fitted_model = estimator.fit(train['y'])
         forecasts['TBATS'] = fitted_model.forecast(steps=n_forecast)
@@ -4427,28 +4439,9 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')))
     
-    # --- START OF THE FIX ---
-    # Instead of fig.add_vline(), we use the more fundamental fig.add_shape() and fig.add_annotation()
     forecast_start_date = train['ds'].iloc[-1]
-    
-    # Draw the shape (the vertical line)
-    fig.add_shape(
-        type="line",
-        x0=forecast_start_date, y0=0, x1=forecast_start_date, y1=1,
-        yref="paper", # This makes the line span the full height of the plot
-        line=dict(color="grey", dash="dash")
-    )
-    
-    # Add the annotation for the line
-    fig.add_annotation(
-        x=forecast_start_date,
-        y=1,
-        yref="paper",
-        text="Forecast Start",
-        showarrow=False,
-        yshift=10
-    )
-    # --- END OF THE FIX ---
+    fig.add_shape(type="line", x0=forecast_start_date, y0=0, x1=forecast_start_date, y1=1, yref="paper", line=dict(color="grey", dash="dash"))
+    fig.add_annotation(x=forecast_start_date, y=1, yref="paper", text="Forecast Start", showarrow=False, yshift=10)
 
     colors = px.colors.qualitative.Plotly
     for i, (name, fc) in enumerate(forecasts.items()):

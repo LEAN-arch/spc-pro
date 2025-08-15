@@ -11866,104 +11866,193 @@ def render_prophet_forecasting():
         """)
 
 #========================================================================== 9. PREDICTIVE QC (CLASSIFICATION) ACT III============================================================================
-def render_classification_models():
-    """Renders the module for Predictive QC (Classification)."""
+def render_predictive_modeling_suite():
+    """Renders the comprehensive, interactive module for Predictive Modeling."""
     st.markdown("""
     #### Purpose & Application: The AI Gatekeeper
-    **Purpose:** To build an **AI Gatekeeper** that can inspect in-process data and predict, with high accuracy, whether a batch will ultimately pass or fail its final QC specifications. This moves quality control from a reactive, end-of-line activity to a proactive, predictive science.
+    **Purpose:** To build an **AI Gatekeeper** that can inspect in-process data and predict, with high accuracy, whether a batch will ultimately pass or fail its final QC specifications. This suite compares three levels of model complexity: simple linear, powerful ensemble, and a highly flexible neural network.
     
-    **Strategic Application:** This is the foundation of real-time release and "lights-out" manufacturing. By predicting outcomes early, we can:
-    - **Prevent Failures:** Intervene in a batch that is trending towards failure.
-    - **Optimize Resources:** Divert QC lab resources to focus on high-risk batches.
-    - **Accelerate Release:** Provide statistical evidence for release based on in-process data.
+    **Strategic Application:** This is the foundation of real-time release and proactive quality control. By predicting outcomes early, we can prevent failures, optimize resources, and accelerate batch release with robust statistical evidence.
     """)
-    
     st.info("""
-    **Interactive Demo:** Use the **Boundary Complexity** slider to change the true pass/fail relationship.
-    - **High values (e.g., 20):** Creates a simple, almost linear boundary. Both models perform well, with similar AUCs.
-    - **Low values (e.g., 8):** Creates a complex, non-linear "island" of failures. Watch the performance of the linear Logistic Regression model collapse, while the Random Forest's AUC remains high.
+    **Interactive Demo:** You are the Lead Data Scientist.
+    1.  Use the **Scenario Controls** to define the complexity of the pass/fail relationship.
+    2.  Use the **MLP Hyperparameter Tuner** to configure your neural network.
+    3.  Click **"Run Model Comparison"** to train all three models and see their performance on the ROC curve.
     """)
 
+    if 'pred_fig' not in st.session_state:
+        st.session_state.pred_fig = None
+        st.session_state.pred_aucs = None
+
     with st.sidebar:
-        st.sidebar.subheader("Predictive QC Controls")
-        complexity_slider = st.sidebar.slider(
+        st.subheader("Scenario Controls")
+        boundary_slider = st.slider(
             "Boundary Complexity",
             min_value=4, max_value=25, value=12, step=1,
             help="Controls how non-linear the true pass/fail boundary is. Lower values create a more complex 'island' that is harder for linear models to solve."
         )
-    
-    fig, auc_lr, auc_rf = plot_classification_models(boundary_radius=complexity_slider)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
+        st.divider()
+        st.subheader("MLP Hyperparameter Tuner")
         
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        layer_options = {
+            "1 Layer (32)": (32,),
+            "2 Layers (64, 32)": (64, 32),
+            "3 Layers (100, 50, 25)": (100, 50, 25)
+        }
+        layer_choice = st.selectbox("Hidden Layers & Neurons", options=list(layer_options.keys()), index=1)
         
-        with tabs[0]:
-            st.metric(label="📈 Logistic Regression AUC", value=f"{auc_lr:.3f}",
-                      help="Overall performance of the simpler, linear model.")
-            st.metric(label="🚀 Random Forest AUC", value=f"{auc_rf:.3f}",
-                      help="Overall performance of the more complex, non-linear model.")
+        activation_choice = st.selectbox("Activation Function", options=['relu', 'tanh'], index=0)
+        
+        learning_rate_choice = st.select_slider("Learning Rate", options=[0.0001, 0.001, 0.01, 0.1], value=0.001)
 
-            st.markdown("""
-            **Reading the Dashboard:**
-            - **Plots 1 & 2 (Decision Boundaries):** These plots show each model's *predicted probability of failure*. The dark line is the 50% threshold (the decision boundary).
-            - **Logistic Regression** is forced to draw a straight line boundary.
-            - **Random Forest** can draw a complex, circular boundary, correctly identifying the "island" of failures.
-            - **Plot 3 (ROC Curves):** This is the ultimate scorecard. A curve closer to the top-left corner is better. The **Area Under the Curve (AUC)** provides a single number to quantify performance.
+        mlp_params = {
+            'layers': layer_options[layer_choice],
+            'activation': activation_choice,
+            'learning_rate': learning_rate_choice
+        }
+        
+        if st.button("🚀 Run Model Comparison", use_container_width=True):
+            with st.spinner("Training and evaluating models..."):
+                fig, auc_lr, auc_rf, auc_mlp = plot_predictive_modeling_suite(boundary_slider, mlp_params)
+                st.session_state.pred_fig = fig
+                st.session_state.pred_aucs = {'lr': auc_lr, 'rf': auc_rf, 'mlp': auc_mlp}
+            st.rerun()
 
-            **The Core Strategic Insight:** For complex biological processes, the relationship between parameters and quality is rarely linear. Modern ML models like Random Forest are often required to capture this complexity and build an effective AI Gatekeeper.
-            """)
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of Classification Terms
-            - **Classification:** A supervised machine learning task where the goal is to predict a categorical class label (e.g., "Pass" or "Fail").
-            - **Logistic Regression:** A linear model used for binary classification. It models the probability of the default class.
-            - **Random Forest:** A powerful ensemble learning method that operates by constructing a multitude of decision trees at training time. The final prediction is the mode of the classes output by individual trees.
-            - **Decision Boundary:** The line or surface that separates the different classes in the feature space. A linear model can only create a straight-line boundary, while a non-linear model can create a complex, curved boundary.
-            - **AUC (Area Under the Curve):** The primary metric for evaluating a classifier's performance. It represents the model's ability to distinguish between the positive and negative classes.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "Garbage In, Garbage Out" Fallacy**
-An analyst takes all 500 available sensor tags, feeds them directly into a model, and trains it.
-- **The Flaw:** With more input variables than batches, the model is likely to find spurious correlations and will fail to generalize to new data. The model hasn't been given any scientific context.""")
-            st.success("""🟢 **THE GOLDEN RULE: Feature Engineering is the Secret Ingredient**
-The success of a predictive model depends less on the algorithm and more on the quality of the inputs ("features").
-1.  **Collaborate with SMEs:** Work with scientists to identify which process parameters are *scientifically likely* to be causal drivers of quality.
-2.  **Engineer Smart Features:** Don't just use raw sensor values. Create more informative features, like the *slope* of a temperature profile or the *cumulative* feed volume.
-3.  **Validate on Unseen Data:** The model's true performance is only revealed when it is tested on a hold-out set of batches it has never seen before.""")
+    st.header("Predictive Modeling Dashboard")
 
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: The Two Cultures
-            **The Problem:** For much of the 20th century, the world of statistical modeling was dominated by what statistician Leo Breiman called the **"Data Modeling Culture."** The goal was to use data to infer a simple, interpretable stochastic model (like linear or logistic regression) that could explain the relationship between inputs and outputs. The model's interpretability was paramount.
+    if st.session_state.pred_fig:
+        st.plotly_chart(st.session_state.pred_fig, use_container_width=True)
+        st.subheader("Model Performance Scorecard (AUC)")
+        col1, col2, col3 = st.columns(3)
+        aucs = st.session_state.pred_aucs
+        col1.metric("Logistic Regression AUC", f"{aucs['lr']:.3f}")
+        col2.metric("Random Forest AUC", f"{aucs['rf']:.3f}")
+        col3.metric("MLP Neural Network AUC", f"{aucs['mlp']:.3f}")
+    else:
+        st.info("Configure your scenario and tune the MLP in the sidebar, then click 'Run Model Comparison' to see the results.")
 
-            **The 'Aha!' Moment:** The rise of computer science and machine learning in the latter half of the century gave rise to the **"Algorithmic Modeling Culture."** In this world, the internal mechanism of the model was treated as a black box. The primary goal was predictive accuracy, pure and simple. If a complex algorithm could get 99% accuracy, who cared how it worked?
+    st.divider()
+    st.subheader("Deeper Dive into Predictive Modeling")
+    
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "💡 Model Selection Guide", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
-            **The Impact:** This module showcases both cultures.
-            - **Logistic Regression (Cox, 1958):** A masterpiece of the Data Modeling culture. It's a direct, interpretable generalization of linear regression for binary outcomes.
-            - **Random Forest (Breiman, 2001):** A quintessential algorithm from the Algorithmic Modeling culture. It is an **ensemble method** that builds hundreds of individual decision trees and makes its final prediction based on a "majority vote." This "wisdom of the crowd" approach is highly accurate but inherently a black box.
-            
-            Today, the field of **Explainable AI (XAI)** is dedicated to bridging this gap, allowing us to use the power of algorithmic models while still understanding their reasoning.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("- **Logistic Regression:** This model predicts the **log-odds** of the outcome as a linear function of the inputs, then uses the logistic (sigmoid) function to map this to a probability.")
-            st.latex(r"\ln\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1X_1 + \dots + \beta_nX_n")
-            st.latex(r"p = \frac{1}{1 + e^{-(\beta_0 + \beta_1X_1 + \dots)}}")
-            st.markdown("- **Random Forest:** It is a collection of `N` individual decision tree models. For a new input `x`, the final prediction is the mode (most common vote) of all the individual tree predictions:")
-            st.latex(r"\text{Prediction}(x) = \text{mode}\{ \text{Tree}_1(x), \text{Tree}_2(x), \dots, \text{Tree}_N(x) \}")
-            st.markdown("Randomness is injected in two ways to ensure the trees are diverse: each tree is trained on a random bootstrap sample of the data, and at each split in a tree, only a random subset of features is considered.")
-        with tabs[4]:
-            st.markdown("""
-            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
+    with tabs[0]:
+        st.subheader("How to Interpret the Dashboard: A Guided Tour")
+        st.markdown("""
+        This dashboard is a virtual laboratory for comparing different types of predictive models. By controlling the "problem" and the "solution," you can build a deep intuition for their behavior.
+
+        ##### The Plots: The Arena of Competition
+        - **Decision Boundaries (Plots 1-3):** These maps show how each model sees the world. The color shows the predicted probability of failure, and the dark line is the 50% "decision boundary." A good model's boundary should closely match the true pattern of red (Fail) and blue (Pass) dots.
+        - **ROC Curves (Plot 4):** This is the objective scorecard. A curve that is closer to the top-left corner is better. The **Area Under the Curve (AUC)** is the final performance metric. An AUC of 1.0 is a perfect classifier.
+
+        ---
+        ##### Challenge 1: The Linear vs. Non-Linear Problem
+        1. In the sidebar, set **Boundary Complexity** to a high value (e.g., `25`). This creates a simple, almost linear separation. Click **Run**.
+        2. **Observe:** All three models perform very well, with similar, high AUCs. The simple Logistic Regression is just as good as the complex MLP.
+        3. Now, set **Boundary Complexity** to a low value (e.g., `8`). This creates a difficult, non-linear "island" of failures. Click **Run**.
+        4. **Observe:** The Logistic Regression boundary is a straight line that completely fails to capture the pattern, and its AUC plummets. The Random Forest and MLP, which can learn non-linear shapes, perform much better.
+
+        ---
+        ##### Challenge 2: The Hyperparameter Tuning Problem
+        1. Keep **Boundary Complexity** low (`8`).
+        2. In the MLP Tuner, try a "bad" configuration: `1 Layer (32)`, `learning_rate=0.1`. Click **Run**.
+        3. **Observe:** The MLP may perform poorly, with a messy boundary and a lower AUC than the Random Forest.
+        4. Now, try a "good" configuration: `2 Layers (64, 32)`, `learning_rate=0.001`. Click **Run**.
+        5. **Observe:** The well-tuned MLP now likely has the best performance of all three models.
+
+        **The Core Strategic Insight:** The best model is a function of both the **complexity of the problem** and the **quality of the tuning**. For simple problems, simple models are best. For complex problems, powerful models like neural networks are necessary, but they require careful hyperparameter tuning to unlock their full potential.
+        """)
+        
+    with tabs[1]:
+        st.subheader("The Business Case: From Reactive to Predictive Quality")
+        st.markdown("""
+        This section answers the critical business question: "Why should we invest in building predictive models for our QC process?"
+
+        #### The Problem: Quality Control is a Post-Mortem
+        Traditional QC is a **reactive, end-of-line inspection**. We manufacture an entire batch, take a sample, send it to the lab, and wait for a result. If it fails, we have already invested hundreds of thousands of dollars in time, materials, and labor to produce a worthless product. This is a post-mortem, not a control strategy.
+
+        #### The Impact of the Problem: The High Cost of Waiting
+        This reactive model creates significant and often hidden costs:
+        - **High Scrap/Rework Costs:** The entire batch is at risk.
+        - **Long Cycle Times:** Batches sit in quarantine for days or weeks awaiting QC results, tying up capital and delaying revenue.
+        - **Supply Chain Risk:** An unexpected batch failure can lead to stock-outs and disrupt the supply chain.
+        - **Limited Process Understanding:** A simple pass/fail result provides very little information about *why* the batch was good or bad, hindering continuous improvement.
+
+        #### The Solution: The "AI Gatekeeper"
+        A validated predictive model acts as an **in-process "AI Gatekeeper."** By analyzing data as it's generated, the model can predict the final quality outcome long before the batch is finished. This transforms the quality paradigm.
+        1.  **Proactive Intervention:** If a model predicts a high probability of failure for a batch currently in progress, engineers can be alerted to intervene, potentially saving the batch.
+        2.  **Risk-Based QC:** Batches with a very high predicted probability of passing could be eligible for reduced QC testing or **Real-Time Release Testing (RTRT)**, dramatically accelerating release timelines.
+        3.  **Deep Process Understanding:** The model itself becomes a "digital twin" of the process. Tools like **Explainable AI (XAI)** can be used to understand exactly which parameters are driving the predictions, providing invaluable insights for process optimization.
+
+        #### The Consequence: A More Agile and Profitable Operation
+        Implementing predictive quality models directly translates to business value by reducing scrap, accelerating revenue recognition, and creating a more robust, data-driven manufacturing process.
+        """)
+
+    with tabs[2]:
+        st.subheader("Model Selection Guide: Crawl, Walk, Run")
+        st.markdown("""
+        This suite demonstrates a "crawl, walk, run" approach to predictive modeling. The choice of model is a strategic decision based on your team's skill, the complexity of your problem, and your need for interpretability.
+
+        | **Phase** | **Model** | **Analogy** | **When to Use It** |
+        | :--- | :--- | :--- | :--- |
+        | **Crawl** | **Logistic Regression** | **The Glass Box:** | **Always start here.** It's your baseline. If this simple, highly interpretable model performs well enough, your job might be done. It's fast, robust, and easy to explain to auditors. |
+        | **Walk** | **Random Forest** | **The Reliable Workhorse:** | Use this when your linear model is not performing well. It's excellent at automatically capturing non-linearities and interactions without requiring extensive tuning. It's often the "good enough" champion. |
+        | **Run** | **MLP Neural Network** | **The High-Performance Engine:** | Use this when you have a large dataset and believe there are very complex, abstract patterns that other models are missing. It requires careful tuning and validation but offers the highest potential performance. |
+        """)
+
+    with tabs[3]:
+        st.markdown("""
+        ##### Glossary of Predictive Modeling Terms
+        - **Classification:** A supervised machine learning task where the goal is to predict a categorical class label (e.g., "Pass" or "Fail").
+        - **Logistic Regression:** A linear model used for binary classification. It models the probability of a class by fitting a linear equation to the log-odds of the event.
+        - **Random Forest:** A powerful **ensemble** learning method that operates by constructing a multitude of **decision trees** at training time. The final prediction is the "majority vote" of all the individual trees.
+        - **MLP (Multilayer Perceptron):** A classic type of feedforward artificial neural network. It consists of an input layer, one or more **hidden layers** of computational nodes (**neurons**), and an output layer.
+        - **Activation Function:** A non-linear function (like `ReLU` or `tanh`) applied by neurons in an MLP. This is what allows the network to learn complex, non-linear decision boundaries.
+        - **Hyperparameters:** The "settings" of a model that are not learned from the data but are set by the user before training (e.g., the number of hidden layers in an MLP, the learning rate).
+        - **Decision Boundary:** The line or surface that separates the different classes in the feature space.
+        - **ROC Curve & AUC:** The primary method for evaluating a classifier's performance. The **ROC Curve** plots the True Positive Rate vs. the False Positive Rate, and the **Area Under the Curve (AUC)** summarizes this plot into a single number from 0.5 (random) to 1.0 (perfect).
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        #### Theory, History & The Two Cultures
+        This dashboard perfectly illustrates what the famous statistician Leo Breiman called the "Two Cultures" of statistical modeling.
+
+        - **Culture 1: The Data Modeling Culture (The Glass Box):** The primary goal is to create a simple, interpretable statistical model that can explain the relationship between the input variables and the output. **Logistic Regression (David Cox, 1958)** is a masterpiece of this culture. It's a direct, interpretable generalization of linear regression for binary outcomes. The focus is on inference and understanding.
+
+        - **Culture 2: The Algorithmic Modeling Culture (The Black Box):** The primary goal is predictive accuracy. The internal mechanism of the model is secondary to its ability to make correct predictions on new data. **Random Forest (Leo Breiman, 2001)** and **MLP Neural Networks (Rosenblatt, 1958; refined through decades)** are quintessential examples. They achieve high performance through complexity that is not easily interpretable.
+
+        - **The Modern Synthesis (Explainable AI):** Today, the field of **Explainable AI (XAI)**, as shown in the next module, is dedicated to bridging this gap. It provides tools like SHAP to interrogate "black box" models, allowing us to get the high performance of the algorithmic culture while still gaining the understanding prized by the data modeling culture.
+        
+        ---
+        #### Mathematical Basis
+        - **Logistic Regression:** Models the log-odds of the outcome as a linear function and uses the logistic (sigmoid) function to map this to a probability.
+          `p = 1 / (1 + e^-(β₀ + β₁X₁ + ...))`
+        - **Random Forest:** An ensemble of `N` decision trees. The final prediction is the majority vote of all trees.
+          `Prediction(x) = mode{ Tree₁(x), Tree₂(x), ..., Tree_N(x) }`
+        - **MLP Neural Network:** A composition of nested functions. Each layer applies a linear transformation followed by a non-linear activation function.
+          `Output = Activation(W₂ * Activation(W₁ * Input + b₁) + b₂)`
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        ### Regulatory & Compliance Context
+        The use of AI/ML models for GxP decisions like batch release is a cutting-edge topic with evolving regulatory expectations. A robust validation package is non-negotiable.
+
+        #### Key Regulatory Frameworks
+        - **FDA AI/ML Action Plan & GMLP:** The FDA is actively developing its framework for regulating AI/ML-based software. Key principles include **Good Machine Learning Practice (GMLP)**, which emphasizes data quality, model transparency, and robust performance testing on independent data. This module directly addresses GMLP by comparing models and evaluating them on a test set.
+        - **FDA Guidance on Process Validation (Stage 3 - CPV):** A validated predictive model is a powerful tool for **Continued Process Verification**. It can provide real-time assurance that a process is remaining in its validated state.
+        - **PAT & Real-Time Release Testing (RTRT):** This is the ultimate application. A highly accurate and fully validated model can be a key component of a **Process Analytical Technology (PAT)** strategy, providing the scientific evidence to support **Real-Time Release** of a product, a major goal of modern pharmaceutical manufacturing.
+        
+        #### The Validation Package for a Predictive Model
+        An auditor will expect to see a comprehensive validation package for any model used in a GxP context. This would include:
+        1.  **Model Requirements Specification (URS/FS):** What is the model's intended use? What is the required level of accuracy (e.g., AUC > 0.95)?
+        2.  **Data Management Plan:** How was the training and testing data collected, managed, and versioned to ensure integrity?
+        3.  **Model Design & Training Specification (DS):** A detailed description of the final model, including the chosen algorithm, all hyperparameters (as tuned in this module), and the feature set.
+        4.  **Model Validation Report:** The objective evidence of the model's performance on an independent, held-out test set. This report would include the ROC curves and AUC metrics shown in this dashboard.
+        5.  **Change Control Procedure:** A formal procedure that defines how the model will be monitored over time and the criteria for when it must be retrained and re-validated.
+        """)
 
 def render_xai_shap():
     """Renders the module for Explainable AI (XAI) using SHAP."""
@@ -13225,7 +13314,7 @@ with st.sidebar:
             "Time Series Forecasting Suite",
             "Prophet Forecasting",
             "Multivariate Analysis (MVA)",
-            "Predictive QC (Classification)",
+            "Predictive Modeling Suite",
             "Explainable AI (XAI)",
             "Clustering (Unsupervised)",
             "Anomaly Detection",
@@ -13310,7 +13399,7 @@ else:
         "Reliability / Survival Analysis": render_survival_analysis,
         "Time Series Forecasting Suite": render_time_series_suite,
         "Prophet Forecasting": render_prophet_forecasting,
-        "Predictive QC (Classification)": render_classification_models,
+        "Predictive Modeling Suite": render_predictive_modeling_suite,
         "Explainable AI (XAI)": render_xai_shap,
         "Clustering (Unsupervised)": render_clustering,
         "Anomaly Detection": render_anomaly_detection,

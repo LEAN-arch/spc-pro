@@ -4101,53 +4101,20 @@ def plot_bayesian(prior_type, n_qc=20, k_qc=18, spec_limit=0.90):
     return fig, prior_mean, mle, posterior_mean, (ci_lower, ci_upper), prob_gt_spec
 
 #============================================== ODE ================================================================
-@st.cache_data
-def plot_line_sync_ode(rates):
-    """
-    Solves and plots the ODEs for buffer levels in a production line.
-    OPTIMIZED with Numba JIT compilation for real-time performance.
-    """
-    from scipy.integrate import solve_ivp
-    
-    # --- THIS IS THE FIX ---
-    # The @jit decorator compiles this function to machine code, making it extremely fast.
-    @jit
-    def buffer_model(t, y, r0, r1, r2, r3):
-        # ODE function: dy/dt = f(t, y)
-        # y[0] = Buffer 1, y[1] = Buffer 2
-        in_rate1 = r0
-        out_rate1 = r1 if y[0] > 0 else 0 # Can't output from an empty buffer
-        
-        in_rate2 = r1 if y[0] > 0 else 0
-        out_rate2 = r2 if y[1] > 0 else 0
-        
-        # d(Buffer1)/dt = inflow - outflow
-        d_buffer1_dt = in_rate1 - out_rate1
-        # d(Buffer2)/dt = inflow - outflow
-        d_buffer2_dt = in_rate2 - out_rate2
-        
-        return [d_buffer1_dt, d_buffer2_dt]
+els[i-1] + d_buffer1)
 
-    # Initial conditions: Buffers start empty
-    y0 = [0.0, 0.0] # Use floats for Numba compatibility
-    # Time span: 40 hours
-    t_span = [0, 40]
-    t_eval = np.linspace(t_span[0], t_span[1], 200)
-
-    # Solve the ODE system (this is now much faster)
-    sol = solve_ivp(
-        buffer_model, 
-        t_span, 
-        y0, 
-        args=tuple(rates), # Use a tuple for Numba compatibility
-        dense_output=True,
-        t_eval=t_eval
-    )
-
-    # Plotting
+        # Buffer 2 (between Step 2 and 3)
+        # Inflow is the outflow from the previous stage
+        inflow_2 = outflow_1 
+        # Outflow can only happen if there is inventory
+        outflow_2 = r2 if buffer2_levels[i-1] > 0 else 0
+        d_buffer2 = (inflow_2 - outflow_2) * dt
+        buffer2_levels[i] = max(0, buffer2_levels[i-1] + d_buffer2)
+        
+    # 4. --- Plotting ---
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=sol.t, y=sol.y[0], name='Buffer 1 Level (Upstream)', line=dict(width=3)))
-    fig.add_trace(go.Scatter(x=sol.t, y=sol.y[1], name='Buffer 2 Level (Downstream)', line=dict(width=3)))
+    fig.add_trace(go.Scatter(x=time_points, y=buffer1_levels, name='Buffer 1 Level (Upstream)', line=dict(width=3)))
+    fig.add_trace(go.Scatter(x=time_points, y=buffer2_levels, name='Buffer 2 Level (Downstream)', line=dict(width=3)))
 
     bottleneck_idx = np.argmin(rates)
     bottleneck_rate = rates[bottleneck_idx]
@@ -4159,7 +4126,7 @@ def plot_line_sync_ode(rates):
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     
-    return fig, np.max(sol.y[0]), np.max(sol.y[1])
+    return fig, np.max(buffer1_levels), np.max(buffer2_levels)
 
 #======================================================= L E A N =======================================================================
 @st.cache_data

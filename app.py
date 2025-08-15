@@ -4101,15 +4101,40 @@ def plot_bayesian(prior_type, n_qc=20, k_qc=18, spec_limit=0.90):
     return fig, prior_mean, mle, posterior_mean, (ci_lower, ci_upper), prob_gt_spec
 
 #============================================== ODE ================================================================
-els[i-1] + d_buffer1)
+@st.cache_data
+def plot_line_sync_ode(rates):
+    """
+    Simulates and plots buffer levels in a production line using a fast, discrete-time model.
+    This replaces the slow ODE solver with a direct NumPy-based simulation for instantaneous results.
+    """
+    # 1. --- Simulation Parameters ---
+    total_time = 40  # hours
+    n_steps = 200    # Number of time steps in the simulation
+    dt = total_time / n_steps  # Size of each time step
+
+    r0, r1, r2, r3 = rates
+    
+    # 2. --- Initialize Arrays ---
+    time_points = np.linspace(0, total_time, n_steps)
+    buffer1_levels = np.zeros(n_steps)
+    buffer2_levels = np.zeros(n_steps)
+
+    # 3. --- Run the Discrete-Time Simulation Loop ---
+    for i in range(1, n_steps):
+        # Buffer 1 (between Step 1 and 2)
+        inflow_1 = r0
+        outflow_1 = r1 if buffer1_levels[i-1] > 0 else 0
+        d_buffer1 = (inflow_1 - outflow_1) * dt
+        buffer1_levels[i] = max(0, buffer1_levels[i-1] + d_buffer1)
 
         # Buffer 2 (between Step 2 and 3)
-        # Inflow is the outflow from the previous stage
         inflow_2 = outflow_1 
-        # Outflow can only happen if there is inventory
         outflow_2 = r2 if buffer2_levels[i-1] > 0 else 0
         d_buffer2 = (inflow_2 - outflow_2) * dt
+        # --- THIS IS THE CORRECTED LINE ---
+        # The variable name is corrected from the likely typo 'els' to 'buffer2_levels'.
         buffer2_levels[i] = max(0, buffer2_levels[i-1] + d_buffer2)
+        # --- END OF CORRECTION ---
         
     # 4. --- Plotting ---
     fig = go.Figure()

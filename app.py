@@ -7107,97 +7107,97 @@ def render_design_controls_dhf():
 
     st.divider()
     st.subheader("Deeper Dive")
-tabs = st.tabs(["💡 Key Insights & Significance", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights & Significance", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
-with tabs[0]:
-    st.markdown("""
-    ### The DHF: More Than Just a Binder
+    with tabs[0]:
+        st.markdown("""
+        ### The DHF: More Than Just a Binder
 
-    The Design History File is the single most important deliverable of a regulated development project. Its significance goes far beyond mere compliance; it is a critical business asset.
+        The Design History File is the single most important deliverable of a regulated development project. Its significance goes far beyond mere compliance; it is a critical business asset.
 
-    1.  **It is the Project's Story.** The DHF is the definitive, chronological narrative of the project, from the initial spark of an idea (`User Needs`) to the final handover to manufacturing (`Design Transfer`). It tells the story of every decision, every test, every failure, and every change. A well-organized DHF proves that the final product was the result of a deliberate, controlled process, not a series of happy accidents.
+        1.  **It is the Project's Story.** The DHF is the definitive, chronological narrative of the project, from the initial spark of an idea (`User Needs`) to the final handover to manufacturing (`Design Transfer`). It tells the story of every decision, every test, every failure, and every change. A well-organized DHF proves that the final product was the result of a deliberate, controlled process, not a series of happy accidents.
 
-    2.  **It is the Auditor's Map.** During a regulatory inspection (e.g., by the FDA), the DHF is the primary "map" the auditor will use to navigate your project. Their goal is to test your **traceability**. They will pick a high-level User Need, and you must be able to use the DHF to show them the specific Design Input that captured it, the Design Output that implemented it, the Verification test that proved it was built right, and the Validation test that proved it was the right thing to build. A complete DHF makes this process smooth and painless.
+        2.  **It is the Auditor's Map.** During a regulatory inspection (e.g., by the FDA), the DHF is the primary "map" the auditor will use to navigate your project. Their goal is to test your **traceability**. They will pick a high-level User Need, and you must be able to use the DHF to show them the specific Design Input that captured it, the Design Output that implemented it, the Verification test that proved it was built right, and the Validation test that proved it was the right thing to build. A complete DHF makes this process smooth and painless.
 
-    3.  **It is Corporate Memory.** The original development team will eventually move on to other projects. Years later, when a field issue arises or a product update is needed, the DHF is the only reliable source of truth for a new team to understand *why* certain design decisions were made. Without it, the company is doomed to re-learn old lessons, a costly and inefficient process.
-    """)
+        3.  **It is Corporate Memory.** The original development team will eventually move on to other projects. Years later, when a field issue arises or a product update is needed, the DHF is the only reliable source of truth for a new team to understand *why* certain design decisions were made. Without it, the company is doomed to re-learn old lessons, a costly and inefficient process.
+        """)
 
-with tabs[1]:
-    st.markdown("""
-    ### The Business Case: Creating an Auditable Asset, Not an Archeological Dig
-    
-    #### The Problem: The "We'll Document It Later" Mentality
-    A development team, under pressure to innovate quickly, operates in an ad-hoc manner. Design decisions are made in informal meetings, key data lives on individual laptops, and rationale is communicated through ephemeral chat messages. Just before the planned launch, a manager asks, "Where is the DHF for the regulatory submission?" This question triggers a panicked, multi-month "DHF archeology" project to reverse-engineer documentation for work that was done months or years ago.
-    
-    #### The Impact: Audit Failure and Intellectual Property Loss
-    This is a critical compliance and business failure with severe consequences:
-    - **Product Launch Delay:** The launch is postponed for months while the team struggles to create a plausible, albeit flawed, historical record.
-    - **Guaranteed Audit Findings:** An experienced auditor can easily identify a retrospectively created DHF. The lack of contemporaneous evidence and objective proof of a controlled process will result in major findings, potentially leading to a refusal to approve the product.
-    - **Loss of Corporate Memory:** The *real* reasons for key design decisions—the dead ends, the trade-offs, the critical insights—are lost forever. When a key engineer leaves the company, their knowledge walks out the door with them. This creates massive challenges for future product support, troubleshooting, and next-generation development.
-    
-    #### The Solution: Concurrent Documentation as a Core Discipline
-    The Design Controls process and the DHF are not an afterthought; they are the **operating system** for the project. This is not about creating more bureaucracy; it's about capturing knowledge and evidence as a natural byproduct of good engineering work. The process is disciplined and phase-gated, where the output of each stage is a formal, reviewed record that is immediately filed in the DHF.
-    
-    #### The Consequences: Audit Readiness and a Valuable Corporate Asset
-    - **Without This:** The project is a chaotic black box. The DHF is a hastily assembled liability that increases risk.
-    - **With This:** The project is a transparent, predictable, and auditable process. The DHF becomes one of the company's most valuable **corporate assets**—a complete, trustworthy, and evergreen record of the design history. It ensures permanent audit readiness, facilitates smooth knowledge transfer to new team members, and protects the company's most valuable intellectual property: the "why" behind its products.
-    """)
-    
-with tabs[2]:
-    st.markdown("""
-    ##### Glossary of Design & Change Control Terms
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: Creating an Auditable Asset, Not an Archeological Dig
+        
+        #### The Problem: The "We'll Document It Later" Mentality
+        A development team, under pressure to innovate quickly, operates in an ad-hoc manner. Design decisions are made in informal meetings, key data lives on individual laptops, and rationale is communicated through ephemeral chat messages. Just before the planned launch, a manager asks, "Where is the DHF for the regulatory submission?" This question triggers a panicked, multi-month "DHF archeology" project to reverse-engineer documentation for work that was done months or years ago.
+        
+        #### The Impact: Audit Failure and Intellectual Property Loss
+        This is a critical compliance and business failure with severe consequences:
+        - **Product Launch Delay:** The launch is postponed for months while the team struggles to create a plausible, albeit flawed, historical record.
+        - **Guaranteed Audit Findings:** An experienced auditor can easily identify a retrospectively created DHF. The lack of contemporaneous evidence and objective proof of a controlled process will result in major findings, potentially leading to a refusal to approve the product.
+        - **Loss of Corporate Memory:** The *real* reasons for key design decisions—the dead ends, the trade-offs, the critical insights—are lost forever. When a key engineer leaves the company, their knowledge walks out the door with them. This creates massive challenges for future product support, troubleshooting, and next-generation development.
+        
+        #### The Solution: Concurrent Documentation as a Core Discipline
+        The Design Controls process and the DHF are not an afterthought; they are the **operating system** for the project. This is not about creating more bureaucracy; it's about capturing knowledge and evidence as a natural byproduct of good engineering work. The process is disciplined and phase-gated, where the output of each stage is a formal, reviewed record that is immediately filed in the DHF.
+        
+        #### The Consequences: Audit Readiness and a Valuable Corporate Asset
+        - **Without This:** The project is a chaotic black box. The DHF is a hastily assembled liability that increases risk.
+        - **With This:** The project is a transparent, predictable, and auditable process. The DHF becomes one of the company's most valuable **corporate assets**—a complete, trustworthy, and evergreen record of the design history. It ensures permanent audit readiness, facilitates smooth knowledge transfer to new team members, and protects the company's most valuable intellectual property: the "why" behind its products.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Design & Change Control Terms
 
-    **Core Design Control Terms:**
-    - **Design Controls:** A formal, systematic process for medical device development mandated by the FDA to ensure that devices are safe and effective for their intended use.
-    - **DHF (Design History File):** A compilation of records which describes the design history of a finished device. It is the complete audit trail of the entire design process.
-    - **DMR (Device Master Record):** The "recipe" for building the device. It contains all the final, approved specifications, drawings, and manufacturing procedures. The DMR is an *output* of the design process, compiled from the DHF.
-    - **DHR (Device History Record):** The "batch record" for a specific device or lot. It provides evidence that a specific unit or batch was manufactured in accordance with the DMR.
+        **Core Design Control Terms:**
+        - **Design Controls:** A formal, systematic process for medical device development mandated by the FDA to ensure that devices are safe and effective for their intended use.
+        - **DHF (Design History File):** A compilation of records which describes the design history of a finished device. It is the complete audit trail of the entire design process.
+        - **DMR (Device Master Record):** The "recipe" for building the device. It contains all the final, approved specifications, drawings, and manufacturing procedures. The DMR is an *output* of the design process, compiled from the DHF.
+        - **DHR (Device History Record):** The "batch record" for a specific device or lot. It provides evidence that a specific unit or batch was manufactured in accordance with the DMR.
 
-    ---
+        ---
 
-    **Key V&V Terms in Design Controls:**
-    - **Design Inputs:** The physical and performance requirements of a device that are used as a basis for device design. (The "What").
-    - **Design Outputs:** The results of a design effort at each design phase. The total finished design consists of the device, its packaging and labeling, and the device master record. (The "How").
-    - **Design Verification:** Confirmation by examination and provision of objective evidence that the design **outputs** meet the design **inputs**. (Did we build the product right?)
-    - **Design Validation:** Confirmation by examination and provision of objective evidence that the finished device conforms to **user needs and intended uses**. (Did we build the right product?)
-    - **Design Transfer:** The process by which the device design is correctly translated into production specifications.
-    
-    ---
+        **Key V&V Terms in Design Controls:**
+        - **Design Inputs:** The physical and performance requirements of a device that are used as a basis for device design. (The "What").
+        - **Design Outputs:** The results of a design effort at each design phase. The total finished design consists of the device, its packaging and labeling, and the device master record. (The "How").
+        - **Design Verification:** Confirmation by examination and provision of objective evidence that the design **outputs** meet the design **inputs**. (Did we build the product right?)
+        - **Design Validation:** Confirmation by examination and provision of objective evidence that the finished device conforms to **user needs and intended uses**. (Did we build the right product?)
+        - **Design Transfer:** The process by which the device design is correctly translated into production specifications.
+        
+        ---
 
-    **Related Change Control Terms:**
-    - **Change Control:** A formal process used to ensure that changes to a product or system are introduced in a controlled and coordinated manner. It is a cornerstone of any GxP quality management system.
-    - **Impact Assessment:** A critical part of a Change Control Request where a cross-functional team evaluates the potential effects of the proposed change on product quality, safety, regulatory filings, and validated state.
-    """)
+        **Related Change Control Terms:**
+        - **Change Control:** A formal process used to ensure that changes to a product or system are introduced in a controlled and coordinated manner. It is a cornerstone of any GxP quality management system.
+        - **Impact Assessment:** A critical part of a Change Control Request where a cross-functional team evaluates the potential effects of the proposed change on product quality, safety, regulatory filings, and validated state.
+        """)
 
-with tabs[3]:
-    st.error("""🔴 **THE INCORRECT APPROACH: The "DHF Archeology"**
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "DHF Archeology"**
 A team develops a device in an ad-hoc, undocumented manner. Just before launch, a manager asks, "Where is the DHF?" This triggers a panicked, reverse-engineering effort to create documents for work that was done months or years ago, a process known as "DHF archeology."
 - **The Flaw:** This is not just a compliance failure; it's a project management disaster. The records are often incomplete, inaccurate, and cannot prove a state of control. An auditor would easily see through this, leading to major findings.""")
-    st.success("""🟢 **THE GOLDEN RULE: The DHF is Built Concurrently, Not Consecutively**
+        st.success("""🟢 **THE GOLDEN RULE: The DHF is Built Concurrently, Not Consecutively**
 The DHF is not a document you *write* at the end of a project; it is the *result* of the project. A disciplined project lives by this rule.
 1.  **Start with the Plan:** The Design and Development Plan should outline the entire process and list the documents that will be generated for the DHF, acting as a master checklist.
 2.  **Generate Evidence in Real-Time:** As each stage (Inputs, Outputs, V&V) is completed, its associated records (URS, specifications, test reports) are reviewed, approved, and immediately filed in the DHF.
 3.  **The DHF is the Project Logbook:** At any point in time, the DHF should reflect the current, up-to-date status of the project, providing a complete and contemporaneous audit trail for any stakeholder or auditor to review.
 """)
 
-with tabs[4]:
-    st.markdown("""
-    #### Historical Context: Learning from Tragedy
-    **The Problem:** In the 1970s and 80s, a series of high-profile failures plagued the medical device industry. The most notorious was the **Dalkon Shield IUD**, which caused serious injuries, infections, and even deaths in thousands of users. Another significant case was the **Bjork-Shiley heart valve**, where fractures in the valve's struts led to catastrophic failures and patient deaths.
-    
-    **The 'Aha!' Moment:** Congressional and FDA investigations into these tragedies revealed a common, shocking theme: many of the device failures were not due to manufacturing errors, but were caused by fundamental **flaws in the initial design process**. The designs were not robust, had not been adequately tested for long-term performance, and the risks had not been properly assessed. Regulators realized that simply regulating manufacturing (Good Manufacturing Practices) was not enough. The design process itself needed to be brought into a state of control.
-    
-    **The Impact:** This led to the passage of the **Safe Medical Devices Act of 1990**. This act gave the FDA the explicit authority to regulate the design and development process for medical devices. The FDA implemented this authority by creating the **Design Controls** regulation (now codified in **21 CFR 820.30**). They adapted the systematic "waterfall" model from systems engineering and the aerospace industry, forcing the medical device industry to adopt a structured, documented, and evidence-based approach to product development. The **Design History File (DHF)** became the mandatory, auditable evidence that this disciplined process had been followed, transforming medical device development from a creative art into a rigorous engineering discipline and significantly improving patient safety.
-    """)
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: Learning from Tragedy
+        **The Problem:** In the 1970s and 80s, a series of high-profile failures plagued the medical device industry. The most notorious was the **Dalkon Shield IUD**, which caused serious injuries, infections, and even deaths in thousands of users. Another significant case was the **Bjork-Shiley heart valve**, where fractures in the valve's struts led to catastrophic failures and patient deaths.
+        
+        **The 'Aha!' Moment:** Congressional and FDA investigations into these tragedies revealed a common, shocking theme: many of the device failures were not due to manufacturing errors, but were caused by fundamental **flaws in the initial design process**. The designs were not robust, had not been adequately tested for long-term performance, and the risks had not been properly assessed. Regulators realized that simply regulating manufacturing (Good Manufacturing Practices) was not enough. The design process itself needed to be brought into a state of control.
+        
+        **The Impact:** This led to the passage of the **Safe Medical Devices Act of 1990**. This act gave the FDA the explicit authority to regulate the design and development process for medical devices. The FDA implemented this authority by creating the **Design Controls** regulation (now codified in **21 CFR 820.30**). They adapted the systematic "waterfall" model from systems engineering and the aerospace industry, forcing the medical device industry to adopt a structured, documented, and evidence-based approach to product development. The **Design History File (DHF)** became the mandatory, auditable evidence that this disciplined process had been followed, transforming medical device development from a creative art into a rigorous engineering discipline and significantly improving patient safety.
+        """)
 
-with tabs[5]:
-    st.markdown("""
-    Design Controls and the DHF are the central requirements for medical device development and are considered the gold standard for managing any complex system in a GxP environment.
-    - **FDA 21 CFR 820.30 - Design Controls:** This is the primary US regulation that explicitly defines the entire process visualized in the flowchart: Design Inputs, Outputs, Review, Verification, Validation, Transfer, Changes, and the Design History File. It applies to all Class II and Class III medical devices, and certain Class I devices.
-    - **ISO 13485:2016 - Medical devices — Quality management systems:** This is the international quality management standard for medical devices. Section 7.3, "Design and development," contains requirements that are highly harmonized with 21 CFR 820.30, making the DHF a global expectation.
-    - **ICH Q8, Q9, Q10 (QbD Trilogy):** While originating in pharma, the principles are identical. The DHF is the documented evidence of a **Quality by Design** approach, proving that product and process understanding were systematically developed and that risks were managed.
-    - **GAMP 5:** While not a regulation, the GAMP 5 framework for validating computerized systems is built on the same principles of linking user requirements (Inputs) to specifications (Outputs) and testing (V&V). The collection of all these documents is functionally equivalent to a DHF for a software system.
-    """)
+    with tabs[5]:
+        st.markdown("""
+        Design Controls and the DHF are the central requirements for medical device development and are considered the gold standard for managing any complex system in a GxP environment.
+        - **FDA 21 CFR 820.30 - Design Controls:** This is the primary US regulation that explicitly defines the entire process visualized in the flowchart: Design Inputs, Outputs, Review, Verification, Validation, Transfer, Changes, and the Design History File. It applies to all Class II and Class III medical devices, and certain Class I devices.
+        - **ISO 13485:2016 - Medical devices — Quality management systems:** This is the international quality management standard for medical devices. Section 7.3, "Design and development," contains requirements that are highly harmonized with 21 CFR 820.30, making the DHF a global expectation.
+        - **ICH Q8, Q9, Q10 (QbD Trilogy):** While originating in pharma, the principles are identical. The DHF is the documented evidence of a **Quality by Design** approach, proving that product and process understanding were systematically developed and that risks were managed.
+        - **GAMP 5:** While not a regulation, the GAMP 5 framework for validating computerized systems is built on the same principles of linking user requirements (Inputs) to specifications (Outputs) and testing (V&V). The collection of all these documents is functionally equivalent to a DHF for a software system.
+        """)
         
 # ==============================================================================
 # UI RENDERING FUNCTION (FAT/SAT)
@@ -7286,60 +7286,60 @@ def render_fat_sat():
 
     st.divider()
     st.subheader("Deeper Dive")
-tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
-with tabs[0]:
-    st.markdown("""
-    **Interpreting the Dashboard:**
-    - **The C&Q Workbench:** This gadget simulates the real-world trade-offs. Notice how a **High Complexity** system from a **New Vendor** generates a "Very High Risk" recommendation. Ignoring this and choosing a **Minimal** FAT as your final decision results in a high-risk project with no timeline savings.
-    - **The Workflow Table:** This is the core of the module. The color-coding visualizes the concept of leveraging. 
-        - **Green (Leverage):** Activities successfully completed at the FAT that only need confirmation during SAT and can be formally referenced to reduce OQ scope.
-        - **Yellow (Risk-Based Reduction):** A spot-check or reduced testing approach is taken on-site.
-        - **Red (Full Retest):** Activities that must be performed from scratch at your site, offering no time savings and carrying the highest risk.
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Dashboard:**
+        - **The C&Q Workbench:** This gadget simulates the real-world trade-offs. Notice how a **High Complexity** system from a **New Vendor** generates a "Very High Risk" recommendation. Ignoring this and choosing a **Minimal** FAT as your final decision results in a high-risk project with no timeline savings.
+        - **The Workflow Table:** This is the core of the module. The color-coding visualizes the concept of leveraging. 
+            - **Green (Leverage):** Activities successfully completed at the FAT that only need confirmation during SAT and can be formally referenced to reduce OQ scope.
+            - **Yellow (Risk-Based Reduction):** A spot-check or reduced testing approach is taken on-site.
+            - **Red (Full Retest):** Activities that must be performed from scratch at your site, offering no time savings and carrying the highest risk.
 
-    **The Strategic Insight:** A FAT is not a checkbox exercise; it is the single best investment you can make in ensuring a smooth and fast site qualification. The goal is to **"Leverage, Don't Repeat."** The more thorough your FAT, the more evidence you can leverage to reduce the scope and duration of your SAT and the subsequent IQ/OQ, saving both time and money.
-    """)
+        **The Strategic Insight:** A FAT is not a checkbox exercise; it is the single best investment you can make in ensuring a smooth and fast site qualification. The goal is to **"Leverage, Don't Repeat."** The more thorough your FAT, the more evidence you can leverage to reduce the scope and duration of your SAT and the subsequent IQ/OQ, saving both time and money.
+        """)
 
-with tabs[1]:
-    st.markdown("""
-    ### The Business Case: The Cheapest Place to Fix a Problem is at the Source
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Cheapest Place to Fix a Problem is at the Source
 
-    #### The Problem: The "We'll Fix It On-Site" Fallacy
-    A project team, under intense pressure to meet an aggressive deadline, decides to skip the Factory Acceptance Test (FAT) to "save a week" on the schedule and avoid travel costs. They assume the vendor will deliver a perfect system. The complex, custom-built equipment arrives at their facility, is craned into the cleanroom, and connected to utilities. During the first power-on, they discover a critical controller was incorrectly wired and a key software module is missing.
+        #### The Problem: The "We'll Fix It On-Site" Fallacy
+        A project team, under intense pressure to meet an aggressive deadline, decides to skip the Factory Acceptance Test (FAT) to "save a week" on the schedule and avoid travel costs. They assume the vendor will deliver a perfect system. The complex, custom-built equipment arrives at their facility, is craned into the cleanroom, and connected to utilities. During the first power-on, they discover a critical controller was incorrectly wired and a key software module is missing.
 
-    #### The Impact: Catastrophic Delays and Exponentially Higher Costs
-    The "saved" week and travel budget are instantly obliterated. The true costs are now:
-    - **Project Delay:** What would have been a one-day fix at the factory now becomes a **three-month on-site delay**. The vendor must manufacture and ship a new controller and dispatch expensive software engineers to the customer's site to debug code in a live, controlled environment.
-    - **Exponential Cost:** The cost of fixing the problem is now 10-100x higher. It includes not just the vendor's travel and labor, but the cost of idle facility time, the salaries of the entire project team who are now on standby, and the massive opportunity cost of the delayed product launch.
-    - **Loss of Leverage:** The customer has lost all leverage. The equipment is in their facility, final payments have likely been made, and they are now completely at the mercy of the vendor's schedule to fix the problem they should have caught months earlier.
+        #### The Impact: Catastrophic Delays and Exponentially Higher Costs
+        The "saved" week and travel budget are instantly obliterated. The true costs are now:
+        - **Project Delay:** What would have been a one-day fix at the factory now becomes a **three-month on-site delay**. The vendor must manufacture and ship a new controller and dispatch expensive software engineers to the customer's site to debug code in a live, controlled environment.
+        - **Exponential Cost:** The cost of fixing the problem is now 10-100x higher. It includes not just the vendor's travel and labor, but the cost of idle facility time, the salaries of the entire project team who are now on standby, and the massive opportunity cost of the delayed product launch.
+        - **Loss of Leverage:** The customer has lost all leverage. The equipment is in their facility, final payments have likely been made, and they are now completely at the mercy of the vendor's schedule to fix the problem they should have caught months earlier.
 
-    #### The Solution: "Trust, but Verify" at the Source
-    A FAT is not a line item to be cut; it is the single most powerful **risk mitigation and cost avoidance** tool for any capital project. It is a dress rehearsal of the validation in the lowest-cost environment possible: the vendor's factory, using the vendor's technicians and resources. It is the point of maximum leverage, where the customer can refuse to approve shipment until every last issue is resolved and documented.
+        #### The Solution: "Trust, but Verify" at the Source
+        A FAT is not a line item to be cut; it is the single most powerful **risk mitigation and cost avoidance** tool for any capital project. It is a dress rehearsal of the validation in the lowest-cost environment possible: the vendor's factory, using the vendor's technicians and resources. It is the point of maximum leverage, where the customer can refuse to approve shipment until every last issue is resolved and documented.
 
-    #### The Consequences: Predictable Timelines and Budget Adherence
-    - **Without This:** On-site qualification is a high-risk, unpredictable adventure with a high probability of significant budget and schedule overruns.
-    - **With This:** On-site qualification becomes a smooth, predictable confirmation of previously verified performance. A well-executed FAT is the best investment a project manager can make. It directly translates to a faster, cheaper, and less stressful on-site validation, ensuring the project meets its timeline and budget commitments to the business.
-    """)
-with tabs[2]:
-    st.markdown("""
-    ### The Business Case: The Cheapest Place to Fix a Problem is at the Source
+        #### The Consequences: Predictable Timelines and Budget Adherence
+        - **Without This:** On-site qualification is a high-risk, unpredictable adventure with a high probability of significant budget and schedule overruns.
+        - **With This:** On-site qualification becomes a smooth, predictable confirmation of previously verified performance. A well-executed FAT is the best investment a project manager can make. It directly translates to a faster, cheaper, and less stressful on-site validation, ensuring the project meets its timeline and budget commitments to the business.
+        """)
+    with tabs[2]:
+        st.markdown("""
+        ### The Business Case: The Cheapest Place to Fix a Problem is at the Source
 
-    #### The Problem: The "We'll Fix It On-Site" Fallacy
-    A project team, under intense pressure to meet an aggressive deadline, decides to skip the Factory Acceptance Test (FAT) to "save a week" on the schedule and avoid travel costs. They assume the vendor will deliver a perfect system. The complex, custom-built equipment arrives at their facility, is craned into the cleanroom, and connected to utilities. During the first power-on, they discover a critical controller was incorrectly wired and a key software module is missing.
+        #### The Problem: The "We'll Fix It On-Site" Fallacy
+        A project team, under intense pressure to meet an aggressive deadline, decides to skip the Factory Acceptance Test (FAT) to "save a week" on the schedule and avoid travel costs. They assume the vendor will deliver a perfect system. The complex, custom-built equipment arrives at their facility, is craned into the cleanroom, and connected to utilities. During the first power-on, they discover a critical controller was incorrectly wired and a key software module is missing.
 
-    #### The Impact: Catastrophic Delays and Exponentially Higher Costs
-    The "saved" week and travel budget are instantly obliterated. The true costs are now:
-    - **Project Delay:** What would have been a one-day fix at the factory now becomes a **three-month on-site delay**. The vendor must manufacture and ship a new controller and dispatch expensive software engineers to the customer's site to debug code in a live, controlled environment.
-    - **Exponential Cost:** The cost of fixing the problem is now 10-100x higher. It includes not just the vendor's travel and labor, but the cost of idle facility time, the salaries of the entire project team who are now on standby, and the massive opportunity cost of the delayed product launch.
-    - **Loss of Leverage:** The customer has lost all leverage. The equipment is in their facility, final payments have likely been made, and they are now completely at the mercy of the vendor's schedule to fix the problem they should have caught months earlier.
+        #### The Impact: Catastrophic Delays and Exponentially Higher Costs
+        The "saved" week and travel budget are instantly obliterated. The true costs are now:
+        - **Project Delay:** What would have been a one-day fix at the factory now becomes a **three-month on-site delay**. The vendor must manufacture and ship a new controller and dispatch expensive software engineers to the customer's site to debug code in a live, controlled environment.
+        - **Exponential Cost:** The cost of fixing the problem is now 10-100x higher. It includes not just the vendor's travel and labor, but the cost of idle facility time, the salaries of the entire project team who are now on standby, and the massive opportunity cost of the delayed product launch.
+        - **Loss of Leverage:** The customer has lost all leverage. The equipment is in their facility, final payments have likely been made, and they are now completely at the mercy of the vendor's schedule to fix the problem they should have caught months earlier.
 
-    #### The Solution: "Trust, but Verify" at the Source
-    A FAT is not a line item to be cut; it is the single most powerful **risk mitigation and cost avoidance** tool for any capital project. It is a dress rehearsal of the validation in the lowest-cost environment possible: the vendor's factory, using the vendor's technicians and resources. It is the point of maximum leverage, where the customer can refuse to approve shipment until every last issue is resolved and documented.
+        #### The Solution: "Trust, but Verify" at the Source
+        A FAT is not a line item to be cut; it is the single most powerful **risk mitigation and cost avoidance** tool for any capital project. It is a dress rehearsal of the validation in the lowest-cost environment possible: the vendor's factory, using the vendor's technicians and resources. It is the point of maximum leverage, where the customer can refuse to approve shipment until every last issue is resolved and documented.
 
-    #### The Consequences: Predictable Timelines and Budget Adherence
-    - **Without This:** On-site qualification is a high-risk, unpredictable adventure with a high probability of significant budget and schedule overruns.
-    - **With This:** On-site qualification becomes a smooth, predictable confirmation of previously verified performance. A well-executed FAT is the best investment a project manager can make. It directly translates to a faster, cheaper, and less stressful on-site validation, ensuring the project meets its timeline and budget commitments to the business.
-    """)
+        #### The Consequences: Predictable Timelines and Budget Adherence
+        - **Without This:** On-site qualification is a high-risk, unpredictable adventure with a high probability of significant budget and schedule overruns.
+        - **With This:** On-site qualification becomes a smooth, predictable confirmation of previously verified performance. A well-executed FAT is the best investment a project manager can make. It directly translates to a faster, cheaper, and less stressful on-site validation, ensuring the project meets its timeline and budget commitments to the business.
+        """)
     with tabs[3]:
         st.markdown("""
         ##### Glossary of Commissioning & Qualification Terms
@@ -7484,7 +7484,7 @@ def render_dfx_dashboard():
     
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.markdown("""
         **Interpreting the Dashboard:**
@@ -7591,44 +7591,44 @@ def render_vmp_builder():
     
     st.divider()
     st.subheader("Deeper Dive")
-tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
-with tabs[0]:
-    st.markdown(f"""
-    **Connecting Strategy to Execution for: {project_type}**
-    This tool demonstrates how all the other modules in the toolkit fit together to form a complete, compliant validation project.
-    - The **Analytical Method Validation** workflow follows the classic V-Model, showing the direct link between defining performance specifications (like Linearity) during design and later qualifying them during PQ.
-    - The **Instrument Qualification** workflow also follows the V-Model, starting with User Needs (captured in the ATP Builder) and culminating in PQ testing (using Gage R&R and SPC).
-    - The **Pharma Process (PPQ)** workflow is a linear process, moving from planning (using FMEA and Sample Size) to execution and final analysis (using SPC and Capability). This represents Stage 2 of the FDA's Process Validation lifecycle.
-    - The **Software System (CSV)** workflow shows how modern AI/ML tools can be integrated into the GAMP 5 V-Model. For example, **Explainable AI (XAI)** is a key activity during the "Build" phase to ensure the model is transparent.
-    """)
+    with tabs[0]:
+        st.markdown(f"""
+        **Connecting Strategy to Execution for: {project_type}**
+        This tool demonstrates how all the other modules in the toolkit fit together to form a complete, compliant validation project.
+        - The **Analytical Method Validation** workflow follows the classic V-Model, showing the direct link between defining performance specifications (like Linearity) during design and later qualifying them during PQ.
+        - The **Instrument Qualification** workflow also follows the V-Model, starting with User Needs (captured in the ATP Builder) and culminating in PQ testing (using Gage R&R and SPC).
+        - The **Pharma Process (PPQ)** workflow is a linear process, moving from planning (using FMEA and Sample Size) to execution and final analysis (using SPC and Capability). This represents Stage 2 of the FDA's Process Validation lifecycle.
+        - The **Software System (CSV)** workflow shows how modern AI/ML tools can be integrated into the GAMP 5 V-Model. For example, **Explainable AI (XAI)** is a key activity during the "Build" phase to ensure the model is transparent.
+        """)
 
-with tabs[1]:
-    st.markdown("""
-    ### The Business Case: The Blueprint for Compliance and Efficiency
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Blueprint for Compliance and Efficiency
 
-    #### The Problem: The "Validation on the Fly" Approach
-    A critical validation project begins without a clear, documented, and approved master plan. The scope is ill-defined, responsibilities are ambiguous, and the acceptance criteria are not finalized. Different teams validate different parts of the system with inconsistent methodologies, documentation formats, and levels of rigor.
+        #### The Problem: The "Validation on the Fly" Approach
+        A critical validation project begins without a clear, documented, and approved master plan. The scope is ill-defined, responsibilities are ambiguous, and the acceptance criteria are not finalized. Different teams validate different parts of the system with inconsistent methodologies, documentation formats, and levels of rigor.
 
-    #### The Impact: Chaos, Inefficiency, and Guaranteed Audit Failure
-    This approach is a recipe for project failure and compliance disaster.
-    - **Scope Creep & Rework:** Without a defined scope, the project continuously expands. Tests are added late in the process, leading to significant rework and delays.
-    - **Resource Conflicts & Inefficiency:** Teams operate in silos, leading to duplicated efforts and resource conflicts. Critical dependencies between different validation activities (e.g., the assay must be validated before the process can be) are missed, causing sequence-of-operations failures.
-    - **"Testing into Compliance":** When a test fails, there is immense pressure to change the acceptance criteria on the fly to "make it pass," completely invalidating the scientific and regulatory purpose of the exercise.
-    - **Audit Failure:** An auditor will immediately ask for the VMP. An inability to produce a comprehensive, pre-approved plan is a systemic failure that can call the entire validation effort into question.
+        #### The Impact: Chaos, Inefficiency, and Guaranteed Audit Failure
+        This approach is a recipe for project failure and compliance disaster.
+        - **Scope Creep & Rework:** Without a defined scope, the project continuously expands. Tests are added late in the process, leading to significant rework and delays.
+        - **Resource Conflicts & Inefficiency:** Teams operate in silos, leading to duplicated efforts and resource conflicts. Critical dependencies between different validation activities (e.g., the assay must be validated before the process can be) are missed, causing sequence-of-operations failures.
+        - **"Testing into Compliance":** When a test fails, there is immense pressure to change the acceptance criteria on the fly to "make it pass," completely invalidating the scientific and regulatory purpose of the exercise.
+        - **Audit Failure:** An auditor will immediately ask for the VMP. An inability to produce a comprehensive, pre-approved plan is a systemic failure that can call the entire validation effort into question.
 
-    #### The Solution: The Single Source of Truth for the Project
-    The Validation Master Plan (VMP) is the **single source of truth** for the entire validation project. It is the highest-level strategic document, created and approved *before* any protocols are executed. It serves as the project's constitution, formally defining:
-    - **The Why:** The validation rationale and overall strategy.
-    - **The What:** The precise scope of systems and processes to be validated.
-    - **The Who:** Roles and responsibilities for every member of the validation team.
-    - **The How:** The methodology, the required deliverables (e.g., IQ/OQ/PQ protocols), and the change control process.
-    - **The When:** The high-level schedule and sequence of activities.
+        #### The Solution: The Single Source of Truth for the Project
+        The Validation Master Plan (VMP) is the **single source of truth** for the entire validation project. It is the highest-level strategic document, created and approved *before* any protocols are executed. It serves as the project's constitution, formally defining:
+        - **The Why:** The validation rationale and overall strategy.
+        - **The What:** The precise scope of systems and processes to be validated.
+        - **The Who:** Roles and responsibilities for every member of the validation team.
+        - **The How:** The methodology, the required deliverables (e.g., IQ/OQ/PQ protocols), and the change control process.
+        - **The When:** The high-level schedule and sequence of activities.
 
-    #### The Consequences: A Defensible and Efficient Project
-    - **Without This:** The validation project is an unpredictable, high-risk activity characterized by chaos, inefficiency, and a high probability of audit failure.
-    - **With This:** The validation project becomes a well-managed, efficient, and predictable engineering process. The VMP provides a clear roadmap for the team, prevents scope creep, and ensures a consistent, harmonized approach across the entire project. For an auditor, it provides a simple, defensible summary that demonstrates the entire validation effort was conducted in a state of control from the very beginning.
-    """)
+        #### The Consequences: A Defensible and Efficient Project
+        - **Without This:** The validation project is an unpredictable, high-risk activity characterized by chaos, inefficiency, and a high probability of audit failure.
+        - **With This:** The validation project becomes a well-managed, efficient, and predictable engineering process. The VMP provides a clear roadmap for the team, prevents scope creep, and ensures a consistent, harmonized approach across the entire project. For an auditor, it provides a simple, defensible summary that demonstrates the entire validation effort was conducted in a state of control from the very beginning.
+        """)
     with tabs[2]:
         st.markdown("""
         ##### Glossary of VMP & V-Model Terms
@@ -7699,41 +7699,41 @@ def render_rtm_builder():
     
     st.divider()
     st.subheader("Deeper Dive")
-tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
-with tabs[0]:
-    st.markdown("""
-    **Reading the Integrated RTM:**
-    - **Swimlanes:** The diagram is organized into vertical "swimlanes" representing the different, parallel validation projects that must all succeed.
-    - **Intra-Stream Traceability:** The horizontal links within a single swimlane (e.g., `INST-URS` → `INST-OQ`) show the standard V-Model traceability for that specific system.
-    - **Inter-Stream Dependencies (The Critical Links):** The diagonal links show the crucial dependencies *between* projects. For example, you cannot complete the `PROC-TEST` (PPQ) until the `ASSAY-VAL` (the QC test method) and the `INST-PQ` (the lab instrument) are both complete and validated.
-    
-    **The Strategic Insight:** This visualization reveals that a validation project is a **network of dependencies**. A delay or failure in one stream (like the Instrument Qualification) can have a direct, cascading impact on the critical path of the main process validation. The RTM is the master tool for managing these complex relationships.
-    """)
+    with tabs[0]:
+        st.markdown("""
+        **Reading the Integrated RTM:**
+        - **Swimlanes:** The diagram is organized into vertical "swimlanes" representing the different, parallel validation projects that must all succeed.
+        - **Intra-Stream Traceability:** The horizontal links within a single swimlane (e.g., `INST-URS` → `INST-OQ`) show the standard V-Model traceability for that specific system.
+        - **Inter-Stream Dependencies (The Critical Links):** The diagonal links show the crucial dependencies *between* projects. For example, you cannot complete the `PROC-TEST` (PPQ) until the `ASSAY-VAL` (the QC test method) and the `INST-PQ` (the lab instrument) are both complete and validated.
+        
+        **The Strategic Insight:** This visualization reveals that a validation project is a **network of dependencies**. A delay or failure in one stream (like the Instrument Qualification) can have a direct, cascading impact on the critical path of the main process validation. The RTM is the master tool for managing these complex relationships.
+        """)
 
-with tabs[1]:
-    st.markdown("""
-    ### The Business Case: The Auditor's Golden Thread & The PM's GPS
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Auditor's Golden Thread & The PM's GPS
 
-    #### The Problem: The "Did We Miss Anything?" Panic
-    A complex tech transfer project, involving a new process, a new assay, a new instrument, and new software, is nearing its completion date. The project manager asks a simple, terrifying question: **"Can you prove to me that every single user requirement has been designed, built, and, most importantly, tested?"** The team scrambles, manually cross-referencing dozens of disconnected documents—URSs, Functional Specs, Test Protocols—trying to piece together the evidence. They are not confident they can prove 100% coverage.
+        #### The Problem: The "Did We Miss Anything?" Panic
+        A complex tech transfer project, involving a new process, a new assay, a new instrument, and new software, is nearing its completion date. The project manager asks a simple, terrifying question: **"Can you prove to me that every single user requirement has been designed, built, and, most importantly, tested?"** The team scrambles, manually cross-referencing dozens of disconnected documents—URSs, Functional Specs, Test Protocols—trying to piece together the evidence. They are not confident they can prove 100% coverage.
 
-    #### The Impact: Launch Delays, Compliance Gaps, and "Death by a Thousand Cuts"
-    This lack of a centralized, living traceability system has severe business consequences:
-    - **Critical Gaps Discovered Late:** The manual review reveals a critical user requirement that was never translated into a design specification, or a key function that was never formally tested. These late-stage discoveries are the most expensive and time-consuming to fix, often delaying a product launch by weeks or months.
-    - **Audit Failure:** During a regulatory audit, the inability to quickly and accurately trace a requirement from its origin to its test case is a major red flag. It suggests a chaotic, uncontrolled process and can lead to significant findings.
-    - **Inefficient Change Control:** When a requirement changes mid-project, it's nearly impossible to accurately assess the impact. Which design documents, which test cases are affected? Without a map (the RTM), this becomes a time-consuming and error-prone guessing game.
+        #### The Impact: Launch Delays, Compliance Gaps, and "Death by a Thousand Cuts"
+        This lack of a centralized, living traceability system has severe business consequences:
+        - **Critical Gaps Discovered Late:** The manual review reveals a critical user requirement that was never translated into a design specification, or a key function that was never formally tested. These late-stage discoveries are the most expensive and time-consuming to fix, often delaying a product launch by weeks or months.
+        - **Audit Failure:** During a regulatory audit, the inability to quickly and accurately trace a requirement from its origin to its test case is a major red flag. It suggests a chaotic, uncontrolled process and can lead to significant findings.
+        - **Inefficient Change Control:** When a requirement changes mid-project, it's nearly impossible to accurately assess the impact. Which design documents, which test cases are affected? Without a map (the RTM), this becomes a time-consuming and error-prone guessing game.
 
-    #### The Solution: A Living Map of Project Completeness
-    The RTM is not a document you create at the end of a project; it is the **living GPS and master checklist** that is built and maintained from Day 1. It is a simple but powerful matrix that formally and explicitly links every "parent" item to its "child" items:
-    - `User Requirement` → `Functional Specification` → `Design Specification` → `Test Case ID`
-    - `Process CQA` → `Assay ATP` → `Instrument URS`
-    It provides a real-time, unambiguous dashboard of project completeness and dependency management.
+        #### The Solution: A Living Map of Project Completeness
+        The RTM is not a document you create at the end of a project; it is the **living GPS and master checklist** that is built and maintained from Day 1. It is a simple but powerful matrix that formally and explicitly links every "parent" item to its "child" items:
+        - `User Requirement` → `Functional Specification` → `Design Specification` → `Test Case ID`
+        - `Process CQA` → `Assay ATP` → `Instrument URS`
+        It provides a real-time, unambiguous dashboard of project completeness and dependency management.
 
-    #### The Consequences: Guaranteed Completeness and Proactive Management
-    - **Without This:** Project completeness is a matter of hope and guesswork. Project managers are flying blind to critical dependencies. Audits are stressful, manual fire drills.
-    - **With This:** The RTM provides a mathematical **guarantee that 100% of requirements have been verified and validated**. For project managers, it is the ultimate tool for managing complexity and understanding the true impact of delays or changes. For auditors, it is the "golden thread" that allows them to see a clear, logical, and traceable path from user need to objective evidence, proving the entire project was executed in a state of control.
-    """)
+        #### The Consequences: Guaranteed Completeness and Proactive Management
+        - **Without This:** Project completeness is a matter of hope and guesswork. Project managers are flying blind to critical dependencies. Audits are stressful, manual fire drills.
+        - **With This:** The RTM provides a mathematical **guarantee that 100% of requirements have been verified and validated**. For project managers, it is the ultimate tool for managing complexity and understanding the true impact of delays or changes. For auditors, it is the "golden thread" that allows them to see a clear, logical, and traceable path from user need to objective evidence, proving the entire project was executed in a state of control.
+        """)
     with tabs[2]:
         st.markdown("""
         ##### Glossary of RTM & V-Model Terms
@@ -7767,7 +7767,6 @@ A complex project like a tech transfer should be governed by a single, integrate
         - **GAMP 5 - A Risk-Based Approach to Compliant GxP Computerized Systems:** The RTM is a foundational document in the GAMP 5 framework, providing the traceability that underpins the entire V-Model validation approach.
         - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing. It is a critical component of the Design History File (DHF).
         """)
-
 
 #====================================================================================================================================================================================================================================
 #=====================================================================================================ACT 0 RENDER END ==============================================================================================================

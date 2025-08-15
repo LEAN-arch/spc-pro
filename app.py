@@ -6702,27 +6702,27 @@ def render_qrm_suite():
         """)
     with tabs[1]:
     st.markdown("""
-    ### The Business Case: From Reactive Firefighting to Proactive Risk Elimination
-
-    #### The Problem: The "Hope is a Strategy" Approach
-    A team prepares for process validation. They have a process that has worked a few times in the lab, but they possess no systematic, documented understanding of its potential failure modes. The validation plan is a generic, one-size-fits-all checklist copied from a previous project, not a targeted, risk-based strategy. Key decisions are based on the "tribal knowledge" of a few senior SMEs, which is undocumented and not scalable. They are, in effect, hoping for the best.
-
-    #### The Impact: Catastrophic, Preventable Failures and "Validation Theater"
-    This is not just poor practice; it's a massive financial and compliance liability that manifests in two ways:
-    1.  **Sudden, High-Impact Failures:** A single, unanticipated failure in a Process Performance Qualification (PPQ) batch can cost hundreds of thousands of dollars in lost materials and can delay a product launch by months, wiping out projected revenue. Worse, a failure mode that was never considered occurs in the field, leading to a product recall, irreversible reputational damage, and potential patient harm.
-    2.  **"Validation Theater":** Without a risk-based focus, the validation plan becomes bloated and inefficient. The team wastes immense time, money, and resources rigorously testing process parameters that have no real impact on product quality, while potentially completely ignoring the few parameters that truly matter. They are performing "validation theater"—an expensive and time-consuming play that creates the *illusion* of control without actually reducing risk.
-
-    #### The Solution: A Systematic, Cross-Functional Hunt for Failure
-    The Quality Risk Management (QRM) Suite (FMEA, FTA, etc.) is not a paperwork exercise; it is a facilitated, cross-functional workshop that forces a company's best minds (from R&D, Engineering, Manufacturing, and Quality) to collaborate. The process is rigorous:
-    - **Deconstruct:** Break down the process into its fundamental steps and components.
-    - **Brainstorm:** Systematically brainstorm all credible ways each component could fail.
-    - **Quantify:** Assess the Severity, Occurrence, and Detectability of each failure mode to quantify the risk.
-    - **Prioritize & Mitigate:** Rank the risks and develop concrete action plans to eliminate or control the highest-priority items.
-
-    #### The Consequences: A Resilient Process and an Intelligent Validation
-    - **Without This:** Validation is a high-stakes gamble. The company is in a perpetual state of reactive "firefighting," lurching from one expensive crisis to the next. The validation program is inefficient and ineffective.
-    - **With This:** The process is systematically de-risked and hardened against failure. The output of the FMEA becomes the **direct, auditable justification** for the validation strategy. The Validation Plan becomes lean, intelligent, and cost-effective, focusing resources exclusively on the parameters and attributes that were proven to carry the most risk. This leads to a higher probability of first-pass validation success and a more robust, reliable, and profitable process in the long run.
-    """)
+        ### The Business Case: From Reactive Firefighting to Proactive Risk Elimination
+    
+        #### The Problem: The "Hope is a Strategy" Approach
+        A team prepares for process validation. They have a process that has worked a few times in the lab, but they possess no systematic, documented understanding of its potential failure modes. The validation plan is a generic, one-size-fits-all checklist copied from a previous project, not a targeted, risk-based strategy. Key decisions are based on the "tribal knowledge" of a few senior SMEs, which is undocumented and not scalable. They are, in effect, hoping for the best.
+    
+        #### The Impact: Catastrophic, Preventable Failures and "Validation Theater"
+        This is not just poor practice; it's a massive financial and compliance liability that manifests in two ways:
+        1.  **Sudden, High-Impact Failures:** A single, unanticipated failure in a Process Performance Qualification (PPQ) batch can cost hundreds of thousands of dollars in lost materials and can delay a product launch by months, wiping out projected revenue. Worse, a failure mode that was never considered occurs in the field, leading to a product recall, irreversible reputational damage, and potential patient harm.
+        2.  **"Validation Theater":** Without a risk-based focus, the validation plan becomes bloated and inefficient. The team wastes immense time, money, and resources rigorously testing process parameters that have no real impact on product quality, while potentially completely ignoring the few parameters that truly matter. They are performing "validation theater"—an expensive and time-consuming play that creates the *illusion* of control without actually reducing risk.
+    
+        #### The Solution: A Systematic, Cross-Functional Hunt for Failure
+        The Quality Risk Management (QRM) Suite (FMEA, FTA, etc.) is not a paperwork exercise; it is a facilitated, cross-functional workshop that forces a company's best minds (from R&D, Engineering, Manufacturing, and Quality) to collaborate. The process is rigorous:
+        - **Deconstruct:** Break down the process into its fundamental steps and components.
+        - **Brainstorm:** Systematically brainstorm all credible ways each component could fail.
+        - **Quantify:** Assess the Severity, Occurrence, and Detectability of each failure mode to quantify the risk.
+        - **Prioritize & Mitigate:** Rank the risks and develop concrete action plans to eliminate or control the highest-priority items.
+    
+        #### The Consequences: A Resilient Process and an Intelligent Validation
+        - **Without This:** Validation is a high-stakes gamble. The company is in a perpetual state of reactive "firefighting," lurching from one expensive crisis to the next. The validation program is inefficient and ineffective.
+        - **With This:** The process is systematically de-risked and hardened against failure. The output of the FMEA becomes the **direct, auditable justification** for the validation strategy. The Validation Plan becomes lean, intelligent, and cost-effective, focusing resources exclusively on the parameters and attributes that were proven to carry the most risk. This leads to a higher probability of first-pass validation success and a more robust, reliable, and profitable process in the long run.
+        """)
 
     with tabs[2]:
         st.markdown("""

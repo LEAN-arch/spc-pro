@@ -12764,6 +12764,8 @@ A successful operation is managed as a single, integrated system, not a collecti
 
 # SNIPPET: Replace the entire render_lean_manufacturing function with this updated version.
 
+# SNIPPET: Replace the entire render_lean_manufacturing function with this enhanced version.
+
 def render_lean_manufacturing():
     """Renders the comprehensive module for Lean Manufacturing & Value Stream Mapping."""
     st.markdown("""
@@ -12783,7 +12785,6 @@ def render_lean_manufacturing():
     with st.sidebar:
         st.subheader("Current State VSM Inputs")
         st.markdown("Enter the time (in hours) for each activity.")
-        # --- HELP TEXT ADDED TO EACH SLIDER ---
         pt1 = st.slider("Process Time: Receipt", 1, 8, 2, help="The actual 'hands-on' or machine run time for Material Receipt. This is considered Value-Added Time.")
         wt1 = st.slider("Wait Time: Quarantine", 24, 168, 72, help="The idle time material spends in quarantine awaiting QC release. This is a primary form of waste (Muda) in a Lean system.")
         pt2 = st.slider("Process Time: Dispensing", 1, 8, 4, help="The actual 'hands-on' or machine run time for Dispensing. This is considered Value-Added Time.")
@@ -12795,7 +12796,6 @@ def render_lean_manufacturing():
         pt5 = st.slider("Process Time: QC Testing", 2, 8, 4, help="The actual 'hands-on' or analytical run time for QC Testing. This is considered Value-Added Time.")
         wt5 = st.slider("Wait Time: Awaiting Packaging", 8, 48, 24, help="The idle time the batch spends waiting for packaging line availability after QC release. This is a primary form of waste (Muda).")
         pt6 = st.slider("Process Time: Packaging", 4, 16, 8, help="The actual 'hands-on' or machine run time for final packaging. This is considered Value-Added Time.")
-        # --- END OF ADDITIONS ---
 
         process_times = [pt1, pt2, pt3, pt4, pt5, pt6]
         wait_times = [wt1, wt2, wt3, wt4, wt5]
@@ -12811,17 +12811,16 @@ def render_lean_manufacturing():
     
     st.divider()
     st.subheader("Deeper Dive into Lean Principles")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 The 8 Wastes of Lean (DOWNTIME)", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Core Lean Concepts & Tools", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     
     with tabs[0]:
         st.markdown("""
         **A Realistic Workflow & Interpretation:**
-        1.  **Map the Current State:** The first step is always to create an honest VSM of the process *as it is today*. This involves walking the factory floor and timing every single step, including the waits.
-        2.  **Identify the Waste:** The VSM instantly makes waste visible. The red "Wait" bars are the most obvious form of waste (the Waste of Waiting). The "Kaizen Bursts" (💥) are visual cues that highlight the largest opportunities for improvement.
-        3.  **Calculate the PCE:** The Process Cycle Efficiency is often a shocking and powerful metric. It is common for a process to have a PCE of less than 5%, meaning that for a product that takes a month to produce, the actual "work" time is only a little over a day. The rest is waste.
-        4.  **Design the Future State:** The team then creates a "Future State" VSM that imagines the process with the waste removed. This becomes the implementation plan for the Lean initiative.
-
-        **The Strategic Insight:** Lean and Six Sigma (which includes tools like SPC and DOE) are two sides of the same coin. Six Sigma is focused on making the **value-added steps** (the green bars) more consistent and capable. Lean is focused on **shrinking or eliminating the non-value-added steps** (the red bars). A world-class operation excels at both.
+        1.  **Map the Current State:** The first step is always to create an honest VSM of the process *as it is today*.
+        2.  **Identify Waste (Muda):** The VSM instantly makes waste visible. The red "Wait" bars are the most obvious form of waste.
+        3.  **Find Opportunities for Kaizen:** The "Kaizen Bursts" (💥) are visual cues that highlight the largest opportunities for improvement, signaling the ideal location for a focused **Kaizen event** (like a 5S workshop or a setup reduction event).
+        4.  **Diagnose the Need for Kanban:** A massive WIP pile (a big red 'Wait' bar) is a clear symptom of a "push" system with significant **Mura** (unevenness). The VSM helps justify the need to implement a **Kanban** "pull" system to limit WIP and smooth the flow.
+        5.  **Calculate PCE:** The Process Cycle Efficiency is a shocking metric that reveals the high percentage of non-value-added time, providing a powerful business case for change.
         """)
         
     with tabs[1]:
@@ -12838,7 +12837,7 @@ def render_lean_manufacturing():
         - **Inability to Respond to Demand:** With a long lead time, the company cannot quickly respond to a sudden increase in customer demand, leading to lost sales and ceding market share to more agile competitors.
 
         #### The Solution: Making Waste Visible
-        Lean Manufacturing provides the philosophy, and Value Stream Mapping provides the tool, to systematically **make the hidden factory visible**. The VSM is a powerful diagnostic that shifts the focus from "how do we improve the work?" to "how do we eliminate the waiting between the work?" It forces the organization to see the process from the perspective of the product, identifying every single step that does not add value for the customer.
+        Lean Manufacturing provides the philosophy, and Value Stream Mapping provides the tool, to systematically **make the hidden factory visible**. It is a powerful diagnostic that shifts the focus from "how do we improve the work?" to "how do we eliminate the waiting between the work?" It guides targeted **Kaizen events** to attack the largest sources of waste.
 
         #### The Consequences: Increased Velocity, Capacity, and Cash Flow
         - **Without This:** The hidden factory continues to operate unchecked, silently consuming resources and capping the company's growth potential.
@@ -12851,47 +12850,60 @@ def render_lean_manufacturing():
 
     with tabs[2]:
         st.markdown("""
-        Lean philosophy categorizes all non-value-added activities into the "8 Wastes," often remembered by the acronym **DOWNTIME**.
-        - **D - Defects:** Producing a part that is scrap or requires rework. This is the most obvious form of waste.
-        - **O - Overproduction:** Producing more than is needed by the next step in the process or the customer. This leads to excess inventory.
-        - **W - Waiting:** Idle time that occurs when a process step is waiting for materials, information, or for a previous step to be completed. **This is often the largest component of lead time.**
-        - **N - Non-Utilized Talent:** Failing to engage the skills, knowledge, and creativity of the workforce to improve the process.
-        - **T - Transportation:** Unnecessary movement of products and materials between process steps.
-        - **I - Inventory:** Excess raw materials, work-in-progress (WIP), or finished goods that are not being actively processed. Excess inventory hides other problems.
-        - **M - Motion:** Unnecessary movement of people or equipment within a process step (e.g., an operator having to walk across the room to get a tool).
-        - **E - Extra-Processing:** Performing work on a product that adds no value from the customer's perspective (e.g., polishing a surface that will never be seen).
+        While the 8 Wastes (**Muda**) are the most visible problems, Lean masters from the Toyota Production System focus on two deeper, underlying causes: **Mura** and **Muri**. The goal is to attack the root cause, not just the symptom.
+        
+        ### The 3 Ms of Lean
+        - **Mura (斑): Unevenness:** The inconsistency or irregularity in a process. This is often the deepest root cause of waste. Uneven schedules create periods of intense **overburden (Muri)** followed by periods of **waiting (Muda)**.
+        - **Muri (無理): Overburden:** Pushing people or equipment beyond their natural limits. Muri leads to safety issues, burnout, and breakdowns, which create Muda.
+        - **Muda (無駄): Waste:** Any activity that consumes resources but creates no value. This is the visible **symptom** of Mura and Muri.
+        
+        ### The 8 Wastes of Muda (DOWNTIME)
+        - **D - Defects:** Producing scrap or requiring rework.
+        - **O - Overproduction:** Producing more than is needed by the next step.
+        - **W - Waiting:** Idle time. **This is often the largest component of lead time.**
+        - **N - Non-Utilized Talent:** Failing to engage the creativity of the workforce.
+        - **T - Transportation:** Unnecessary movement of products and materials.
+        - **I - Inventory:** Excess raw materials, WIP, or finished goods.
+        - **M - Motion:** Unnecessary movement of people or equipment.
+        - **E - Extra-Processing:** Work that adds no value for the customer.
+        ---
+        ### Key Lean Tools & Philosophies
+        - **5S:** A workplace organization method that is a foundational pillar of Lean. It creates a clean, organized, and efficient environment, which is a prerequisite for more advanced Lean concepts.
+            - **1. Seiri (Sort):** Remove all unnecessary items from the workplace.
+            - **2. Seiton (Set in Order):** Arrange all necessary items so they can be easily selected for use. "A place for everything, and everything in its place."
+            - **3. Seiso (Shine):** Clean the workspace and equipment on a regular basis.
+            - **4. Seiketsu (Standardize):** Standardize the best practices in the work area.
+            - **5. Shitsuke (Sustain):** Make it a habit and maintain the established procedures.
+        - **Kaizen (改善): Continuous Improvement:** A philosophy of making small, incremental, continuous improvements involving all employees. A **Kaizen Event** or "Kaizen Blitz" is a focused, short-term (1-5 day) workshop where a cross-functional team attacks a specific problem identified on the VSM.
+        - **Kanban (看板): Visual Signal:** A scheduling system for Just-in-Time (JIT) manufacturing that implements a **"pull" system**. A downstream process signals with a visual card when it needs more material, preventing overproduction.
         """)
         
     with tabs[3]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "Tool Time" Fallacy**
 A manager learns about a Lean tool like "5S" (Sort, Set in Order, Shine, Standardize, Sustain) and mandates that every team must implement it, without a clear connection to a business problem.
 - **The Flaw:** This is "tool time" or "Lean for Lean's sake." The team might create a beautifully organized workspace (5S), but it has no impact on the fact that their batches are sitting in quarantine for 10 days (the Waste of Waiting). They have applied a tool without first understanding the value stream.""")
-        st.success("""🟢 **THE GOLDEN RULE: Start with the Value Stream**
-A successful Lean transformation is a strategic, top-down process.
-1.  **Map the Value Stream First:** The VSM is the mandatory starting point. It provides the high-level, strategic view of the entire process and identifies the largest sources of waste and delay.
-2.  **Target the Bottlenecks:** Use the VSM to identify the biggest "red bars." These are your primary targets for improvement.
-3.  **Select the Right Tool for the Job:** *Then*, and only then, do you select the specific Lean tool (like 5S, Kanban, or SMED) that is best suited to fixing the specific problem you have identified. The VSM guides the application of the tools, ensuring that all improvement efforts are focused on what truly matters.""")
+        st.success("""🟢 **THE GOLDEN RULE: Use VSM to Guide Kaizen and Control with Kanban**
+A successful Lean transformation is a strategic, top-down process that focuses on root causes.
+1.  **Map the Value Stream First:** The VSM is the mandatory starting point. It provides the strategic view of the entire process and makes Mura (unevenness) and Muda (waste) visible.
+2.  **Charter a Kaizen Event:** Use the VSM to target the biggest "red bar" (the largest source of waste). Charter a focused, cross-functional Kaizen event to attack this specific problem with a targeted tool (like a **5S workshop** to reduce motion waste, or a setup-reduction event).
+3.  **Implement and Sustain with Kanban:** Often, the solution to a large WIP problem is to implement a **Kanban** system. This "pull" system provides the control mechanism to limit inventory and sustain the gains achieved during the Kaizen event.
+""")
 
     with tabs[4]:
         st.markdown("""
         #### Historical Context: From the Weaving Loom to the Assembly Line
-        The core principles of Lean Manufacturing were born at the **Toyota Motor Corporation** in post-WWII Japan. The company was facing a crisis: it lacked the capital and scale to compete with the massive American auto giants like Ford, which had perfected **mass production**.
+        The core principles of Lean Manufacturing were born at the **Toyota Motor Corporation** in post-WWII Japan. Engineers **Taiichi Ohno** and **Shigeo Shingo**, unable to compete with the mass production of American auto giants, developed the **Toyota Production System (TPS)**.
         
-        **The Problem with Mass Production:** Henry Ford's system was brilliant at producing huge volumes of a single, standardized product. But it was also extremely wasteful, creating massive inventories and being unable to adapt to changing customer demand.
-        
-        **The 'Aha!' Moment (Taiichi Ohno & Shigeo Shingo):** Toyota engineers, led by the legendary **Taiichi Ohno** and **Shigeo Shingo**, realized they could not win by copying Ford. They needed a completely new system. Inspired by sources as diverse as American supermarkets (the "pull" system of restocking shelves) and the automatic looms of Sakichi Toyoda (which stopped when a thread broke, a concept called *jidoka* or autonomation), they developed the **Toyota Production System (TPS)**.
-        
-        **The Impact:** TPS was a revolutionary philosophy built on two pillars: **Just-in-Time (JIT)**—making only what is needed, when it is needed, in the amount needed—and **Jidoka**—building quality into the process. The focus was on the relentless identification and elimination of **muda (waste)**. In the 1990s, American researchers, notably in the book *The Machine That Changed the World*, studied and codified the principles of TPS, rebranding them for a Western audience as **"Lean Manufacturing."** Value Stream Mapping became the central tool for visualizing and implementing this powerful philosophy.
+        TPS was a revolutionary philosophy built on two pillars: **Just-in-Time (JIT)** and **Jidoka** (automation with a human touch). The focus was on the relentless elimination of **Muda (waste)**, and its root causes, **Muri (overburden)** and **Mura (unevenness)**. Core tools of TPS included **Kanban** to implement a JIT "pull" system, a culture of **Kaizen** for continuous improvement, and **5S** to create the organized "visual workplace" necessary for all other systems to function. In the 1990s, American researchers codified TPS principles, rebranding them as **"Lean Manufacturing."**
         """)
         
     with tabs[5]:
         st.markdown("""
         Lean principles are a key component of a modern, efficient Pharmaceutical Quality System and are strongly supported by regulatory bodies.
-        - **ICH Q10 - Pharmaceutical Quality System:** This guideline is heavily focused on **process performance** and **continuous improvement**, which are the core goals of Lean. Section 3.2.1, "Process Performance and Product Quality Monitoring System," requires a system to "identify areas for continual improvement." VSM is a primary tool for this identification.
+        - **ICH Q10 - Pharmaceutical Quality System:** This guideline is heavily focused on **process performance** and **continuous improvement**, which are the core goals of Lean. VSM is a primary tool for identifying areas for improvement.
         - **FDA Process Validation Guidance (Stage 3 - CPV):** The goal of Continued Process Verification is not just to maintain control, but also to identify opportunities for improvement. Lean tools provide the framework for turning the data from CPV into actionable, cost-saving projects.
-        - **FDA Report: "Pharmaceutical cGMPs for the 21st Century - A Risk-Based Approach":** This landmark 2004 report, which kicked off the modern era of pharmaceutical quality, explicitly praises the principles of Lean Manufacturing as a way to "enhance product quality and efficiency."
-        
-        **The Golden Thread:** Lean is not in conflict with compliance; it is a powerful enabler of it. A simple, efficient Lean process with minimal waste is inherently easier to control, validate, and maintain in a compliant state than a complex, wasteful process.
+        - **FDA Report: "Pharmaceutical cGMPs for the 21st Century - A Risk-Based Approach":** This landmark 2004 report explicitly praises the principles of Lean Manufacturing as a way to "enhance product quality and efficiency."
+        - **21 CFR 211 (cGMP):** The principles of 5S directly support cGMP requirements for a clean, orderly, and sanitary facility (e.g., §211.56 Sanitation, §211.67 Equipment cleaning and maintenance) to prevent mix-ups and contamination.
         """)
         
 def render_monte_carlo_simulation():

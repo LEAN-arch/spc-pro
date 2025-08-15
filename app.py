@@ -10185,40 +10185,40 @@ def render_stability_design():
         
     st.divider()
     st.subheader("Deeper Dive")
-tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
-with tabs[0]:
-    st.markdown("""
-    **Interpreting the Designs:**
-    - **Full Study:** This is the baseline, testing every combination of strength and container at every timepoint. It is the most comprehensive but also the most expensive.
-    - **Bracketing:** This design assumes that the stability of the intermediate strengths is represented by the stability at the extremes. It is a powerful cost-saver, but requires strong scientific justification. As you can see, all intermediate strength/container combinations are removed from the study.
-    - **Matrixing:** This design assumes that the stability of the product is similar across all combinations. It reduces the testing burden by, for example, testing only half the samples at each timepoint in a checkerboard pattern. It provides more information about the entire product family than bracketing.
-    
-    **The Strategic Insight:** The choice between these designs is a risk-based decision. **Bracketing** is ideal when the primary stability risk is related to the extremes (e.g., highest strength has a new excipient, lowest strength is more susceptible to degradation). **Matrixing** is ideal when the process and formulation are very consistent across all combinations and you want to reduce the overall testing load.
-    """)
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Designs:**
+        - **Full Study:** This is the baseline, testing every combination of strength and container at every timepoint. It is the most comprehensive but also the most expensive.
+        - **Bracketing:** This design assumes that the stability of the intermediate strengths is represented by the stability at the extremes. It is a powerful cost-saver, but requires strong scientific justification. As you can see, all intermediate strength/container combinations are removed from the study.
+        - **Matrixing:** This design assumes that the stability of the product is similar across all combinations. It reduces the testing burden by, for example, testing only half the samples at each timepoint in a checkerboard pattern. It provides more information about the entire product family than bracketing.
+        
+        **The Strategic Insight:** The choice between these designs is a risk-based decision. **Bracketing** is ideal when the primary stability risk is related to the extremes (e.g., highest strength has a new excipient, lowest strength is more susceptible to degradation). **Matrixing** is ideal when the process and formulation are very consistent across all combinations and you want to reduce the overall testing load.
+        """)
 
-with tabs[1]:
-    st.markdown("""
-    ### The Business Case: Accelerating Timelines by Eliminating Redundant Work
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: Accelerating Timelines by Eliminating Redundant Work
 
-    #### The Problem: The Tyranny of the Full Factorial
-    A company is preparing to launch a new drug product that will be available in 5 different strengths and 3 different container types (e.g., vial, pre-filled syringe, auto-injector). The traditional approach to stability testing requires a full, multi-year study on every single one of the 15 combinations.
+        #### The Problem: The Tyranny of the Full Factorial
+        A company is preparing to launch a new drug product that will be available in 5 different strengths and 3 different container types (e.g., vial, pre-filled syringe, auto-injector). The traditional approach to stability testing requires a full, multi-year study on every single one of the 15 combinations.
 
-    #### The Impact: The "Stability Budget" Black Hole
-    This "test everything" approach creates a massive, unsustainable drain on the company's most critical resources.
-    - **Exorbitant Cost:** The cost of a single stability study is enormous, including the cost of the drug product itself, the labor for pulling and testing samples, and the use of expensive, capacity-limited stability chambers. Multiplying this by 15 creates a multi-million dollar budget item.
-    - **Paralyzed R&D Pipeline:** The company's finite stability chambers and QC lab capacity are completely consumed by this single, massive study. This creates a bottleneck that prevents the company from starting stability studies on new, innovative pipeline products, directly slowing down the company's growth engine.
-    - **Delayed Time-to-Market:** The sheer logistical complexity of managing such a large study can lead to delays in the final regulatory submission, postponing the launch and sacrificing months of potential revenue.
+        #### The Impact: The "Stability Budget" Black Hole
+        This "test everything" approach creates a massive, unsustainable drain on the company's most critical resources.
+        - **Exorbitant Cost:** The cost of a single stability study is enormous, including the cost of the drug product itself, the labor for pulling and testing samples, and the use of expensive, capacity-limited stability chambers. Multiplying this by 15 creates a multi-million dollar budget item.
+        - **Paralyzed R&D Pipeline:** The company's finite stability chambers and QC lab capacity are completely consumed by this single, massive study. This creates a bottleneck that prevents the company from starting stability studies on new, innovative pipeline products, directly slowing down the company's growth engine.
+        - **Delayed Time-to-Market:** The sheer logistical complexity of managing such a large study can lead to delays in the final regulatory submission, postponing the launch and sacrificing months of potential revenue.
 
-    #### The Solution: A Risk-Based, Statistically Justified Reduction
-    Advanced stability designs (Bracketing and Matrixing), as formally sanctioned by the ICH Q1D guideline, are not about "doing less testing." They are a **strategic, risk-based approach to eliminating scientifically redundant testing**. The core principle is to leverage prior knowledge about the product to design a leaner, more intelligent study.
-    - **Bracketing** leverages the knowledge that stability failures are most likely to occur at the extremes of a factor like dosage strength.
-    - **Matrixing** leverages the knowledge that the product is highly consistent across all variations, allowing for a statistically balanced, partial testing schedule.
+        #### The Solution: A Risk-Based, Statistically Justified Reduction
+        Advanced stability designs (Bracketing and Matrixing), as formally sanctioned by the ICH Q1D guideline, are not about "doing less testing." They are a **strategic, risk-based approach to eliminating scientifically redundant testing**. The core principle is to leverage prior knowledge about the product to design a leaner, more intelligent study.
+        - **Bracketing** leverages the knowledge that stability failures are most likely to occur at the extremes of a factor like dosage strength.
+        - **Matrixing** leverages the knowledge that the product is highly consistent across all variations, allowing for a statistically balanced, partial testing schedule.
 
-    #### The Consequences: A Leaner, Faster, and Smarter Stability Program
-    - **Without This:** The stability program is a costly, inefficient bottleneck that consumes an ever-increasing share of the R&D and Quality budget.
-    - **With This:** The company can achieve the same level of regulatory compliance and product quality assurance with **up to 50% fewer samples**. This directly translates to a **multi-million dollar cost savings**, **accelerated timelines** for the current product, and, most importantly, it **frees up critical lab capacity and budget** to advance the next generation of innovative products in the R&D pipeline. It is a key strategy for maintaining a competitive edge.
-    """)
+        #### The Consequences: A Leaner, Faster, and Smarter Stability Program
+        - **Without This:** The stability program is a costly, inefficient bottleneck that consumes an ever-increasing share of the R&D and Quality budget.
+        - **With This:** The company can achieve the same level of regulatory compliance and product quality assurance with **up to 50% fewer samples**. This directly translates to a **multi-million dollar cost savings**, **accelerated timelines** for the current product, and, most importantly, it **frees up critical lab capacity and budget** to advance the next generation of innovative products in the R&D pipeline. It is a key strategy for maintaining a competitive edge.
+        """)
     with tabs[2]:
         st.markdown("""
         ##### Glossary of Stability Design Terms
@@ -10382,7 +10382,6 @@ def render_method_comparison():
             - **USP General Chapter <1224> - Transfer of Analytical Procedures:** This chapter is entirely dedicated to the process of qualifying a laboratory to use an analytical test procedure. It explicitly mentions "Comparative Testing" as a transfer option, for which Bland-Altman and Deming regression are the standard analysis tools.
             - **CLIA (Clinical Laboratory Improvement Amendments):** In the US, clinical labs are required to perform method comparison studies to validate new tests.
             """)
-
 #===============================================================  4. EQUIVALENCE TESTING (TOST) ================================================
 def render_tost():
     """Renders the INTERACTIVE module for Two One-Sided Tests (TOST) for equivalence."""
@@ -11566,41 +11565,41 @@ def render_tolerance_intervals():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    
-    with tabs[0]:
-        st.metric(label="🎯 Desired Coverage", value=f"{coverage_pct:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
-        st.metric(label="📏 Resulting Tolerance Interval", value=f"[{ti[0]:.1f}, {ti[1]:.1f}]", help="The final calculated range. Note how much wider it is than the CI.")
+        tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
-        st.info("Play with the sliders in the sidebar and observe the results!")
-        st.markdown("""
-        - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
-        - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
-        """)
-    
-    with tabs[1]:
-        st.markdown("""
-        ### The Business Case: The Statistical "Quality Promise"
-    
-        #### The Problem: The "Average is Good Enough" Fallacy
-        A team completes a Process Performance Qualification (PPQ) study for a new medical device component. The specification is 95-105 units. They calculate a 95% **confidence interval** for the process mean and find that it is tightly centered at [99.9, 100.1]. Based on this, they conclude the process is excellent and approve it for commercial manufacturing.
-    
-        #### The Impact: The Catastrophe of the Individual Unit
-        This is a critical, and unfortunately common, statistical misunderstanding with severe consequences.
-        - **Field Failures and Recalls:** The process, while having a perfect *average*, also has significant variability. A large percentage of *individual units* are actually falling outside the specification limits. Because the team used the wrong statistical interval, they were completely blind to this. This leads to product failures in the field, customer complaints, and potentially a multi-million dollar product recall.
-        - **Failed Release Criteria:** The team tries to use the confidence interval to set release specifications for future batches. An auditor immediately rejects this, because a confidence interval makes a claim about the *average*, while a product specification applies to *every single unit*. The validation is deemed inadequate.
-    
-        #### The Solution: The Right Interval for the Right Question
-        The Tolerance Interval is the only statistically valid tool for answering the question that truly matters to customers and regulators: **"Based on our sample, what is the range that we are confident contains almost all of our individual product units?"** It is fundamentally different from a confidence interval.
-        -   A **Confidence Interval** is a statement about the **mean**.
-        -   A **Tolerance Interval** is a statement about a **large proportion of the individuals**.
+        with tabs[0]:
+            st.metric(label="🎯 Desired Coverage", value=f"{coverage_pct:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
+            st.metric(label="📏 Resulting Tolerance Interval", value=f"[{ti[0]:.1f}, {ti[1]:.1f}]", help="The final calculated range. Note how much wider it is than the CI.")
+            
+            st.info("Play with the sliders in the sidebar and observe the results!")
+            st.markdown("""
+            - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
+            - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
+            """)
         
-        It is the correct tool for making a statistically sound "quality promise" about the performance of the units you ship.
-    
-        #### The Consequences: A Defensible Specification and Managed Risk
-        - **Without This:** The company is making unsubstantiated claims about the quality of its individual products. They are exposed to significant compliance risk and the potential for costly field failures.
-        - **With This:** The Tolerance Interval provides the **objective, statistical evidence** to support a release specification. It allows the company to make a defensible statement like: *"We are 95% confident that 99.9% of all units produced by this process will fall between 94.5 and 105.5 units."* This allows the business to set realistic specifications, manage the risk of out-of-spec material, and provide robust, data-driven proof of quality to regulators.
-        """)
+        with tabs[1]:
+            st.markdown("""
+            ### The Business Case: The Statistical "Quality Promise"
+        
+            #### The Problem: The "Average is Good Enough" Fallacy
+            A team completes a Process Performance Qualification (PPQ) study for a new medical device component. The specification is 95-105 units. They calculate a 95% **confidence interval** for the process mean and find that it is tightly centered at [99.9, 100.1]. Based on this, they conclude the process is excellent and approve it for commercial manufacturing.
+        
+            #### The Impact: The Catastrophe of the Individual Unit
+            This is a critical, and unfortunately common, statistical misunderstanding with severe consequences.
+            - **Field Failures and Recalls:** The process, while having a perfect *average*, also has significant variability. A large percentage of *individual units* are actually falling outside the specification limits. Because the team used the wrong statistical interval, they were completely blind to this. This leads to product failures in the field, customer complaints, and potentially a multi-million dollar product recall.
+            - **Failed Release Criteria:** The team tries to use the confidence interval to set release specifications for future batches. An auditor immediately rejects this, because a confidence interval makes a claim about the *average*, while a product specification applies to *every single unit*. The validation is deemed inadequate.
+        
+            #### The Solution: The Right Interval for the Right Question
+            The Tolerance Interval is the only statistically valid tool for answering the question that truly matters to customers and regulators: **"Based on our sample, what is the range that we are confident contains almost all of our individual product units?"** It is fundamentally different from a confidence interval.
+            -   A **Confidence Interval** is a statement about the **mean**.
+            -   A **Tolerance Interval** is a statement about a **large proportion of the individuals**.
+            
+            It is the correct tool for making a statistically sound "quality promise" about the performance of the units you ship.
+        
+            #### The Consequences: A Defensible Specification and Managed Risk
+            - **Without This:** The company is making unsubstantiated claims about the quality of its individual products. They are exposed to significant compliance risk and the potential for costly field failures.
+            - **With This:** The Tolerance Interval provides the **objective, statistical evidence** to support a release specification. It allows the company to make a defensible statement like: *"We are 95% confident that 99.9% of all units produced by this process will fall between 94.5 and 105.5 units."* This allows the business to set realistic specifications, manage the risk of out-of-spec material, and provide robust, data-driven proof of quality to regulators.
+            """)
         with tabs[2]:
             st.markdown("""
             ##### Glossary of Statistical Intervals
@@ -11825,7 +11824,8 @@ def render_control_plan_builder():
     
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
     with tabs[0]:
         st.markdown("""
         **Interpreting the Dashboard:**
@@ -11835,7 +11835,33 @@ def render_control_plan_builder():
         
         **The Strategic Insight:** The Control Plan is a balancing act between **risk and cost**. More frequent sampling provides better process control and faster deviation detection, which reduces the risk of producing non-conforming material. However, it also increases laboratory costs and operational complexity. This dashboard allows you to simulate and visualize this trade-off to find the optimal strategy that provides the necessary level of quality assurance without overburdening the system.
         """)
+    
     with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The "Rosetta Stone" for the Factory Floor
+    
+        #### The Problem: The Knowledge Gap
+        A team of PhD scientists and engineers spends two years and millions of dollars on a comprehensive Quality by Design (QbD) program. They create a mountain of sophisticated validation reports, DOE analyses, and risk assessments that perfectly characterize a new process. This knowledge lives in a complex, 500-page regulatory submission document. Meanwhile, on the 24/7 manufacturing floor, an operator with a high school diploma is responsible for running this multi-million dollar process.
+    
+        #### The Impact: Process Knowledge That Never Reaches the Process
+        This gap between the "knowledge workers" and the "operational workers" is a massive source of unmanaged risk and inefficiency.
+        - **Inconsistent Responses:** An SPC chart alarms on the floor. The operator, unsure of the correct procedure, calls a supervisor, who calls an engineer. The response is slow, inconsistent, and depends entirely on which engineer is on call.
+        - **"Tribal Knowledge":** The "real" way to run the process is passed down verbally from one operator to the next, with each person adding their own undocumented "tweaks." The process slowly drifts away from its validated state.
+        - **Audit Failure:** During an audit, an inspector asks an operator what they would do if a specific alarm occurred. If the operator cannot give a clear, confident answer that matches a formal procedure, this is a major finding of inadequate training and process control.
+    
+        #### The Solution: A Single, Actionable Playbook
+        The Control Plan is the **Rosetta Stone** that translates the complex knowledge from the validation package into a single, simple, and actionable playbook for the factory floor. It is the definitive, one-page summary that answers the five critical questions for any operator:
+        1.  **What** do I need to control? (`Parameter`)
+        2.  **How** do I measure it? (`Measurement System`)
+        3.  **What** should the result be? (`Specification`)
+        4.  **How often** do I need to check it? (`Sample Size / Freq.`)
+        5.  **What do I do if it's wrong?** (`Reaction Plan / OCAP`)
+    
+        #### The Consequences: Empowered Operators and a State of Control
+        - **Without This:** The millions invested in process understanding are wasted because that knowledge never translates into consistent daily execution. The process is vulnerable to human error and inconsistency.
+        - **With This:** The Control Plan and its visual counterpart, the OCAP, **empower the operator** to become the first line of defense for quality. It ensures a **rapid, consistent, and compliant response** to any process deviation, 24/7. It is the essential tool that transforms the theoretical "validated state" into a living, breathing, and consistently executed reality on the manufacturing floor.
+        """)
+    with tabs[2]:
         st.markdown("""
         ##### Glossary of Control Strategy Terms
         - **Control Plan:** A written description of the systems and processes required for controlling a process or product. It is a living document that is updated as the process matures.
@@ -11845,7 +11871,7 @@ def render_control_plan_builder():
         - **In-Process Control (IPC):** Checks performed during production in order to monitor and, if necessary, to adjust the process to ensure that the product conforms to its specification.
         - **Specification:** A list of detailed requirements with which the products or materials used or obtained during manufacture have to conform.
         """)
-    with tabs[2]:
+    with tabs[3]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "Trust the Engineers" Fallacy**
 Engineers install a new SPC system that monitors 50 parameters in real-time. When a chart alarms, the operator is unsure which alarms are important and what to do, so they call the busy engineer, who may not be immediately available. By the time the engineer arrives, significant non-conforming material may have been produced.
 - **The Flaw:** The system provides data but no **actionable information** for the operator. The lack of a clear Control Plan and OCAP creates confusion, delays, and significant compliance risk on the manufacturing floor.""")
@@ -11855,7 +11881,7 @@ A compliant and effective control strategy requires that every single monitoring
 2.  **Define the Full Strategy:** The Control Plan must specify *all* aspects of the control: the what (CPP), how (Measurement System), how much (Sample Size), how often (Frequency), and who (Operator).
 3.  **Create a Simple OCAP:** The OCAP must be a simple, unambiguous flowchart that an operator can follow under pressure without needing to consult an engineer for routine alarms. This empowers operators and ensures consistent, rapid responses to process deviations.""")
         
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         #### Historical Context: From Shewhart's Chart to the Control Plan
         When **Walter Shewhart** invented the control chart in the 1920s, his primary focus was on the statistical tool for *detection*. The reaction to the signal was largely left to the judgment of the on-site engineer. This worked well in the simpler manufacturing environments of the time.
@@ -11865,7 +11891,7 @@ A compliant and effective control strategy requires that every single monitoring
         The **Out-of-Control Action Plan (OCAP)** evolved from this as a best practice, translating the formal table of the Control Plan into a simple, visual flowchart that is ideal for use by operators on the factory floor, especially in high-pressure situations. The combination of SPC, the Control Plan, and the OCAP creates a complete, closed-loop system for process control that is a hallmark of a mature quality system.
         """)
         
-    with tabs[4]:
+    with tabs[5]:
         st.markdown("""
         The Control Plan is a key document that demonstrates a state of control and is a primary focus of regulatory audits. It is the practical embodiment of your entire validation effort.
         - **ICH Q10 - Pharmaceutical Quality System:** The Control Plan is the operational embodiment of the **Control Strategy**, which is a central concept in ICH Q10. It is the documented proof that product and process understanding (from QbD and validation) has been successfully translated into effective, routine controls.
@@ -11907,35 +11933,55 @@ def render_multi_rule():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            st.markdown("##### Detected Violations")
-            if not violations:
-                st.success("No violations detected. Process appears to be in control.")
-            else:
-                # Use a more compact way to display violations
-                violation_summary = {}
-                for point, ruleset in sorted(violations.items()):
-                    for rule in ruleset.strip().split():
-                        if rule not in violation_summary:
-                            violation_summary[rule] = []
-                        if point + 1 not in violation_summary[rule]:
-                            violation_summary[rule].append(point + 1)
-
-                for rule, points in violation_summary.items():
-                    st.warning(f"**{rule}:** Violated at points {', '.join(map(str, points))}")
-
-            st.markdown("---")
-            st.markdown("##### Rule Power Functions")
-            st.plotly_chart(fig_power, use_container_width=True)
-            st.markdown("""
-            **Reading the Power Plot:** This chart shows which rules are best for different problems.
-            - The `1-3s` rule is powerful for **large shifts** (>3σ) but blind to small ones.
-            - Rules like `4-1s` and `10-x` are weak for large shifts but much more powerful for detecting **small, persistent shifts** (<2σ).
-            This is why a multi-rule system is essential.
-            """)
-        with tabs[1]:
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("##### Detected Violations")
+        if not violations:
+            st.success("No violations detected. Process appears to be in control.")
+        else:
+            violation_summary = {}
+            for point, ruleset in sorted(violations.items()):
+                for rule in ruleset.strip().split():
+                    if rule not in violation_summary:
+                        violation_summary[rule] = []
+                    if point + 1 not in violation_summary[rule]:
+                        violation_summary[rule].append(point + 1)
+            for rule, points in violation_summary.items():
+                st.warning(f"**{rule}:** Violated at points {', '.join(map(str, points))}")
+        st.markdown("---")
+        st.markdown("##### Rule Power Functions")
+        st.plotly_chart(fig_power, use_container_width=True)
+        st.markdown("""
+        **Reading the Power Plot:** This chart shows which rules are best for different problems.
+        - The `1-3s` rule is powerful for **large shifts** (>3σ) but blind to small ones.
+        - Rules like `4-1s` and `10-x` are weak for large shifts but much more powerful for detecting **small, persistent shifts** (<2σ).
+        This is why a multi-rule system is essential.
+        """)
+    
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The High-Sensitivity "EKG" for Your Laboratory
+    
+        #### The Problem: The "Silent Failure" in the QC Lab
+        A high-throughput QC or clinical laboratory relies on an automated analytical instrument to release product or report patient results. The instrument develops a subtle, systematic bias—a 1.5-sigma shift caused by a slowly degrading calibrator. A standard Shewhart control chart, designed to only catch large >3-sigma errors, is completely blind to this small shift. The lab continues to operate, unaware that every result it is reporting is now incorrect.
+    
+        #### The Impact: The High Cost of Erroneous Data
+        This "silent failure" of an analytical method has severe consequences that ripple throughout the organization.
+        - **Incorrect Batch Disposition:** In a pharmaceutical QC lab, this small bias could be the difference between a batch passing or failing. The company may be **incorrectly releasing out-of-spec product** or **incorrectly scrapping good product**, leading to direct financial loss and significant patient safety risk.
+        - **Erroneous Clinical Diagnoses:** In a clinical lab, a 1.5-sigma shift can be the difference between a "normal" and "abnormal" patient result. The lab could be reporting **thousands of incorrect patient results**, leading to misdiagnoses, improper treatment, and severe clinical consequences.
+        - **Loss of Confidence and Costly Investigations:** When the problem is eventually discovered, it triggers a massive, painful investigation. The lab must determine how long the problem has existed and which results must be retracted and re-tested, a catastrophic loss of credibility and a huge operational cost.
+    
+        #### The Solution: A Diagnostic, Multi-Rule "EKG"
+        The Westgard Rules are not just another control chart; they are a **high-sensitivity diagnostic system** for your analytical methods. They act like a multi-lead EKG for your assay's heartbeat. Instead of one simple alarm for "catastrophic failure," this system uses a combination of rules to detect specific types of problems long before they become critical:
+        - Rules like **2-2s** and **4-1s** are specifically designed to detect **small, systematic shifts** (like a degrading calibrator).
+        - Rules like **R-4s** are designed to detect **increased imprecision** (like a faulty pipette).
+    
+        #### The Consequences: Proactive Error Detection and Risk Mitigation
+        - **Without This:** The QC lab is vulnerable to subtle, "silent failures" that can have a massive downstream impact on the business and patients.
+        - **With This:** The Westgard Rules provide an **essential layer of proactive risk mitigation**. They are the early warning system that allows the lab to **detect and correct** small analytical problems before they lead to the release of a single incorrect result. This protects patient safety, ensures the integrity of batch release decisions, and upholds the credibility and compliance of the entire laboratory operation.
+        """)
+        with tabs[2]:
                 st.markdown("""
                 ##### Glossary of Westgard Rules
                 - **Systematic Error:** A consistent bias in the measurement process (e.g., a miscalibrated instrument). Detected by rules like `2-2s`, `4-1s`, `10-x`.
@@ -11946,7 +11992,7 @@ def render_multi_rule():
                 - **4-1s Rule:** Four consecutive control measurements exceed the same mean ± 1 standard deviation. Rejection rule, sensitive to small systematic shifts.
                 - **10-x Rule:** Ten consecutive control measurements fall on the same side of the mean. Rejection rule, very sensitive to small systematic shifts.
                 """)
-        with tabs[2]:
+        with tabs[3]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Re-run & Pray" Mentality**
 This operator sees any alarm, immediately discards the run, and starts over without thinking.
 - They don't use the specific rule (`2-2s` vs `R-4s`) to guide their troubleshooting.
@@ -11956,7 +12002,7 @@ The goal is to treat the specific rule violation as the starting point of a targ
 - **Think like a detective:** "The chart shows a `2-2s` violation. This suggests a systematic shift. I should check my calibrators and reagents first, not my pipetting technique."
 - **Document Everything:** The investigation, the root cause, and the corrective action for each rule violation must be documented.""")
 
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             #### Historical Context: From the Factory Floor to the Hospital Bed
             **The Problem:** In the 1970s, clinical laboratories were becoming highly automated, but their quality control methods hadn't kept up. They were using Shewhart's simple `1-3s` rule, designed for manufacturing. However, in a clinical setting, the cost of a missed error (a misdiagnosis) is infinitely higher than the cost of a false alarm (re-running a control). The `1-3s` rule was not sensitive enough to catch the small but medically significant drifts that could occur with automated analyzers.
@@ -11971,7 +12017,7 @@ The goal is to treat the specific rule violation as the starting point of a targ
             st.markdown("- A point outside **±2σ** is more common (p ≈ 0.0455). Seeing one is not a strong signal. However, the probability of seeing *two consecutive points* on the same side of the mean purely by chance is much, much lower:")
             st.latex(r"P(\text{2-2s}) \approx \left( \frac{0.0455}{2} \right)^2 \approx 0.0005")
             st.markdown("This makes the **2-2s** rule a powerful and specific detector of systematic shifts with a very low false alarm rate, even though the individual points themselves are not extreme.")
-        with tabs[4]:
+        with tabs[5]:
             st.markdown("""
             Westgard Rules are the de facto standard for routine QC run validation in clinical and diagnostic laboratories, and their principles are widely adopted in pharmaceutical QC.
             - **CLIA (Clinical Laboratory Improvement Amendments):** US federal regulations that require clinical laboratories to monitor the accuracy and precision of their testing. Westgard Rules provide a compliant framework for this.
@@ -12018,8 +12064,8 @@ def render_ewma_cusum():
 
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-
+        tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
         with tabs[0]:
             st.markdown(f"##### Detection Performance for a **{shift_size_slider}σ** {scenario_slider}")
             st.metric(
@@ -12037,12 +12083,33 @@ def render_ewma_cusum():
                 value=f"{int(cusum_time)} points" if not np.isnan(cusum_time) else "Not Detected",
                 help="Number of points after the shift began before the CUSUM chart alarmed."
             )
-
+        
             st.markdown("""
             **The Core Insight:**
             Try simulating a small (`< 1.5σ`) **Gradual Drift**. The I-Chart is completely blind, giving a false sense of security. The EWMA and CUSUM charts, because they have memory, accumulate the small signals over time and reliably sound the alarm. This demonstrates why relying only on Shewhart charts creates a significant blind spot for modern, high-precision processes.
             """)
+        
         with tabs[1]:
+            st.markdown("""
+            ### The Business Case: The High Cost of "Drifting into Failure"
+        
+            #### The Problem: The "Boiling Frog" Syndrome
+            A high-volume, continuous manufacturing process is monitored using traditional Shewhart SPC charts. A critical component in the process begins to wear, causing a very small, gradual drift in a key quality attribute—a shift of only 0.75 sigma. This shift is so small that it is completely hidden within the normal "common cause" variation. The Shewhart chart, which is memoryless and designed to ignore small fluctuations, sees nothing wrong.
+        
+            #### The Impact: The "Death by a Thousand Cuts"
+            The process is like a frog in a slowly heating pot of water; it is drifting towards a catastrophic failure, but the alarm system is silent.
+            - **Massive Scrap Events:** For weeks, the process produces material that is technically "in-spec" but is trending ever closer to the specification limit. Suddenly, a normal random fluctuation is enough to push a large volume of product out of spec. This results in a massive, multi-million dollar scrap event that appears to have happened "all at once," but was actually the culmination of a long, undetected drift.
+            - **Reduced Process Capability:** The undetected drift erodes the process's Cpk, reducing its robustness and making it more susceptible to failure from normal input variations.
+            - **Reactive Firefighting:** When the failure finally occurs, the investigation is a fire drill. Because there were no early warnings, the team has no leading indicators to guide their root cause analysis, leading to extended downtime and lost production.
+        
+            #### The Solution: A Monitoring System with "Memory"
+            EWMA and CUSUM charts are the solution to the "boiling frog" problem. Unlike Shewhart charts, they are designed with **statistical memory**. They are intentionally designed to detect the *signal* of a small, persistent drift that is buried in the *noise* of common cause variation. They accumulate the evidence of these small deviations over time, like a detective building a case, until the evidence is strong enough to sound a definitive, early alarm.
+        
+            #### The Consequences: Proactive Control and Maximized Uptime
+            - **Without This:** The company is vulnerable to large, unexpected scrap events and is stuck in a reactive mode, only fixing problems after they have become catastrophic.
+            - **With This:** EWMA and CUSUM charts provide an **essential early warning system** for modern, high-precision processes. They allow engineers to **detect and correct** small drifts long before they result in out-of-spec product. This **prevents major scrap events**, maintains a high level of process capability, maximizes equipment uptime, and shifts the operational culture from reactive firefighting to proactive, data-driven control.
+            """)
+        with tabs[2]:
             st.markdown("""
             ##### Glossary of Small Shift Terms
             - **Shewhart Chart (e.g., I-Chart):** A "memoryless" control chart that evaluates each data point independently. It is excellent for detecting large shifts but insensitive to small, gradual drifts.
@@ -12051,7 +12118,7 @@ def render_ewma_cusum():
             - **Lambda (λ):** The weighting parameter for an EWMA chart (0 < λ ≤ 1). A small λ gives the chart a long memory, making it sensitive to tiny shifts.
             - **ARL (Average Run Length):** The average number of points that will be plotted on a control chart before an out-of-control signal occurs.
             """)
-        with tabs[2]:
+        with tabs[3]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "One-Chart-Fits-All Fallacy"**
 A manager insists on using only I-MR charts for everything because they are easy to understand.
 - They miss a slow 1-sigma drift for weeks, producing tons of near-spec material.
@@ -12062,7 +12129,7 @@ The goal is to use a combination of charts to create a comprehensive security sy
 - **Use EWMA or CUSUM as your "Sentinels":** Deploy them alongside Shewhart charts to stand guard against the silent, creeping threats that the beat cops will miss.
 This layered approach provides a complete picture of process stability.""")
 
-        with tabs[3]:
+        with tabs[4]:
             st.markdown(r"""
             #### Historical Context: The Second Generation of SPC
             **The Problem:** Dr. Walter Shewhart's control charts of the 1920s were a monumental success. However, they were designed like a **smoke detector**—brilliantly effective at detecting large, sudden events ("fires"), but intentionally insensitive to small, slow changes to avoid overreaction to random noise. By the 1950s, industries like chemistry and electronics required higher precision. The critical challenge was no longer just preventing large breakdowns, but detecting subtle, gradual drifts that could slowly degrade quality. A new kind of sensor was needed.
@@ -12087,7 +12154,7 @@ This layered approach provides a complete picture of process stability.""")
             - **`T`**: The process target or historical mean.
             - **`k`**: The **"slack" or "allowance" parameter**, typically set to half the size of the shift you want to detect quickly (e.g., `k = 0.5σ`). This makes the CUSUM chart a highly targeted detector.
             """)
-        with tabs[4]:
+        with tabs[5]:
             st.markdown("""
             These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
             - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
@@ -12127,7 +12194,7 @@ def render_multivariate_spc():
         st.plotly_chart(fig_charts, use_container_width=True)
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🔬 SME Analysis", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🔬 SME Analysis", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.markdown("""
@@ -12137,11 +12204,11 @@ def render_multivariate_spc():
             -   **Red Ellipse (99% Confidence):** This is the multivariate **control limit**. Any point falling outside this ellipse is a statistical signal of a special cause.
             
             The ellipses are stretched diagonally because the process parameters are **correlated**. The shape is determined by the **Mahalanobis distance**, which accounts for this correlation.
-
+        
             ---
             **Analysis of the '{scenario}' Scenario:**
             """.format(scenario=scenario))
-
+        
             if scenario == 'Stable':
                 st.success("The process is stable. The monitoring points (black stars) fall within the confidence ellipses, and both the T² and SPE charts show only normal variation.")
             elif scenario == 'Shift in Y Only':
@@ -12155,6 +12222,29 @@ def render_multivariate_spc():
         
         with tabs[1]:
             st.markdown("""
+            ### The Business Case: The Head Physician for Your Process
+        
+            #### The Problem: The "Army of Univariate Charts" Fallacy
+            A company monitors a complex bioreactor by plastering the control room wall with dozens of individual SPC charts—one for Temperature, one for pH, one for Dissolved Oxygen, etc. One day, a multi-million dollar batch fails. In the post-mortem investigation, the team is horrified to discover that **every single one of the individual control charts was perfectly in-control** for the entire duration of the run.
+        
+            #### The Impact: The Catastrophic "Stealth Failure"
+            The company has fallen into a massive statistical blind spot.
+            - **Failure to See the Big Picture:** The individual charts are like nurses, each monitoring a single vital sign. A patient can have a normal temperature, a normal heart rate, and normal blood pressure, but the *combination* of these values might be highly abnormal and signal an impending heart attack. The "army of charts" has no "head physician" to integrate all the information and see the holistic state of the patient.
+            - **Alarm Fatigue:** Conversely, with dozens of charts, false alarms are a constant nuisance. Operators become desensitized and start to ignore the charts altogether, defeating the purpose of SPC.
+            - **Unmanaged Risk:** The company has a false sense of security. They believe they have a controlled process, but they are completely blind to multivariate "stealth failures," which are often the most common and dangerous failure modes in complex, correlated systems.
+        
+            #### The Solution: A Single, Holistic Health Score
+            Multivariate SPC (MSPC) is the **head physician for your process**. It uses techniques like Principal Component Analysis (PCA) to learn the normal, correlated "fingerprint" of a healthy process. It then distills dozens or even hundreds of process parameters into just two powerful vital signs:
+            1.  **Hotelling's T²:** A single number that measures the distance of the process from its normal operating center, accounting for all correlations.
+            2.  **SPE (Squared Prediction Error):** A single number that measures how much the process has deviated from its normal correlation structure, flagging unprecedented events.
+        
+            #### The Consequences: Early Detection of Complex Failures
+            - **Without This:** The company is flying blind, vulnerable to complex failures that their monitoring system is structurally incapable of detecting.
+            - **With This:** MSPC provides a **holistic, real-time view of process health**. It is the essential tool for managing modern, complex, and automated processes. It **eliminates alarm fatigue** by replacing dozens of charts with just two. Most critically, it provides the **early warning system needed to detect subtle, coordinated drifts and "stealth failures,"** allowing engineers to intervene and prevent catastrophic batch failures long before they occur.
+            """)
+        
+        with tabs[2]:
+            st.markdown("""
             ##### Glossary of MSPC Terms
             - **MSPC (Multivariate SPC):** A method for monitoring the stability of a process with multiple, correlated variables simultaneously.
             - **Mahalanobis Distance:** A measure of the distance between a point and a distribution. Unlike Euclidean distance, it accounts for the correlation between variables, effectively measuring distance in "standard deviations" in a multidimensional space.
@@ -12164,7 +12254,7 @@ def render_multivariate_spc():
             - **Contribution Plot:** A diagnostic plot used to identify which of the original process variables are responsible for a T² or SPE alarm.
             """)
             
-        with tabs[2]:
+        with tabs[3]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Army of Univariate Charts" Fallacy**
 Using dozens of individual charts is doomed to fail due to alarm fatigue and its blindness to "stealth shifts." It's like having nurses for each vital sign, but no doctor to interpret the full patient picture. A process can be "out of control" even when every individual parameter is "in control" if their combination is abnormal.""")
             st.success("""🟢 **THE GOLDEN RULE: Detect with T²/SPE, Diagnose with Contributions**

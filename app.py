@@ -4369,27 +4369,35 @@ def fit_prophet_model(train_df, n_forecast):
 def plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength):
     """
     Generates a dynamic time series and fits a user-selected subset of forecasting models.
-    This is NOT cached to prevent serialization errors and is designed to be memory-efficient.
+    This version is optimized for speed by using monthly data instead of weekly.
     """
     np.random.seed(42)
-    periods = 156 
-    n_forecast = 26 
-    dates = pd.date_range(start='2021-01-01', periods=periods, freq='W')
+    # --- PERFORMANCE OPTIMIZATION: Switched to monthly data ---
+    periods = 96  # 8 years of monthly data
+    n_forecast = 12 # Forecast 1 year
+    dates = pd.date_range(start='2015-01-01', periods=periods, freq='MS') # MS for Month Start
     
-    # 1. Generate Data (Unchanged)
+    # 1. Generate Data
     if trend_type == 'Multiplicative':
-        trend = 100 * np.exp(np.arange(periods) * 0.01)
+        trend = 50 * np.exp(np.arange(periods) * 0.02)
     else: 
         trend = 100 + 0.5 * np.arange(periods)
+        
     seasonality = np.zeros(periods)
+    seasonal_period_1 = 12 # Yearly seasonality on monthly data
+    seasonal_period_2 = 3  # Quarterly seasonality
+    
     if seasonality_type == 'Single (Yearly)':
-        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / 52))
+        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_1))
     elif seasonality_type == 'Multiple (Yearly + Quarterly)':
-        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / 52)) + 7 * np.sin(np.arange(periods) * (2 * np.pi / 13))
-    changepoint_loc = 104
+        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_1)) + 7 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_2))
+    
+    changepoint_loc = 72 # Changepoint after 6 years
     trend[changepoint_loc:] += changepoint_strength * np.arange(periods - changepoint_loc)
+        
     noise = np.random.normal(0, noise_level, periods)
     y = trend + seasonality + noise
+    
     df = pd.DataFrame({'ds': dates, 'y': y})
     train, test = df.iloc[:-n_forecast], df.iloc[-n_forecast:]
     
@@ -4408,25 +4416,29 @@ def plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_le
             finally:
                 sys.stdout = saved_stdout
 
+    # --- Models are now configured for faster monthly data (m=12) ---
     if 'Holt-Winters' in models_to_run:
         try:
             hw_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
             hw_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
-            hw = ExponentialSmoothing(train['y'], trend=hw_trend, seasonal=hw_seasonal, seasonal_periods=52).fit()
+            hw = ExponentialSmoothing(train['y'], trend=hw_trend, seasonal=hw_seasonal, seasonal_periods=seasonal_period_1).fit()
             forecasts['Holt-Winters'] = hw.forecast(n_forecast)
         except Exception: forecasts['Holt-Winters'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
     if 'SARIMA' in models_to_run:
         try:
-            sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=(1,1,0,52)).fit(disp=False)
+            sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=(1,1,0,seasonal_period_1)).fit(disp=False)
             forecasts['SARIMA'] = sarima.get_forecast(steps=n_forecast).predicted_mean
         except Exception: forecasts['SARIMA'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
     if 'Prophet' in models_to_run:
         try:
             with suppress_stdout():
-                m_prophet = Prophet().fit(train)
-            future = m_prophet.make_future_dataframe(periods=n_forecast, freq='W')
+                m_prophet = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
+                if seasonality_type == 'Multiple (Yearly + Quarterly)':
+                    m_prophet.add_seasonality(name='quarterly', period=91.25, fourier_order=5)
+                m_prophet.fit(train)
+            future = m_prophet.make_future_dataframe(periods=n_forecast, freq='MS')
             fc_prophet = m_prophet.predict(future)
             forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
         except Exception: forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
@@ -4435,13 +4447,17 @@ def plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_le
         try:
             ets_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
             ets_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
-            ets = ETSModel(train['y'], error="add", trend=ets_trend, seasonal=ets_seasonal, seasonal_periods=52).fit(disp=False)
+            ets = ETSModel(train['y'], error="add", trend=ets_trend, seasonal=ets_seasonal, seasonal_periods=seasonal_period_1).fit(disp=False)
             forecasts['ETS'] = ets.forecast(n_forecast)
         except Exception: forecasts['ETS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
     if 'TBATS' in models_to_run:
         try:
-            seasonal_periods = [52] if seasonality_type == 'Single (Yearly)' else [52, 13] if seasonality_type == 'Multiple (Yearly + Quarterly)' else None
+            seasonal_periods = []
+            if seasonality_type == 'Single (Yearly)':
+                seasonal_periods = [seasonal_period_1]
+            elif seasonality_type == 'Multiple (Yearly + Quarterly)':
+                seasonal_periods = [seasonal_period_1, seasonal_period_2]
             estimator = TBATS(seasonal_periods=seasonal_periods, use_trend=True)
             with suppress_stdout():
                 fitted_model = estimator.fit(train['y'])

@@ -13623,15 +13623,15 @@ def render_advanced_ai_concepts():
             # --- END OF DYNAMIC GLOSSARY ---
 
         with tabs[3]:
-                st.success("""
-                🟢 **THE GOLDEN RULE: Match the Architecture to the Problem Structure**
-                The core insight of modern AI is that **data has a shape**.
-                - If your problem has the shape of a **sequence** (like a batch record), use an architecture designed for sequences (like a Transformer).
-                - If your problem has the shape of a **network** (like a supply chain), use an architecture designed for networks (like a GNN).
-                - If your problem has the shape of a **control loop** (like optimizing a process), use an architecture designed for control (like RL).
-                - If your problem is a **lack of data**, use an architecture designed to **create** data (like Generative AI).
-                Using the right architecture is the key to unlocking state-of-the-art performance.
-                """)
+            st.success("""
+            🟢 **THE GOLDEN RULE: Match the Architecture to the Problem Structure**
+            The core insight of modern AI is that **data has a shape**.
+            - If your problem has the shape of a **sequence** (like a batch record), use an architecture designed for sequences (like a Transformer).
+            - If your problem has the shape of a **network** (like a supply chain), use an architecture designed for networks (like a GNN).
+            - If your problem has the shape of a **control loop** (like optimizing a process), use an architecture designed for control (like RL).
+            - If your problem is a **lack of data**, use an architecture designed to **create** data (like Generative AI).
+            Using the right architecture is the key to unlocking state-of-the-art performance.
+            """)
             if concept_key == "Transformers":
                 st.success("🟢 **THE GOLDEN RULE:** Tokenize Your Process Narrative. Convert continuous data into a discrete sequence of meaningful events (e.g., `[Feed_Event, pH_Excursion, Operator_Shift]`).")
             elif concept_key == "Graph Neural Networks (GNNs)":

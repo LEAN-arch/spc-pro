@@ -6847,65 +6847,65 @@ def render_vv_strategy_justification():
     
     tabs = st.tabs(["✅ The Business Case", "🏛️ Regulatory", "🛡️ Risk Management", "💰 Cost Avoidance", "📈 Stability & Capability", "🤝 Customer Confidence"])
     
-with tabs[0]:
-    st.markdown("""
-    ### The Business Case: Investing in Certainty
+    with tabs[0]:
+        st.markdown("""
+        ### The Business Case: Investing in Certainty
+    
+        #### The Problem: The "It Works in the Lab" Fallacy
+        A brilliant new product or process is developed in an R&D environment. It works perfectly under ideal conditions, run by the experts who designed it. Management, seeing these successful "hero runs," pushes to accelerate the launch to capture market share, viewing the formal, large-scale V&V process as a costly, time-consuming delay.
+    
+        #### The Impact: The High Cost of Unmanaged Risk
+        This thinking exposes the company to enormous and entirely preventable financial and reputational risk.
+        - **The 1-10-100 Rule:** A well-established quality principle states that if a defect costs **$1** to fix in development, it will cost **$10** to fix in production and **$100** (or more) to fix once it's in the hands of the customer. Skipping or rushing V&V is a bet against this exponential cost curve.
+        - **Manufacturing Meltdown:** The process that worked in the lab fails to perform at scale. It is not robust to normal variations in raw materials, operators, or environmental conditions. This leads to low yields, high scrap rates, and an inability to meet demand.
+        - **Catastrophic Field Failure:** The product fails in the hands of the user, leading to a product recall, loss of market trust, potential patient harm, and severe regulatory action. The short-term gain from an early launch is obliterated by the long-term cost of failure.
+    
+        #### The Solution: V&V as a Formal Risk Reduction Program
+        Verification & Validation is the disciplined, systematic process of proving that a product or process is not just functional, but **robust, reliable, and scalable**. It is the formal business process for buying down risk.
+        - **Verification** proves the system was built right, confirming it meets all internal specifications. This prevents costly rework during scale-up.
+        - **Validation** proves it was the right system, confirming it meets the user's needs in their real-world environment. This prevents market failure.
+        The documented V&V package is the objective evidence that this risk reduction was performed diligently and successfully.
+    
+        #### The Consequences: A Predictable and Profitable Launch
+        - **Without This:** A product launch is a high-stakes gamble with unknown odds of success. The company is exposed to significant financial, regulatory, and reputational risk.
+        - **With This:** V&V provides a high degree of certainty that the product will perform as expected at scale and in the field. It is a direct investment in a smooth, predictable, and profitable product launch. It's the mechanism that turns a clever invention into a reliable, commercial-grade asset.
+        """)
 
-    #### The Problem: The "It Works in the Lab" Fallacy
-    A brilliant new product or process is developed in an R&D environment. It works perfectly under ideal conditions, run by the experts who designed it. Management, seeing these successful "hero runs," pushes to accelerate the launch to capture market share, viewing the formal, large-scale V&V process as a costly, time-consuming delay.
-
-    #### The Impact: The High Cost of Unmanaged Risk
-    This thinking exposes the company to enormous and entirely preventable financial and reputational risk.
-    - **The 1-10-100 Rule:** A well-established quality principle states that if a defect costs **$1** to fix in development, it will cost **$10** to fix in production and **$100** (or more) to fix once it's in the hands of the customer. Skipping or rushing V&V is a bet against this exponential cost curve.
-    - **Manufacturing Meltdown:** The process that worked in the lab fails to perform at scale. It is not robust to normal variations in raw materials, operators, or environmental conditions. This leads to low yields, high scrap rates, and an inability to meet demand.
-    - **Catastrophic Field Failure:** The product fails in the hands of the user, leading to a product recall, loss of market trust, potential patient harm, and severe regulatory action. The short-term gain from an early launch is obliterated by the long-term cost of failure.
-
-    #### The Solution: V&V as a Formal Risk Reduction Program
-    Verification & Validation is the disciplined, systematic process of proving that a product or process is not just functional, but **robust, reliable, and scalable**. It is the formal business process for buying down risk.
-    - **Verification** proves the system was built right, confirming it meets all internal specifications. This prevents costly rework during scale-up.
-    - **Validation** proves it was the right system, confirming it meets the user's needs in their real-world environment. This prevents market failure.
-    The documented V&V package is the objective evidence that this risk reduction was performed diligently and successfully.
-
-    #### The Consequences: A Predictable and Profitable Launch
-    - **Without This:** A product launch is a high-stakes gamble with unknown odds of success. The company is exposed to significant financial, regulatory, and reputational risk.
-    - **With This:** V&V provides a high degree of certainty that the product will perform as expected at scale and in the field. It is a direct investment in a smooth, predictable, and profitable product launch. It's the mechanism that turns a clever invention into a reliable, commercial-grade asset.
-    """)
-
-with tabs[1]:
-    st.subheader("Regulatory Compliance")
-    st.markdown("""
-    In regulated industries like medical devices, aerospace, automotive, pharmaceuticals, and semiconductors, V&V isn't optional—it’s a legal requirement.
-    - **Standards:** Compliance with standards such as ISO 13485, FDA 21 CFR Part 820, ISO 26262, and IEC 62304 is mandatory.
-    - **The Bottom Line:** Without a complete, documented V&V package, you cannot legally ship, launch, or sell your product. It is the price of admission to the market.
-    """)
-with tabs[2]:
-    st.subheader("Risk Management")
-    st.markdown("""
-    V&V is the primary tool for proactive risk management. It is how you hunt for problems before they find you.
-    - **Early Detection:** It systematically identifies failure modes early in the lifecycle (e.g., design flaws, process weaknesses, software bugs).
-    - **Risk Reduction:** It reduces the probability of catastrophic, safety-related, or costly failures occurring after the product is released.
-    """)
-with tabs[3]:
-    st.subheader("Cost Avoidance")
-    st.markdown("""
-    The "Cost of Quality" is a well-established principle: the later in the lifecycle a problem is found, the more it costs to fix. V&V is a strategy to minimize this cost.
-    - **Exponential Cost:** Fixing an issue in production can be 10-100x more expensive than catching it in the design or pilot stages.
-    - **Tangible Savings:** A robust V&V program directly saves money by reducing rework, recalls, scrap material, and warranty claims.
-    """)
-with tabs[4]:
-    st.subheader("Process Stability & Capability")
-    st.markdown("""
-    V&V ensures that a process is not just correct once, but that it is robust enough to perform reliably over time.
-    - **Control Variation:** It uses statistical methods (like SPC) to ensure the process stays within specifications run after run.
-    - **Build Robustness:** It proves the process can tolerate normal, expected fluctuations (e.g., in temperature, material lots, or operators) without producing defects.
-    """)
-with tabs[5]:
-    st.subheader("Customer & Stakeholder Confidence")
-    st.markdown("""
-    The documented output of V&V is the objective proof that your product or system is fit for purpose.
-    - **Builds Trust:** It provides tangible evidence to regulators, investors, and customers that your solution is safe, effective, and reliable.
-    - **Protects Brand Reputation:** A strong V&V program is the best defense against the reputational damage caused by a product failure or recall.
-    """)
+    with tabs[1]:
+        st.subheader("Regulatory Compliance")
+        st.markdown("""
+        In regulated industries like medical devices, aerospace, automotive, pharmaceuticals, and semiconductors, V&V isn't optional—it’s a legal requirement.
+        - **Standards:** Compliance with standards such as ISO 13485, FDA 21 CFR Part 820, ISO 26262, and IEC 62304 is mandatory.
+        - **The Bottom Line:** Without a complete, documented V&V package, you cannot legally ship, launch, or sell your product. It is the price of admission to the market.
+        """)
+    with tabs[2]:
+        st.subheader("Risk Management")
+        st.markdown("""
+        V&V is the primary tool for proactive risk management. It is how you hunt for problems before they find you.
+        - **Early Detection:** It systematically identifies failure modes early in the lifecycle (e.g., design flaws, process weaknesses, software bugs).
+        - **Risk Reduction:** It reduces the probability of catastrophic, safety-related, or costly failures occurring after the product is released.
+        """)
+    with tabs[3]:
+        st.subheader("Cost Avoidance")
+        st.markdown("""
+        The "Cost of Quality" is a well-established principle: the later in the lifecycle a problem is found, the more it costs to fix. V&V is a strategy to minimize this cost.
+        - **Exponential Cost:** Fixing an issue in production can be 10-100x more expensive than catching it in the design or pilot stages.
+        - **Tangible Savings:** A robust V&V program directly saves money by reducing rework, recalls, scrap material, and warranty claims.
+        """)
+    with tabs[4]:
+        st.subheader("Process Stability & Capability")
+        st.markdown("""
+        V&V ensures that a process is not just correct once, but that it is robust enough to perform reliably over time.
+        - **Control Variation:** It uses statistical methods (like SPC) to ensure the process stays within specifications run after run.
+        - **Build Robustness:** It proves the process can tolerate normal, expected fluctuations (e.g., in temperature, material lots, or operators) without producing defects.
+        """)
+    with tabs[5]:
+        st.subheader("Customer & Stakeholder Confidence")
+        st.markdown("""
+        The documented output of V&V is the objective proof that your product or system is fit for purpose.
+        - **Builds Trust:** It provides tangible evidence to regulators, investors, and customers that your solution is safe, effective, and reliable.
+        - **Protects Brand Reputation:** A strong V&V program is the best defense against the reputational damage caused by a product failure or recall.
+        """)
 
     with st.expander("Expand to view the V&V Justification Blueprint", expanded=True):
         st.markdown("### The V&V Justification Blueprint")

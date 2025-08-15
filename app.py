@@ -3101,65 +3101,60 @@ def plot_causal_inference(confounding_strength=5.0):
 # ============================================ Casual ML ==================================================
 # SNIPPET: Replace your entire plot_causal_ml_comparison function with this optimized version.
 
+# SNIPPET 1: Replace the entire plot_causal_ml_comparison function with this corrected version.
+
 @st.cache_data
 def plot_causal_ml_comparison(confounding_strength):
     """
     Compares a standard ML model's PDP to a Causal ML estimate.
-    OPTIMIZED for speed and CORRECTED to use the appropriate LinearDML estimator.
+    OPTIMIZED for speed and CORRECTED for data shape and return type issues.
     """
-    # --- FIX 1: Import the correct, more stable estimator ---
     from econml.dml import LinearDML
     from sklearn.ensemble import RandomForestRegressor
+    import statsmodels.api as sm
 
     # Simulate data
     np.random.seed(42)
     n = 500
-    W = np.random.uniform(0, 10, size=(n, 1)) # Confounder
-    T_1d = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength # Treatment
-    T = T_1d.reshape(-1, 1) # Ensure Treatment is 2D
-    
-    # The true effect of T is a constant +2
+    W = np.random.uniform(0, 10, size=(n, 1))
+    T_1d = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength
+    T = T_1d.reshape(-1, 1)
     Y = 2 * T.flatten() + 5 * np.sin(W.flatten()) + np.random.normal(0, 1, n)
 
-    # Standard ML Model for comparison
-    X_for_ml = np.hstack([T, W])
-    ml_model = RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42).fit(X_for_ml, Y)
-    
-    # --- FIX 2: Use LinearDML for robust estimation of a constant treatment effect ---
-    # It still uses powerful ML models internally to handle the non-linear confounding from W.
+    # --- Causal ML Model (LinearDML) ---
     est = LinearDML(
         model_y=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42), 
         model_t=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42),
         random_state=42
     )
-    # The fit call is now simpler and more robust, removing the ambiguous X parameter.
     est.fit(Y, T, W=W)
-    
-    # --- FIX 3: Get the single, constant causal effect (ATE) ---
-    ate_estimate = est.const_marginal_effect()
+    causal_effect_ate = est.const_marginal_effect()[0] # FIX: Extract scalar from array
 
-    # Get PDP for the standard, biased ML model
-    pdp_ml = PartialDependenceDisplay.from_estimator(ml_model, X_for_ml, features=[0], feature_names=['Parameter', 'Confounder'])
-    
+    # --- Standard OLS Model for Naive Correlation ---
+    # This provides a single coefficient to display as the biased effect
+    naive_model = sm.OLS(Y, sm.add_constant(T)).fit()
+    naive_effect_coeff = naive_model.params[1]
+
     # --- PLOTTING ---
     fig = go.Figure()
     
-    # Plot the biased correlation from the standard ML model's PDP
-    fig.add_trace(go.Scatter(x=pdp_ml.pd_results[0]['values'][0], y=pdp_ml.pd_results[0]['average'][0], name='Standard ML PDP (Biased Correlation)', line=dict(color='red', dash='dash', width=3)))
+    # Plot the naive (biased) regression line
+    x_range_plot = np.linspace(T.min(), T.max(), 100)
+    fig.add_trace(go.Scatter(x=x_range_plot, y=naive_model.predict(sm.add_constant(x_range_plot)), name=f'Naive Correlation (Slope ≈ {naive_effect_coeff:.2f})', line=dict(color='red', dash='dash', width=3)))
     
-    # Plot the true causal effect as a straight line with the slope estimated by LinearDML
-    x_range = np.linspace(T.min(), T.max(), 100)
-    # To center the line correctly, calculate the intercept that makes it pass through the data's mean point
-    intercept_causal = Y.mean() - (ate_estimate * T.mean())
-    fig.add_trace(go.Scatter(x=x_range, y=intercept_causal + ate_estimate * x_range, name=f'Causal ML Effect (ATE ≈ {ate_estimate[0]:.2f})', line=dict(color=SUCCESS_GREEN, width=4)))
+    # Plot the true causal effect line
+    intercept_causal = Y.mean() - (causal_effect_ate * T.mean())
+    fig.add_trace(go.Scatter(x=x_range_plot, y=intercept_causal + causal_effect_ate * x_range_plot, name=f'Causal ML Effect (ATE ≈ {causal_effect_ate:.2f})', line=dict(color=SUCCESS_GREEN, width=4)))
     
     # Plot raw data for context
     fig.add_trace(go.Scatter(x=T.flatten(), y=Y, mode='markers', name='Raw Data', marker=dict(opacity=0.1, color='grey')))
     
-    fig.update_layout(title="<b>Standard ML vs. Causal ML: Uncovering the True Effect</b>",
+    fig.update_layout(title="<b>Standard Correlation vs. Causal ML: Uncovering the True Effect</b>",
                       xaxis_title="Process Parameter Value", yaxis_title="Impact on Process Output",
                       legend=dict(x=0.01, y=0.99))
-    return fig
+                      
+    # FIX: Return the figure and the two scalar effect values
+    return fig, causal_effect_ate, naive_effect_coeff
     
 #=====================================================================================================================================================================
 ##=============================================================================================END ACT I ===================================================================================
@@ -11039,7 +11034,7 @@ def render_causal_inference():
             
 # SNIPPET: Replace your entire render_causal_ml function with this final, high-performance version.
 
-# SNIPPET: Replace your entire render_causal_ml function with this corrected, interactive version.
+# SNIPPET 2: Replace the entire render_causal_ml function with this corrected version.
 
 def render_causal_ml():
     """Renders the comprehensive module for Causal Machine Learning."""
@@ -11050,27 +11045,40 @@ def render_causal_ml():
     **Strategic Application:** This is the ultimate tool for data-driven Root Cause Analysis and process optimization from historical, "found" data. It allows you to answer the critical question: **"If I change this process parameter by 1 unit, what is the *true causal impact* on my final product quality, after accounting for all other confounding variables?"**
     """)
     
-    # --- FIX: The user instruction is updated to reflect the new interactive behavior. ---
     st.info("""
     **Interactive Demo:** You are a Data Scientist investigating the effect of a process parameter on product purity.
-    1.  Use the **"Confounding Strength"** slider in the sidebar to control how much the confounder distorts the relationship.
-    2.  The plot will now update **in real-time**, showing how the Causal ML model (green line) uncovers the true effect while the standard ML model (red line) is misled.
+    1.  Use the **"Confounding Strength"** slider to control how much the confounder distorts the relationship.
+    2.  The plot will now update **in real-time**, showing how the Causal ML model (green line) uncovers the true effect while the standard model (red line) is misled by the confounding.
     """)
 
     with st.sidebar:
         st.subheader("Causal ML Controls")
         confounding_strength = st.slider("Confounding Strength", 0.0, 2.0, 1.0, 0.1, help="How strongly the confounder (W) influences the choice of the process parameter (T).")
 
-    # --- FIX: The "Run" button and session state logic have been removed. ---
-    # The plotting function is now called directly on every script run, providing real-time interactivity.
     st.header("Causal Machine Learning Dashboard")
-    try:
-        with st.spinner("Training models..."):
-            fig = plot_causal_ml_comparison(confounding_strength)
-            st.plotly_chart(fig, use_container_width=True)
-    except Exception as e:
-        st.error(f"Could not run Causal ML analysis. Error: {e}")
-        st.warning("This can occur if the `econml` library is not installed. Please run: `pip install econml`")
+    
+    # --- FIX: The UI is now fully interactive and includes the metric panel ---
+    col_fig, col_kpi = st.columns([0.65, 0.35])
+    
+    with col_fig:
+        try:
+            with st.spinner("Training models..."):
+                # The plotting function now returns the fig and two scalar values
+                fig, causal_effect, naive_effect = plot_causal_ml_comparison(confounding_strength)
+                st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"Could not run Causal ML analysis. Error: {e}")
+            st.warning("This can occur if the `econml` library is not installed. Please run: `pip install econml`")
+            # Set dummy values on error to prevent dashboard from crashing
+            causal_effect, naive_effect = 0, 0
+    
+    with col_kpi:
+        st.subheader("Statistical Verdict")
+        st.metric("Unbiased Causal Effect (ATE)", f"{causal_effect:.3f}", help="The true, unbiased impact of the parameter, estimated by the Causal ML model.")
+        st.metric("Biased Correlational Effect", f"{naive_effect:.3f}", help="The misleading effect from a simple linear model that ignores the confounder.")
+        st.markdown("---")
+        st.success("**True Causal Effect is ~2.0**")
+        st.markdown("Notice how the Causal ML estimate remains stable and accurate, while the Biased estimate is distorted by the confounding strength.")
 
     st.divider()
     st.subheader("Deeper Dive into Causal Machine Learning")
@@ -11080,10 +11088,10 @@ def render_causal_ml():
         st.markdown("""
         **A Realistic Workflow & Interpretation:**
         1.  **The Raw Data (Grey Dots):** The raw scatter plot shows a complex, messy, and seemingly non-linear relationship between the Process Parameter and the Output.
-        2.  **The Standard ML Prediction (Red Dashed Line):** A standard, powerful ML model like RandomForest is trained to predict the output from the inputs. Its Partial Dependence Plot (PDP) is shown. This line represents the **biased correlation**. It is an excellent *predictor*, but it is a terrible *explanation* of the true causal effect.
-        3.  **The Causal ML Estimate (Green Line):** The Causal ML (Double ML) model is then applied. It intelligently removes the influence of the confounder to isolate the true, underlying relationship. In this simulation, it correctly uncovers the simple, linear causal effect that was hidden within the complex correlational data.
+        2.  **The Standard Model Prediction (Red Dashed Line):** A standard linear regression model is fit to the data. This line represents the **biased correlation**. It is a terrible *explanation* of the true causal effect.
+        3.  **The Causal ML Estimate (Green Line):** The Causal ML (LinearDML) model is then applied. It intelligently removes the influence of the confounder to isolate the true, underlying relationship. In this simulation, it correctly uncovers the simple, linear causal effect of ~2.0 that was hidden within the complex correlational data.
 
-        **The Strategic Insight:** Predictive power is not the same as causal understanding. A standard ML model is a powerful **correlation engine**. A Causal ML model is a sophisticated **causal inference engine**. For Root Cause Analysis and process optimization, you must use the right tool for the job. Causal ML is that tool.
+        **The Strategic Insight:** Predictive power is not the same as causal understanding. A standard model is a **correlation engine**. A Causal ML model is a sophisticated **causal inference engine**. For Root Cause Analysis and process optimization, you must use the right tool for the job.
         """)
         
     with tabs[1]:
@@ -11116,9 +11124,8 @@ def render_causal_ml():
         - **Causal Inference:** The process of drawing a conclusion about a causal connection based on the conditions of the occurrence of an effect.
         - **Observational Data:** Data gathered from a system in its natural state, without a controlled experimental design (e.g., historical manufacturing data). This data is often rife with confounding.
         - **Confounder:** A variable that influences both the dependent variable (outcome) and independent variable (treatment), causing a spurious association.
-        - **Double Machine Learning (DML):** A state-of-the-art Causal ML technique that uses two supervised machine learning models to partial out the effects of confounders, thereby providing an unbiased estimate of a treatment's causal effect.
-        - **Partial Dependence Plot (PDP):** A plot from standard ML that shows the average predicted outcome as a function of an input feature. In the presence of confounding, the PDP shows the **biased correlation**, not the true causal effect.
-        - **Conditional Average Treatment Effect (CATE):** The causal effect of an intervention for a specific subgroup or individual. Causal ML models are designed to estimate this.
+        - **Double Machine Learning (DML):** A state-of-the-art Causal ML technique that uses two supervised machine learning models to partial out the effects of confounders, thereby providing an unbiased estimate of a treatment's causal effect. The `LinearDML` model is a specific implementation of this framework.
+        - **Average Treatment Effect (ATE):** The average causal effect of a treatment or intervention across an entire population. `LinearDML` is designed to estimate the ATE.
         """)
         
     with tabs[3]:

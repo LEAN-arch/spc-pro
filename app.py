@@ -12655,16 +12655,17 @@ def render_ode_line_sync():
 
     with st.sidebar:
         st.subheader("Production Rates (units/hr)")
-        r0 = st.slider("Step 1: Granulation", 50, 150, 100)
-        r1 = st.slider("Step 2: Drying", 50, 150, 90)
-        r2 = st.slider("Step 3: Compression", 50, 150, 110)
-        r3 = st.slider("Step 4: Packaging", 50, 150, 100)
+        # --- HELP TEXT ADDED TO EACH SLIDER ---
+        r0 = st.slider("Step 1: Granulation", 50, 150, 100, help="Sets the production rate of the first process step. This is the rate at which inventory feeds into the first buffer.")
+        r1 = st.slider("Step 2: Drying", 50, 150, 90, help="Sets the rate of the second step. This rate drains the first buffer and feeds the second. A low value here will create a bottleneck.")
+        r2 = st.slider("Step 3: Compression", 50, 150, 110, help="Sets the rate of the third step. This rate drains the second buffer and feeds the final packaging step.")
+        r3 = st.slider("Step 4: Packaging", 50, 150, 100, help="Sets the rate of the final step, representing the line's final output capacity. If this is the slowest step, inventory will accumulate in the second buffer.")
+        # --- END OF ADDITIONS ---
         
     rates = [r0, r1, r2, r3]
 
     st.header("Production Line Dynamics Dashboard")
 
-    # --- FIX: Call the plotting function directly for real-time interactivity ---
     fig, max_wip1, max_wip2 = plot_line_sync_ode(rates)
     bottleneck_rate = min(rates)
 
@@ -12759,7 +12760,6 @@ A successful operation is managed as a single, integrated system, not a collecti
         - **Process Analytical Technology (PAT):** For continuous manufacturing processes, a dynamic model of the line is essential. It can be used to predict the impact of disturbances and to design feed-forward and feedback control loops that maintain a state of control across the entire train.
         - **GAMP 5:** If this ODE model is used to make GxP decisions (e.g., setting production targets, justifying equipment purchases), the model and the software it runs on would need to be formally validated as a Computerized System.
         """)
-
 
 def render_lean_manufacturing():
     """Renders the comprehensive module for Lean Manufacturing & Value Stream Mapping."""

@@ -13354,6 +13354,8 @@ def render_bayesian():
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================
 #================================ 0 OEE ==================================================================================================================
+# SNIPPET: Replace your entire render_oee function with this enhanced version.
+
 def render_oee():
     """Renders the comprehensive module for Overall Equipment Effectiveness (OEE)."""
     st.markdown("""
@@ -13372,12 +13374,37 @@ def render_oee():
     with st.sidebar:
         st.subheader("OEE Calculator")
         st.markdown("Enter data from a typical production shift.")
-        shift_length = st.number_input("Shift Length (minutes)", value=480)
-        breaks = st.number_input("Planned Breaks (minutes)", value=60)
-        unplanned_downtime = st.number_input("Unplanned Downtime (minutes)", value=47, help="e.g., machine breakdowns, setup/changeover time.")
-        ideal_cycle_time = st.number_input("Ideal Cycle Time (seconds/unit)", value=60.0, format="%.1f")
-        total_units = st.number_input("Total Units Produced", value=300)
-        good_units = st.number_input("Good Units Produced (no defects)", value=285)
+        shift_length = st.number_input(
+            "Shift Length (minutes)", 
+            value=480,
+            help="The total duration of the shift from start to finish, e.g., 8 hours = 480 minutes."
+        )
+        breaks = st.number_input(
+            "Planned Breaks (minutes)", 
+            value=60,
+            help="Time for scheduled breaks, lunches, and planned team meetings. This time is excluded from the OEE calculation base."
+        )
+        unplanned_downtime = st.number_input(
+            "Unplanned Downtime (minutes)", 
+            value=47, 
+            help="All time the machine was scheduled to run but did not, e.g., breakdowns, material shortages, setup/changeover time. This directly impacts the 'Availability' score."
+        )
+        ideal_cycle_time = st.number_input(
+            "Ideal Cycle Time (seconds/unit)", 
+            value=60.0, 
+            format="%.1f",
+            help="The theoretical fastest possible time to produce one unit, as specified by the equipment manufacturer. This is the benchmark for 'Performance'."
+        )
+        total_units = st.number_input(
+            "Total Units Produced", 
+            value=300,
+            help="The total count of all units produced during the shift, including both good parts and defects."
+        )
+        good_units = st.number_input(
+            "Good Units Produced (no defects)", 
+            value=285,
+            help="The count of units that passed all quality checks and did not require any rework. This directly impacts the 'Quality' score."
+        )
 
     # OEE Calculations
     planned_production_time = shift_length - breaks
@@ -13487,7 +13514,6 @@ The value of OEE comes from its unflinching honesty. The goal is not to achieve 
         - **FDA Process Validation Guidance (Stage 3 - CPV):** An effective Continued Process Verification program should monitor key performance indicators. OEE provides a holistic measure of the health of the equipment, which is a critical component of the overall process.
         - **FDA Guidance: "Pharmaceutical cGMPs for the 21st Century":** This initiative explicitly encourages the adoption of modern quality management techniques from other industries. OEE, born from the Toyota Production System, is a prime example of such a technique that enhances efficiency and control.
         """)
-
 
 #======================================= 1. PROCESS CONTROL PLAN BUILDER  ============================================================================
 def render_control_plan_builder():

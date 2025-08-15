@@ -4161,41 +4161,43 @@ def plot_value_stream_map(process_times, wait_times):
     """
     steps = ["Material Receipt", "Dispensing", "Granulation", "Compression", "QC Testing", "Packaging"]
     
-    fig = go.Figure()
-
     # Create the timeline bars
-    y_pos = len(steps)
     total_time = 0
     timeline_items = []
 
+    # --- THIS IS THE FIX ---
+    # A new key 'Task' with a constant value is added to each dictionary.
+    # This creates the column that the 'y' parameter of px.timeline requires.
     for i, step in enumerate(steps):
         # Value-Added Time (Process Time)
-        timeline_items.append({'start': total_time, 'end': total_time + process_times[i], 'label': step, 'type': 'Value-Added'})
+        timeline_items.append({'start': total_time, 'end': total_time + process_times[i], 'label': step, 'type': 'Value-Added', 'Task': 'Process Timeline'})
         total_time += process_times[i]
         # Non-Value-Added Time (Wait Time)
         if i < len(wait_times):
-            timeline_items.append({'start': total_time, 'end': total_time + wait_times[i], 'label': 'Wait', 'type': 'Non-Value-Added'})
+            timeline_items.append({'start': total_time, 'end': total_time + wait_times[i], 'label': 'Wait', 'type': 'Non-Value-Added', 'Task': 'Process Timeline'})
             total_time += wait_times[i]
 
     # Create the Gantt chart from the timeline items
     df = pd.DataFrame(timeline_items)
-    fig = px.timeline(df, x_start="start", x_end="end", y_pos=1, color="type",
+    # The 'y_pos=1' argument is replaced with the correct 'y="Task"'
+    fig = px.timeline(df, x_start="start", x_end="end", y="Task", color="type",
                       color_discrete_map={'Value-Added': SUCCESS_GREEN, 'Non-Value-Added': '#EF553B'},
                       text="label")
+    # --- END OF FIX ---
 
     # Create the Kaizen burst annotations for improvement opportunities
     wait_starts = df[df['type'] == 'Non-Value-Added']['start']
     for start in wait_starts:
         fig.add_annotation(
             x=start + (df[df['start'] == start]['end'].iloc[0] - start) / 2,
-            y=1.25,
+            y=0.25, # Adjusted y-position relative to the categorical axis
             text="💥",
             showarrow=False,
             font=dict(size=24)
         )
         fig.add_annotation(
             x=start + (df[df['start'] == start]['end'].iloc[0] - start) / 2,
-            y=1.4,
+            y=0.4, # Adjusted y-position
             text="Kaizen<br>Opportunity",
             showarrow=False
         )
@@ -4214,7 +4216,6 @@ def plot_value_stream_map(process_times, wait_times):
     fig.update_traces(textangle=0)
     
     return fig, total_cycle_time, process_cycle_efficiency
-
 
 #===================================================== MONTE CARLO ========================================================
 @st.cache_data

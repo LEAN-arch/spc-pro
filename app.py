@@ -4366,11 +4366,10 @@ def fit_prophet_model(train_df, n_forecast):
     except Exception:
         return pd.Series(np.nan, index=pd.to_datetime(train_df['ds'].tail(n_forecast)))
 
-@st.cache_data
 def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoint_strength):
     """
     Generates a dynamic time series and fits five different forecasting models to it.
-    This version isolates the problematic Prophet model fitting to a non-cached function.
+    This version is NOT cached to prevent serialization errors with complex models.
     """
     np.random.seed(42)
     periods = 156 
@@ -4426,8 +4425,15 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
     except Exception:
         forecasts['SARIMA'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # Prophet --- CALL THE NON-CACHED HELPER ---
-    forecasts['Prophet'] = fit_prophet_model(train, n_forecast)
+    # Prophet
+    try:
+        with suppress_stdout():
+            m_prophet = Prophet().fit(train)
+        future = m_prophet.make_future_dataframe(periods=n_forecast, freq='W')
+        fc_prophet = m_prophet.predict(future)
+        forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
+    except Exception:
+        forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
         
     # ETS
     try:

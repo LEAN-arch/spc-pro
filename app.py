@@ -4157,65 +4157,75 @@ def plot_line_sync_ode(rates):
 @st.cache_data
 def plot_value_stream_map(process_times, wait_times):
     """
-    Generates an interactive Value Stream Map.
+    Generates a professional, multi-layered Value Stream Map using Plotly.
     """
-    steps = ["Material Receipt", "Dispensing", "Granulation", "Compression", "QC Testing", "Packaging"]
-    
-    # Create the timeline bars
-    total_time = 0
-    timeline_items = []
+    steps = ["Receipt", "Dispensing", "Granulation", "Compression", "QC Testing", "Packaging"]
+    total_value_added = sum(process_times)
+    total_lead_time = total_value_added + sum(wait_times)
+    process_cycle_efficiency = (total_value_added / total_lead_time) * 100 if total_lead_time > 0 else 0
 
-    # --- THIS IS THE FIX ---
-    # A new key 'Task' with a constant value is added to each dictionary.
-    # This creates the column that the 'y' parameter of px.timeline requires.
+    fig = go.Figure()
+
+    # --- 1. Main Process Flow (Sankey-like boxes) ---
+    y_process = 2
+    x_pos = 10
     for i, step in enumerate(steps):
-        # Value-Added Time (Process Time)
-        timeline_items.append({'start': total_time, 'end': total_time + process_times[i], 'label': step, 'type': 'Value-Added', 'Task': 'Process Timeline'})
-        total_time += process_times[i]
-        # Non-Value-Added Time (Wait Time)
-        if i < len(wait_times):
-            timeline_items.append({'start': total_time, 'end': total_time + wait_times[i], 'label': 'Wait', 'type': 'Non-Value-Added', 'Task': 'Process Timeline'})
-            total_time += wait_times[i]
+        # Process Box
+        fig.add_shape(type="rect", x0=x_pos, y0=y_process-0.5, x1=x_pos+10, y1=y_process+0.5,
+                      fillcolor=SUCCESS_GREEN, line=dict(color="black", width=2))
+        fig.add_annotation(x=x_pos+5, y=y_process, text=f"<b>{step}</b>", showarrow=False, font_color="white")
+        
+        # Data Box
+        fig.add_shape(type="rect", x0=x_pos, y0=y_process-1.5, x1=x_pos+10, y1=y_process-0.5,
+                      fillcolor="white", line=dict(color="black"))
+        fig.add_annotation(x=x_pos+5, y=y_process-1, text=f"C/T: {process_times[i]} hrs<br>Yield: {np.random.uniform(0.95, 0.99):.1%}",
+                           showarrow=False, align="left", xanchor="center")
+        
+        x_pos += 10
+        # Inventory Triangle (Wait Time)
+        if i < len(steps) - 1:
+            fig.add_shape(type="path", path=f"M {x_pos}, {y_process-0.5} L {x_pos+5}, {y_process} L {x_pos}, {y_process+0.5} Z",
+                          fillcolor="#EF553B", line_color="black")
+            fig.add_annotation(x=x_pos+2.5, y=y_process-1, text=f"{wait_times[i]} hrs", showarrow=False, font_size=12)
+            # Kaizen Burst
+            fig.add_annotation(x=x_pos+2.5, y=y_process+1, text="💥", font=dict(size=24, color="red"), showarrow=False)
+            x_pos += 5
 
-    # Create the Gantt chart from the timeline items
-    df = pd.DataFrame(timeline_items)
-    # The 'y_pos=1' argument is replaced with the correct 'y="Task"'
-    fig = px.timeline(df, x_start="start", x_end="end", y="Task", color="type",
-                      color_discrete_map={'Value-Added': SUCCESS_GREEN, 'Non-Value-Added': '#EF553B'},
-                      text="label")
-    # --- END OF FIX ---
-
-    # Create the Kaizen burst annotations for improvement opportunities
-    wait_starts = df[df['type'] == 'Non-Value-Added']['start']
-    for start in wait_starts:
-        fig.add_annotation(
-            x=start + (df[df['start'] == start]['end'].iloc[0] - start) / 2,
-            y=0.25, # Adjusted y-position relative to the categorical axis
-            text="💥",
-            showarrow=False,
-            font=dict(size=24)
-        )
-        fig.add_annotation(
-            x=start + (df[df['start'] == start]['end'].iloc[0] - start) / 2,
-            y=0.4, # Adjusted y-position
-            text="Kaizen<br>Opportunity",
-            showarrow=False
-        )
-
-    total_value_added = df[df['type'] == 'Value-Added']['end'].sum() - df[df['type'] == 'Value-Added']['start'].sum()
-    total_non_value_added = df[df['type'] == 'Non-Value-Added']['end'].sum() - df[df['type'] == 'Non-Value-Added']['start'].sum()
-    total_cycle_time = total_time
-    process_cycle_efficiency = (total_value_added / total_cycle_time) * 100 if total_cycle_time > 0 else 0
-
-    fig.update_layout(
-        title="<b>Value Stream Map: Visualizing Waste in the Process</b>",
-        xaxis_title="Total Cycle Time (Hours)",
-        yaxis=dict(showticklabels=False, title=""),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-    fig.update_traces(textangle=0)
+    # --- 2. Information Flow (Top Layer) ---
+    y_info = 4
+    fig.add_shape(type="rect", x0=35, y0=y_info-0.3, x1=45, y1=y_info+0.3, fillcolor="lightblue", line_color="black")
+    fig.add_annotation(x=40, y=y_info, text="<b>Production<br>Control</b>", showarrow=False)
+    # Arrows to processes
+    fig.add_annotation(ax=40, ay=y_info-0.3, x=15, y=y_process+0.5, arrowhead=2, arrowwidth=2)
+    fig.add_annotation(ax=40, ay=y_info-0.3, x=70, y=y_process+0.5, arrowhead=2, arrowwidth=2)
     
-    return fig, total_cycle_time, process_cycle_efficiency
+    # --- 3. Timeline (Bottom Layer) ---
+    y_time = -1
+    fig.add_shape(type="line", x0=10, x1=x_pos, y0=y_time, y1=y_time, line=dict(color="black", width=3))
+    
+    current_time = 10
+    for i in range(len(process_times)):
+        # Value-add time
+        fig.add_shape(type="line", x0=current_time, x1=current_time+process_times[i]*2, y0=y_time-0.2, y1=y_time+0.2, line=dict(color=SUCCESS_GREEN, width=15))
+        current_time += process_times[i]*2
+        # Wait time
+        if i < len(wait_times):
+            fig.add_shape(type="line", x0=current_time, x1=current_time+wait_times[i]*0.5, y0=y_time-0.2, y1=y_time+0.2, line=dict(color="#EF553B", width=15))
+            current_time += wait_times[i]*0.5
+    
+    fig.add_annotation(x=10, y=y_time-0.5, text=f"<b>Value-Added Time: {total_value_added:.1f} Hours</b>", showarrow=False, xanchor="left", font_color=SUCCESS_GREEN)
+    fig.add_annotation(x=x_pos, y=y_time-0.8, text=f"<b>Total Lead Time: {total_lead_time:.1f} Hours</b>", showarrow=False, xanchor="right", font_color="black")
+    
+    fig.update_layout(
+        title=f"<b>Value Stream Map (PCE: {process_cycle_efficiency:.1f}%)</b>",
+        xaxis=dict(visible=False, range=[0, x_pos+10]),
+        yaxis=dict(visible=False, range=[-2, 5]),
+        showlegend=False,
+        height=600,
+        plot_bgcolor='#F0F2F6'
+    )
+    
+    return fig, total_lead_time, process_cycle_efficiency
 
 #===================================================== MONTE CARLO ========================================================
 @st.cache_data

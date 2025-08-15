@@ -4368,101 +4368,57 @@ def fit_prophet_model(train_df, n_forecast):
 
 def plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength):
     """
-    Generates a dynamic time series and fits a user-selected subset of forecasting models.
-    This version is optimized for speed by using monthly data instead of weekly.
+    Generates a dynamic time series and fits a user-selected subset of FAST forecasting models.
+    This version is optimized for speed and stability by excluding heavy, compiled-backend models.
     """
     np.random.seed(42)
-    # --- PERFORMANCE OPTIMIZATION: Switched to monthly data ---
-    periods = 96  # 8 years of monthly data
-    n_forecast = 12 # Forecast 1 year
-    dates = pd.date_range(start='2015-01-01', periods=periods, freq='MS') # MS for Month Start
+    periods = 96
+    n_forecast = 12
+    dates = pd.date_range(start='2015-01-01', periods=periods, freq='MS')
     
     # 1. Generate Data
     if trend_type == 'Multiplicative':
         trend = 50 * np.exp(np.arange(periods) * 0.02)
     else: 
         trend = 100 + 0.5 * np.arange(periods)
-        
     seasonality = np.zeros(periods)
-    seasonal_period_1 = 12 # Yearly seasonality on monthly data
-    seasonal_period_2 = 3  # Quarterly seasonality
-    
+    seasonal_period_1 = 12
     if seasonality_type == 'Single (Yearly)':
         seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_1))
-    elif seasonality_type == 'Multiple (Yearly + Quarterly)':
-        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_1)) + 7 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_2))
     
-    changepoint_loc = 72 # Changepoint after 6 years
+    changepoint_loc = 72
     trend[changepoint_loc:] += changepoint_strength * np.arange(periods - changepoint_loc)
-        
     noise = np.random.normal(0, noise_level, periods)
     y = trend + seasonality + noise
-    
     df = pd.DataFrame({'ds': dates, 'y': y})
     train, test = df.iloc[:-n_forecast], df.iloc[-n_forecast:]
     
-    # 2. Fit ONLY SELECTED Models & Forecast
+    # 2. Fit ONLY SELECTED, FAST Models & Forecast
     forecasts = {}
     mae_scores = {}
-    
-    @contextlib.contextmanager
-    def suppress_stdout():
-        with open(os.devnull, 'w') as fnull:
-            import sys
-            saved_stdout = sys.stdout
-            sys.stdout = fnull
-            try:
-                yield
-            finally:
-                sys.stdout = saved_stdout
 
-    # --- Models are now configured for faster monthly data (m=12) ---
     if 'Holt-Winters' in models_to_run:
         try:
             hw_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
-            hw_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
-            hw = ExponentialSmoothing(train['y'], trend=hw_trend, seasonal=hw_seasonal, seasonal_periods=seasonal_period_1).fit()
+            hw_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add' if seasonality_type != 'None' else None
+            hw = ExponentialSmoothing(train['y'], trend=hw_trend, seasonal=hw_seasonal, seasonal_periods=seasonal_period_1 if hw_seasonal else None).fit()
             forecasts['Holt-Winters'] = hw.forecast(n_forecast)
         except Exception: forecasts['Holt-Winters'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
     if 'SARIMA' in models_to_run:
         try:
-            sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=(1,1,0,seasonal_period_1)).fit(disp=False)
+            seasonal_order = (1,1,0,seasonal_period_1) if seasonality_type != 'None' else (0,0,0,0)
+            sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=seasonal_order).fit(disp=False)
             forecasts['SARIMA'] = sarima.get_forecast(steps=n_forecast).predicted_mean
         except Exception: forecasts['SARIMA'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
-
-    if 'Prophet' in models_to_run:
-        try:
-            with suppress_stdout():
-                m_prophet = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
-                if seasonality_type == 'Multiple (Yearly + Quarterly)':
-                    m_prophet.add_seasonality(name='quarterly', period=91.25, fourier_order=5)
-                m_prophet.fit(train)
-            future = m_prophet.make_future_dataframe(periods=n_forecast, freq='MS')
-            fc_prophet = m_prophet.predict(future)
-            forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
-        except Exception: forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
         
     if 'ETS' in models_to_run:
         try:
             ets_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
-            ets_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
-            ets = ETSModel(train['y'], error="add", trend=ets_trend, seasonal=ets_seasonal, seasonal_periods=seasonal_period_1).fit(disp=False)
+            ets_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add' if seasonality_type != 'None' else None
+            ets = ETSModel(train['y'], error="add", trend=ets_trend, seasonal=ets_seasonal, seasonal_periods=seasonal_period_1 if ets_seasonal else None).fit(disp=False)
             forecasts['ETS'] = ets.forecast(n_forecast)
         except Exception: forecasts['ETS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
-
-    if 'TBATS' in models_to_run:
-        try:
-            seasonal_periods = []
-            if seasonality_type == 'Single (Yearly)':
-                seasonal_periods = [seasonal_period_1]
-            elif seasonality_type == 'Multiple (Yearly + Quarterly)':
-                seasonal_periods = [seasonal_period_1, seasonal_period_2]
-            estimator = TBATS(seasonal_periods=seasonal_periods, use_trend=True)
-            with suppress_stdout():
-                fitted_model = estimator.fit(train['y'])
-            forecasts['TBATS'] = fitted_model.forecast(steps=n_forecast)
-        except Exception: forecasts['TBATS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
     # 3. Calculate MAE and Plot
     fig = go.Figure()
@@ -4479,7 +4435,6 @@ def plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_le
     fig.update_layout(title="<b>Competitive Forecasts vs. Actual Data</b>", xaxis_title="Date", yaxis_title="Value",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig, mae_scores
-
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Stability Analysis) - SME ENHANCED
 # ==============================================================================
@@ -11469,83 +11424,49 @@ def render_time_series_suite():
     
     **Strategic Application:** This dashboard serves as a decision-making and training tool for anyone involved in demand planning, resource forecasting, or process monitoring. It allows you to simulate different real-world data scenarios (e.g., a sudden trend change, multiple seasonalities) and instantly see which forecasting model performs best, providing a clear rationale for your choice of tool.
     """)
-    st.success("""
-    **⚡ Performance Upgrade:** This module now uses an intelligent caching strategy. 
-    The **first time** you run a specific scenario, it may take a few seconds to compute. 
-    Every subsequent time you run that **same scenario**, the results will load instantly.
+    st.info("""
+    **Interactive Demo:** This streamlined suite is now fast and stable.
+    1.  Use the **sidebar controls** to configure your desired data scenario.
+    2.  Select the specific **Models to Run** to see how they compare.
+    3.  The results will now appear almost instantly.
     """)
     
-    # --- STEP 1: Initialize session_state to hold the manual cache and current results ---
-    if 'ts_cache' not in st.session_state:
-        st.session_state.ts_cache = {}
-        st.session_state.ts_fig = None
-        st.session_state.ts_mae_scores = {}
-
     with st.sidebar:
         st.subheader("Time Series Controls")
         
         models_to_run = st.multiselect(
             "Select Models to Run:",
-            options=['Holt-Winters', 'SARIMA', 'Prophet', 'ETS', 'TBATS'],
-            default=['Prophet', 'SARIMA'],
-            help="Select which models to fit. Running fewer models will be faster."
+            options=['Holt-Winters', 'SARIMA', 'ETS'],
+            default=['Holt-Winters', 'SARIMA', 'ETS'],
+            help="Select which models to fit. These pure-Python models are fast and stable."
         )
         
         trend_type = st.radio("Trend Type", ['Additive', 'Multiplicative'], help="Additive: linear growth. Multiplicative: exponential growth.")
-        seasonality_type = st.radio("Seasonality Type", ['None', 'Single (Yearly)', 'Multiple (Yearly + Quarterly)'])
+        seasonality_type = st.radio("Seasonality Type", ['None', 'Single (Yearly)']) # Removed Multiple for stability
         noise_level = st.slider("Noise Level (SD)", 1.0, 20.0, 5.0, 1.0)
-        changepoint_strength = st.slider("Trend Changepoint Strength", -5.0, 5.0, 0.0, 0.5, help="Simulates an abrupt change in the trend's slope 2/3 of the way through the data.")
+        changepoint_strength = st.slider("Trend Changepoint Strength", -5.0, 5.0, 0.0, 0.5, help="Simulates an abrupt change in the trend's slope.")
 
-        # --- STEP 2: The "Run" button with manual caching logic ---
-        if st.button("🚀 Run Forecast Analysis", use_container_width=True):
-            if not models_to_run:
-                st.warning("Please select at least one model to run.")
-                st.session_state.ts_fig = None
-                st.session_state.ts_mae_scores = {}
-            else:
-                # Create a unique key from all current settings
-                cache_key = (tuple(sorted(models_to_run)), trend_type, seasonality_type, noise_level, changepoint_strength)
-                
-                # Check if the results are already in our manual cache
-                if cache_key in st.session_state.ts_cache:
-                    # CACHE HIT: Instantly retrieve the results
-                    st.toast("Loading results from cache!", icon="⚡")
-                    fig, mae_scores = st.session_state.ts_cache[cache_key]
-                    st.session_state.ts_fig = fig
-                    st.session_state.ts_mae_scores = mae_scores
-                else:
-                    # CACHE MISS: Run the long computation
-                    with st.spinner("Fitting models and generating forecasts... This may take a moment."):
-                        fig, mae_scores = plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength)
-                        
-                        # Store the new results in session state for immediate display
-                        st.session_state.ts_fig = fig
-                        st.session_state.ts_mae_scores = mae_scores
-                        
-                        # IMPORTANT: Also store the results in our manual cache for future runs
-                        st.session_state.ts_cache[cache_key] = (fig, mae_scores)
-                st.rerun()
+    if not models_to_run:
+        st.warning("Please select at least one model to run from the sidebar.")
+        return
+
+    # No "Run" button or caching needed, as these models are fast enough.
+    fig, mae_scores = plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength)
 
     st.header("Forecasting Suite Dashboard")
-    
-    # --- STEP 3: Always display results from session state ---
-    if st.session_state.ts_fig is None:
-        st.info("Configure your scenario in the sidebar and click 'Run Forecast Analysis' to see the results.")
-    else:
-        col1, col2 = st.columns([0.65, 0.35])
-        with col1:
-            st.plotly_chart(st.session_state.ts_fig, use_container_width=True)
-        with col2:
-            st.subheader("Model Performance (MAE)")
-            st.markdown("Lower Mean Absolute Error (MAE) is better.")
-            
-            mae_scores = st.session_state.ts_mae_scores
-            if mae_scores:
-                best_model = min(mae_scores, key=mae_scores.get)
-                for name, score in sorted(mae_scores.items(), key=lambda item: item[1]):
-                    st.markdown(f"**{name}:** `{score:.2f}` {'🥇' if name == best_model else ''}")
-            else:
-                st.warning("No models could be successfully fitted to the data.")
+    col1, col2 = st.columns([0.65, 0.35])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Model Performance (MAE)")
+        st.markdown("Lower Mean Absolute Error (MAE) is better.")
+        
+        if mae_scores:
+            best_model = min(mae_scores, key=mae_scores.get)
+            for name, score in sorted(mae_scores.items(), key=lambda item: item[1]):
+                st.markdown(f"**{name}:** `{score:.2f}` {'🥇' if name == best_model else ''}")
+        else:
+            st.warning("No models could be successfully fitted to the data.")
             
     st.divider()
     st.subheader("Deeper Dive: Model Selection & Comparison")

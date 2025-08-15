@@ -7633,7 +7633,7 @@ This ensures alignment from start to finish and guarantees the final deliverable
         """)
 
 
-# SNIPPET 2: Replace the entire render_ivd_regulatory_framework function with this comprehensive new version.
+# SNIPPET: Replace the entire render_ivd_regulatory_framework function with this enhanced version.
 
 def render_ivd_regulatory_framework():
     """Renders the comprehensive module for the IVD & Medical Device Regulatory Framework."""
@@ -7665,7 +7665,7 @@ def render_ivd_regulatory_framework():
     
     st.header("The Regulatory Theater: A Global Comparison")
     
-    tab_usa, tab_eu, tab_jpn, tab_comp = st.tabs(["🇺🇸 USA (FDA)", "🇪🇺 European Union (MDR/IVDR)", "🇯🇵 Japan (PMDA)", "🌐 Global Comparison"])
+    tab_usa, tab_eu, tab_jpn, tab_comp = st.tabs(["🇺🇸 USA (FDA)", "🇪🇺 European Union (MDR/IVDR)", "🇯🇵 Japan (PMDA)", "🌐 Global Comparison & Harmonization"])
 
     with tab_usa:
         highlight_path_fda = path_map_fda.get(product_concept, '510k')
@@ -7679,11 +7679,19 @@ def render_ivd_regulatory_framework():
         highlight_path_jpn = path_map_jpn.get(product_concept, 'class_ii')
         st.plotly_chart(plot_jpn_pathway(highlight_path_jpn), use_container_width=True)
 
+    # --- THIS IS THE ENHANCED TAB CONTENT ---
     with tab_comp:
+        st.subheader("Global Harmonization: Speaking a Common Language of Quality")
         st.markdown("""
-        ### Global Harmonization: Speaking a Common Language of Quality
-        While each region has its own specific laws, a massive global effort has been made to harmonize the underlying principles and standards. This allows manufacturers to build a single, robust Quality Management System (QMS) that can meet the requirements of multiple countries.
+        While each region has its own specific laws, a massive global effort has been made to harmonize the underlying principles. This allows manufacturers to build a single, robust Quality Management System (QMS) that meets the requirements of multiple countries.
 
+        #### The Core Difference: "Gatekeeper" vs. "Auditor"
+        The most important strategic difference between the major regulatory systems is the role of the governing body.
+        - **USA / Japan (The Gatekeeper Model):** The regulatory body (FDA, PMDA) acts as a direct **gatekeeper**. You must submit your entire technical file and premarket submission directly to the agency, and their scientists and reviewers must approve it before you can go to market.
+        - **European Union (The Auditor Model):** The EU sets the laws (MDR/IVDR), but the "gatekeeper" role for most devices is delegated to independent, third-party organizations called **Notified Bodies**. You pay a Notified Body to audit your Quality System and review your Technical File. If they agree you are compliant, they grant you a **CE Mark** certificate, which allows you to sell your product anywhere in the EU.
+        """)
+
+        st.markdown("""
         **Comparison of Major Regulatory Systems**
         <style>
             .reg-table { width: 100%; border-collapse: collapse; } .reg-table th, .reg-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -7700,19 +7708,40 @@ def render_ivd_regulatory_framework():
         
         ---
         ### The Pillars of Global Compliance: Harmonized Standards
-        The key to an efficient global strategy is to build your QMS on internationally recognized standards.
-        - **ISO 13485:** The foundational standard for a Quality Management System.
-        - **ISO 14971:** The global gold standard for risk management.
-        - **IEC 62304:** The non-negotiable standard for medical device software lifecycle.
+        The key to an efficient global strategy is to build your QMS on internationally recognized standards. Compliance with these standards provides a "presumption of conformity" with the specific regulations in many regions.
+        - **ISO 13485: Medical devices — Quality management systems.** This is the foundational standard for a QMS. It is the basis for the US FDA's QSR, the EU's MDR/IVDR, and Canada's requirements. If you comply with ISO 13485, you have met the core QMS requirements for most of the world.
+        - **ISO 14971: Medical devices — Application of risk management.** This is the global gold standard for risk management. All major regulatory bodies expect a risk management process that aligns with this standard.
+        - **IEC 62304: Medical device software — Software life cycle processes.** If your device includes software, this standard is non-negotiable. It defines the rigorous process for software development, verification, and validation that is expected by both the FDA and EU authorities.
         """)
+    # --- END OF ENHANCEMENT ---
     
     st.divider()
     st.subheader("Deeper Dive into the Regulatory Framework")
     tabs_deep = st.tabs(["✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     
     with tabs_deep[0]:
-        # Business Case content remains the same...
-        st.markdown("...") 
+        st.markdown("""
+        ### The Business Case: Choosing Your Mountain
+    
+        #### The Problem: The "One-Size-Fits-All" Commercialization Plan
+        A startup develops a new biomarker technology. The leadership team, focused on speed to market, assumes they will follow the "standard" 510(k) pathway. They build their entire business plan—fundraising, timelines, and resource allocation—around this assumption, without deeply analyzing the implications of their intended use.
+    
+        #### The Impact: The Mid-Project Pivot and Business Model Failure
+        Halfway through development, during a pre-submission meeting, the FDA informs them that the specific diagnostic claims they want to make classify their product as high-risk Class III, requiring a full PMA.
+        - **Timeline Explodes:** The project timeline instantly balloons from 2 years to 5-7 years to account for the required clinical trials.
+        - **Budget Annihilated:** The cost of development skyrockets from ~$5-10 million for a 510(k) to **$50-100+ million** for a PMA. The company does not have the capital and may fail.
+        - **Strategic Failure:** The entire business model collapses. The company is now on a timeline and budget that makes it uncompetitive and unattractive to investors.
+    
+        #### The Solution: A Deliberate, Front-Loaded Strategic Choice
+        The choice of regulatory pathway is the most important **strategic business decision** a medical device company will make. It is a choice of which "mountain" to climb, and it must be made with eyes wide open at the very beginning of the project.
+        - **The 510(k) Path (The Foothills):** Faster and cheaper, but your claims are limited by your predicate.
+        - **The De Novo Path (The New Trail):** For novel, low-risk devices. More work than a 510(k) but avoids a PMA. You get to be the first.
+        - **The PMA Path (Mount Everest):** Incredibly long and expensive, but if you succeed, you have a powerful, defensible monopoly on a new technology.
+    
+        #### The Consequences: A Predictable Journey and Aligned Investment
+        - **Without This:** The project is a high-risk gamble based on a foundational assumption that may be completely wrong.
+        - **With This:** The company makes a **deliberate, informed, and strategic decision** on its regulatory pathway from Day 1. This aligns the entire organization on a single, realistic plan, dramatically increasing the probability of success.
+        """)
         
     with tabs_deep[1]:
         st.markdown("""
@@ -7722,28 +7751,43 @@ def render_ivd_regulatory_framework():
         - **De Novo:** US pathway for novel, low-risk devices with no predicate.
         - **EUA:** US temporary authorization during a public health emergency.
         - **QSR (21 CFR 820):** The US FDA's cGMP requirements for medical devices.
-        - **CE Mark:** The mandatory conformity mark for products sold in the European Economic Area. It signifies compliance with EU regulations.
-        - **Notified Body:** A third-party organization designated by an EU country to audit a manufacturer's QMS and technical documentation and grant the CE Mark for most devices.
-        - **MDR/IVDR:** The new, more stringent regulations for medical devices and IVDs in the EU.
-        - **IMDRF (International Medical Device Regulators Forum):** The current global harmonization body that develops standardized guidance.
-        - **PMDA & MHLW:** The primary regulatory agency and ministry in Japan.
+        - **CE Mark:** The mandatory conformity mark for products sold in the European Economic Area. It signifies that the manufacturer has verified the product complies with all applicable EU regulations.
+        - **Notified Body:** A third-party organization designated by an EU country to assess the conformity of certain products before being placed on the market. They perform the audit and grant the CE Mark for most devices (Class IIa, IIb, III).
+        - **MDR (Medical Device Regulation):** The new, more stringent regulation for medical devices in the EU (Regulation (EU) 2017/745).
+        - **IVDR (In Vitro Diagnostic Regulation):** The new, more stringent regulation for IVDs in the EU (Regulation (EU) 2017/746).
+        - **IMDRF (International Medical Device Regulators Forum):** The current global harmonization body, a successor to the GHTF, that develops standardized guidance for medical device regulation.
+        - **PMDA (Pharmaceuticals and Medical Devices Agency):** The primary regulatory agency in Japan, analogous to the FDA.
         - **Shonin:** The term for pre-market approval in Japan.
-        - **MDSAP (Medical Device Single Audit Program):** A program that allows a single audit to satisfy the QMS requirements of multiple countries (USA, Canada, Brazil, Australia, Japan).
+        - **MDSAP (Medical Device Single Audit Program):** A program that allows a single audit of a medical device manufacturer's QMS to satisfy the requirements of multiple regulatory jurisdictions (USA, Canada, Brazil, Australia, Japan).
         """)
         
     with tabs_deep[2]:
-        # Golden Rule content remains the same...
-        st.markdown("...")
+        st.error("""🔴 **THE INCORRECT APPROACH: "RUO Creep"**
+A company sells a reagent kit labeled "For Research Use Only" (RUO). Their marketing materials and sales team, however, strongly imply or even directly state that the kit can be used by clinical labs to help in the diagnosis of a disease.
+- **The Flaw:** This is a major regulatory violation. They are illegally marketing an unapproved medical device. This "intended use creep" can lead to severe FDA enforcement action, including warning letters and product seizures.""")
+        st.success("""🟢 **THE GOLDEN RULE: Your Claims Define Your Device, and the Device Defines the Controls**
+The entire regulatory framework is built on a clear, logical cascade that you control.
+1.  **Your words (marketing, labeling, instructions) define the Intended Use.** You cannot hide from the claims you make about what your product does.
+2.  **The Intended Use defines the Risk Class.** A claim to diagnose a critical disease will always be higher risk than a claim to measure a routine health marker.
+3.  **The Risk Class defines the Regulatory Pathway (510(k) vs. PMA vs. CE Class).**
+4.  **The Regulatory Pathway defines the required Controls (e.g., Design Controls, Clinical Trials).**
+This chain is unbreakable. The process must start with a deliberate, documented, and consistently communicated Intended Use.""")
 
     with tabs_deep[3]:
-        # History content remains the same...
-        st.markdown("...")
+        st.markdown("""
+        #### Historical Context: From Elixirs of Death to a Risk-Based Framework
+        The US regulatory framework for medical devices was forged in response to public health crises.
+        - **1938 FD&C Act:** Passed after the Elixir Sulfanilamide tragedy, it gave the FDA authority over drugs but left devices largely unregulated.
+        - **1976 Medical Device Amendments:** The pivotal moment. Passed in response to catastrophic failures like the **Dalkon Shield IUD**, this act created the modern, risk-based framework: the **three-tiered classification system (Class I, II, III)** and the corresponding **510(k)** and **PMA** pathways.
+        - **1990 Safe Medical Devices Act:** Strengthened the FDA's authority and led to the creation of the mandatory **Design Controls** regulation to prevent failures from happening in the first place.
+        This history shows a clear legislative evolution from a reactive, post-market system to a proactive, pre-market, risk-based framework designed to ensure patient safety.
+        """)
         
     with tabs_deep[4]:
         st.markdown("""
         This framework is built on a foundation of specific regulations in major global markets, which are harmonized by international standards.
         - **USA:** The **FD&C Act** and **21 CFR Parts 800-1299** (especially **Part 820**, the Quality System Regulation).
-        - **Europe:** The **MDR (EU 2017/745)** and **IVDR (EU 2017/746)** are the primary laws.
+        - **Europe:** The **MDR (EU 2017/745)** and **IVDR (EU 2017/746)** are the primary laws. Compliance is often demonstrated via adherence to harmonized standards.
         - **Japan:** The **PMD Act** is the primary law, administered by the Ministry of Health, Labour and Welfare (MHLW) and the Pharmaceuticals and Medical Devices Agency (PMDA).
         - **International Standards (The "How-To" Guides):**
             - **ISO 13485:** The global standard for a Quality Management System.

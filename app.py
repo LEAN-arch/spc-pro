@@ -4437,9 +4437,10 @@ def plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_le
     return fig, mae_scores
 #=============================================================================================== ADVANCED TIME SERIES =========================================================================================================
 
-def plot_single_advanced_model(model_to_run, trend_type, seasonality_type, noise_level, changepoint_strength):
+ef plot_prophet_only(trend_type, seasonality_type, noise_level, changepoint_strength):
     """
-    Fits and plots a SINGLE advanced forecasting model (Prophet or TBATS) to be memory-safe.
+    Fits and plots ONLY the Prophet model. This function is designed to be stable
+    and handle data conversions explicitly to prevent plotting errors.
     """
     np.random.seed(42)
     periods = 96
@@ -4452,12 +4453,11 @@ def plot_single_advanced_model(model_to_run, trend_type, seasonality_type, noise
     else: 
         trend = 100 + 0.5 * np.arange(periods)
     seasonality = np.zeros(periods)
-    seasonal_period_1 = 12
-    seasonal_period_2 = 3
     if seasonality_type == 'Single (Yearly)':
-        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_1))
+        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / 12))
     elif seasonality_type == 'Multiple (Yearly + Quarterly)':
-        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_1)) + 7 * np.sin(np.arange(periods) * (2 * np.pi / seasonal_period_2))
+        seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / 12)) + 7 * np.sin(np.arange(periods) * (2 * np.pi / 3))
+    
     changepoint_loc = 72
     trend[changepoint_loc:] += changepoint_strength * np.arange(periods - changepoint_loc)
     noise = np.random.normal(0, noise_level, periods)
@@ -4465,10 +4465,11 @@ def plot_single_advanced_model(model_to_run, trend_type, seasonality_type, noise
     df = pd.DataFrame({'ds': dates, 'y': y})
     train, test = df.iloc[:-n_forecast], df.iloc[-n_forecast:]
     
-    # 2. Fit ONLY THE SELECTED Model
-    forecasts = {}
-    mae_scores = {}
+    mae_score = None
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')))
     
+    # Context manager to suppress stdout
     @contextlib.contextmanager
     def suppress_stdout():
         with open(os.devnull, 'w') as fnull:
@@ -4480,48 +4481,38 @@ def plot_single_advanced_model(model_to_run, trend_type, seasonality_type, noise
             finally:
                 sys.stdout = saved_stdout
 
-    if model_to_run == 'Prophet':
-        try:
-            with suppress_stdout():
-                m_prophet = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
-                if seasonality_type == 'Multiple (Yearly + Quarterly)':
-                    m_prophet.add_seasonality(name='quarterly', period=365.25/4, fourier_order=5)
-                m_prophet.fit(train)
-            future = m_prophet.make_future_dataframe(periods=n_forecast, freq='MS')
-            fc_prophet = m_prophet.predict(future)
-            forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
-        except Exception:
-            forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+    try:
+        with suppress_stdout():
+            m_prophet = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
+            if seasonality_type == 'Multiple (Yearly + Quarterly)':
+                m_prophet.add_seasonality(name='quarterly', period=365.25/4, fourier_order=5)
+            m_prophet.fit(train)
         
-    if model_to_run == 'TBATS':
-        try:
-            seasonal_periods = []
-            if seasonality_type == 'Single (Yearly)':
-                seasonal_periods = [seasonal_period_1]
-            elif seasonality_type == 'Multiple (Yearly + Quarterly)':
-                seasonal_periods = [seasonal_period_1, seasonal_period_2]
-            estimator = TBATS(seasonal_periods=seasonal_periods, use_trend=True)
-            with suppress_stdout():
-                fitted_model = estimator.fit(train['y'])
-            forecasts['TBATS'] = fitted_model.forecast(steps=n_forecast)
-        except Exception:
-            forecasts['TBATS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+        future = m_prophet.make_future_dataframe(periods=n_forecast, freq='MS')
+        fc_prophet = m_prophet.predict(future)
+        
+        # Robustly extract forecast and calculate MAE
+        forecast_values = fc_prophet['yhat'].iloc[-n_forecast:]
+        mae_score = mean_absolute_error(test['y'], forecast_values)
+        
+        # Explicitly plot the forecast data
+        fig.add_trace(go.Scatter(x=test['ds'], y=forecast_values, mode='lines', name='Prophet Forecast', line=dict(dash='dot', color=px.colors.qualitative.Plotly[3])))
+        
+        # Plot confidence interval
+        fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat_upper'], mode='lines', line=dict(width=0), showlegend=False))
+        fig.add_trace(go.Scatter(x=fc_prophet['ds'], y=fc_prophet['yhat_lower'], mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(255,0,0,0.1)', name='Prophet 80% CI'))
 
-    # 3. Calculate MAE and Plot
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')))
+    except Exception as e:
+        st.error(f"Prophet model failed to run: {e}")
+
     forecast_start_date = train['ds'].iloc[-1]
     fig.add_shape(type="line", x0=forecast_start_date, y0=0, x1=forecast_start_date, y1=1, yref="paper", line=dict(color="grey", dash="dash"))
     fig.add_annotation(x=forecast_start_date, y=1, yref="paper", text="Forecast Start", showarrow=False, yshift=10)
-    colors = {'Prophet': px.colors.qualitative.Plotly[3], 'TBATS': px.colors.qualitative.Plotly[4]}
-    for name, fc in forecasts.items():
-        fc_series = pd.Series(fc, index=test['ds'])
-        if not fc_series.isna().all() and len(fc_series) == len(test['y']):
-            mae_scores[name] = mean_absolute_error(test['y'], fc_series)
-            fig.add_trace(go.Scatter(x=test['ds'], y=fc_series, mode='lines', name=name, line=dict(dash='dot', color=colors[name])))
-    fig.update_layout(title=f"<b>{model_to_run} Forecast vs. Actual Data</b>", xaxis_title="Date", yaxis_title="Value",
+    
+    fig.update_layout(title="<b>Prophet Forecast vs. Actual Data</b>", xaxis_title="Date", yaxis_title="Value",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    return fig, mae_scores
+                      
+    return fig, mae_score
     
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Stability Analysis) - SME ENHANCED
@@ -11695,158 +11686,58 @@ def render_time_series_suite():
         > **Bottom Line:** In a regulated environment, a forecasting model is not just a statistical tool; it is a validated piece of software whose performance and reliability must be documented and controlled.
         """)
 #=============================================================================================== ADVANCED TIME SERIES ============================================================================================================================
-def render_advanced_forecasting_suite():
-    """Renders the advanced, computationally intensive suite for Prophet and TBATS."""
+def render_prophet_forecasting():
+    """Renders the dedicated, stable module for Prophet forecasting."""
     st.markdown("""
-    #### Purpose & Application: The Heavy-Duty Forecasting Engine
-    **Purpose:** To provide a dedicated environment for exploring two of the most powerful and automated forecasting libraries: **Prophet** and **TBATS**. This module is designed to handle complex scenarios with multiple seasonalities that challenge simpler models.
+    #### Purpose & Application: The Automated Forecasting Engine
+    **Purpose:** To provide a dedicated environment for exploring the powerful **Prophet** forecasting library from Meta. This module is designed to showcase Prophet's ability to handle complex scenarios with multiple seasonalities and trend changes.
     """)
-    st.error("""
-    **⚠️ Performance Warning:** These models are extremely resource-intensive. To prevent crashes, you can only run **one model at a time**. After clicking "Run Analysis," please allow **10-30 seconds** for the computation to complete.
+    st.warning("""
+    **Performance Notice:** The Prophet model is computationally intensive. After clicking "Run Analysis," please allow **5-15 seconds** for the computation to complete.
     """)
     
-    if 'adv_ts_cache' not in st.session_state:
-        st.session_state.adv_ts_cache = {}
-        st.session_state.adv_ts_fig = None
-        st.session_state.adv_ts_mae_scores = {}
+    if 'prophet_cache' not in st.session_state:
+        st.session_state.prophet_cache = {}
+        st.session_state.prophet_fig = None
+        st.session_state.prophet_mae = None
 
     with st.sidebar:
-        st.subheader("Advanced Forecasting Controls")
+        st.subheader("Prophet Forecasting Controls")
         
-        # --- NEW WIDGET TO FORCE A SINGLE MODEL CHOICE ---
-        model_to_run = st.radio(
-            "Select a Single Model to Run:",
-            options=['Prophet', 'TBATS'],
-            key='adv_model_choice',
-            help="Choose one model to run. This is necessary to prevent memory-related crashes."
-        )
-        
-        trend_type_pt = st.radio("Trend Type", ['Additive', 'Multiplicative'], key='adv_trend')
-        seasonality_type_pt = st.radio("Seasonality Type", ['Single (Yearly)', 'Multiple (Yearly + Quarterly)'], key='adv_season')
-        noise_level_pt = st.slider("Noise Level (SD)", 1.0, 20.0, 5.0, 1.0, key='adv_noise')
-        changepoint_strength_pt = st.slider("Trend Changepoint Strength", -5.0, 5.0, 0.0, 0.5, help="Simulates an abrupt change in the trend's slope.", key='adv_cp')
+        trend_type_p = st.radio("Trend Type", ['Additive', 'Multiplicative'], key='p_trend')
+        seasonality_type_p = st.radio("Seasonality Type", ['Single (Yearly)', 'Multiple (Yearly + Quarterly)'], key='p_season')
+        noise_level_p = st.slider("Noise Level (SD)", 1.0, 20.0, 5.0, 1.0, key='p_noise')
+        changepoint_strength_p = st.slider("Trend Changepoint Strength", -5.0, 5.0, 0.0, 0.5, help="Simulates an abrupt change in the trend's slope.", key='p_cp')
 
-        if st.button("🚀 Run Advanced Analysis", use_container_width=True):
-            cache_key = (model_to_run, trend_type_pt, seasonality_type_pt, noise_level_pt, changepoint_strength_pt)
-            if cache_key in st.session_state.adv_ts_cache:
+        if st.button("🚀 Run Prophet Analysis", use_container_width=True):
+            cache_key = (trend_type_p, seasonality_type_p, noise_level_p, changepoint_strength_p)
+            if cache_key in st.session_state.prophet_cache:
                 st.toast("Loading results from cache!", icon="⚡")
-                fig, mae_scores = st.session_state.adv_ts_cache[cache_key]
-                st.session_state.adv_ts_fig = fig
-                st.session_state.adv_ts_mae_scores = mae_scores
+                fig, mae_score = st.session_state.prophet_cache[cache_key]
+                st.session_state.prophet_fig = fig
+                st.session_state.prophet_mae = mae_score
             else:
-                with st.spinner(f"Fitting {model_to_run}... This is the heavy part, please wait."):
-                    fig, mae_scores = plot_single_advanced_model(model_to_run, trend_type_pt, seasonality_type_pt, noise_level_pt, changepoint_strength_pt)
-                    st.session_state.adv_ts_fig = fig
-                    st.session_state.adv_ts_mae_scores = mae_scores
-                    st.session_state.adv_ts_cache[cache_key] = (fig, mae_scores)
+                with st.spinner("Fitting Prophet model... This may take a moment."):
+                    fig, mae_score = plot_prophet_only(trend_type_p, seasonality_type_p, noise_level_p, changepoint_strength_p)
+                    st.session_state.prophet_fig = fig
+                    st.session_state.prophet_mae = mae_score
+                    st.session_state.prophet_cache[cache_key] = (fig, mae_score)
             st.rerun()
 
-    st.header("Advanced Forecasting Dashboard")
+    st.header("Prophet Forecasting Dashboard")
     
-    if st.session_state.adv_ts_fig is None:
-        st.info("Configure your scenario and select a model in the sidebar, then click 'Run Advanced Analysis' to see the results.")
+    if st.session_state.prophet_fig is None:
+        st.info("Configure your scenario in the sidebar and click 'Run Prophet Analysis' to see the results.")
     else:
         col1, col2 = st.columns([0.65, 0.35])
         with col1:
-            st.plotly_chart(st.session_state.adv_ts_fig, use_container_width=True)
+            st.plotly_chart(st.session_state.prophet_fig, use_container_width=True)
         with col2:
-            st.subheader("Model Performance (MAE)")
-            st.markdown("Lower Mean Absolute Error (MAE) is better.")
-            mae_scores = st.session_state.adv_ts_mae_scores
-            if mae_scores:
-                for name, score in mae_scores.items():
-                    st.metric(label=f"{name} MAE", value=f"{score:.2f}")
+            st.subheader("Model Performance")
+            if st.session_state.prophet_mae is not None:
+                st.metric("Prophet MAE", f"{st.session_state.prophet_mae:.2f}")
             else:
-                st.warning("The model failed to fit. Try a different scenario.")
-#========================================================================== 8. MULTIVARIATE ANALYSIS (MVA) ACT III============================================================================
-def render_mva_pls():
-    """Renders the module for Multivariate Analysis (PLS)."""
-    st.markdown("""
-    #### Purpose & Application: The Statistical Rosetta Stone
-    **Purpose:** To act as a **statistical Rosetta Stone**, translating a massive, complex, and correlated set of input variables (X, e.g., an entire spectrum) into a simple, actionable output (Y, e.g., product concentration). **Partial Least Squares (PLS)** is the key that deciphers this code.
-    
-    **Strategic Application:** This is the statistical engine behind **Process Analytical Technology (PAT)** and modern chemometrics. It is specifically designed to solve the "curse of dimensionality" - problems where you have more input variables than samples and the inputs are highly correlated.
-    - **Real-Time Spectroscopy:** Builds models that predict a chemical concentration from its NIR or Raman spectrum in real-time.
-    - **"Golden Batch" Modeling:** PLS can learn the "fingerprint" of a perfect batch, modeling the complex relationship between hundreds of process parameters and final product quality.
-    """)
-
-    st.info("""
-    **Interactive Demo:** Use the sliders to control the data quality. The dashboard shows the full modeling workflow:
-    1.  **Raw Data:** See the spectral data, color-coded by the Y-value.
-    2.  **Cross-Validation:** This plot is crucial! It shows how we choose the optimal number of latent variables (LVs) by finding the peak of the Q² (green) curve, avoiding overfitting.
-    3.  **Performance:** Shows how well the final model's predictions match the actual values.
-    4.  **Interpretation:** The VIP plot shows which variables (wavelengths) the model found most important.
-    """)
-
-    with st.sidebar:
-        st.sidebar.subheader("Multivariate Analysis Controls")
-        signal_slider = st.sidebar.slider("Signal Strength", 0.5, 5.0, 2.0, 0.5,
-            help="Controls the strength of the true underlying relationship between the spectra (X) and the concentration (Y).")
-        noise_slider = st.sidebar.slider("Noise Level (SD)", 0.1, 2.0, 0.2, 0.1,
-            help="Controls the amount of random noise in the spectral measurements. Higher noise makes the signal harder to find.")
-    
-    fig, r2, q2, n_comp, rmsecv = plot_mva_pls(signal_strength=signal_slider, noise_sd=noise_slider)
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-        
-        with tabs[0]:
-            st.metric(label="🎯 Model Q² (Predictive Power)", value=f"{q2:.3f}",
-                      help="The cross-validated R². This is the most important measure of a model's predictive ability. Higher is better.")
-            st.metric(label="📈 Model R² (Goodness of Fit)", value=f"{r2:.3f}",
-                      help="How well the model fits the training data. A high R² with a low Q² is a sign of overfitting.")
-            st.metric(label="🧬 Optimal Latent Variables (LVs)", value=f"{n_comp}",
-                      help="The optimal number of hidden factors chosen via cross-validation.")
-            st.metric(label="📉 RMSECV", value=f"{rmsecv:.2f} units",
-                      help="Root Mean Squared Error of Cross-Validation. The typical prediction error in the original units of Y.")
-        with tabs[1]:
-            st.markdown("""
-            ##### Glossary of MVA Terms
-            - **MVA (Multivariate Analysis):** A set of statistical techniques used for analysis of data that contain more than one variable.
-            - **PLS (Partial Least Squares) Regression:** A supervised regression technique that is a powerful alternative to standard linear regression, especially when input variables are numerous and highly correlated.
-            - **Latent Variable (LV):** A hidden, underlying variable that is not directly measured but is inferred from the original variables. PLS works by finding LVs that both summarize the X-data and are highly correlated with the Y-data.
-            - **Q² (Cross-Validated R²):** The most important metric for a PLS model. It measures the model's ability to *predict* new data, and is used to select the optimal number of LVs and prevent overfitting.
-            - **VIP (Variable Importance in Projection) Score:** A measure of a variable's importance in the PLS model. Variables with a VIP score > 1 are generally considered important.
-            """)
-        with tabs[2]:
-            st.error("""🔴 **THE INCORRECT APPROACH: The "Overfitting" Trap**
-- An analyst keeps adding more and more Latent Variables (LVs) to their PLS model. They are thrilled to see the R-squared value (blue line in Plot 2) climb to 0.999.
-- **The Flaw:** They've ignored the Q-squared value (green line), which has started to decrease. The model hasn't learned the true signal; it has simply memorized the noise in the training data. This model will fail when shown new data.""")
-            st.success("""🟢 **THE GOLDEN RULE: The Best Model Predicts, It Doesn't Memorize**
-A robust chemometric workflow is disciplined:
-1.  **Use Cross-Validation:** Always use cross-validation to assess how the model will perform on future, unseen data.
-2.  **Choose LVs based on Q²:** Select the number of latent variables that **maximizes the Q² (green line)**, not the R² (blue line). This is your best defense against overfitting.
-3.  **Validate on an Independent Test Set:** The ultimate test of the model is its performance on a completely held-out set of samples that were not used in training or cross-validation.""")
-
-        with tabs[3]:
-            st.markdown("""
-            #### Historical Context: The Father-Son Legacy
-            **The Problem (The Social Sciences):** In the 1960s, social scientists and economists faced a major modeling challenge. They had complex systems with many correlated input variables and often a small number of observations. Standard multiple linear regression would fail spectacularly in these "data-rich but theory-poor" situations.
-
-            **The 'Aha!' Moment (Herman Wold):** The brilliant Swedish statistician **Herman Wold** developed a novel solution. Instead of regressing Y on the X variables directly, he devised an iterative algorithm, **Partial Least Squares (PLS)**, that first extracts a small number of underlying "latent variables" from the X's that are maximally correlated with Y. This dimensionality reduction step elegantly solved the correlation and dimensionality problem.
-
-            **The Impact (Svante Wold):** However, PLS's true potential was unlocked by Herman's son, **Svante Wold**, a chemist. In the late 1970s, Svante recognized that the problems his father was solving were mathematically identical to the challenges in **chemometrics**. Analytical instruments like spectrometers were producing huge, highly correlated datasets that traditional statistics couldn't handle. Svante Wold and his colleagues adapted and popularized PLS, turning it into the powerhouse of modern chemometrics and the statistical engine for the PAT revolution in the pharmaceutical industry.
-            """)
-            st.markdown("#### Mathematical Basis")
-            st.markdown("PLS decomposes the input matrix `X` and output vector `y` into a set of latent variables (LVs), `T`, and associated loadings, `P` and `q`.")
-            st.latex(r"X = T P^T + E")
-            st.latex(r"y = T q^T + f")
-            st.markdown("""
-            The key is how the LVs (`T`) are found. Unlike PCA, which finds LVs that explain the most variance in `X` alone, PLS finds LVs that maximize the **covariance** between `X` and `y`. This means the LVs are constructed not just to summarize the inputs, but to be maximally useful for *predicting the output*. This makes PLS a supervised dimensionality reduction technique, which is why it is often more powerful than PCA followed by regression.
-            """)
-        with tabs[4]:
-            st.markdown("""
-            These advanced analytical methods are key enablers for modern, data-driven approaches to process monitoring and control, as encouraged by global regulators.
-            - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This tool directly supports the PAT initiative's goal of understanding and controlling manufacturing processes through timely measurements to ensure final product quality.
-            - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** These advanced methods provide a more powerful way to meet the CPV requirement of continuously monitoring the process to ensure it remains in a state of control.
-            - **ICH Q8(R2), Q9, Q10 (QbD Trilogy):** The use of sophisticated models for deep process understanding, real-time monitoring, and risk management is the practical implementation of the principles outlined in these guidelines.
-            - **21 CFR Part 11 / GAMP 5:** If the model is used to make GxP decisions (e.g., real-time release), the underlying software and model must be fully validated as a computerized system.
-            """)
+                st.warning("The model failed to produce a valid score.")
 #========================================================================== 9. PREDICTIVE QC (CLASSIFICATION) ACT III============================================================================
 def render_classification_models():
     """Renders the module for Predictive QC (Classification)."""
@@ -13205,7 +13096,7 @@ with st.sidebar:
             "Stability Analysis (Shelf-Life)",
             "Reliability / Survival Analysis",
             "Time Series Forecasting Suite",
-            "Advanced Forecasting (Prophet & TBATS)",
+            "Prophet Forecasting",
             "Multivariate Analysis (MVA)",
             "Predictive QC (Classification)",
             "Explainable AI (XAI)",
@@ -13291,7 +13182,7 @@ else:
         "Stability Analysis (Shelf-Life)": render_stability_analysis,
         "Reliability / Survival Analysis": render_survival_analysis,
         "Time Series Forecasting Suite": render_time_series_suite,
-        "Advanced Forecasting (Prophet & TBATS)": render_advanced_forecasting_suite,
+        "Prophet Forecasting": render_prophet_forecasting,
         "Predictive QC (Classification)": render_classification_models,
         "Explainable AI (XAI)": render_xai_shap,
         "Clustering (Unsupervised)": render_clustering,

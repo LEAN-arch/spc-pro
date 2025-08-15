@@ -1312,6 +1312,85 @@ def plot_dfx_dashboard(project_type, mfg_effort, quality_effort, sustainability_
     ])
     
     return fig_radar, fig_cost, kpis, profile['categories'], base_costs, optimized_costs
+
+@st.cache_data
+def plot_gap_analysis_radar(current_scores):
+    """
+    Generates an interactive radar chart for Gap Analysis.
+    """
+    categories = list(current_scores.keys())
+    required_scores = [10] * len(categories) # Required state is always the ideal (10)
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatterpolar(
+        r=list(current_scores.values()),
+        theta=categories,
+        fill='toself',
+        name='Current State',
+        line=dict(color=PRIMARY_COLOR),
+        fillcolor='rgba(0, 104, 201, 0.4)'
+    ))
+    
+    fig.add_trace(go.Scatterpolar(
+        r=required_scores,
+        theta=categories,
+        fill='none',
+        name='Required State',
+        line=dict(color=SUCCESS_GREEN, dash='dash')
+    ))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 10]
+            )
+        ),
+        title="<b>Gap Analysis: Current State vs. Required State</b>",
+        legend=dict(yanchor="bottom", y=-0.2, xanchor="center", x=0.5, orientation="h")
+    )
+    return fig
+
+@st.cache_data
+def plot_ishikawa_diagram(problem, causes):
+    """
+    Generates a professional Ishikawa (Fishbone) Diagram using Plotly.
+    """
+    fig = go.Figure()
+    
+    # Main Spine
+    fig.add_shape(type='line', x0=0, y0=5, x1=10, y1=5, line=dict(color=PRIMARY_COLOR, width=3))
+    
+    # Head (Problem Statement)
+    fig.add_shape(type='rect', x0=10, y0=4, x1=12, y1=6, fillcolor=PRIMARY_COLOR, line=dict(color=DARK_GREY))
+    fig.add_annotation(x=11, y=5, text=f"<b>{problem}</b>", font=dict(color='white', size=14), showarrow=False)
+
+    # Main Bones (Categories)
+    bone_positions = [(2, 7, 1), (2, 3, -1), (5, 7, 1), (5, 3, -1), (8, 7, 1), (8, 3, -1)]
+    categories = list(causes.keys())
+    for i, cat in enumerate(categories):
+        x, y, side = bone_positions[i]
+        fig.add_shape(type='line', x0=x, y0=5, x1=x+1, y1=y, line=dict(color=DARK_GREY, width=2))
+        fig.add_annotation(x=x+1.1, y=y + (side*0.2), text=f"<b>{cat}</b>", font=dict(color=DARK_GREY, size=16), showarrow=False)
+        
+        # Sub-Bones (Specific Causes)
+        for j, cause in enumerate(causes[cat]):
+            sub_x = x + 0.5 + (j * 0.4)
+            sub_y = 5 + side * (1.5 - (j * 0.4))
+            fig.add_shape(type='line', x0=sub_x, y0=sub_y, x1=x+1, y1=y, line=dict(color='grey', width=1))
+            fig.add_annotation(x=sub_x - 0.1, y=sub_y + (side*0.1), text=cause, showarrow=False, xanchor='right' if side==1 else 'left')
+            
+    fig.update_layout(
+        title="<b>Ishikawa (Fishbone) Diagram for Root Cause Analysis</b>",
+        xaxis=dict(visible=False, range=[-1, 13]),
+        yaxis=dict(visible=False, range=[0, 10]),
+        showlegend=False,
+        height=600
+    )
+    return fig
+
+
 #==================================================================ACT 0 END ==============================================================================================================================
 #==========================================================================================================================================================================================================
 # ======================================= 3 files for EDA, first load datasets follows =================
@@ -2413,6 +2492,65 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
     
     return fig, p_tost, is_equivalent, ci_lower, ci_upper, mean_A, mean_B, diff_mean
 
+@st.cache_data
+def plot_reliability_weibull(n, beta, eta, test_duration):
+    """
+    Simulates a censored life test and fits a Weibull distribution to the results.
+    """
+    from reliability.Fitters import Fit_Weibull_2P
+    
+    # Simulate time-to-failure data from a Weibull distribution
+    np.random.seed(42)
+    failures = stats.weibull_min.rvs(c=beta, scale=eta, size=n)
+    
+    # Censor the data based on the test duration
+    failure_times = np.minimum(failures, test_duration)
+    event_observed = failures <= test_duration
+    
+    # Fit the Weibull model to the (potentially censored) data
+    # The 'reliability' library is excellent for this
+    fit = Fit_Weibull_2P(failures=failure_times[event_observed], right_censored=failure_times[~event_observed])
+
+    # Generate plots
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("<b>Probability Plot</b>", "<b>Reliability Curve (Survival Function)</b>")
+    )
+    
+    # 1. Probability Plot
+    # The library's plotting is matplotlib-based, so we extract the data to plot in Plotly
+    x_pp = fit.x_plot
+    y_pp = fit.y_plot
+    fig.add_trace(go.Scatter(x=x_pp, y=y_pp, mode='markers', name='Failure Times', marker=dict(color=PRIMARY_COLOR)), row=1, col=1)
+    
+    # Add the fitted line to the probability plot
+    line_x = np.array([np.min(x_pp), np.max(x_pp)])
+    line_y = (np.log(line_x) - fit.μ) / fit.σ
+    fig.add_trace(go.Scatter(x=line_x, y=line_y, mode='lines', name='Weibull Fit', line=dict(color='red', dash='dash')), row=1, col=1)
+
+    # 2. Reliability Curve (Survival Function)
+    time_grid = np.linspace(0, test_duration * 1.2, 200)
+    survival_prob = 1 - fit.distribution.CDF(time_grid)
+    lower_ci, upper_ci = fit.distribution.SF(x=time_grid, CI=0.95, CI_type='time')
+    
+    fig.add_trace(go.Scatter(x=time_grid, y=survival_prob, mode='lines', name='Reliability', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=2)
+    # Plot confidence interval
+    fig.add_trace(go.Scatter(x=time_grid, y=upper_ci, mode='lines', line=dict(width=0), showlegend=False), row=1, col=2)
+    fig.add_trace(go.Scatter(x=time_grid, y=lower_ci, mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(0,104,201,0.2)', name='95% CI'), row=1, col=2)
+
+    # Calculate B10 Life
+    b10_life = fit.distribution.b(10)
+    fig.add_hline(y=0.90, line=dict(color='red', dash='dash'), row=1, col=2)
+    fig.add_vline(x=b10_life, line=dict(color='red', dash='dash'), row=1, col=2)
+    fig.add_annotation(x=b10_life, y=0.90, text=f"B10 Life: {b10_life:.1f} hrs", showarrow=True, arrowhead=2, ax=50, ay=-40, row=1, col=2)
+
+    fig.update_xaxes(title_text="Time to Failure (Hours)", row=1, col=1)
+    fig.update_yaxes(title_text="Standard Normal Quantiles", row=1, col=1)
+    fig.update_xaxes(title_text="Operating Time (Hours)", row=1, col=2)
+    fig.update_yaxes(title_text="Probability of Survival", range=[0, 1.05], row=1, col=2)
+    fig.update_layout(title="<b>Weibull Analysis of Life Test Data</b>", showlegend=False)
+
+    return fig, fit.beta, fit.eta, b10_life
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (DOE/RSM) - SME ENHANCED
 # ==============================================================================
@@ -2701,7 +2839,60 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
     # --- END OF FIX ---
     
     return fig_pareto, fig_rsm_3d, fig_rsm_2d, pdp_buffer, anova_display_table, opt_ph_real, opt_temp_real, max_response
+
+
+# ===================================================== BAYESIAN OP ========================================
+@st.cache_data
+def plot_bayesian_optimization_step(history, true_func, x_range, acquisition_func_type):
+    """
+    Visualizes a single step of Bayesian Optimization.
+    """
+    from sklearn.gaussian_process import GaussianProcessRegressor
+    from sklearn.gaussian_process.kernels import Matern
     
+    x_hist = np.array(history['x']).reshape(-1, 1)
+    y_hist = np.array(history['y'])
+    
+    # Fit the Gaussian Process surrogate model
+    kernel = Matern(nu=2.5)
+    gpr = GaussianProcessRegressor(kernel=kernel, alpha=1e-6, normalize_y=True).fit(x_hist, y_hist)
+    
+    x_pred = x_range.reshape(-1, 1)
+    y_pred, y_std = gpr.predict(x_pred, return_std=True)
+    
+    # Calculate the acquisition function
+    if acquisition_func_type == 'Upper Confidence Bound (UCB)':
+        kappa = 1.96
+        acquisition = y_pred + kappa * y_std
+    else: # Expected Improvement (EI)
+        y_best = np.max(y_hist)
+        z = (y_pred - y_best) / y_std
+        acquisition = (y_pred - y_best) * norm.cdf(z) + y_std * norm.pdf(z)
+
+    next_point_x = x_pred[np.argmax(acquisition)][0]
+
+    # Plotting
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=("<b>Surrogate Model (Gaussian Process)</b>", "<b>Acquisition Function</b>"))
+
+    # Plot 1: Surrogate Model
+    fig.add_trace(go.Scatter(x=x_range, y=true_func(x_range), name='True Function (Hidden)', line=dict(color='grey', dash='dash')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_hist.flatten(), y=y_hist, mode='markers', name='Sampled Points', marker=dict(color='red', size=10, symbol='x')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_pred.flatten(), y=y_pred, name='GP Mean (Belief)', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_pred.flatten(), y=y_pred + 1.96 * y_std, line=dict(width=0), showlegend=False), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_pred.flatten(), y=y_pred - 1.96 * y_std, line=dict(width=0), fill='tonexty', fillcolor='rgba(0,104,201,0.2)', name='GP 95% CI'), row=1, col=1)
+    
+    # Plot 2: Acquisition Function
+    fig.add_trace(go.Scatter(x=x_pred.flatten(), y=acquisition, name='Acquisition Function', line=dict(color=SUCCESS_GREEN, width=3), fill='tozeroy'), row=2, col=1)
+    fig.add_vline(x=next_point_x, line=dict(color='red', dash='dash'), row=2, col=1)
+    fig.add_annotation(x=next_point_x, y=np.max(acquisition), text="<b>Next Point to Sample!</b>", showarrow=True, arrowhead=2, ax=0, ay=-60, row=2, col=1)
+
+    fig.update_layout(height=600, showlegend=False)
+    fig.update_yaxes(title_text="Process Yield", row=1, col=1)
+    fig.update_yaxes(title_text="Utility Score", row=2, col=1)
+    fig.update_xaxes(title_text="Process Parameter (e.g., Temperature)", row=2, col=1)
+    
+    return fig, next_point_x
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Split-Plot) - SME ENHANCED
 # ==============================================================================
@@ -2885,6 +3076,43 @@ def plot_causal_inference(confounding_strength=5.0):
     fig_scatter.update_layout(height=500, legend=dict(x=0.01, y=0.99))
     
     return fig_dag, fig_scatter, naive_effect, adjusted_effect
+
+# ============================================ Casual ML ==================================================
+@st.cache_data
+def plot_causal_ml_comparison(confounding_strength):
+    """
+    Compares a standard ML model's PDP to a Causal ML estimate.
+    """
+    from econml.dml import CausalForestDML
+
+    # Simulate data
+    np.random.seed(42)
+    n = 1000
+    W = np.random.uniform(0, 10, size=(n, 1)) # Confounder
+    T = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength # Treatment (e.g., process param)
+    Y_true = 2 * T + 5 * np.sin(W.flatten()) # True non-linear effect of T and W
+    Y = Y_true + np.random.normal(0, 1, n)
+
+    # Standard ML Model
+    ml_model = xgb.XGBRegressor().fit(np.hstack([T.reshape(-1,1), W]), Y)
+    
+    # Causal ML Model
+    est = CausalForestDML(model_y=xgb.XGBRegressor(), model_t=xgb.XGBRegressor(), random_state=42)
+    est.fit(Y, T, W=W)
+    
+    # Get PDPs
+    pdp_ml = PartialDependenceDisplay.from_estimator(ml_model, np.hstack([T.reshape(-1,1), W]), features=[0], feature_names=['Parameter', 'Confounder'])
+    causal_effect = est.effect(np.linspace(T.min(), T.max(), 100))
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=pdp_ml.pd_results[0]['values'][0], y=pdp_ml.pd_results[0]['average'][0], name='Standard ML PDP (Biased)', line=dict(color='red', dash='dash', width=3)))
+    fig.add_trace(go.Scatter(x=np.linspace(T.min(), T.max(), 100), y=2*np.linspace(T.min(), T.max(), 100) + np.mean(5*np.sin(W)), name='Causal ML Effect (Unbiased)', line=dict(color=SUCCESS_GREEN, width=4)))
+    fig.add_trace(go.Scatter(x=T, y=Y, mode='markers', name='Raw Data', marker=dict(opacity=0.1, color='grey')))
+    
+    fig.update_layout(title="<b>Standard ML vs. Causal ML: Uncovering the True Effect</b>",
+                      xaxis_title="Process Parameter Value", yaxis_title="Impact on Process Output",
+                      legend=dict(x=0.01, y=0.99))
+    return fig
 ##==========================================================================================================================================================================================
 ##=============================================================================================END ACT I ===================================================================================
 ##==========================================================================================================================================================================================
@@ -3818,6 +4046,148 @@ def plot_bayesian(prior_type, n_qc=20, k_qc=18, spec_limit=0.90):
     
     return fig, prior_mean, mle, posterior_mean, (ci_lower, ci_upper), prob_gt_spec
 
+#============================================== ODE ================================================================
+@st.cache_data
+def plot_line_sync_ode(rates):
+    """
+    Solves and plots the ODEs for buffer levels in a production line.
+    """
+    from scipy.integrate import solve_ivp
+    
+    # ODE function: dy/dt = f(t, y)
+    # y[0] = Buffer 1, y[1] = Buffer 2
+    def buffer_model(t, y, r0, r1, r2, r3):
+        in_rate1 = r0
+        out_rate1 = r1 if y[0] > 0 else 0 # Can't output from an empty buffer
+        
+        in_rate2 = r1 if y[0] > 0 else 0
+        out_rate2 = r2 if y[1] > 0 else 0
+
+        in_rate3 = r2 if y[1] > 0 else 0
+        out_rate3 = r3
+        
+        # d(Buffer1)/dt = inflow - outflow
+        d_buffer1_dt = in_rate1 - out_rate1
+        # d(Buffer2)/dt = inflow - outflow
+        d_buffer2_dt = in_rate2 - out_rate2
+        
+        return [d_buffer1_dt, d_buffer2_dt]
+
+    # Initial conditions: Buffers start empty
+    y0 = [0, 0]
+    # Time span: 40 hours
+    t_span = [0, 40]
+    t_eval = np.linspace(t_span[0], t_span[1], 200)
+
+    # Solve the ODE system
+    sol = solve_ivp(
+        buffer_model, 
+        t_span, 
+        y0, 
+        args=(rates[0], rates[1], rates[2], rates[3]),
+        dense_output=True,
+        t_eval=t_eval
+    )
+
+    # Plotting
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=sol.t, y=sol.y[0], name='Buffer 1 Level (Upstream)', line=dict(width=3)))
+    fig.add_trace(go.Scatter(x=sol.t, y=sol.y[1], name='Buffer 2 Level (Downstream)', line=dict(width=3)))
+
+    bottleneck_idx = np.argmin(rates)
+    bottleneck_rate = rates[bottleneck_idx]
+    
+    fig.update_layout(
+        title=f"<b>Line Synchronization Dynamics (Bottleneck Rate: {bottleneck_rate} units/hr)</b>",
+        xaxis_title="Time (Hours)",
+        yaxis_title="Work-in-Progress (WIP) Units in Buffer",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    return fig, np.max(sol.y[0]), np.max(sol.y[1])
+
+#======================================================= L E A N =======================================================================
+@st.cache_data
+def plot_value_stream_map(process_times, wait_times):
+    """
+    Generates an interactive Value Stream Map.
+    """
+    steps = ["Material Receipt", "Dispensing", "Granulation", "Compression", "QC Testing", "Packaging"]
+    
+    fig = go.Figure()
+
+    # Create the timeline bars
+    y_pos = len(steps)
+    total_time = 0
+    timeline_items = []
+
+    for i, step in enumerate(steps):
+        # Value-Added Time (Process Time)
+        timeline_items.append({'start': total_time, 'end': total_time + process_times[i], 'label': step, 'type': 'Value-Added'})
+        total_time += process_times[i]
+        # Non-Value-Added Time (Wait Time)
+        if i < len(wait_times):
+            timeline_items.append({'start': total_time, 'end': total_time + wait_times[i], 'label': 'Wait', 'type': 'Non-Value-Added'})
+            total_time += wait_times[i]
+
+    # Create the Gantt chart from the timeline items
+    df = pd.DataFrame(timeline_items)
+    fig = px.timeline(df, x_start="start", x_end="end", y_pos=1, color="type",
+                      color_discrete_map={'Value-Added': SUCCESS_GREEN, 'Non-Value-Added': '#EF553B'},
+                      text="label")
+
+    # Create the Kaizen burst annotations for improvement opportunities
+    wait_starts = df[df['type'] == 'Non-Value-Added']['start']
+    for start in wait_starts:
+        fig.add_annotation(
+            x=start + (df[df['start'] == start]['end'].iloc[0] - start) / 2,
+            y=1.25,
+            text="💥",
+            showarrow=False,
+            font=dict(size=24)
+        )
+        fig.add_annotation(
+            x=start + (df[df['start'] == start]['end'].iloc[0] - start) / 2,
+            y=1.4,
+            text="Kaizen<br>Opportunity",
+            showarrow=False
+        )
+
+    total_value_added = df[df['type'] == 'Value-Added']['end'].sum() - df[df['type'] == 'Value-Added']['start'].sum()
+    total_non_value_added = df[df['type'] == 'Non-Value-Added']['end'].sum() - df[df['type'] == 'Non-Value-Added']['start'].sum()
+    total_cycle_time = total_time
+    process_cycle_efficiency = (total_value_added / total_cycle_time) * 100 if total_cycle_time > 0 else 0
+
+    fig.update_layout(
+        title="<b>Value Stream Map: Visualizing Waste in the Process</b>",
+        xaxis_title="Total Cycle Time (Hours)",
+        yaxis=dict(showticklabels=False, title=""),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    fig.update_traces(textangle=0)
+    
+    return fig, total_cycle_time, process_cycle_efficiency
+
+
+#===================================================== MONTE CARLO ========================================================
+ation < lsl) | (final_concentration > usl))
+    failure_rate = failures / n_trials
+    
+    # Plotting
+    fig = px.histogram(x=final_concentration, nbins=100, title=f"<b>Monte Carlo Simulation Results ({n_trials:,} Trials)</b>")
+    fig.add_vline(x=lsl, line=dict(color='red', dash='dash'), name='LSL')
+    fig.add_vline(x=usl, line=dict(color='red', dash='dash'), name='USL')
+    
+    fig.add_annotation(
+        x=0.98, y=0.95, xref='paper', yref='paper',
+        text=f"<b>Predicted Failure Rate: {failure_rate:.2%}</b>",
+        showarrow=False, font=dict(size=16, color='white'),
+        bgcolor=SUCCESS_GREEN if failure_rate == 0 else ('orange' if failure_rate < 0.01 else 'red'),
+        borderpad=10
+    )
+    fig.update_layout(xaxis_title="Final Product Concentration (%)", yaxis_title="Frequency")
+    return fig, failure_rate
+
 @st.cache_data
 def plot_fty_coq(project_type, improvement_effort):
     """
@@ -3948,6 +4318,43 @@ def plot_fty_coq(project_type, improvement_effort):
 ##=================================================================================================================================================================================================
 ##=======================================================================================END ACT II ===============================================================================================
 ##=================================================================================================================================================================================================
+@st.cache_data
+def plot_oee_breakdown(availability, performance, quality, oee):
+    """
+    Generates a waterfall chart to visualize OEE losses.
+    """
+    measures = ["Initial Capacity", "Availability Loss", "Performance Loss", "Quality Loss", "Valuable Time (OEE)"]
+    
+    # Calculate the deltas for the waterfall chart
+    base_values = [100, 100 * availability, 100 * availability * performance, 100 * availability * performance * quality]
+    deltas = [
+        100,
+        -100 * (1 - availability),
+        -100 * availability * (1 - performance),
+        -100 * availability * performance * (1 - quality),
+        oee * 100
+    ]
+    
+    fig = go.Figure(go.Waterfall(
+        name = "OEE Breakdown", orientation = "v",
+        measure = ["absolute", "relative", "relative", "relative", "total"],
+        x = measures,
+        textposition = "outside",
+        text = [f"{v:.1f}%" for v in deltas],
+        y = deltas,
+        connector = {"line":{"color":"rgb(63, 63, 63)"}},
+        decreasing = {"marker":{"color":"#EF553B"}},
+        increasing = {"marker":{"color":SUCCESS_GREEN}},
+        totals = {"marker":{"color":PRIMARY_COLOR}}
+    ))
+
+    fig.update_layout(
+            title = "<b>OEE Waterfall: Visualizing the Six Big Losses</b>",
+            yaxis_title="Percentage of Total Capacity (%)",
+            waterfallgap = 0.3,
+    )
+    return fig
+
 @st.cache_data
 def plot_control_plan_dashboard(cpp_data, sample_size, frequency, spc_tool):
     """
@@ -6048,6 +6455,48 @@ def create_pso_static_figure(zz, x_range, y_range, history_start, history_end, g
     )
     
     return fig 
+
+@st.cache_data
+def plot_digital_twin_dashboard(fault_type, fault_magnitude, fault_time):
+    """
+    Generates a dashboard simulating a digital twin monitoring a live process.
+    """
+    np.random.seed(1)
+    n_points = 100
+    time = np.arange(n_points)
+    
+    # True Process (with potential fault)
+    true_process = 100 + 10 * np.sin(time/10) + np.random.normal(0, 0.5, n_points)
+    if fault_type == 'Drift':
+        true_process[fault_time:] += np.linspace(0, fault_magnitude, n_points - fault_time)
+    elif fault_type == 'Shift':
+        true_process[fault_time:] += fault_magnitude
+
+    # Digital Twin's Forecast (it doesn't know about the fault)
+    twin_forecast = 100 + 10 * np.sin(time/10)
+    
+    # Calculate residuals and anomaly score (health score)
+    residuals = true_process - twin_forecast
+    health_score = pd.Series(residuals).abs().rolling(window=5).mean().fillna(0)
+    
+    # Plotting
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=("<b>Digital Twin vs. Real Process</b>", "<b>Process Health Score (Deviation)</b>"))
+    
+    fig.add_trace(go.Scatter(x=time, y=true_process, name='Real Process', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=time, y=twin_forecast, name='Digital Twin Forecast', line=dict(color='grey', dash='dash')), row=1, col=1)
+    
+    fig.add_trace(go.Scatter(x=time, y=health_score, name='Health Score', line=dict(color='red', width=3), fill='tozeroy'), row=2, col=1)
+    fig.add_hline(y=fault_magnitude*0.75, line=dict(color='red', dash='dash'), row=2, col=1, annotation_text="Alert Threshold")
+    
+    fig.add_vline(x=fault_time, line=dict(color='red', dash='dot'), annotation_text="Fault Injected")
+    
+    fig.update_layout(height=600, showlegend=False, title_text="<b>Digital Twin Real-Time Monitoring Dashboard</b>")
+    fig.update_yaxes(title_text="Process Value", row=1, col=1)
+    fig.update_yaxes(title_text="Anomaly Score", row=2, col=1)
+    fig.update_xaxes(title_text="Time (Minutes)", row=2, col=1)
+    
+    return fig
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================
@@ -7786,6 +8235,306 @@ A complex project like a tech transfer should be governed by a single, integrate
         - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing. It is a critical component of the Design History File (DHF).
         """)
 
+def render_gap_analysis_change_control():
+    """Renders the comprehensive module for Gap Analysis & Change Control."""
+    st.markdown("""
+    #### Purpose & Application: The Engine of Continuous Compliance
+    **Purpose:** To provide the formal, structured framework for managing the evolution of a validated system. This module combines two essential processes:
+    - **Gap Analysis:** A systematic comparison of a system's *current performance* against a *required standard* to identify deficiencies ("gaps").
+    - **Change Control:** The formal, documented process for proposing, assessing, and implementing a change to close a gap and return a system to a state of control.
+    
+    **Strategic Application:** This is the "immune system" of a Quality Management System (QMS). It is the primary mechanism for managing any change, whether it's driven by an audit finding, a process improvement initiative, a system upgrade, or a CAPA. Mastering this workflow is non-negotiable for maintaining a validated state.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the System Owner for a lab's LIMS, preparing for a data integrity audit.
+    1.  Use the **"Current State Assessment"** sliders in the sidebar to score your system's current capabilities.
+    2.  The **Radar Chart** will instantly visualize the compliance "gaps".
+    3.  The **Change Control Form** will auto-populate with a justification based on the largest gap found.
+    4.  Fill out and submit the form to see a mock, official Change Control record generated below.
+    """)
+
+    # --- Initialize session state for the change control form ---
+    if 'cc_record' not in st.session_state:
+        st.session_state.cc_record = None
+
+    # --- Sidebar Controls ---
+    with st.sidebar:
+        st.subheader("Current State Assessment")
+        st.markdown("Score your system's current compliance (0=Non-existent, 10=Fully Compliant).")
+        
+        current_scores = {
+            '21 CFR Part 11<br>Compliance': st.slider("21 CFR Part 11", 0, 10, 5),
+            'Data Backup &<br>Recovery': st.slider("Data Backup & Recovery", 0, 10, 6),
+            'Audit Trail<br>Functionality': st.slider("Audit Trail Functionality", 0, 10, 8),
+            'User Access<br>Controls': st.slider("User Access Controls", 0, 10, 7),
+            'Electronic<br>Signatures': st.slider("Electronic Signatures", 0, 10, 4)
+        }
+    
+    # --- Main Dashboard ---
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Gap Analysis Results")
+        fig = plot_gap_analysis_radar(current_scores)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        gaps = {cat: 10 - score for cat, score in current_scores.items()}
+        largest_gap_category = max(gaps, key=gaps.get).replace('<br>', ' ')
+        largest_gap_value = gaps[largest_gap_category]
+        
+        if largest_gap_value > 0:
+            st.warning(f"**Largest Gap Identified:** A deficiency of **{largest_gap_value} points** was found in **{largest_gap_category}**.")
+        else:
+            st.success("**Fully Compliant:** No gaps were identified in the assessment.")
+
+    with col2:
+        st.subheader("Initiate Change Control")
+        with st.form("change_control_form"):
+            st.text_input("Change Title", "Upgrade LIMS to Address Data Integrity Gaps")
+            st.text_area(
+                "Justification for Change",
+                f"A formal Gap Analysis was performed in preparation for an upcoming audit. A critical gap of {largest_gap_value} points was identified in the area of {largest_gap_category}. This change is required to close this gap and ensure full regulatory compliance.",
+                height=150
+            )
+            st.multiselect(
+                "Initial Impact Assessment",
+                ["System Software", "Hardware", "Validation Documents", "SOPs & Training", "Data Migration"],
+                default=["System Software", "Validation Documents", "SOPs & Training"]
+            )
+            c1, c2 = st.columns(2)
+            s = c1.slider("Initial Risk - Severity", 1, 5, 4, help="Severity of harm if the gap is NOT addressed.")
+            o = c2.slider("Initial Risk - Occurrence", 1, 5, 3, help="Likelihood of the gap causing a compliance or operational failure.")
+            st.metric("Initial Risk Priority (S x O)", s * o)
+            
+            submitted = st.form_submit_button("Submit Change Control Request")
+            if submitted:
+                st.session_state.cc_record = {
+                    "Title": "Upgrade LIMS to Address Data Integrity Gaps",
+                    "Justification": f"A formal Gap Analysis was performed in preparation for an upcoming audit. A critical gap of {largest_gap_value} points was identified in the area of {largest_gap_category}. This change is required to close this gap and ensure full regulatory compliance.",
+                    "Impact": ["System Software", "Validation Documents", "SOPs & Training"],
+                    "Risk": s * o
+                }
+                st.rerun()
+
+    if st.session_state.cc_record:
+        st.divider()
+        st.subheader("Generated Change Control Record (CC-2024-042)")
+        with st.container(border=True):
+            rec = st.session_state.cc_record
+            st.markdown(f"**Title:** {rec['Title']}")
+            st.markdown(f"**Justification:** {rec['Justification']}")
+            st.markdown(f"**Systems Impacted:** {', '.join(rec['Impact'])}")
+            st.markdown(f"**Initial Risk Priority:** {rec['Risk']}")
+            st.success("✅ **Status:** Submitted and pending QA approval.")
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **The Assessment (Sidebar):** The process begins by performing a formal, evidence-based assessment of a system's current state against a defined standard (e.g., a regulation, an industry best practice, or a URS).
+        2.  **Visualizing the Gaps (Radar Chart):** The radar chart provides an instant, holistic visualization of the system's strengths and weaknesses. The "gaps" are the areas where the blue "Current State" polygon does not reach the green "Required State" boundary. This is a powerful communication tool for management.
+        3.  **The Trigger (Gap Summary):** The analysis automatically identifies the most critical deficiency. This largest gap becomes the primary justification for initiating action.
+        4.  **The Formal Action (Change Control):** The Change Control form is the official mechanism for proposing and managing the work required to close the identified gap. It is a formal, auditable process that ensures changes are made in a controlled and documented manner.
+
+        **The Strategic Insight:** This module demonstrates that change should not be chaotic. In a regulated environment, change is a formal, data-driven process. It begins with a quantitative **Gap Analysis** to justify the need for change and is executed through a rigorous **Change Control** process to ensure the change is implemented correctly and does not have unintended consequences.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The "Immune System" of Your Quality System
+
+        #### The Problem: The "Validation Drift"
+        A company spends millions of dollars to validate a new manufacturing process and its supporting systems. The process is perfect on Day 1. Over the next two years, small, undocumented changes are made. An engineer "tweaks" a software setting to improve performance. An operator develops a "better" undocumented workaround. A new raw material is introduced that is "mostly the same." The process slowly and silently drifts away from its validated state.
+
+        #### The Impact: The Slow Death of a Validated System
+        This uncontrolled change is a cancer within a quality system.
+        - **Catastrophic Audit Failure:** An auditor arrives and discovers that the system in operation bears little resemblance to the system described in the validation documents. This is a systemic failure of the Quality Management System (QMS) and can result in severe regulatory action, such as a Warning Letter.
+        - **Unexplained Failures:** The process starts experiencing strange, intermittent batch failures. The root cause is impossible to find because no one has a record of the dozens of small changes that have occurred since the initial validation. The process is no longer understood or predictable.
+        - **Loss of Control:** The company has lost its "state of control." It is making a product with a process that is no longer validated, a massive compliance and patient safety risk.
+
+        #### The Solution: A Formal, Rigorous Process for Change
+        Gap Analysis and Change Control are the **"immune system"** of the QMS, designed to detect and manage change to maintain the health of the validated state.
+        1.  **Gap Analysis (The Sensor):** This is the tool that actively looks for problems. It is used proactively before audits or upgrades, and reactively after a deviation, to formally identify any gap between "as-is" and "should-be."
+        2.  **Change Control (The Response):** This is the formal, documented immune response. It ensures that any proposed change to close a gap is rigorously assessed for its **impact** and **risk** before it is approved. It guarantees that all associated documents (SOPs, validation plans) are updated, and that the change is verified to be successful.
+
+        #### The Consequences: A State of Perpetual Compliance and Control
+        - **Without This:** The validated state is a fragile, temporary condition that will inevitably degrade over time, leading to major compliance and operational crises.
+        - **With This:** The company has a robust, auditable system for managing the entire lifecycle of its validated processes. It enables **continuous improvement** without sacrificing **continuous compliance**. It ensures that the system remains in a perpetual state of control, protecting the business from audit failure and protecting patients from the risks of an unmanaged process.
+        """)
+
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Gap Analysis:** A method of assessing the differences in performance between a business's information systems or software applications to determine whether business requirements are being met and, if not, what steps should be taken to ensure they are met successfully.
+        - **Change Control (or Change Management):** The formal process for requesting, evaluating, approving, implementing, and reviewing changes to a controlled system or document. It is a cornerstone of any GxP Quality Management System (QMS).
+        - **Validated State:** The condition of a process or system that has been proven, with a high degree of assurance, to consistently meet its pre-determined specifications and quality attributes. The goal of change control is to maintain this state.
+        - **Impact Assessment:** A critical part of a change control record where a cross-functional team evaluates the potential effects of a proposed change on all other parts of the system (e.g., other software modules, validation documents, SOPs, training).
+        - **Risk Assessment:** An evaluation of the risks associated with the change itself, and the risks of *not* implementing the change. This informs the priority and rigor of the change control process.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Informal Change"**
+An engineer discovers a way to improve a process by tweaking a setting in a validated software system. They make the change because "it's obviously better" and inform the team via email.
+- **The Flaw:** This is a catastrophic compliance failure. The system is no longer in its validated state. The change was not assessed for its impact on other parts of the system, and there is no formal, auditable record of what was changed, why it was changed, or who approved it. The validation package is now worthless.""")
+        st.success("""🟢 **THE GOLDEN RULE: No Change is Trivial. If a System is Controlled, All Changes Must Be Controlled.**
+A robust quality culture lives by a simple, non-negotiable rule: you cannot informally change a validated system.
+1.  **The Trigger:** Any proposed change, no matter how small, must begin with a formal Change Control Request.
+2.  **The Assessment:** The change must be formally assessed by a cross-functional team for its impact and risk.
+3.  **The Plan:** A plan for implementing and verifying the change must be created and approved.
+4.  **The Record:** All of these steps must be documented in the change control record, creating a permanent, auditable history.
+This is the only way to ensure that a system remains in a validated state throughout its entire lifecycle.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From IT Helpdesks to the GMP Floor
+        The concepts of formal Change Management and Gap Analysis have their roots in two powerful management disciplines that matured in the late 20th century.
+        - **IT Service Management (ITSM):** In the 1980s and 90s, as businesses became critically dependent on complex IT systems, the UK government developed the **ITIL (Information Technology Infrastructure Library)** framework. A core pillar of ITIL was **Change Management**. It was created to stop the chaos of well-meaning but uncoordinated changes that would frequently crash critical systems like payroll or email. It introduced the formal process of logging, assessing, and approving all changes to a production IT environment.
+        - **Quality Management & The Deming Cycle:** The idea of a structured improvement cycle comes from quality pioneers like **W. Edwards Deming**. His **Plan-Do-Check-Act (PDCA)** cycle is, in essence, a framework for managing change. A **Gap Analysis** is a form of "Check"—comparing the current state to the desired state. The **Change Control** process is the formal "Plan" and "Do" to implement the improvement, followed by a final "Act" to confirm its success.
+
+        **The Impact in GxP:** Regulators in the pharmaceutical and medical device industries recognized that the same discipline ITIL brought to server rooms was desperately needed on the GxP manufacturing floor. They adopted the formal principles of Change Control as a cornerstone of a modern Quality Management System. It became the essential mechanism for ensuring that a system, once validated, *remains* in its validated state for its entire lifecycle, fulfilling the promise of continuous compliance.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        Change Control and Gap Analysis are fundamental, explicitly required components of virtually all GxP quality system regulations.
+        - **ICH Q10 - Pharmaceutical Quality System:** Section 3.2.4, "Change Management System," is entirely dedicated to this topic. It requires a formal system for managing all changes, driven by expert teams and based on risk assessment.
+        - **FDA 21 CFR 211.100(a) (for Pharma):** Requires that "there shall be written procedures for production and process control... These procedures shall be drafted, reviewed, and approved by the appropriate organizational units and reviewed and approved by the quality control unit... Written production and process control procedures shall be followed... and shall be documented at the time of performance." Change Control is the mechanism for modifying these procedures.
+        - **FDA 21 CFR 820.40 (for Medical Devices):** Requires the establishment and maintenance of procedures for "the control of documents," which includes the review and approval of all changes to documents.
+        - **21 CFR Part 11 (Electronic Records):** Requires that changes to electronic records must not obscure previously recorded information and must be documented in a secure, computer-generated, time-stamped **audit trail**. This is a specific, technical form of change control for data.
+        - **GAMP 5:** Emphasizes that a validated system must be maintained in its validated state throughout its operational life, which is achieved through a robust Change Control process.
+        """)
+
+def render_rca_suite():
+    """Renders the comprehensive module for Root Cause Analysis."""
+    st.markdown("""
+    #### Purpose & Application: The Forensic Investigation
+    **Purpose:** To provide a structured, systematic framework for conducting a **Root Cause Analysis (RCA)**. This suite combines two classic tools:
+    - **Ishikawa (Fishbone) Diagram:** A visual tool for brainstorming and categorizing all potential causes of a problem.
+    - **The 5 Whys:** A simple but powerful interrogative technique for drilling down past symptoms to find the true, actionable root cause.
+    
+    **Strategic Application:** This is the core of any effective **Corrective and Preventive Action (CAPA)** system. When a deviation or failure occurs, these tools transform a chaotic "blame game" into a disciplined, evidence-based investigation.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Lead Investigator for a deviation.
+    1.  Select a **Problem Scenario** to populate the Fishbone diagram with realistic potential causes.
+    2.  Use the **5 Whys Workbench** to drill down into a key cause and practice uncovering the true root of the problem.
+    """)
+
+    scenario = st.selectbox("Select a Problem Scenario:", ["Batch Contamination", "Low Assay Signal", "Instrument Downtime"])
+
+    cause_templates = {
+        "Batch Contamination": {
+            "Manpower": ["Improper Gowning", "Training Gap"], "Machine": ["Leaking Valve", "Filter Failure"],
+            "Material": ["Contaminated Media", "Wrong Supplier"], "Method": ["Incorrect Sanitization", "Flawed SOP"],
+            "Measurement": ["False Negative EM", "Bad Sample"], "Environment": ["HVAC Failure", "Pressure Cascade"]
+        },
+        "Low Assay Signal": {
+            "Manpower": ["Pipetting Error", "Inexperience"], "Machine": ["Faulty Plate Reader", "Clogged Washer"],
+            "Material": ["Degraded Antibody", "Wrong Buffer Lot"], "Method": ["Incorrect Incubation", "Wrong Dilution"],
+            "Measurement": ["Calibration Drift", "Software Error"], "Environment": ["Lab Too Cold", "Light Exposure"]
+        },
+        "Instrument Downtime": {
+            "Manpower": ["No Trained User", "Operator Error"], "Machine": ["Pump Seal Failure", "Software Crash"],
+            "Material": ["Wrong Solvent", "No Spare Parts"], "Method": ["No PM Performed", "Incorrect Startup"],
+            "Measurement": ["False Sensor Error", "Connectivity Loss"], "Environment": ["Power Surge", "High Humidity"]
+        }
+    }
+    
+    fig = plot_ishikawa_diagram(scenario, cause_templates[scenario])
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.subheader("The 5 Whys Workbench")
+    with st.container(border=True):
+        st.markdown("**Problem Statement:** A sterility test for Batch 123 failed.")
+        st.text_input("1. Why?", "The sterile filter used during filling was compromised.")
+        st.text_input("2. Why?", "The filter was damaged by a pressure spike during startup.")
+        st.text_input("3. Why?", "The startup SOP does not specify a gradual pressure ramp.")
+        st.text_input("4. Why?", "The SOP was written based on the old pump, which could not ramp quickly.")
+        st.text_input("5. Why? (The Process Root Cause)", "The Management of Change (MOC) process failed to trigger an SOP update when the new pump was installed.")
+    
+    st.divider()
+    st.subheader("Deeper Dive into RCA")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Define the Problem (The Head):** The first and most critical step is to create a clear, concise, and agreed-upon problem statement. This becomes the "head" of the fish.
+        2.  **Brainstorm Causes (The Bones):** Use the 6M categories (Manpower, Machine, Material, Method, Measurement, Environment) as a structured framework to brainstorm all possible causes, no matter how unlikely. This is a team activity.
+        3.  **Circle & Prioritize:** Once the diagram is complete, the team reviews the map and circles the most likely or highest-risk potential causes that warrant deeper investigation.
+        4.  **Drill Down (The 5 Whys):** For each high-priority cause, use the 5 Whys technique to drill down past the immediate technical symptom to find the underlying **process or systemic root cause**. Notice in the example how the investigation moves from a technical failure ("bad filter") to a systemic failure ("bad MOC process").
+
+        **The Strategic Insight:** The goal of RCA is not just to find a technical reason for a failure. It is to find the **systemic weakness** that allowed the failure to occur, so that the corrective action can prevent an entire class of future problems. Fixing the filter is a correction; fixing the change control process is a true corrective and preventive action (CAPA).
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: From "Who Did It?" to "Why Did We Let It Happen?"
+
+        #### The Problem: The "Blame Game" Investigation
+        A critical, multi-million dollar batch fails. A high-pressure investigation is launched. The immediate focus is on finding a person or event to blame. The investigation becomes a chaotic "blame game," where departments defend their territory and individuals fear for their jobs. The final report identifies a scapegoat ("operator error") and the corrective action is to "retrain the operator."
+
+        #### The Impact: Recurring Failures and a Culture of Fear
+        This superficial, blame-oriented approach is a recipe for disaster.
+        - **Recurring Failures:** The true systemic root cause (e.g., a poorly designed interface that encourages error, or a flawed SOP) is never addressed. The exact same failure inevitably happens again a few months later with a different operator, costing the company another million dollars.
+        - **A Culture of Fear:** When the goal is to find someone to blame, employees become terrified of reporting problems. Small issues are hidden, near-misses are not documented, and the organization loses all of its valuable "early warning" signals. The company is blind to emerging risks.
+        - **Ineffective CAPAs:** The corrective actions are weak and ineffective. "Retraining" is a temporary fix for a problem that is fundamentally embedded in the process or system itself.
+
+        #### The Solution: A No-Blame, System-Focused Forensic Process
+        A formal Root Cause Analysis (RCA) methodology, using tools like the Ishikawa Diagram and the 5 Whys, transforms the entire process. It is a **structured, no-blame forensic investigation** where the "patient" is the process, not the person. The core principle is that human error is a symptom, not a cause. The goal is to ask: **"What was wrong with our *system* that allowed this error to occur?"**
+        1.  **The Ishikawa Diagram** forces a holistic, 360-degree view, ensuring no potential cause is overlooked.
+        2.  **The 5 Whys** forces the team to drill down past the immediate symptom to find the broken process or flawed system that is the true, actionable root cause.
+
+        #### The Consequences: Organizational Learning and Permanent Solutions
+        - **Without This:** The company is trapped in a costly "Groundhog Day" cycle of recurring failures and ineffective, blame-oriented investigations.
+        - **With This:** RCA creates a culture of **psychological safety and organizational learning**. Problems are seen as opportunities to improve the system, not to punish individuals. The resulting Corrective and Preventive Actions (CAPAs) are targeted, effective, and permanent, because they fix the underlying systemic weakness. This not only prevents the recurrence of the same failure but makes the entire operation more robust, resilient, and efficient.
+        """)
+
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of RCA & CAPA Terms
+        - **RCA (Root Cause Analysis):** A systematic problem-solving method used to identify the underlying causes of an incident or problem. The goal is to find the "root" cause that, if eliminated, would prevent the problem from recurring.
+        - **Ishikawa / Fishbone / Cause-and-Effect Diagram:** A visual tool used to categorize and brainstorm the potential causes of a specific effect or problem.
+        - **6M Categories:** The standard categories used in a manufacturing Ishikawa diagram: **M**anpower (People), **M**achine (Equipment), **M**aterial, **M**ethod (Process), **M**easurement (Inspection), and **M**other Nature (Environment).
+        - **5 Whys:** An interrogative technique used to explore the cause-and-effect relationships underlying a particular problem. The primary goal is to determine the root cause by repeatedly asking the question "Why?".
+        - **Symptom:** The immediately observable evidence of a problem (e.g., "the batch failed sterility").
+        - **Root Cause:** The fundamental, underlying system or process failure that allowed the symptom to occur (e.g., "the change management process is flawed").
+        - **CAPA (Corrective and Preventive Action):** A formal process within a Quality Management System to investigate and correct discrepancies (Corrective Action) and to prevent their recurrence (Preventive Action). A robust RCA is the foundation of an effective CAPA.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: Stopping at the Symptom**
+The 5 Whys investigation concludes: "The batch failed because the filter was compromised."
+- **The Flaw:** This is not a root cause; it is a restatement of the technical problem. It is a symptom. The corrective action would be to "replace the filter," which does nothing to prevent the next filter from failing in the exact same way.""")
+        st.success("""🟢 **THE GOLDEN RULE: The True Root Cause is Almost Always a Process, Not a Person or a Part**
+A world-class RCA investigation relentlessly drills down until it finds a flawed **system or process**.
+- **Ask the Litmus Test Question:** For any proposed "root cause," ask: "Could we write a procedure to prevent this from happening again?"
+- If the cause is "bad filter," you can't write a procedure for that.
+- If the cause is "the SOP is unclear," you **can** write a better procedure.
+- If the cause is "the change management process is flawed," you **can** fix that process.
+The goal is to find the cause that can be fixed with a **systemic improvement**, not just a local patch.
+""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From the Assembly Line to the Boardroom
+        The core tools of RCA were developed by the pioneers of the 20th-century quality revolution as they grappled with the complexity of modern manufacturing.
+        - **Ishikawa Diagram (1960s):** This diagram was developed by **Kaoru Ishikawa**, a Japanese quality control expert, while working with the Kawasaki shipyards. He was a key figure in the development of Japan's post-war quality movement. He created the diagram as a simple, visual tool to help diverse teams (from engineers to front-line workers) collaboratively brainstorm and structure their thinking during quality improvement initiatives. Its intuitive "fishbone" shape made it easy to understand and use across all levels of an organization.
+        - **The 5 Whys (1930s):** This technique was developed by **Sakichi Toyoda**, the founder of Toyota Industries. It was a core component of the scientific, problem-solving mindset he instilled in his company, which later evolved into the legendary **Toyota Production System (TPS)**. The 5 Whys was a simple but profound method for forcing engineers and workers to look beyond the obvious technical failure and find the deeper, often hidden, process-level root cause.
+        
+        **The Impact:** Together, these tools became foundational elements of Total Quality Management (TQM), Lean Manufacturing, and Six Sigma. They provided a structured, repeatable, and data-driven methodology for problem-solving, replacing the chaotic, blame-oriented investigations of the past. Their adoption by global industries has been a key driver of the dramatic improvements in product quality and reliability over the last 50 years.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        A formal, documented Root Cause Analysis is a mandatory component of any compliant GxP Quality Management System. The failure to conduct a thorough and timely investigation is one of the most common findings in regulatory audits.
+        - **ICH Q10 - Pharmaceutical Quality System:** Section 3.2.2, "CAPA System," explicitly requires "investigation of non-conformances... to determine the root cause." The tools in this suite are the standard methods for fulfilling this requirement.
+        - **FDA 21 CFR 211.192 (for Pharma):** This regulation mandates that "any unexplained discrepancy... or the failure of a batch or any of its components to meet any of its specifications shall be **thoroughly investigated**... The investigation shall extend to other batches... that may have been associated with the specific failure or discrepancy. A written record of the investigation shall be made and shall include the conclusions and follow-up."
+        - **FDA 21 CFR 820.100 (for Medical Devices):** Requires procedures for implementing corrective and preventive action, which includes "investigating the cause of nonconformities relating to product, processes, and the quality system."
+        - **FDA Guidance: "Investigating Out-of-Specification (OOS) Test Results for Pharmaceutical Production":** This guidance outlines the expectation for a timely, thorough, and scientifically sound investigation, which must include a conclusion and determination of the root cause.
+        """)
 #====================================================================================================================================================================================================================================
 #=====================================================================================================ACT 0 RENDER END ==============================================================================================================
 #====================================================================================================================================================================================================================================
@@ -7982,7 +8731,7 @@ EDA is the step that turns raw data into actionable scientific inquiry.""")
         - **Data Integrity (ALCOA+):** A core principle of data integrity is that data must be **Complete** and **Accurate**. The Data Quality KPIs in this dashboard are a direct check on these principles. An EDA report is often a key part of the evidence package for a new dataset, demonstrating that the data has been reviewed for quality before being used in formal GxP analysis.
         - **ICH Q9 (Quality Risk Management):** EDA is a powerful tool for risk identification. Discovering a strong, unexpected correlation in your data during EDA can highlight a previously unknown process risk that needs to be formally assessed with a tool like FMEA.
         """)
-        
+
 # ======================================== 2. CONFIDENCE INTERVAL CONCEPT ===============================================================
 def render_ci_concept():
     """Renders the interactive module for Confidence Intervals."""
@@ -9253,7 +10002,130 @@ Ask: **"What is worse? A false positive or a false negative?"**
             - **EU IVDR (In Vitro Diagnostic Regulation):** The European regulation requires a Performance Evaluation Report (PER) that includes data on clinical sensitivity, specificity, and the rationale for the chosen cutoff value.
             - **ISO 13485:2016:** The international quality management standard for medical devices, which aligns with the principles of design validation found in 21 CFR 820.
             """)
-            
+
+def render_component_reliability():
+    """Renders the comprehensive module for Component Reliability Testing."""
+    st.markdown("""
+    #### Purpose & Application: The Science of Longevity
+    **Purpose:** To proactively test the reliability of a critical component and model its failure characteristics using a **Weibull distribution**. This analysis allows us to make statistically sound predictions about a component's expected life and failure rate.
+    
+    **Strategic Application:** This is a core activity in **Design for Reliability (DfR)**. Instead of waiting for field data, we generate life data in a controlled lab test. This is essential for:
+    - Setting realistic warranty periods and service contracts.
+    - Qualifying new suppliers for critical components.
+    - Making data-driven design choices between competing component options.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Reliability Engineer.
+    1.  Use the **"Life Test Design"** controls to define your experiment: how many units to test (`n`) and for how long (`Test Duration`).
+    2.  Use the **"True Component Characteristics"** sliders to define the "ground truth" of the component you are testing.
+    3.  Observe the results. The **Probability Plot** shows how well the model fits the data, while the **Reliability Curve** provides key business metrics like the **B10 Life**.
+    """)
+
+    with st.sidebar:
+        st.subheader("Life Test Design")
+        n = st.slider("Number of Units on Test (n)", 10, 100, 30, 5)
+        test_duration = st.slider("Test Duration (Hours)", 100, 5000, 1000, 100, help="The test is stopped at this time. Any units still running are 'right-censored'.")
+        
+        st.subheader("True Component Characteristics")
+        beta = st.slider("Shape Parameter (β)", 0.8, 5.0, 1.5, 0.1, help="Controls the failure mode. β<1: Infant mortality. β=1: Random failures. β>1: Wear-out failures.")
+        eta = st.slider("Scale Parameter (η)", 500, 10000, 2000, 100, help="The characteristic life. The time at which ~63.2% of the population will have failed.")
+
+    st.header("Reliability Test Results Dashboard")
+    
+    try:
+        fig, fit_beta, fit_eta, b10_life = plot_reliability_weibull(n, beta, eta, test_duration)
+        
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Fitted Shape (β)", f"{fit_beta:.2f}", help="The model's estimate of the failure mode. If >1, indicates wear-out.")
+        col2.metric("Fitted Life (η)", f"{fit_eta:.0f} hrs", help="The model's estimate of the characteristic life.")
+        col3.metric("B10 Life", f"{b10_life:.0f} hrs", help="The time at which 10% of the population is predicted to have failed. A key reliability metric.")
+
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Could not fit the model. This can happen with very high censoring. Please try increasing the Test Duration or adjusting parameters. Error: {e}")
+
+
+    st.divider()
+    st.subheader("Deeper Dive into Reliability Testing")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Check the Fit (Probability Plot):** The first plot on the left is your primary diagnostic. If the data points (blue dots) fall in a reasonably straight line, it confirms that the Weibull distribution is a good model for your component's failure behavior.
+        2.  **Diagnose the Failure Mode (Shape Parameter β):** The fitted Beta is a critical insight.
+            - **β < 1.0 (Infant Mortality):** Failures are happening early. This points to manufacturing defects or quality control issues.
+            - **β ≈ 1.0 (Random Failures):** Failures are constant and unpredictable, often due to external shocks.
+            - **β > 1.0 (Wear-Out):** The failure rate increases with age. This is the expected behavior for components that wear out, like bearings or seals.
+        3.  **Quantify Reliability (Reliability Curve & B10 Life):** The right-hand plot is your decision-making tool. The **B10 life** is a common and critical metric: it is the time at which you can be confident that no more than 10% of your components will have failed. This is often used to set warranty periods.
+
+        **The Strategic Insight:** Try setting a short **Test Duration**. Notice how the confidence intervals on the Reliability Curve become much wider. This demonstrates the direct trade-off: shorter, cheaper tests provide less certain predictions about long-term reliability.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: From "Break-Fix" to a Data-Driven Warranty
+
+        #### The Problem: The "Best Guess" Warranty Period
+        A company is launching a new, expensive medical device. They need to set a warranty period. Without reliability data, this is a high-stakes guessing game. If they set it too short, customers will see the product as unreliable and won't buy it. If they set it too long, the company could be exposed to millions of dollars in un-costed warranty claims.
+
+        #### The Impact: Unmanaged Financial Risk and Brand Damage
+        This "guesswork" approach to reliability creates significant financial and reputational risks.
+        - **Unpredictable Warranty Costs:** The company has no accurate way to forecast future warranty expenses, a major liability that can surprise investors and impact profitability.
+        - **Reputation Damage:** A string of early-life failures can quickly destroy a brand's reputation for quality, especially in the high-stakes medical device market.
+        - **Inefficient Design:** Without data, engineers don't know which components are the "weakest links" in their design. They might be over-engineering robust parts while unknowingly using an unreliable, low-cost component that will cause the majority of field failures.
+
+        #### The Solution: A "Crystal Ball" for Component Life
+        Component Reliability Testing is a proactive, data-driven strategy for managing this risk. By performing a structured "life test" on critical components *before* the product is launched, the company can build a **statistical crystal ball**. The Weibull analysis provides a mathematical model of the component's failure behavior, allowing the business to answer critical financial questions with data:
+        1.  "If we offer a 2-year warranty, what is the **predicted percentage of units that will fail** within that period?"
+        2.  "What is the **B10 life** of this component, and is it sufficient for our customer's needs?"
+        3.  "Does the new, cheaper supplier's component have the **same reliability profile** as our current, expensive one?"
+
+        #### The Consequences: A Profitable, Defensible, and Reliable Product
+        - **Without This:** The company is gambling with its warranty costs and its brand reputation.
+        - **With This:** Reliability testing provides the **objective, quantitative evidence** needed to make smart, data-driven business decisions. It allows the company to **accurately forecast and provision for warranty costs**, set a warranty period that is both competitive and profitable, and **engineer reliability into the product** by focusing improvement efforts on the components with the lowest predicted lifespan.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Reliability Engineering:** A sub-discipline of systems engineering that emphasizes the ability of a system or component to function under stated conditions for a specified period of time.
+        - **Life Test:** A controlled experiment where a set of components are operated under normal or accelerated conditions to produce failure data.
+        - **Weibull Distribution:** A highly flexible probability distribution that is the cornerstone of reliability analysis because it can model a wide variety of failure behaviors.
+        - **Shape Parameter (β, beta):** The parameter of the Weibull distribution that determines the *nature* of the failure mode (infant mortality, random, or wear-out).
+        - **Scale Parameter (η, eta):** The "characteristic life" of the Weibull distribution. It is the time at which 63.2% of the population will have failed.
+        - **B-Life (e.g., B10):** A reliability metric that represents the time at which a specified percentage (X%) of the population will have failed. The B10 life is the time at which 10% of units are expected to fail.
+        - **Censored Data:** Data from a life test where the unit has not failed by the end of the test. This is critical information that must be included in the analysis.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Average Life" Trap**
+An engineer tests 10 components until they all fail and simply calculates the average time to failure.
+- **The Flaw:** This is extremely inefficient, as you must wait for the last, most reliable unit to fail, which could take years. More importantly, the simple average provides no information about the *failure mode* (the β parameter). An average life of 1000 hours is meaningless if 30% of the units are failing in the first 100 hours due to infant mortality.""")
+        st.success("""🟢 **THE GOLDEN RULE: Model the Distribution, Don't Just Average the Data**
+A robust reliability analysis focuses on understanding the entire failure distribution.
+1.  **Use Censoring:** It is not necessary to run all parts to failure. A well-designed test with a pre-defined duration and censored data can provide a highly accurate model much more quickly and cheaply.
+2.  **Fit a Life Distribution:** Use a statistical model like the Weibull distribution to analyze the data. This is essential for correctly handling censored data and for making predictions.
+3.  **Focus on the Shape (β) and B-Life:** The two most important outputs are the Beta parameter (which tells you *why* things are failing) and the B-Life (which tells you the early-life failure probability), as these are often more critical for business decisions than the average life.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From Ball Bearings to Space Shuttles
+        **The Problem:** In the 1930s and 40s, engineers faced a puzzle. The lifetime of seemingly identical components, like ball bearings, showed enormous variability. Traditional statistical methods based on the normal distribution were a poor fit for this "time-to-failure" data.
+        
+        **The 'Aha!' Moment:** In 1937, a Swedish engineer and mathematician named **Waloddi Weibull** was investigating the strength of materials. He was looking for a flexible statistical distribution that could describe a wide range of real-world data. He didn't derive it from first principles; he pragmatically proposed a distribution (now named after him) that simply worked remarkably well. Its key feature was the **shape parameter (β)**, which allowed a single distribution to model failures that happened early (infant mortality), randomly, or late (wear-out).
+        
+        **The Impact:** While initially obscure, the Weibull distribution was adopted by the US Air Force and later by the automotive and aerospace industries in the 1950s and 60s as the cornerstone of the emerging field of **Reliability Engineering**. The need to predict the reliability of components for everything from jet engines to the Apollo spacecraft made Weibull analysis an essential tool. Its ability to make accurate predictions from **censored data** (tests that are stopped before all units fail) was a massive economic breakthrough, making reliability testing practical and affordable.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        Component Reliability testing is a core component of Design Controls and is essential for ensuring the safety and effectiveness of medical devices and other complex systems.
+        - **FDA 21 CFR 820.30 - Design Controls:** The regulation requires that the design shall be **verified** and **validated** to ensure it conforms to user needs and intended uses. For any device with a defined operational life, reliability testing is the objective evidence that the device will perform as intended for that duration.
+        - **Design Verification:** Reliability testing is a key input to verification. It proves that the chosen components and design outputs meet their specified reliability inputs.
+        - **Design Validation:** The overall device reliability, which is a function of its component reliabilities, is a critical user need that must be validated.
+        - **Risk Management (ICH Q9 / ISO 14971):** The failure of a critical component is a major hazard. Reliability testing provides the quantitative data (the failure rate over time) needed to accurately assess this risk and implement appropriate mitigations (e.g., specifying a more reliable component, defining a preventative maintenance schedule).
+        """)
 #====================================================================================== 12. ASSAY ROBUSTNESS (DOE)  =================================================================================================   
 def render_assay_robustness_doe():
     """Renders the comprehensive, interactive module for Assay Robustness (DOE/RSM)."""
@@ -9696,7 +10568,142 @@ A robust optimization strategy uses the best of both worlds.
         **The Regulatory Advantage:**
         The guideline explicitly states: **"Working within the design space is not considered as a change. Movement out of the design space is considered to be a change and would normally initiate a regulatory post-approval change process."** This provides enormous operational and regulatory flexibility, which is the primary business driver for adopting a QbD approach.
         """)
+def render_bayesian_optimization():
+    """Renders the comprehensive module for Bayesian Optimization."""
+    st.markdown("""
+    #### Purpose & Application: The Intelligent Experimenter
+    **Purpose:** To provide a highly sample-efficient strategy for finding the true optimum of an expensive, "black box" process. **Bayesian Optimization** is an intelligent, sequential search algorithm that uses the results of past experiments to decide the single most informative experiment to run next.
+    
+    **Strategic Application:** This is the ideal tool for optimizing processes where **each experimental run is extremely expensive, slow, or resource-intensive**.
+    - **Bioreactor Optimization:** Finding the optimal feeding strategy over a 21-day run.
+    - **Formulation Science:** Optimizing a complex lyophilization cycle that takes 48 hours per run.
+    - **Analytical Method Development:** Fine-tuning sensitive HPLC parameters where each run requires significant setup and equilibration time.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Lead Scientist trying to find the temperature that maximizes process yield.
+    1.  The true, hidden relationship is the grey dashed line. Your goal is to find its peak.
+    2.  Use the **"Run Next Experiment"** button to step through the optimization process one experiment at a time.
+    3.  At each step, observe how the algorithm updates its **Belief (blue curve)** and uses the **Acquisition Function (green curve)** to intelligently choose the next best point to sample.
+    """)
 
+    # --- True Function (hidden from the algorithm) ---
+    def true_process_function(x):
+        return (-(x - 15)**2 / 20) + 2 * np.sin(x) + 85
+
+    x_range = np.linspace(0, 30, 200)
+
+    # --- Session State to manage the optimization history ---
+    if 'bo_history' not in st.session_state:
+        st.session_state.bo_history = {'x': [2.0, 28.0], 'y': [true_process_function(2.0), true_process_function(28.0)]}
+
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.subheader("Bayesian Optimization Workbench")
+        acquisition_func_type = st.radio(
+            "Select Acquisition Function:",
+            ["Upper Confidence Bound (UCB)", "Expected Improvement (EI)"],
+            horizontal=True
+        )
+        fig, next_point = plot_bayesian_optimization_step(st.session_state.bo_history, true_process_function, x_range, acquisition_func_type)
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Experiment Control")
+        if st.button("🔬 Run Next Experiment", use_container_width=True):
+            new_y = true_process_function(next_point)
+            st.session_state.bo_history['x'].append(next_point)
+            st.session_state.bo_history['y'].append(new_y)
+            st.rerun()
+        if st.button("🔄 Reset Optimization", use_container_width=True):
+            st.session_state.bo_history = {'x': [2.0, 28.0], 'y': [true_process_function(2.0), true_process_function(28.0)]}
+            st.rerun()
+        
+        st.metric("Total Experiments Run", len(st.session_state.bo_history['x']))
+        best_idx = np.argmax(st.session_state.bo_history['y'])
+        st.metric("Best Yield Found So Far", f"{st.session_state.bo_history['y'][best_idx]:.2f}%")
+        st.metric("at Parameter Value", f"{st.session_state.bo_history['x'][best_idx]:.2f}")
+
+    st.divider()
+    st.subheader("Deeper Dive into Bayesian Optimization")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Initial Samples (Step 0):** The process starts with a few initial, spaced-out experiments to get a first look at the landscape.
+        2.  **Building a Belief (Top Plot):** The algorithm uses all the data gathered so far (red 'x' markers) to fit a flexible **surrogate model** (a Gaussian Process). This blue curve represents the algorithm's current "belief" about the true function, and the shaded blue area represents its uncertainty.
+        3.  **Deciding What's Next (Bottom Plot):** The algorithm then computes an **Acquisition Function**. This function is high in two strategic places:
+            -   **Exploitation:** It's high near the current known maximum, wanting to sample there to confirm the peak.
+            -   **Exploration:** It's high in areas of high uncertainty (where the blue shaded band is wide), wanting to sample there to reduce its ignorance.
+        4.  **Running the Next Experiment:** The algorithm chooses the single point that **maximizes the Acquisition Function** (the peak of the green curve) as the next experiment to run. This cycle repeats, with each new data point refining the model's belief and improving its next decision.
+
+        **The Strategic Insight:** Bayesian Optimization is a powerful strategy that formally balances **exploiting known good regions** with **exploring unknown regions**. This intelligent, sequential search allows it to find the global optimum with significantly fewer experiments than a traditional DOE, which samples the entire space at once.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: Maximum Insight from Minimum Experiments
+
+        #### The Problem: The "Expensive Experiment" Barrier
+        A company needs to optimize a process where each experimental run is incredibly expensive or slow. Examples include:
+        -   A 28-day cell culture run to optimize a feeding strategy, where each run costs over $50,000 in media and labor.
+        -   A complex lyophilization cycle for a high-value drug product, where each 48-hour run consumes a full production-scale unit.
+        -   Fine-tuning the parameters of a large, complex Machine Learning model, where each training run takes 12 hours on an expensive GPU cluster.
+        In these scenarios, a traditional Design of Experiments (DOE) with 20-30 runs is simply not financially or logistically feasible.
+
+        #### The Impact: Sub-Optimal Processes and Stifled Innovation
+        This "expensive experiment" barrier forces companies into difficult and costly compromises.
+        - **Under-characterized Processes:** The team can only afford a handful of runs. They perform a small, underpowered study that provides very little real information, leaving the process sub-optimal and poorly understood. The risk of failure at scale remains high.
+        - **Stalled Innovation:** Promising but complex new process ideas are never pursued because the cost of optimizing them is deemed too high. The company is forced to stick with older, less efficient, but better-understood processes.
+        - **Wasted Runs:** In a manual, trial-and-error approach, the team might waste several of their precious experimental runs on regions of the parameter space that are clearly not promising, simply because they lack a systematic strategy.
+
+        #### The Solution: The Intelligent, Sample-Efficient Search Agent
+        Bayesian Optimization is the purpose-built solution for this "expensive experiment" problem. It is a **sample-efficient** global optimization strategy. Unlike a DOE that plans all its experiments in advance, Bayesian Optimization is **sequential and adaptive**. It uses the information from every run it completes to intelligently decide on the single most valuable run to perform next. It is constantly asking: "Given what I know now, what is the one experiment I can run that will give me the most new information about where the peak is?"
+
+        #### The Consequences: Making "Impossible" Optimizations Possible
+        - **Without This:** Optimizing expensive, long-duration processes is often considered impossible, forcing companies to operate with sub-optimal, "good enough" procedures.
+        - **With This:** Bayesian Optimization **makes the impossible possible**. It can often find a near-optimal solution in a fraction of the runs required by a traditional DOE (e.g., finding a good optimum in 10-15 runs instead of 30-50). This **dramatically reduces the cost and time of R&D**, enabling the optimization of complex, high-value processes that were previously untouchable. It is a key enabling technology for innovation in capital-intensive R&D environments.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Bayesian Optimization:** A sequential, model-based optimization strategy for finding the maximum of a "black box" function that is expensive to evaluate.
+        - **Black Box Function:** A function whose internal workings are unknown. We can only provide an input `x` and observe the output `y`. A bioreactor run is a perfect example.
+        - **Surrogate Model:** A cheap, statistical model (typically a Gaussian Process) that approximates the true, expensive black box function. The surrogate model is updated after each new experiment.
+        - **Gaussian Process (GP):** A powerful, flexible statistical model that defines a probability distribution over functions. It is the most common surrogate model for Bayesian Optimization because it provides both a mean prediction and a measure of uncertainty.
+        - **Acquisition Function:** A function that uses the predictions and uncertainty from the surrogate model to calculate the "utility" or "value" of sampling at any given point. The next experiment is run at the point that maximizes this function.
+        - **Exploration vs. Exploitation:** The fundamental trade-off in any search problem. **Exploitation** means sampling in areas where we already know the function is high. **Exploration** means sampling in areas of high uncertainty where the function *might* be high. The acquisition function provides a mathematical way to balance this trade-off.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Grid Search" Brute Force**
+An analyst tries to optimize an expensive process by performing a "grid search"—testing every possible combination of parameters at a coarse resolution.
+- **The Flaw:** This is catastrophically inefficient. The number of required experiments explodes exponentially with the number of parameters (the "curse of dimensionality"). For a process with just 3 parameters at 5 levels each, a full grid search would require 5³ = 125 runs, which is completely infeasible for a multi-week bioreactor experiment.""")
+        st.success("""🟢 **THE GOLDEN RULE: Spend Your Experimental Budget Intelligently**
+Every experimental run is a precious resource. Bayesian Optimization is built on the principle of maximizing the knowledge gained from every single one.
+1.  **Model Your Beliefs:** Use a flexible surrogate model (like a Gaussian Process) to represent everything you currently know *and don't know* about your process.
+2.  **Quantify "What's Next?":** Use an acquisition function to translate your model's beliefs and uncertainties into a clear, quantitative decision about the single most valuable experiment to run next.
+3.  **Iterate:** Update your beliefs with the new data and repeat. This intelligent, adaptive loop is the key to finding the optimum with minimal waste.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From Kriging to Hyperparameter Tuning
+        The intellectual roots of Bayesian Optimization are a fascinating blend of geology, statistics, and machine learning.
+        - **The Geological Roots (Kriging):** In the 1950s, a South African mining engineer named **Danie G. Krige** developed a statistical method to more accurately predict ore concentrations in a mine based on a small number of core samples. His work was formalized by the French mathematician **Georges Matheron** in the 1960s and became known as **Kriging**. This is the statistical technique that we now call **Gaussian Process regression**. For decades, it remained a specialized tool in geostatistics.
+        - **The "Efficient Global Optimization" Insight (1990s):** In the 1990s, researchers in the field of computer-aided design, notably **Jonas Mockus**, realized that this "Kriging" model could be used to build a surrogate for expensive engineering simulations. A key 1998 paper by Jones, Schonlau, and Welch, titled "Efficient Global Optimization of Expensive Black-Box Functions," popularized the idea of combining a Gaussian Process surrogate with an **Expected Improvement (EI)** acquisition function. This was the birth of modern Bayesian Optimization.
+        
+        **The Impact:** For years, it remained a niche academic tool. The machine learning boom of the 2010s is what truly made it famous. Researchers at companies like Google and Microsoft discovered that Bayesian Optimization was an incredibly powerful and sample-efficient way to solve one of their biggest problems: **hyperparameter tuning**. Finding the best architecture for a deep neural network was a classic "expensive black box" problem, and Bayesian Optimization provided the perfect solution. This has brought the technique to mainstream prominence, and its applications are now spreading back into the physical sciences and engineering.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        Bayesian Optimization is a state-of-the-art method for executing the principles of Quality by Design (QbD) and Process Validation in the most efficient way possible, especially under resource constraints.
+        - **ICH Q8(R2) - Pharmaceutical Development:** The goal of QbD is to develop deep "process understanding" and establish a "Design Space." Bayesian Optimization is an advanced and highly efficient strategy for exploring the parameter space to find the optimal operating point and the edges of the Design Space with a minimal number of expensive experimental runs.
+        - **FDA Process Validation Guidance (Stage 1 - Process Design):** This guidance emphasizes a scientific, data-driven approach to designing a process that is capable and robust. For complex and expensive processes like continuous manufacturing or perfusion-based cell culture, Bayesian Optimization provides a feasible path to optimization that might be impossible with traditional DOE due to cost and time constraints.
+        - **FDA Guidance for Industry - PAT:** A core principle of PAT is "Design and optimize processes through well-designed experiments." Bayesian Optimization is a cutting-edge example of a well-designed experimental strategy.
+        - **Regulatory Justification:** Using Bayesian Optimization can be justified to regulators by framing it as a highly efficient "search strategy" for the Design Space. The final validation of the chosen optimum and the Design Space would still be performed using a traditional, pre-defined set of confirmation runs and protocols.
+        """)
 #====================================================================================== 15. SPLIT-PLOT DESIGNS =================================================================================================   
 def render_split_plot():
     """Renders the module for Split-Plot Designs."""
@@ -9942,7 +10949,110 @@ def render_causal_inference():
             - **21 CFR 211.192 - Production Record Review:** Requires that any unexplained discrepancy or failure of a batch to meet its specifications "shall be thoroughly investigated."
             - **GAMP 5:** While focused on software, its principles of risk management and root cause analysis for deviations apply broadly.
             """)
+def render_causal_ml():
+    """Renders the comprehensive module for Causal Machine Learning."""
+    st.markdown("""
+    #### Purpose & Application: The Unbiased AI Oracle
+    **Purpose:** To provide an unbiased, "apples-to-apples" estimate of a treatment or intervention's true causal effect using complex, real-world observational data. **Causal ML (specifically, Double Machine Learning)** is a cutting-edge technique that uses the predictive power of machine learning to strip away confounding and isolate the true, underlying causal relationship.
+    
+    **Strategic Application:** This is the ultimate tool for data-driven Root Cause Analysis and process optimization from historical, "found" data. It allows you to answer the critical question: **"If I change this process parameter by 1 unit, what is the *true causal impact* on my final product quality, after accounting for all other confounding variables?"**
+    """)
+    st.info("""
+    **Interactive Demo:** You are a Data Scientist investigating the effect of a process parameter on product purity.
+    1.  The true, underlying causal effect is a simple line (`Y = 2*T + ...`), but it is hidden by a complex, non-linear confounding effect.
+    2.  Use the **"Confounding Strength"** slider to control how much the confounder distorts the relationship.
+    3.  Observe the results. The **Standard ML PDP (red line)** learns the *biased correlation*. The **Causal ML model (green line)** successfully removes the confounding effect to uncover the true, hidden linear cause-and-effect relationship.
+    """)
 
+    with st.sidebar:
+        st.subheader("Causal ML Controls")
+        confounding_strength = st.slider("Confounding Strength", 0.0, 2.0, 1.0, 0.1, help="How strongly the confounder (W) influences the choice of the process parameter (T).")
+
+    try:
+        fig = plot_causal_ml_comparison(confounding_strength)
+        st.header("Causal Machine Learning Dashboard")
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Could not run Causal ML analysis. This is a computationally intensive module. Error: {e}")
+        st.warning("Please ensure you have installed the `econml` library: `pip install econml`")
+
+    st.divider()
+    st.subheader("Deeper Dive into Causal Machine Learning")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **The Raw Data (Grey Dots):** The raw scatter plot shows a complex, messy, and seemingly non-linear relationship between the Process Parameter and the Output.
+        2.  **The Standard ML Prediction (Red Dashed Line):** A standard, powerful ML model like XGBoost is trained to predict the output from the inputs. Its Partial Dependence Plot (PDP) is shown. This line represents the **biased correlation**. It is an excellent *predictor*, but it is a terrible *explanation* of the true causal effect.
+        3.  **The Causal ML Estimate (Green Line):** The Causal ML (Double ML) model is then applied. It intelligently removes the influence of the confounder to isolate the true, underlying relationship. In this simulation, it correctly uncovers the simple, linear causal effect that was hidden within the complex correlational data.
+
+        **The Strategic Insight:** Predictive power is not the same as causal understanding. A standard ML model is a powerful **correlation engine**. A Causal ML model is a sophisticated **causal inference engine**. For Root Cause Analysis and process optimization, you must use the right tool for the job. Causal ML is that tool.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: From "What Will Happen?" to "What Should We Do?"
+
+        #### The Problem: The Predictive Model's Dangerous Advice
+        A company has a massive historical dataset from its manufacturing process. They train a state-of-the-art AI/ML model that can predict the final batch yield with 95% accuracy. The model's analysis (using tools like SHAP) reveals that the single most important predictor of high yield is "Operator ID = Bob." The model's advice is clear: to increase yield, have Bob run more batches.
+
+        #### The Impact: Actionable Insights vs. Nonsensical Correlations
+        This is a classic failure mode of purely predictive modeling that leads to paralysis and mistrust in data science.
+        - **Nonsensical Recommendations:** The model's advice is statistically correct but operationally useless and logically absurd. The business cannot "scale up Bob."
+        - **Hidden Confounding:** The model has not learned that Bob *causes* high yield. It has learned that Bob is *correlated* with high yield. The true cause might be that Bob only works the night shift, which uses a more reliable piece of equipment (the confounder). The model has confused the symptom (Bob) with the cause (the equipment).
+        - **Wasted Investment:** If management acts on the model's advice by giving Bob a raise, they have wasted money and done nothing to improve the underlying process. The true opportunity—upgrading the day-shift equipment—has been completely missed.
+
+        #### The Solution: The AI-Powered "What-If" Machine
+        Causal ML (specifically, Double Machine Learning) is the solution to this problem. It is designed to move beyond prediction ("What will happen?") to causal inference ("What would happen if I intervene?"). It uses a clever, two-stage process:
+        1.  It uses one ML model to predict the outcome from all the confounders.
+        2.  It uses a second ML model to predict the *intervention* (the process parameter) from all the confounders.
+        By analyzing the **residuals** (the parts the models couldn't predict), it effectively strips out all the confounding effects, leaving behind a clean, unbiased estimate of the true causal effect of the intervention.
+
+        #### The Consequences: A True Digital Twin for Process Optimization
+        - **Without This:** Companies invest in powerful predictive models but are unable to use them to make reliable causal claims, limiting their ROI to simple monitoring.
+        - **With This:** Causal ML transforms a predictive model into a true **"what-if" engine** or **digital twin**. It allows the business to use its messy historical data to answer the most valuable question: **"If we change parameter X, what will be the *true causal impact* on our yield?"** This enables data-driven, high-confidence process optimization and ensures that multi-million dollar investment decisions are based on true causal understanding, not spurious correlations.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Causal Inference:** The process of drawing a conclusion about a causal connection based on the conditions of the occurrence of an effect.
+        - **Observational Data:** Data gathered from a system in its natural state, without a controlled experimental design (e.g., historical manufacturing data). This data is often rife with confounding.
+        - **Confounder:** A variable that influences both the dependent variable (outcome) and independent variable (treatment), causing a spurious association.
+        - **Double Machine Learning (DML):** A state-of-the-art Causal ML technique that uses two supervised machine learning models to partial out the effects of confounders, thereby providing an unbiased estimate of a treatment's causal effect.
+        - **Partial Dependence Plot (PDP):** A plot from standard ML that shows the average predicted outcome as a function of an input feature. In the presence of confounding, the PDP shows the **biased correlation**, not the true causal effect.
+        - **Conditional Average Treatment Effect (CATE):** The causal effect of an intervention for a specific subgroup or individual. Causal ML models are designed to estimate this.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Predictive Model as Oracle" Fallacy**
+An analyst trains a powerful predictive model on historical data and uses its feature importance scores or PDP plots to make recommendations about how to change the process.
+- **The Flaw:** They are fundamentally confusing **prediction** with **causation**. The model is an expert at finding correlations, not causes. Any recommendations for action based on a purely predictive model are statistically unjustified and likely to be wrong.""")
+        st.success("""🟢 **THE GOLDEN RULE: Use the Right AI for the Right Question**
+1.  **If your question is "What will happen?", use a standard Predictive ML model (like XGBoost).** Its job is to find the best possible correlation-based forecast.
+2.  **If your question is "What should I *do*?", you must use a Causal ML model (like Double ML).** Its job is to strip away the correlations to give you an unbiased estimate of the impact of your proposed intervention.
+Using a predictive model to answer a causal question is the most common and dangerous mistake in applied data science.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: The Credibility Revolution Meets Machine Learning
+        **The Problem:** For decades, economics and other social sciences were plagued by the "correlation is not causation" problem. They had massive amounts of observational data but struggled to make credible causal claims from it. This led to the **"credibility revolution"** in the 1990s, where economists like Joshua Angrist, Guido Imbens, and David Card pioneered methods like instrumental variables and regression discontinuity to find "natural experiments" in the data. For this work, they were awarded the 2021 Nobel Prize in Economics.
+
+        **The New Problem:** These classical causal inference methods were powerful but often relied on simple linear models. The machine learning revolution of the 2010s introduced powerful non-linear models, but these models were purely predictive and had no concept of causality.
+        
+        **The 'Aha!' Moment (Double ML):** In a landmark 2018 paper, a team of economists and computer scientists including Victor Chernozhukov, Denis Chetverikov, and Esther Duflo (another Nobel laureate) introduced the **Double Machine Learning (DML)** framework. Their brilliant insight was to use the power of modern machine learning *against itself*. They used ML models not to predict the final outcome, but to predict and "partial out" the confounding effects from the data. This left behind a clean, residualized dataset where a simple final model could estimate the true causal effect without bias.
+        
+        **The Impact:** DML was a revolutionary synthesis. It combined the statistical rigor of the credibility revolution with the predictive power of the machine learning revolution. It provides a robust, general-purpose framework for answering causal questions with complex, high-dimensional, and non-linear observational data, making it a cornerstone of modern econometrics and data science.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        Causal ML is a state-of-the-art method that provides the ultimate tool for fulfilling the regulatory requirement for **Root Cause Analysis (RCA)** and **Corrective and Preventive Action (CAPA)**, especially when using large historical datasets.
+        - **ICH Q10 - Pharmaceutical Quality System:** Mandates a CAPA system that includes a thorough investigation to determine the root cause. When the only available data is observational (historical), Causal ML is the most powerful and statistically rigorous method for performing this investigation and ensuring that the proposed CAPA is based on a true causal factor, not a spurious correlation.
+        - **FDA Process Validation Guidance (Stage 3 - CPV):** During Continued Process Verification, companies collect massive amounts of observational data. Causal ML can be used to analyze this data to gain a deep, causal understanding of process dynamics, which can be used to justify process improvements.
+        - **ICH Q9 - Quality Risk Management:** Causal ML can be used to validate the causal assumptions made in a qualitative risk tool like an Ishikawa diagram. If the diagram claims that "Parameter X causes Impurity Y," Causal ML can be used to provide the quantitative, data-driven evidence to support or refute that claim.
+        """)
 ##=========================================================================================================================================================================================================
 ##===============================================================================END ACT I UI Render ========================================================================================================================================
 ##=========================================================================================================================================================================================================
@@ -11420,6 +12530,388 @@ def render_process_equivalence():
         - **Technology Transfer (ICH Q10):** A robust tech transfer protocol should have pre-defined acceptance criteria. Proving statistical equivalence of process capability is a state-of-the-art criterion.
         - **SUPAC (Scale-Up and Post-Approval Changes):** When making a change to a validated process, this analysis can be used to prove that the change has not adversely impacted process performance.
         """)
+def render_ode_line_sync():
+    """Renders the comprehensive module for Production Line Synchronization using ODEs."""
+    st.markdown("""
+    #### Purpose & Application: The Science of Flow
+    **Purpose:** To model the dynamic behavior of a multi-stage production line using **Ordinary Differential Equations (ODEs)**. This approach treats the level of Work-in-Progress (WIP) in the buffers between stations as a variable that changes over time, governed by the production rates of the upstream and downstream steps.
+    
+    **Strategic Application:** This is a powerful simulation tool for process engineers and operations managers to **identify and manage bottlenecks**. It allows for "what-if" analysis to predict the impact of process changes (e.g., improving one machine's speed) on the entire system's stability and throughput.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Process Engineer designing a new production line.
+    1.  Use the **"Production Rates"** sliders in the sidebar to set the speed (units/hour) of each of the four process steps.
+    2.  The **dynamic chart** shows how the inventory in the two buffers between the steps evolves over a 40-hour run.
+    3.  Your goal is a **synchronized line**, where buffer levels remain low and stable. Try creating a bottleneck and watch the upstream buffer grow uncontrollably!
+    """)
+
+    with st.sidebar:
+        st.subheader("Production Rates (units/hr)")
+        r0 = st.slider("Step 1: Granulation", 50, 150, 100)
+        r1 = st.slider("Step 2: Drying", 50, 150, 90)
+        r2 = st.slider("Step 3: Compression", 50, 150, 110)
+        r3 = st.slider("Step 4: Packaging", 50, 150, 100)
+        
+        rates = [r0, r1, r2, r3]
+
+    st.header("Production Line Dynamics Dashboard")
+    fig, max_wip1, max_wip2 = plot_line_sync_ode(rates)
+    
+    col1, col2, col3 = st.columns(3)
+    bottleneck_idx = np.argmin(rates)
+    bottleneck_rate = rates[bottleneck_idx]
+    col1.metric("System Throughput", f"{bottleneck_rate} units/hr", help="The overall output of the line is always limited by its slowest step (the bottleneck).")
+    col2.metric("Max WIP in Buffer 1", f"{max_wip1:.0f} units", help="The maximum inventory accumulation between Step 1 and 2.")
+    col3.metric("Max WIP in Buffer 2", f"{max_wip2:.0f} units", help="The maximum inventory accumulation between Step 2 and 3.")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive into Line Synchronization")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Create a Bottleneck:** In the sidebar, set the rate for **Step 2: Drying** to be much lower than the others (e.g., 70 units/hr). Observe the chart:
+            - **Buffer 1 (Blue Line):** The inventory level grows linearly and uncontrollably. This is because the upstream process (Step 1) is feeding it faster than the bottleneck (Step 2) can drain it. This is a recipe for disaster in a real factory.
+            - **Buffer 2 (Red Line):** Remains empty. The downstream process (Step 3) is "starved" for material because it is waiting on the slow bottleneck step.
+        2.  **Synchronize the Line:** Now, adjust all four sliders to be at or near the same rate (e.g., 100 units/hr). Observe the chart:
+            - Both buffer levels remain at or near zero. The line is "balanced" or "synchronized." Material flows smoothly from one step to the next without accumulating.
+
+        **The Strategic Insight:** A production line is like a chain—it is only as strong as its weakest link. Investing millions to speed up a non-bottleneck step is a complete waste of money; it will not increase the overall system throughput and will likely make the buffer problems worse. All improvement efforts must be focused on the **constraint** or **bottleneck** of the system.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The High Cost of Unbalanced Flow
+
+        #### The Problem: The "Local Optimization" Trap
+        Each department in a manufacturing plant is incentivized to maximize the efficiency of its own area. The granulation department invests in a new, high-speed machine. The compression department does the same. Both departments report excellent "local" efficiency metrics. However, the overall factory output has not increased, and a new, massive pile of Work-in-Progress (WIP) inventory has mysteriously appeared on the factory floor.
+
+        #### The Impact: "Hurry Up and Wait"
+        This focus on local optimization, without understanding the system as a whole, is a major source of hidden costs and inefficiency.
+        - **Massive WIP Inventory:** The faster upstream process (Granulation) buries the slower downstream process (Drying) in a mountain of WIP. This ties up millions of dollars in capital, consumes valuable floor space, and increases the risk of material spoilage or obsolescence.
+        - **No Increase in Throughput:** Despite the expensive new machines, the total number of finished goods coming out of the factory per day has not changed. The overall rate of the system is still dictated by its slowest step—the bottleneck. The capital investment has had zero impact on revenue.
+        - **Increased Lead Times:** The time it takes for a single unit to travel through the entire process has actually increased, because it now spends days sitting in the new WIP pile. This reduces the company's agility and its ability to respond to customer orders.
+
+        #### The Solution: A "Digital Twin" to See the System
+        Modeling the production line with ODEs creates a simple but powerful **"digital twin"** of the factory floor. It allows managers and engineers to see the system as an interconnected whole, not just a collection of separate parts. This simulation tool allows the team to:
+        1.  **Identify the Bottleneck:** The model instantly shows which process step is the true constraint on the entire system's performance.
+        2.  **Perform "What-If" Analysis:** Before spending a single dollar on new equipment, the team can simulate the impact: "What happens to the buffer levels and overall throughput if we increase the speed of the drying step by 10%?"
+        3.  **Design for Flow:** The tool can be used to design a new production line with perfectly balanced and synchronized rates, ensuring smooth flow and minimal WIP from the start.
+
+        #### The Consequences: Maximized Throughput and Optimized Capital
+        - **Without This:** Capital investment is a high-risk gamble. Improvement efforts are misdirected at non-bottlenecks, resulting in wasted money and increased chaos.
+        - **With This:** The ODE model provides the **strategic insight needed to optimize the entire value stream**. It ensures that all capital investment and process improvement efforts are focused exclusively on the bottleneck, where they will have the maximum impact. This leads to **increased throughput, reduced lead times, and minimized inventory**, directly improving the company's profitability and cash flow.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **ODE (Ordinary Differential Equation):** A mathematical equation that describes the rate of change of a system. In this model, we describe the rate of change of the buffer level (`d(WIP)/dt`) as a function of inflow and outflow rates.
+        - **Value Stream Mapping (VSM):** A Lean tool for analyzing the flow of a process. This ODE model is a dynamic, mathematical version of a VSM.
+        - **WIP (Work-in-Progress):** Inventory that is currently being processed or is waiting between steps in a production line.
+        - **Bottleneck (or Constraint):** The single step in a process that has the lowest capacity and therefore limits the throughput of the entire system.
+        - **Throughput:** The rate at which the system generates finished goods (units per unit of time). The throughput of the entire system is equal to the rate of the bottleneck.
+        - **Synchronization (or Line Balancing):** The state where the production rates of all steps in a process are matched, resulting in smooth flow and minimal WIP accumulation.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Local Efficiency" Trap**
+A manager's bonus is tied to the utilization of their machine. To maximize this metric, they run their machine as fast as possible, all the time, even if the downstream process isn't ready for the material.
+- **The Flaw:** This manager is successfully hitting their personal target, but they are harming the overall system. They are creating a massive pile of WIP inventory that will cause problems for the downstream departments, increasing the total cost and lead time for the entire company.""")
+        st.success("""🟢 **THE GOLDEN RULE: Subordinate Everything to the Constraint**
+A successful operation is managed as a single, integrated system, not a collection of independent silos. This is the core of the **Theory of Constraints (TOC)**.
+1.  **Identify the Constraint:** Use data (like this model) to find the single slowest step in your process.
+2.  **Exploit the Constraint:** Ensure the bottleneck is never starved for work and is always running at 100% of its capacity on high-quality material.
+3.  **Subordinate Everything Else:** Every other step in the process must be synchronized to the speed of the bottleneck. It is okay for non-bottleneck machines to be idle; in fact, it is essential. Running them any faster than the bottleneck only creates waste.
+""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From Water Clocks to Goldratt's "The Goal"
+        The use of differential equations to model dynamic systems is one of the oldest and most powerful ideas in science, dating back to the work of **Isaac Newton** in the 17th century. They are the mathematical language of physics, engineering, and finance.
+        
+        However, the application of this thinking to factory floor management was brilliantly popularized not by a mathematician, but by an Israeli business consultant named **Eliyahu M. Goldratt**.
+        
+        **The Problem:** In the 1980s, manufacturing was dominated by complex, opaque Material Requirements Planning (MRP) systems that often created more problems than they solved. Managers were focused on "local optima"—making their own department as efficient as possible—without understanding the impact on the whole system.
+        
+        **The 'Aha!' Moment:** In his 1984 blockbuster business novel, ***The Goal***, Goldratt introduced the **Theory of Constraints (TOC)** through a compelling story of a struggling factory manager. The core insight was revolutionary in its simplicity: **every complex system has at least one constraint (bottleneck), and the performance of the entire system is dictated by that single constraint.** Focusing improvement efforts anywhere else is a waste of time and money.
+        
+        **The Impact:** *The Goal* became one of the best-selling business books of all time. It provided managers with a powerful, intuitive mental model for understanding and optimizing their operations. The ODE model in this module is the formal, mathematical expression of the very same "flow dynamics" that Goldratt's characters discover through trial and error. It is a tool for applying the Theory of Constraints in a rigorous, quantitative, and predictive way.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        While ODE modeling is a general engineering tool, its application in a GxP environment directly supports several key regulatory principles.
+        - **ICH Q10 - Pharmaceutical Quality System:** Section 3.2.1 requires a system to "provide for control and identify areas for continual improvement." This ODE model is a powerful tool for identifying the primary area for improvement (the bottleneck) and for designing a more effective control strategy for the entire line.
+        - **FDA Process Validation Guidance (Stage 1 - Process Design):** The guidance emphasizes the need for deep "process understanding." A dynamic model like this provides a much deeper understanding of process flow and interdependencies than a simple process map. It can be used to justify the design and capacity of buffer stages in a continuous manufacturing line.
+        - **Process Analytical Technology (PAT):** For continuous manufacturing processes, a dynamic model of the line is essential. It can be used to predict the impact of disturbances and to design feed-forward and feedback control loops that maintain a state of control across the entire train.
+        - **GAMP 5:** If this ODE model is used to make GxP decisions (e.g., setting production targets, justifying equipment purchases), the model and the software it runs on would need to be formally validated as a Computerized System.
+        """)
+
+def render_lean_manufacturing():
+    """Renders the comprehensive module for Lean Manufacturing & Value Stream Mapping."""
+    st.markdown("""
+    #### Purpose & Application: The War on Waste
+    **Purpose:** To introduce the principles of **Lean Manufacturing**, a management philosophy focused on the relentless elimination of "waste" to maximize value for the customer. This module focuses on its cornerstone tool:
+    - **Value Stream Mapping (VSM):** A visual method for analyzing the flow of materials and information required to bring a product from start to finish. It is a powerful tool for making waste visible.
+    
+    **Strategic Application:** While statistical tools like SPC and Cpk focus on reducing *variation*, Lean focuses on improving *velocity*. It is a complementary discipline that is essential for optimizing the efficiency, speed, and cost-effectiveness of a validated process.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Operations Manager.
+    1.  Use the **"Current State"** sliders in the sidebar to input the cycle times for a typical manufacturing process.
+    2.  The **Value Stream Map** will instantly update to visualize the flow and highlight the "waste" (red wait times).
+    3.  The **KPIs** will calculate the overall cycle time and the shocking reality of the Process Cycle Efficiency.
+    """)
+
+    with st.sidebar:
+        st.subheader("Current State VSM Inputs")
+        st.markdown("Enter the time (in hours) for each activity.")
+        pt1 = st.slider("Process Time: Receipt", 1, 8, 2)
+        wt1 = st.slider("Wait Time: Quarantine", 24, 168, 72)
+        pt2 = st.slider("Process Time: Dispensing", 1, 8, 4)
+        wt2 = st.slider("Wait Time: Staging", 4, 24, 8)
+        pt3 = st.slider("Process Time: Granulation", 8, 24, 12)
+        wt3 = st.slider("Wait Time: Drying", 12, 48, 24)
+        pt4 = st.slider("Process Time: Compression", 4, 12, 8)
+        wt4 = st.slider("Wait Time: Awaiting QC", 24, 96, 48)
+        pt5 = st.slider("Process Time: QC Testing", 2, 8, 4)
+        wt5 = st.slider("Wait Time: Awaiting Packaging", 8, 48, 24)
+        pt6 = st.slider("Process Time: Packaging", 4, 16, 8)
+
+        process_times = [pt1, pt2, pt3, pt4, pt5, pt6]
+        wait_times = [wt1, wt2, wt3, wt4, wt5]
+
+    st.header("Value Stream Mapping Dashboard")
+    fig, total_cycle_time, pce = plot_value_stream_map(process_times, wait_times)
+    
+    col1, col2 = st.columns(2)
+    col1.metric("Total Cycle Time (Lead Time)", f"{total_cycle_time:.1f} Hours", help="The total time from the start of the process to the end.")
+    col2.metric("Process Cycle Efficiency (PCE)", f"{pce:.1f}%", help="The percentage of the total cycle time that is actual, value-added work. A PCE below 10% is common in unoptimized processes.")
+
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive into Lean Principles")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 The 8 Wastes of Lean (DOWNTIME)", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Map the Current State:** The first step is always to create an honest VSM of the process *as it is today*. This involves walking the factory floor and timing every single step, including the waits.
+        2.  **Identify the Waste:** The VSM instantly makes waste visible. The red "Wait" bars are the most obvious form of waste (the Waste of Waiting). The "Kaizen Bursts" (💥) are visual cues that highlight the largest opportunities for improvement.
+        3.  **Calculate the PCE:** The Process Cycle Efficiency is often a shocking and powerful metric. It is common for a process to have a PCE of less than 5%, meaning that for a product that takes a month to produce, the actual "work" time is only a little over a day. The rest is waste.
+        4.  **Design the Future State:** The team then creates a "Future State" VSM that imagines the process with the waste removed. This becomes the implementation plan for the Lean initiative.
+
+        **The Strategic Insight:** Lean and Six Sigma (which includes tools like SPC and DOE) are two sides of the same coin. Six Sigma is focused on making the **value-added steps** (the green bars) more consistent and capable. Lean is focused on **shrinking or eliminating the non-value-added steps** (the red bars). A world-class operation excels at both.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The High Cost of "Business as Usual"
+
+        #### The Problem: The "Hidden Factory"
+        A company's manufacturing process is validated and produces high-quality product. However, the total lead time from raw material to finished good is 30 days, while the actual "touch time" or value-added work is only 36 hours. The other 28.5 days are consumed by a "hidden factory"—a complex, invisible web of non-value-added activities like waiting, rework, excessive movement, and unnecessary inspections.
+
+        #### The Impact: Strangled Cash Flow and Reduced Capacity
+        This hidden factory is a massive drain on profitability and competitiveness, even if the product quality is perfect.
+        - **Trapped Working Capital:** A 30-day lead time means the company has millions of dollars of capital tied up in raw materials and work-in-progress (WIP) inventory that is just sitting idle. This directly impacts cash flow and the company's financial health.
+        - **Reduced Capacity and Throughput:** The factory's true capacity is not limited by its machines, but by the inefficient process flow. The long cycle times mean the facility can produce far fewer batches per year than it is theoretically capable of.
+        - **Inability to Respond to Demand:** With a long lead time, the company cannot quickly respond to a sudden increase in customer demand, leading to lost sales and ceding market share to more agile competitors.
+
+        #### The Solution: Making Waste Visible
+        Lean Manufacturing provides the philosophy, and Value Stream Mapping provides the tool, to systematically **make the hidden factory visible**. The VSM is a powerful diagnostic that shifts the focus from "how do we improve the work?" to "how do we eliminate the waiting between the work?" It forces the organization to see the process from the perspective of the product, identifying every single step that does not add value for the customer.
+
+        #### The Consequences: Increased Velocity, Capacity, and Cash Flow
+        - **Without This:** The hidden factory continues to operate unchecked, silently consuming resources and capping the company's growth potential.
+        - **With This:** A Lean initiative, guided by VSM, is a direct assault on the hidden factory. By systematically eliminating the "red bars" (waste), the company can:
+            - **Slash Lead Times:** Often cutting total cycle time by 50% or more.
+            - **Increase Capacity:** Dramatically increase the number of batches that can be produced with the *same* equipment and staff.
+            - **Free Up Cash Flow:** Reduce the amount of capital tied up in inventory.
+        Lean is not just about "tidying up"; it is a powerful business strategy for unlocking the hidden capacity and financial potential within your existing operations.
+        """)
+
+    with tabs[2]:
+        st.markdown("""
+        Lean philosophy categorizes all non-value-added activities into the "8 Wastes," often remembered by the acronym **DOWNTIME**.
+        - **D - Defects:** Producing a part that is scrap or requires rework. This is the most obvious form of waste.
+        - **O - Overproduction:** Producing more than is needed by the next step in the process or the customer. This leads to excess inventory.
+        - **W - Waiting:** Idle time that occurs when a process step is waiting for materials, information, or for a previous step to be completed. **This is often the largest component of lead time.**
+        - **N - Non-Utilized Talent:** Failing to engage the skills, knowledge, and creativity of the workforce to improve the process.
+        - **T - Transportation:** Unnecessary movement of products and materials between process steps.
+        - **I - Inventory:** Excess raw materials, work-in-progress (WIP), or finished goods that are not being actively processed. Excess inventory hides other problems.
+        - **M - Motion:** Unnecessary movement of people or equipment within a process step (e.g., an operator having to walk across the room to get a tool).
+        - **E - Extra-Processing:** Performing work on a product that adds no value from the customer's perspective (e.g., polishing a surface that will never be seen).
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Tool Time" Fallacy**
+A manager learns about a Lean tool like "5S" (Sort, Set in Order, Shine, Standardize, Sustain) and mandates that every team must implement it, without a clear connection to a business problem.
+- **The Flaw:** This is "tool time" or "Lean for Lean's sake." The team might create a beautifully organized workspace (5S), but it has no impact on the fact that their batches are sitting in quarantine for 10 days (the Waste of Waiting). They have applied a tool without first understanding the value stream.""")
+        st.success("""🟢 **THE GOLDEN RULE: Start with the Value Stream**
+A successful Lean transformation is a strategic, top-down process.
+1.  **Map the Value Stream First:** The VSM is the mandatory starting point. It provides the high-level, strategic view of the entire process and identifies the largest sources of waste and delay.
+2.  **Target the Bottlenecks:** Use the VSM to identify the biggest "red bars." These are your primary targets for improvement.
+3.  **Select the Right Tool for the Job:** *Then*, and only then, do you select the specific Lean tool (like 5S, Kanban, or SMED) that is best suited to fixing the specific problem you have identified. The VSM guides the application of the tools, ensuring that all improvement efforts are focused on what truly matters.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From the Weaving Loom to the Assembly Line
+        The core principles of Lean Manufacturing were born at the **Toyota Motor Corporation** in post-WWII Japan. The company was facing a crisis: it lacked the capital and scale to compete with the massive American auto giants like Ford, which had perfected **mass production**.
+        
+        **The Problem with Mass Production:** Henry Ford's system was brilliant at producing huge volumes of a single, standardized product. But it was also extremely wasteful, creating massive inventories and being unable to adapt to changing customer demand.
+        
+        **The 'Aha!' Moment (Taiichi Ohno & Shigeo Shingo):** Toyota engineers, led by the legendary **Taiichi Ohno** and **Shigeo Shingo**, realized they could not win by copying Ford. They needed a completely new system. Inspired by sources as diverse as American supermarkets (the "pull" system of restocking shelves) and the automatic looms of Sakichi Toyoda (which stopped when a thread broke, a concept called *jidoka* or autonomation), they developed the **Toyota Production System (TPS)**.
+        
+        **The Impact:** TPS was a revolutionary philosophy built on two pillars: **Just-in-Time (JIT)**—making only what is needed, when it is needed, in the amount needed—and **Jidoka**—building quality into the process. The focus was on the relentless identification and elimination of **muda (waste)**. In the 1990s, American researchers, notably in the book *The Machine That Changed the World*, studied and codified the principles of TPS, rebranding them for a Western audience as **"Lean Manufacturing."** Value Stream Mapping became the central tool for visualizing and implementing this powerful philosophy.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        Lean principles are a key component of a modern, efficient Pharmaceutical Quality System and are strongly supported by regulatory bodies.
+        - **ICH Q10 - Pharmaceutical Quality System:** This guideline is heavily focused on **process performance** and **continuous improvement**, which are the core goals of Lean. Section 3.2.1, "Process Performance and Product Quality Monitoring System," requires a system to "identify areas for continual improvement." VSM is a primary tool for this identification.
+        - **FDA Guidance on Process Validation (Stage 3 - CPV):** The goal of Continued Process Verification is not just to maintain control, but also to identify opportunities for improvement. Lean tools provide the framework for turning the data from CPV into actionable, cost-saving projects.
+        - **FDA Report: "Pharmaceutical cGMPs for the 21st Century - A Risk-Based Approach":** This landmark 2004 report, which kicked off the modern era of pharmaceutical quality, explicitly praises the principles of Lean Manufacturing as a way to "enhance product quality and efficiency."
+        
+        **The Golden Thread:** Lean is not in conflict with compliance; it is a powerful enabler of it. A simple, efficient Lean process with minimal waste is inherently easier to control, validate, and maintain in a compliant state than a complex, wasteful process.
+        """)
+        
+def render_monte_carlo_simulation():
+    """Renders the comprehensive module for Monte Carlo Simulation."""
+    st.markdown("""
+    #### Purpose & Application: The "Crystal Ball" for Process Risk
+    **Purpose:** To create a "virtual factory" that can simulate thousands of future production runs in seconds. **Monte Carlo Simulation** is a computational tool that uses repeated random sampling to model the uncertainty and risk in a complex system, allowing us to see the full spectrum of potential future outcomes.
+    
+    **Strategic Application:** This is a state-of-the-art tool for proactive **Quality Risk Management (QRM)** and **Process Design**. It moves beyond simple "worst-case" analysis to answer the critical, probabilistic question: **"Given the known variability of all my inputs, what is the actual probability of producing a failed batch?"**
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Process Engineer for a formulation process.
+    1.  Use the **"Input Variability"** sliders in the sidebar to define the known variability of your raw materials and process steps.
+    2.  Set the **Specification Limits** for the final product.
+    3.  Click **"Run Simulation"**. The histogram shows the predicted distribution of all possible future batch results, and the KPI calculates the statistical probability of failure.
+    """)
+
+    with st.sidebar:
+        st.subheader("Input Variability Controls")
+        st.markdown("**API Potency**")
+        api_mean = st.slider("Mean (%)", 98.0, 102.0, 100.5, 0.1)
+        api_sd = st.slider("Standard Deviation (%)", 0.1, 2.0, 0.5, 0.1)
+        st.markdown("**Excipient Purity**")
+        excipient_mean = st.slider("Mean (%)", 99.0, 100.0, 99.8, 0.1, key='ex_mean')
+        excipient_sd = st.slider("Standard Deviation (%)", 0.05, 1.0, 0.2, 0.05, key='ex_sd')
+        st.markdown("**Process Loss**")
+        loss_min = st.slider("Minimum Loss (%)", 0.0, 5.0, 1.0, 0.5)
+        loss_max = st.slider("Maximum Loss (%)", loss_min, 10.0, 3.0, 0.5)
+        
+        dist_params = {'api_mean': api_mean, 'api_sd': api_sd, 'excipient_mean': excipient_mean, 'excipient_sd': excipient_sd, 'loss_min': loss_min, 'loss_max': loss_max}
+        
+        st.divider()
+        st.subheader("Simulation & Specification")
+        n_trials = st.select_slider("Number of Simulated Batches", options=[1000, 10000, 50000, 100000], value=10000)
+        spec_limits = st.slider("Specification Limits (%)", 90.0, 100.0, (95.0, 105.0), 0.5)
+        lsl, usl = spec_limits
+
+    if 'mc_fig' not in st.session_state:
+        st.session_state.mc_fig = None
+        st.session_state.mc_fail_rate = None
+
+    if st.button("🚀 Run Simulation", use_container_width=True):
+        with st.spinner(f"Running {n_trials:,} virtual batches..."):
+            fig, fail_rate = plot_monte_carlo_simulation(dist_params, n_trials, lsl, usl)
+            st.session_state.mc_fig = fig
+            st.session_state.mc_fail_rate = fail_rate
+        st.rerun()
+
+    st.header("Process Risk Dashboard")
+
+    if st.session_state.mc_fig:
+        st.metric("Predicted Failure Rate (Out of Specification)", f"{st.session_state.mc_fail_rate:.3%}")
+        st.plotly_chart(st.session_state.mc_fig, use_container_width=True)
+    else:
+        st.info("Configure your process in the sidebar and click 'Run Simulation' to see the risk profile.")
+    
+    st.divider()
+    st.subheader("Deeper Dive into Monte Carlo Simulation")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Define the System:** The process starts by creating a mathematical model of the system (e.g., `Final_Conc = API * Purity * (1-Loss)`).
+        2.  **Characterize the Inputs (Sidebar):** This is the most critical step. The team must use historical data or validation studies to define the statistical distribution of each input variable—its mean, standard deviation, and shape.
+        3.  **Run the Simulation:** The computer then runs thousands of "virtual batches." In each run, it randomly draws a value for each input from its defined distribution and calculates the resulting output.
+        4.  **Analyze the Output Distribution (Histogram):** The resulting histogram is a **probabilistic forecast** of all possible future outcomes. It is a powerful visualization of the total system risk. The percentage of simulated batches that fall outside the red specification lines is the predicted long-term failure rate.
+
+        **The Strategic Insight:** This tool demonstrates the concept of **variation propagation**. Small, acceptable variations in multiple *inputs* can stack up in unexpected ways to produce a significant number of failures in the final *output*. Monte Carlo simulation is the only tool that can accurately model and quantify this complex, cumulative risk.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: From "Worst-Case" Guessing to Probabilistic Forecasting
+
+        #### The Problem: The Flaw of Averages and Unrealistic Worst Cases
+        A team is designing a new process and needs to set the specification limits for their raw materials. They use two common but flawed approaches:
+        1.  **The Flaw of Averages:** They design the process assuming all inputs will be at their average, target value.
+        2.  **The Worst-Case Scenario:** They test a single "worst-case" run where all inputs are simultaneously set to their extreme limits.
+        Neither of these approaches reflects reality.
+
+        #### The Impact: Brittle Processes and Unnecessary Costs
+        This simplistic view of the world leads to poor and costly decisions.
+        - **Brittle Processes:** The process designed using averages is extremely fragile. In the real world, where inputs are always variable, the process experiences frequent, "unexpected" failures.
+        - **Impractical Specifications:** The "worst-case" scenario is often statistically impossible (the odds of all 5 inputs being at their 3-sigma limit simultaneously can be less than one-in-a-trillion). Setting specifications based on this unrealistic scenario leads to **impossibly tight raw material specs**. This dramatically increases costs, limits the supplier base, and can make the process commercially non-viable.
+
+        #### The Solution: A "Virtual Factory" for Proactive Risk Assessment
+        Monte Carlo Simulation is the solution. It creates a **"virtual factory"** on a computer, allowing you to see the combined, probabilistic impact of real-world variation *before* you ever run the process. It moves beyond a single "worst case" to provide a full **probability distribution of all possible outcomes**. This enables powerful, data-driven business decisions:
+        - **Risk-Based Specification Setting:** You can simulate the impact of widening a raw material specification. "If we relax the API Potency spec from ±1% to ±2%, our material cost will decrease by 15%, and the simulation shows the predicted batch failure rate only increases from 0.1% to 0.3%. This is an acceptable business risk."
+        - **Targeted Process Improvement:** The simulation can identify which input variable's variability is the biggest contributor to the final product failures, allowing you to focus your validation and improvement efforts where they will have the greatest impact.
+
+        #### The Consequences: A Robust Process Design and an Optimized Supply Chain
+        - **Without This:** Process design is a gamble based on unrealistic assumptions. Specification setting is a battle between the over-cautious and the over-optimistic.
+        - **With This:** Monte Carlo Simulation provides a **quantitative, probabilistic framework for designing for manufacturability**. It allows the company to build robust processes, set realistic and cost-effective specifications, and make data-driven trade-offs between cost, risk, and quality. It is a key tool for de-risking technology transfer and ensuring a smooth, predictable ramp-up to commercial manufacturing.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Monte Carlo Simulation:** A computerized mathematical technique that allows people to account for risk in quantitative analysis and decision making. The technique is used by professionals in fields such as finance, project management, energy, manufacturing, engineering, and science.
+        - **Stochastic Model:** A model that incorporates randomness. The inputs are not fixed numbers but are represented by probability distributions.
+        - **Probability Distribution:** A mathematical function that describes the likelihood of obtaining the possible values that a random variable can take (e.g., a Normal distribution for potency, a Uniform distribution for process loss).
+        - **Variation Propagation (or Error Propagation):** The study of how the uncertainty in the inputs to a mathematical model affects the uncertainty of the model's output.
+        - **Probabilistic Risk Assessment (PRA):** A systematic and comprehensive methodology to evaluate risks associated with a complex engineered system, using probability as its metric. Monte Carlo simulation is the engine for PRA.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Worst-Case" Trap**
+An engineer defines the "worst-case" as the scenario where all inputs are simultaneously at their worst possible values. They run a single experiment under these conditions.
+- **The Flaw:** This is not a risk-based approach; it's a fear-based one. The probability of this "perfect storm" scenario occurring might be astronomically low. Designing the entire process and its specifications around an event that will never happen leads to massive over-engineering and unnecessary cost.""")
+        st.success("""🟢 **THE GOLDEN RULE: Model the Variation, Don't Just Guess at the Extremes**
+A robust risk assessment embraces the reality of variation.
+1.  **Characterize Your Inputs:** The most important step is to use real historical data to understand and define the probability distribution for each critical input parameter. Garbage in, gospel out.
+2.  **Model the System:** Define the mathematical or logical relationship between the inputs and the critical quality output.
+3.  **Simulate Thousands of Futures:** Run the Monte Carlo simulation to generate a high-resolution picture of all the plausible future outcomes.
+4.  **Make a Risk-Based Decision:** Use the final output distribution to make a quantitative, probabilistic decision. For example, "A predicted failure rate of 0.2% is acceptable for this process, so the proposed specifications are approved."
+""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From the Bomb to the Boardroom
+        **The Problem:** During the Manhattan Project in the 1940s, scientists like **Stanislaw Ulam**, **John von Neumann**, and **Nicholas Metropolis** were working on neutron diffusion problems related to the atomic bomb. These problems were far too complex to be solved with traditional analytical mathematics. They involved a cascade of probabilistic events—a neutron traveling a random distance, hitting an atom, and causing a fission that releases more neutrons, each with its own random trajectory.
+
+        **The 'Aha!' Moment:** Ulam, while playing solitaire, realized he could determine the probability of a successful outcome by simply playing hundreds of games and counting the number of wins. He and von Neumann adapted this idea to the neutron problem. They realized they could simulate the "life" of thousands of individual neutrons on the newly available electronic computers (like the ENIAC), using random numbers to decide the outcome at each step. By averaging the results of all these random trials, they could get a very accurate estimate of the overall behavior of the system. Because the project was secret, von Neumann gave this technique the codename **"Monte Carlo,"** after the famous casino in Monaco.
+        
+        **The Impact:** After the war, the method was declassified and its applications exploded. It became an essential tool in fields as diverse as particle physics, financial engineering (for modeling stock prices), and supply chain management. In modern manufacturing and process design, it has become the gold standard for **probabilistic risk assessment**, allowing engineers to move beyond simple, deterministic models and embrace the complexity and uncertainty of the real world.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        Monte Carlo Simulation is a state-of-the-art tool for fulfilling the principles of modern, risk-based validation and Quality by Design (QbD).
+        - **ICH Q9 - Quality Risk Management:** This tool is a direct, quantitative implementation of the QRM principles. It allows for a probabilistic assessment of the risk of failure, which is far more powerful than the qualitative rankings used in an FMEA. The results of a simulation can be a key input to an FMEA.
+        - **ICH Q8(R2) - Pharmaceutical Development:** The simulation is a powerful tool for defining a robust **Design Space**. It allows a company to predict how the combined variability of its Critical Process Parameters (CPPs) will affect the probability of staying within the limits of its Critical Quality Attributes (CQAs).
+        - **FDA Process Validation Guidance (Stage 1 - Process Design):** The guidance emphasizes building deep process understanding and designing a process that is robust and capable. Monte Carlo simulation is a key tool for achieving this during the design phase, allowing for the in-silico testing of process robustness before the first pilot batch is ever run.
+        """)
 
 #=============================================================================== 9. FIRST TIME YIELD & COST OF QUALITY  ============================================================================
 def render_fty_coq():
@@ -11796,6 +13288,142 @@ def render_bayesian():
 ##=======================================================================================================================================================================================================
 ##=================================================================== END ACT II UI Render ========================================================================================================================
 ##=======================================================================================================================================================================================================
+#================================ 0 OEE ==================================================================================================================
+def render_oee():
+    """Renders the comprehensive module for Overall Equipment Effectiveness (OEE)."""
+    st.markdown("""
+    #### Purpose & Application: The "Hidden Factory" Uncovered
+    **Purpose:** To provide a single, powerful KPI that measures the true productivity of a piece of manufacturing equipment. **Overall Equipment Effectiveness (OEE)** is a composite metric that distills all operational losses into one number, revealing the "hidden factory"—the untapped capacity that already exists within your facility.
+    
+    **Strategic Application:** OEE is the gold standard for measuring manufacturing performance. It is a critical tool for identifying improvement opportunities, justifying investments, and tracking the success of Lean and Six Sigma initiatives.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Manufacturing Supervisor.
+    1.  Enter the operational data for a recent shift into the **"OEE Calculator"** in the sidebar.
+    2.  The **KPIs** will instantly calculate the three core components and the final OEE score.
+    3.  The **Waterfall Chart** will visualize exactly where the losses are occurring, showing you where to focus your improvement efforts.
+    """)
+
+    with st.sidebar:
+        st.subheader("OEE Calculator")
+        st.markdown("Enter data from a typical production shift.")
+        shift_length = st.number_input("Shift Length (minutes)", value=480)
+        breaks = st.number_input("Planned Breaks (minutes)", value=60)
+        unplanned_downtime = st.number_input("Unplanned Downtime (minutes)", value=47, help="e.g., machine breakdowns, setup/changeover time.")
+        ideal_cycle_time = st.number_input("Ideal Cycle Time (seconds/unit)", value=60.0, format="%.1f")
+        total_units = st.number_input("Total Units Produced", value=300)
+        good_units = st.number_input("Good Units Produced (no defects)", value=285)
+
+    # OEE Calculations
+    planned_production_time = shift_length - breaks
+    run_time = planned_production_time - unplanned_downtime
+    
+    availability = run_time / planned_production_time if planned_production_time > 0 else 0
+    performance = (ideal_cycle_time / 60 * total_units) / run_time if run_time > 0 else 0
+    quality = good_units / total_units if total_units > 0 else 0
+    oee = availability * performance * quality
+    
+    st.header("OEE Performance Dashboard")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Availability", f"{availability:.1%}", help="Run Time / Planned Time. Measures downtime losses.")
+    col2.metric("Performance", f"{performance:.1%}", help="Actual Output / Potential Output. Measures speed losses.")
+    col3.metric("Quality", f"{quality:.1%}", help="Good Units / Total Units. Measures defect losses.")
+    
+    with col4:
+        st.metric("Overall OEE", f"{oee:.1%}")
+        if oee >= 0.85: st.success("World Class")
+        elif oee >= 0.60: st.warning("Typical")
+        else: st.error("Needs Improvement")
+        
+    fig = plot_oee_breakdown(availability, performance, quality, oee)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive into OEE")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 The Six Big Losses", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Waterfall Chart:**
+        The chart provides a clear, top-down view of where your factory's potential is being lost.
+        1.  **Initial Capacity (100%):** This represents the total time available.
+        2.  **Availability Loss:** This is the first major drop, caused by all planned and unplanned stops (downtime). This is your biggest lever for improvement.
+        3.  **Performance Loss:** This second drop represents the machine not running at its ideal top speed (slow cycles) and minor stops.
+        4.  **Quality Loss:** The final drop represents the time wasted producing defective parts that must be scrapped or reworked.
+        5.  **Valuable Time (OEE):** The final green bar is the percentage of the total shift time that was truly productive—making good parts, as fast as possible, with no downtime.
+
+        **The Strategic Insight:** OEE exposes the fallacy of "keeping the machine busy." A machine can be running 100% of the time but have a terrible OEE if it's running slowly or producing a high number of defects. OEE forces a holistic view of performance and focuses improvement efforts on the largest sources of loss.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: Unlocking the "Hidden Factory"
+
+        #### The Problem: The "We Need More Capacity" Fallacy
+        A manufacturing site is struggling to meet growing customer demand. The machines are running 24/7, and the team feels they are at maximum capacity. Management's default solution is a massive, multi-million dollar capital expenditure project to buy new equipment and expand the facility.
+
+        #### The Impact: Wasted Capital and Masked Inefficiencies
+        This "buy more" approach is often a costly mistake that masks deep, unresolved operational problems.
+        - **Massive, Unnecessary Capital Expenditure:** The company spends millions on new equipment and facilities it may not have actually needed, a huge drain on capital that could have been used for R&D or other growth initiatives.
+        - **Duplicating Bad Processes:** The new production line is a copy of the old, inefficient one. The company has simply scaled its existing waste, doubling down on its "hidden factory."
+        - **Increased Operating Costs:** The larger facility now has higher overhead, maintenance, and labor costs, but with the same underlying low efficiency, leading to reduced profitability.
+
+        #### The Solution: A Data-Driven Hunt for Hidden Capacity
+        Overall Equipment Effectiveness (OEE) is the diagnostic tool that **uncovers the "hidden factory"**—the massive amount of productive capacity that is already present but is being lost to downtime, slow cycles, and defects. OEE provides a single, powerful metric that quantifies this loss and a framework (the Six Big Losses) for systematically eliminating it. It shifts the conversation from "How can we buy more capacity?" to "How can we unlock the capacity we already own?"
+
+        #### The Consequences: Increased Output Without Increased Capital
+        - **Without This:** The company is trapped in a cycle of expensive capital projects and is blind to the massive potential locked within its existing assets.
+        - **With This:** OEE provides the **data-driven business case** to focus on process improvement instead of capital expansion. By systematically improving OEE, a company can often **increase its true output by 20-50% using the exact same equipment**. This is a massive, high-ROI win. It avoids unnecessary capital expenditure, frees up cash flow, and forces the organization to achieve a state of true operational excellence before scaling, creating a leaner, more profitable, and more competitive business.
+        """)
+
+    with tabs[2]:
+        st.markdown("""
+        OEE provides the top-level metric, but the "Six Big Losses" provide the specific targets for improvement. They are the root causes of the losses seen in the waterfall chart.
+        
+        **1. Availability Losses**
+        - **Breakdowns:** Unplanned equipment failures and downtime.
+        - **Setup and Adjustments:** Time lost during changeovers from one product to another. This is often the largest single source of downtime.
+        
+        **2. Performance Losses**
+        - **Minor Stops & Idling:** Short stops that don't require maintenance but disrupt the flow (e.g., a jammed sensor, a misfeed).
+        - **Reduced Speed:** The equipment is run at a speed lower than its ideal, designed cycle time.
+        
+        **3. Quality Losses**
+        - **Production Rejects:** Defects and scrap produced during steady-state production.
+        - **Startup Rejects:** Defects and scrap produced during warm-up or after a changeover, before the process has stabilized.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Gaming the Metric" Fallacy**
+A site manager, under pressure to improve their OEE score, decides to "help" the numbers. They reclassify major breakdowns as "planned maintenance" to boost their Availability score. They lower the "Ideal Cycle Time" in the system to boost their Performance score.
+- **The Flaw:** This is a classic case of "you get what you measure." The manager has improved the score but has done nothing to improve the underlying process. They are lying with statistics, and the real-world problems of downtime and slow cycles remain, continuing to cost the company money.""")
+        st.success("""🟢 **THE GOLDEN RULE: Be Brutally Honest About the Losses**
+The value of OEE comes from its unflinching honesty. The goal is not to achieve a "good score," but to have an **accurate score** that correctly identifies the biggest opportunities.
+1.  **Define Standards Rigorously:** The definitions of "downtime," "ideal cycle time," and "defect" must be standardized and applied consistently.
+2.  **Focus on the Losses, Not the Score:** The OEE number is just the headline. The real value is in the **waterfall chart and the Six Big Losses**, which provide the detailed, actionable roadmap for improvement.
+3.  **Empower the Operators:** The people running the machine are the ones who know the true causes of minor stops and slow cycles. An effective OEE program engages them directly in identifying and eliminating these losses.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: The Birth of Total Productive Maintenance
+        The concept of OEE was developed by **Seiichi Nakajima** in the 1960s as a central component of his revolutionary **Total Productive Maintenance (TPM)** methodology.
+        
+        **The Problem:** In post-war Japan, companies could not afford the massive, capital-intensive factories of their Western counterparts. They had to get the absolute maximum productivity out of every single piece of equipment they owned. The traditional separation between "Production" (who ran the machines) and "Maintenance" (who fixed them when they broke) was seen as a major source of inefficiency.
+        
+        **The 'Aha!' Moment:** Nakajima's insight was that maintenance should not be a reactive, separate activity. He proposed a holistic, team-based approach where operators themselves were empowered and trained to perform routine maintenance, cleaning, and inspection of their own equipment. The goal was to move from "I run, you fix" to "we are all responsible for the health of the machine."
+        
+        **The Impact:** To measure the success of this new TPM philosophy, Nakajima needed a single, powerful metric that captured all aspects of equipment performance. He created **OEE**. OEE was the perfect KPI because it combined the three distinct perspectives—Maintenance (Availability), Engineering (Performance), and Quality—into one number. It became the universal language for measuring and improving equipment productivity and is now the global standard for any serious manufacturing operation.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        OEE is a key performance indicator that supports the goals of a modern Pharmaceutical Quality System and the principles of continuous improvement.
+        - **ICH Q10 - Pharmaceutical Quality System:** Section 3.2.1, "Process Performance and Product Quality Monitoring System," requires a system to "provide for control and identify areas for continual improvement." OEE is a best-in-class metric for this purpose. A negative trend in OEE would be a clear signal to investigate.
+        - **FDA Process Validation Guidance (Stage 3 - CPV):** An effective Continued Process Verification program should monitor key performance indicators. OEE provides a holistic measure of the health of the equipment, which is a critical component of the overall process.
+        - **FDA Guidance: "Pharmaceutical cGMPs for the 21st Century":** This initiative explicitly encourages the adoption of modern quality management techniques from other industries. OEE, born from the Toyota Production System, is a prime example of such a technique that enhances efficiency and control.
+        """)
+
+
 #======================================= 1. PROCESS CONTROL PLAN BUILDER  ============================================================================
 def render_control_plan_builder():
     """Renders the comprehensive, interactive module for a Process Control Plan."""
@@ -14619,6 +16247,113 @@ A modern, AI-driven approach to robustness testing treats the problem as a forma
         - **ICH Q9 (Quality Risk Management):** This is a form of proactive risk discovery. Instead of just assessing known risks, this system actively searches for new, unknown risk scenarios (combinations of parameters that lead to anomalous states).
         - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML models to inform critical decisions about the process operating range, the models themselves would require a robust validation lifecycle to be used in a GxP environment.
         """)
+
+def render_digital_twin():
+    """Renders the comprehensive module for Digital Twin & Real-Time Simulation."""
+    st.markdown("""
+    #### Purpose & Application: The "Flight Simulator" for Your Process
+    **Purpose:** To create a **Digital Twin**—a high-fidelity, real-time, virtual replica of a physical process. This dynamic simulation is not a static model; it lives and breathes alongside the real process, enabling advanced monitoring, prediction, and "what-if" analysis.
+    
+    **Strategic Application:** This is the pinnacle of the **Process Analytical Technology (PAT)** and **Pharma 4.0** initiatives. A validated digital twin is a transformative business asset that enables:
+    - **Intelligent Monitoring:** Detect deviations from the "golden batch" trajectory in real-time.
+    - **Proactive Control:** Forecast future states and enable feed-forward control to prevent deviations before they occur.
+    - **Virtual Experimentation:** Test process changes or train operators in a safe, simulated "flight simulator" environment with zero risk to actual product.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Lead Process Engineer monitoring a live batch.
+    1.  The dashboard shows the **Real Process** (blue line) running alongside the **Digital Twin's Forecast** (grey dashed line).
+    2.  Use the **"Inject Fault"** controls in the sidebar to introduce an unexpected event into the real process.
+    3.  Observe the results. The two lines will diverge, and the **Process Health Score** in the bottom plot will spike, triggering an alert long before a traditional SPC chart would.
+    """)
+
+    with st.sidebar:
+        st.subheader("Process Fault Simulation")
+        fault_type = st.radio("Select Fault Type", ["None", "Drift", "Shift"])
+        fault_time = st.slider("Fault Injection Time (Minutes)", 0, 100, 50)
+        fault_magnitude = st.slider("Fault Magnitude", 0.0, 10.0, 5.0, 0.5)
+
+    st.header("Digital Twin Monitoring Dashboard")
+    fig = plot_digital_twin_dashboard(fault_type, fault_magnitude, fault_time)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    st.subheader("Deeper Dive into Digital Twins")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **The Forecast (Top Plot):** The digital twin (often a powerful time series model like an LSTM or Prophet) continuously generates a forecast of the process's "golden trajectory"—the ideal path it should be following.
+        2.  **The Comparison:** This forecast is compared in real-time to the actual data coming from the live process sensors.
+        3.  **The Health Score (Bottom Plot):** The difference between the forecast and the actual data (the residual) is calculated. This residual is a powerful, unified **"health score."** As long as the real process is behaving as expected, this score will be near zero.
+        4.  **The Alarm:** When a fault occurs, the real process deviates from the twin's forecast. The health score spikes, crossing a pre-defined alert threshold and providing an immediate, highly sensitive signal that the process has entered an unexpected state.
+
+        **The Strategic Insight:** A digital twin transforms process monitoring from simple "in-or-out" SPC charting to a much more sophisticated **conformance monitoring**. The question is no longer "Is the value within its limits?" but rather, "Is the process behaving in the way we expect it to?" This allows for the detection of subtle, complex deviations that would be invisible to traditional methods.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The "Flight Simulator" for High-Value Manufacturing
+
+        #### The Problem: The High Cost of Physical Experimentation
+        A company needs to optimize a complex, multi-million dollar bioprocess, train new operators, or investigate potential failure modes. The only way to do this is through physical experimentation on the production equipment. This is incredibly slow, expensive, and carries the risk of causing a catastrophic failure that could damage the equipment or lose a batch.
+
+        #### The Impact: Risk Aversion and Stifled Improvement
+        This high cost and risk associated with physical experimentation creates a culture of extreme conservatism and stifles innovation.
+        - **"Don't Touch It" Mentality:** The process, once validated, is "locked down." Potentially valuable process improvements are never explored because the cost and risk of experimentation are deemed too high. The process stagnates.
+        - **Sub-Optimal Operator Training:** New operators are trained primarily through classroom learning and by shadowing experienced staff. They never get to experience or learn how to handle rare, high-stakes process excursions in a hands-on way until a real crisis is already underway.
+        - **Reactive Troubleshooting:** When a deviation occurs, the only way to test a hypothesis about the root cause is to try it on the next multi-million dollar production batch, a high-risk and inefficient way to solve problems.
+
+        #### The Solution: A Safe, Virtual "Flight Simulator"
+        A Digital Twin is the solution. It is a **high-fidelity, real-time "flight simulator" for your process**. By creating a validated, virtual replica of the physical asset, it unlocks a revolutionary new set of capabilities that are impossible to achieve in the physical world.
+        1.  **Risk-Free Optimization:** Engineers can run thousands of "virtual experiments" on the digital twin to discover novel, high-performance operating conditions without consuming any raw materials or putting any real batches at risk.
+        2.  **Immersive Operator Training:** New operators can be trained in a virtual environment. They can experience and learn to handle simulated crisis scenarios (e.g., a pump failure, a contamination event), building critical skills in a completely safe setting.
+        3.  **Proactive "What-If" Analysis:** Before making a change, managers can ask the digital twin critical questions: "What is the predicted impact on our final CQA if we switch to this new raw material lot?"
+
+        #### The Consequences: Accelerated Innovation and a "Self-Driving" Factory
+        - **Without This:** Process improvement is slow, expensive, and high-risk. The company is always constrained by the limits of physical experimentation.
+        - **With This:** The Digital Twin becomes the **central hub for process knowledge and innovation**. It dramatically **accelerates process optimization**, **reduces the risk of change**, and provides a **powerful platform for operator training**. It is the foundational technology for the next generation of manufacturing, enabling the shift from manual control to the proactive, data-driven, and eventually autonomous "lights-out" factory of the future.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Digital Twin:** A virtual representation that serves as the real-time digital counterpart of a physical object or process. It is a dynamic model that is continuously updated with data from its physical counterpart.
+        - **Simulation:** A model that imitates the operation of a real-world process or system over time. A digital twin is a specific, highly advanced type of simulation.
+        - **State Estimation:** The process of using a mathematical model and sensor data to estimate the true, unobservable internal state of a system (e.g., using a Kalman Filter).
+        - **Conformance Monitoring:** The practice of comparing the real-time behavior of a process to the expected behavior predicted by a "golden batch" model or a digital twin.
+        - **PAT (Process Analytical Technology):** An FDA initiative that encourages the use of timely measurements, process understanding, and feedback controls to ensure final product quality is built-in. Digital twins are a key enabling technology for PAT.
+        - **Pharma 4.0:** The application of Industry 4.0 principles (such as IoT, AI, and digital twins) to the pharmaceutical manufacturing industry.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Static Model" Fallacy**
+A company builds a complex model of their process once, during initial development. They use it to set their specifications and then file it away. They never update it with new production data.
+- **The Flaw:** This is a static snapshot, not a living twin. Over time, the physical process will inevitably change due to subtle equipment wear, raw material shifts, and environmental factors. The static model becomes an increasingly inaccurate and misleading representation of reality.""")
+        st.success("""🟢 **THE GOLDEN RULE: The Twin Must Evolve with the Process**
+A true digital twin is not a one-time project; it is a living asset that must be continuously managed and updated throughout the product lifecycle.
+1.  **Build from First Principles & Data:** The best twins combine a physics-based or mechanistic understanding of the process with a data-driven model (e.g., an LSTM or TCN) that learns the complex nuances from real-world data.
+2.  **Validate Rigorously:** The digital twin must be formally validated to prove that its predictions accurately reflect the behavior of the physical process.
+3.  **Continuously Monitor & Retrain:** There must be a formal program (as part of Stage 3 CPV) to monitor the twin's performance over time. When the twin's predictions start to diverge from reality, it's a signal that either the physical process has changed or the model needs to be retrained on new data.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From NASA's "Mirror" to the Smart Factory
+        **The Problem:** The concept of a digital twin was born out of the most extreme engineering challenge imaginable: the **NASA Apollo program**. During the perilous Apollo 13 mission in 1970, an oxygen tank exploded, crippling the spacecraft. On the ground at Mission Control in Houston, engineers had a problem: how could they test potential solutions without endangering the astronauts?
+
+        **The 'Aha!' Moment:** They had the answer: a series of full-scale, high-fidelity simulators on the ground that **"mirrored"** the exact configuration of the spacecraft in the sky. These were the world's first true digital twins. They allowed the engineers to test and validate their rescue plan—like the famous "square peg in a round hole" CO₂ filter solution—in a safe, virtual environment before transmitting the instructions to the crew.
+        
+        **The Impact:** This powerful concept of a mirrored, real-time simulation was later formalized by Dr. Michael Grieves in 2002 for manufacturing. The rise of the **Internet of Things (IoT)**, cloud computing, and advanced AI in the 2010s is what made this vision a practical reality for mainstream industry. The ability to collect massive amounts of real-time sensor data and feed it into a powerful cloud-based AI model has made the digital twin the central pillar of the **Industry 4.0** (or **Pharma 4.0**) revolution. It has moved from a crisis management tool for spacecraft to a core strategic asset for the modern smart factory.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        The Digital Twin is the ultimate expression of the principles of modern, data-driven validation and process control and is strongly aligned with the future direction of regulatory oversight.
+        - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** The digital twin is the core enabling technology for PAT. It provides the deep "process understanding" and the predictive capability required for advanced control strategies and Real-Time Release Testing (RTRT).
+        - **FDA Process Validation Guidance (Stage 3 - Continued Process Verification):** The digital twin is the most advanced form of a CPV program. Its health score provides a continuous, holistic measure of whether the process remains in its validated state.
+        - **ICH Q12 - Technical and Regulatory Considerations for Pharmaceutical Product Lifecycle Management:** This guideline encourages a more robust, post-approval Change Management Protocol. A validated digital twin can provide powerful in-silico evidence to support the justification for certain process changes, potentially reducing the regulatory burden.
+        - **GAMP 5 & 21 CFR Part 11:** A digital twin used for any GxP purpose (especially for RTRT) is a highly complex Computerized System that requires a rigorous validation package. The validation must prove not only that the software is reliable, but that the underlying mathematical model is accurate and fit for its intended use.
+        """)
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
 # ==============================================================================
@@ -14649,6 +16384,8 @@ with st.sidebar:
             "Design for Excellence (DfX)",
             "Validation Master Plan (VMP) Builder",
             "Requirements Traceability Matrix (RTM)"
+            "Gap Analysis & Change Control",
+            "Root Cause Analysis (RCA)",
         ],
         "ACT I: FOUNDATION & CHARACTERIZATION": [
             "Exploratory Data Analysis (EDA)",
@@ -14661,12 +16398,15 @@ with st.sidebar:
             "Gage R&R / VCA",
             "Attribute Agreement Analysis",
             "Comprehensive Diagnostic Validation",
+            "Component Reliability Testing",
             "ROC Curve Analysis",
             "Assay Robustness (DOE)",
             "Mixture Design (Formulations)",
             "Process Optimization: From DOE to AI",
+            "Bayesian Optimization",
             "Split-Plot Designs",
             "Causal Inference"
+            "Causal ML / Double ML",
         ],
         "ACT II: TRANSFER & STABILITY": [
             "Sample Size for Qualification",
@@ -14679,11 +16419,15 @@ with st.sidebar:
             "Process Stability (SPC)",
             "Process Capability (Cpk)",
             "Statistical Equivalence for Process Transfer",
+            "Production Line Sync (ODE)",
+            "Lean Manufacturing & VSM",
+            "Monte Carlo Simulation for Risk Analysis",
             "First Time Yield & Cost of Quality",
             "Tolerance Intervals",
             "Bayesian Inference"
         ],
         "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
+            "Overall Equipment Effectiveness (OEE)",
             "Process Control Plan Builder",
             "Run Validation (Westgard)",
             "Small Shift Detection",
@@ -14705,6 +16449,7 @@ with st.sidebar:
             "TCN + CUSUM",
             "LSTM Autoencoder + Hybrid Monitoring",
             "PSO + Autoencoder"
+            "Digital Twin & Real-Time Simulation",
         ]
     }
 
@@ -14727,6 +16472,8 @@ with st.sidebar:
         "Design for Excellence (DfX)": render_dfx_dashboard,
         "Validation Master Plan (VMP) Builder": render_vmp_builder,
         "Requirements Traceability Matrix (RTM)": render_rtm_builder,
+        "Gap Analysis & Change Control": render_gap_analysis_change_control,
+        "Root Cause Analysis (RCA)": render_rca_suite,
         
         # Act I
         "Exploratory Data Analysis (EDA)": render_eda_dashboard,
@@ -14739,12 +16486,15 @@ with st.sidebar:
         "Gage R&R / VCA": render_gage_rr,
         "Attribute Agreement Analysis": render_attribute_agreement,
         "Comprehensive Diagnostic Validation": render_diagnostic_validation_suite,
+        "Component Reliability Testing": render_component_reliability,
         "ROC Curve Analysis": render_roc_curve,
         "Assay Robustness (DOE)": render_assay_robustness_doe,
         "Mixture Design (Formulations)": render_mixture_design,
         "Process Optimization: From DOE to AI": render_process_optimization_suite,
+        "Bayesian Optimization": render_bayesian_optimization,
         "Split-Plot Designs": render_split_plot,
         "Causal Inference": render_causal_inference,
+        "Causal ML / Double ML": render_causal_ml,
         
         # Act II
         "Sample Size for Qualification": render_sample_size_calculator,
@@ -14757,11 +16507,15 @@ with st.sidebar:
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,
         "Statistical Equivalence for Process Transfer": render_process_equivalence,
+        "Production Line Sync (ODE)": render_ode_line_sync,
+        "Lean Manufacturing & VSM": render_lean_manufacturing,
+        "Monte Carlo Simulation for Risk Analysis": render_monte_carlo_simulation,
         "First Time Yield & Cost of Quality": render_fty_coq,
         "Tolerance Intervals": render_tolerance_intervals,
         "Bayesian Inference": render_bayesian,
         
         # Act III
+        "Overall Equipment Effectiveness (OEE)": render_oee,
         "Process Control Plan Builder": render_control_plan_builder,
         "Run Validation (Westgard)": render_multi_rule,
         "Small Shift Detection": render_ewma_cusum,
@@ -14782,6 +16536,7 @@ with st.sidebar:
         "TCN + CUSUM": render_tcn_cusum,
         "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
         "PSO + Autoencoder": render_pso_autoencoder,
+        "Digital Twin & Real-Time Simulation": render_digital_twin,
     }
     
 # --- Main Content Area Dispatcher ---

@@ -4437,7 +4437,7 @@ def plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_le
     return fig, mae_scores
 #=============================================================================================== ADVANCED TIME SERIES =========================================================================================================
 
-ef plot_prophet_only(trend_type, seasonality_type, noise_level, changepoint_strength):
+def plot_prophet_only(trend_type, seasonality_type, noise_level, changepoint_strength):
     """
     Fits and plots ONLY the Prophet model. This function is designed to be stable
     and handle data conversions explicitly to prevent plotting errors.

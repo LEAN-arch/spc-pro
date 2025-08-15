@@ -6056,7 +6056,7 @@ def create_pso_static_figure(zz, x_range, y_range, history_start, history_end, g
 
 def render_introduction_content():
     """Renders the complete, all-in-one introduction and framework dashboard for V&V Sentinel."""
-    st.title("🛡️🛠️ V&V Sentinel")
+    st.title("🛡️ V&V Sentinel")
     st.markdown("### The Interactive Playbook for Biotech & MedTech Validation")
     
     st.markdown(

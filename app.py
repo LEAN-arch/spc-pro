@@ -16513,7 +16513,7 @@ with st.sidebar:
             "RL for Chart Tuning",
             "TCN + CUSUM",
             "LSTM Autoencoder + Hybrid Monitoring",
-            "PSO + Autoencoder"
+            "PSO + Autoencoder",
             "Digital Twin & Real-Time Simulation",
         ]
     }

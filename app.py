@@ -11010,6 +11010,8 @@ def render_causal_inference():
             - **GAMP 5:** While focused on software, its principles of risk management and root cause analysis for deviations apply broadly.
             """)
             
+# SNIPPET: Replace your entire render_causal_ml function with this final, high-performance version.
+
 def render_causal_ml():
     """Renders the comprehensive module for Causal Machine Learning."""
     st.markdown("""
@@ -11020,22 +11022,39 @@ def render_causal_ml():
     """)
     st.info("""
     **Interactive Demo:** You are a Data Scientist investigating the effect of a process parameter on product purity.
-    1.  The true, underlying causal effect is a simple line (`Y = 2*T + ...`), but it is hidden by a complex, non-linear confounding effect.
-    2.  Use the **"Confounding Strength"** slider to control how much the confounder distorts the relationship.
-    3.  Observe the results. The **Standard ML PDP (red line)** learns the *biased correlation*. The **Causal ML model (green line)** successfully removes the confounding effect to uncover the true, hidden linear cause-and-effect relationship.
+    1.  Use the **"Confounding Strength"** slider to control how much the confounder distorts the relationship.
+    2.  Click the **"Run Causal Analysis"** button. Please allow a few moments for the two ML models to train.
+    3.  Observe how the Causal ML model (green line) uncovers the true effect, while the standard ML model (red line) is misled by the confounding.
     """)
+
+    # --- Initialize session state to hold the results ---
+    if 'causal_ml_fig' not in st.session_state:
+        st.session_state.causal_ml_fig = None
 
     with st.sidebar:
         st.subheader("Causal ML Controls")
         confounding_strength = st.slider("Confounding Strength", 0.0, 2.0, 1.0, 0.1, help="How strongly the confounder (W) influences the choice of the process parameter (T).")
 
-    try:
-        fig = plot_causal_ml_comparison(confounding_strength)
-        st.header("Causal Machine Learning Dashboard")
-        st.plotly_chart(fig, use_container_width=True)
-    except Exception as e:
-        st.error(f"Could not run Causal ML analysis. This is a computationally intensive module. Error: {e}")
-        st.warning("Please ensure you have installed the `econml` library: `pip install econml`")
+        # --- The "Run" button that triggers the computation ---
+        if st.button("🚀 Run Causal Analysis", use_container_width=True):
+            with st.spinner("Training two XGBoost models for causal inference... This is computationally intensive."):
+                try:
+                    # The call to the cached plotting function
+                    fig = plot_causal_ml_comparison(confounding_strength)
+                    st.session_state.causal_ml_fig = fig
+                except Exception as e:
+                    st.session_state.causal_ml_fig = None # Clear previous results on error
+                    st.error(f"Could not run Causal ML analysis. Error: {e}")
+                    st.warning("Please ensure you have installed the `econml` library: `pip install econml`")
+            st.rerun()
+
+    st.header("Causal Machine Learning Dashboard")
+
+    # --- Display results from session state ---
+    if st.session_state.causal_ml_fig:
+        st.plotly_chart(st.session_state.causal_ml_fig, use_container_width=True)
+    else:
+        st.info("Configure the confounding strength in the sidebar and click 'Run Causal Analysis' to see the results.")
 
     st.divider()
     st.subheader("Deeper Dive into Causal Machine Learning")

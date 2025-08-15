@@ -4343,20 +4343,44 @@ def plot_ewma_cusum_comparison(shift_size=0.75, scenario='Sudden Shift'):
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Time Series) - SME ENHANCED
 # ==============================================================================
+def fit_prophet_model(train_df, n_forecast):
+    """A non-cached helper function to safely fit and predict with Prophet."""
+    # Context manager to suppress stdout for noisy libraries
+    @contextlib.contextmanager
+    def suppress_stdout():
+        with open(os.devnull, 'w') as fnull:
+            import sys
+            saved_stdout = sys.stdout
+            sys.stdout = fnull
+            try:
+                yield
+            finally:
+                sys.stdout = saved_stdout
+    
+    try:
+        with suppress_stdout():
+            m_prophet = Prophet().fit(train_df)
+        future = m_prophet.make_future_dataframe(periods=n_forecast, freq='W')
+        fc_prophet = m_prophet.predict(future)
+        return fc_prophet['yhat'].iloc[-n_forecast:].values
+    except Exception:
+        return pd.Series(np.nan, index=pd.to_datetime(train_df['ds'].tail(n_forecast)))
+
 @st.cache_data
 def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoint_strength):
     """
     Generates a dynamic time series and fits five different forecasting models to it.
+    This version isolates the problematic Prophet model fitting to a non-cached function.
     """
     np.random.seed(42)
-    periods = 156 # 3 years of weekly data
-    n_forecast = 26 # Forecast 6 months
+    periods = 156 
+    n_forecast = 26 
     dates = pd.date_range(start='2021-01-01', periods=periods, freq='W')
     
     # 1. Generate Data
     if trend_type == 'Multiplicative':
         trend = 100 * np.exp(np.arange(periods) * 0.01)
-    else: # Additive
+    else: 
         trend = 100 + 0.5 * np.arange(periods)
     seasonality = np.zeros(periods)
     if seasonality_type == 'Single (Yearly)':
@@ -4402,15 +4426,8 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
     except Exception:
         forecasts['SARIMA'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # Prophet --- WRAP fit() call in suppress_stdout ---
-    try:
-        with suppress_stdout():
-            m_prophet = Prophet().fit(train)
-        future = m_prophet.make_future_dataframe(periods=n_forecast, freq='W')
-        fc_prophet = m_prophet.predict(future)
-        forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
-    except Exception:
-        forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+    # Prophet --- CALL THE NON-CACHED HELPER ---
+    forecasts['Prophet'] = fit_prophet_model(train, n_forecast)
         
     # ETS
     try:

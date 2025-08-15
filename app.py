@@ -11474,7 +11474,6 @@ def render_time_series_suite():
     # The detailed informational tabs remain unchanged and will display correctly.
     tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "💡 Method Selection Map", "📊 Scoring Table", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
-    with tabs[0]:
         st.markdown("""
         ### Method Selection Map: A Strategic Decision Framework
         This streamlined suite compares the three dominant philosophies of classical time series forecasting.

@@ -10,7 +10,7 @@ reliability
 # --- Statistical Modeling & Analysis ---
 scipy~=1.11.0
 statsmodels~=0.14.0
-ecoml
+econml
 
 # --- Machine Learning & AI ---
 scikit-learn~=1.3.0

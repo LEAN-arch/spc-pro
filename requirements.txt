@@ -6,7 +6,7 @@ graphviz
 pandas~=2.0.3
 numpy~=1.24.4
 lifelines==0.28.0
-
+reliability
 # --- Statistical Modeling & Analysis ---
 scipy~=1.11.0
 statsmodels~=0.14.0

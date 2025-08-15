@@ -7633,7 +7633,7 @@ This ensures alignment from start to finish and guarantees the final deliverable
         """)
 
 
-# SNIPPET: Replace the entire render_ivd_regulatory_framework function with this enhanced version.
+# SNIPPET: Replace the entire render_ivd_regulatory_framework function with this corrected version.
 
 def render_ivd_regulatory_framework():
     """Renders the comprehensive module for the IVD & Medical Device Regulatory Framework."""
@@ -7679,7 +7679,6 @@ def render_ivd_regulatory_framework():
         highlight_path_jpn = path_map_jpn.get(product_concept, 'class_ii')
         st.plotly_chart(plot_jpn_pathway(highlight_path_jpn), use_container_width=True)
 
-    # --- THIS IS THE ENHANCED TAB CONTENT ---
     with tab_comp:
         st.subheader("Global Harmonization: Speaking a Common Language of Quality")
         st.markdown("""
@@ -7690,7 +7689,9 @@ def render_ivd_regulatory_framework():
         - **USA / Japan (The Gatekeeper Model):** The regulatory body (FDA, PMDA) acts as a direct **gatekeeper**. You must submit your entire technical file and premarket submission directly to the agency, and their scientists and reviewers must approve it before you can go to market.
         - **European Union (The Auditor Model):** The EU sets the laws (MDR/IVDR), but the "gatekeeper" role for most devices is delegated to independent, third-party organizations called **Notified Bodies**. You pay a Notified Body to audit your Quality System and review your Technical File. If they agree you are compliant, they grant you a **CE Mark** certificate, which allows you to sell your product anywhere in the EU.
         """)
-
+        
+        # --- THIS IS THE FIX ---
+        # The `unsafe_allow_html=True` parameter is added to the markdown call containing the table.
         st.markdown("""
         **Comparison of Major Regulatory Systems**
         <style>
@@ -7705,7 +7706,10 @@ def render_ivd_regulatory_framework():
             <tr> <td><b>Risk Classes</b></td> <td>I, II, III</td> <td>I, IIa, IIb, III (Devices) / A, B, C, D (IVDs)</td> <td>I, II, III, IV</td> <td>I, II, III, IV</td> </tr>
             <tr> <td><b>Key Approval Mark</b></td> <td>510(k) Clearance / PMA Approval</td> <td><b>CE Mark</b></td> <td>Shonin Approval</td> <td>Medical Device License</td> </tr>
         </table>
+        """, unsafe_allow_html=True)
+        # --- END OF FIX ---
         
+        st.markdown("""
         ---
         ### The Pillars of Global Compliance: Harmonized Standards
         The key to an efficient global strategy is to build your QMS on internationally recognized standards. Compliance with these standards provides a "presumption of conformity" with the specific regulations in many regions.
@@ -7713,7 +7717,6 @@ def render_ivd_regulatory_framework():
         - **ISO 14971: Medical devices — Application of risk management.** This is the global gold standard for risk management. All major regulatory bodies expect a risk management process that aligns with this standard.
         - **IEC 62304: Medical device software — Software life cycle processes.** If your device includes software, this standard is non-negotiable. It defines the rigorous process for software development, verification, and validation that is expected by both the FDA and EU authorities.
         """)
-    # --- END OF ENHANCEMENT ---
     
     st.divider()
     st.subheader("Deeper Dive into the Regulatory Framework")

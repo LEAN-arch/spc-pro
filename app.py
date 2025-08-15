@@ -12572,6 +12572,8 @@ def render_process_equivalence():
         - **Technology Transfer (ICH Q10):** A robust tech transfer protocol should have pre-defined acceptance criteria. Proving statistical equivalence of process capability is a state-of-the-art criterion.
         - **SUPAC (Scale-Up and Post-Approval Changes):** When making a change to a validated process, this analysis can be used to prove that the change has not adversely impacted process performance.
         """)
+# SNIPPET: Replace your entire render_ode_line_sync function with this final, high-performance version.
+
 def render_ode_line_sync():
     """Renders the comprehensive module for Production Line Synchronization using ODEs."""
     st.markdown("""
@@ -12582,10 +12584,15 @@ def render_ode_line_sync():
     """)
     st.info("""
     **Interactive Demo:** You are the Process Engineer designing a new production line.
-    1.  Use the **"Production Rates"** sliders in the sidebar to set the speed (units/hour) of each of the four process steps.
-    2.  The **dynamic chart** shows how the inventory in the two buffers between the steps evolves over a 40-hour run.
-    3.  Your goal is a **synchronized line**, where buffer levels remain low and stable. Try creating a bottleneck and watch the upstream buffer grow uncontrollably!
+    1.  Use the **"Production Rates"** sliders in the sidebar to set the speed (units/hour) of each process step.
+    2.  Click the **"Run Simulation"** button to execute the ODE model.
+    3.  The dynamic chart shows how inventory in the buffers evolves. Your goal is a **synchronized line** where buffer levels remain low and stable.
     """)
+
+    # --- Initialize session state to hold the results ---
+    if 'ode_fig' not in st.session_state:
+        st.session_state.ode_fig = None
+        st.session_state.ode_kpis = None
 
     with st.sidebar:
         st.subheader("Production Rates (units/hr)")
@@ -12596,17 +12603,34 @@ def render_ode_line_sync():
         
         rates = [r0, r1, r2, r3]
 
-    st.header("Production Line Dynamics Dashboard")
-    fig, max_wip1, max_wip2 = plot_line_sync_ode(rates)
-    
-    col1, col2, col3 = st.columns(3)
-    bottleneck_idx = np.argmin(rates)
-    bottleneck_rate = rates[bottleneck_idx]
-    col1.metric("System Throughput", f"{bottleneck_rate} units/hr", help="The overall output of the line is always limited by its slowest step (the bottleneck).")
-    col2.metric("Max WIP in Buffer 1", f"{max_wip1:.0f} units", help="The maximum inventory accumulation between Step 1 and 2.")
-    col3.metric("Max WIP in Buffer 2", f"{max_wip2:.0f} units", help="The maximum inventory accumulation between Step 2 and 3.")
+        # --- The "Run" button that triggers the computation ---
+        if st.button("🚀 Run Simulation", use_container_width=True):
+            with st.spinner("Solving differential equations..."):
+                fig, max_wip1, max_wip2 = plot_line_sync_ode(rates)
+                bottleneck_rate = min(rates)
+                
+                # Store results in session state
+                st.session_state.ode_fig = fig
+                st.session_state.ode_kpis = {
+                    "throughput": bottleneck_rate,
+                    "wip1": max_wip1,
+                    "wip2": max_wip2
+                }
+            st.rerun()
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.header("Production Line Dynamics Dashboard")
+
+    # --- Display results from session state ---
+    if st.session_state.ode_fig:
+        kpis = st.session_state.ode_kpis
+        col1, col2, col3 = st.columns(3)
+        col1.metric("System Throughput", f"{kpis['throughput']} units/hr", help="The overall output of the line is always limited by its slowest step (the bottleneck).")
+        col2.metric("Max WIP in Buffer 1", f"{kpis['wip1']:.0f} units", help="The maximum inventory accumulation between Step 1 and 2.")
+        col3.metric("Max WIP in Buffer 2", f"{kpis['wip2']:.0f} units", help="The maximum inventory accumulation between Step 2 and 3.")
+
+        st.plotly_chart(st.session_state.ode_fig, use_container_width=True)
+    else:
+        st.info("Configure the production line rates in the sidebar and click 'Run Simulation' to see the results.")
 
     st.divider()
     st.subheader("Deeper Dive into Line Synchronization")
@@ -12615,10 +12639,10 @@ def render_ode_line_sync():
     with tabs[0]:
         st.markdown("""
         **A Realistic Workflow & Interpretation:**
-        1.  **Create a Bottleneck:** In the sidebar, set the rate for **Step 2: Drying** to be much lower than the others (e.g., 70 units/hr). Observe the chart:
+        1.  **Create a Bottleneck:** In the sidebar, set the rate for **Step 2: Drying** to be much lower than the others (e.g., 70 units/hr). Click **Run Simulation**. Observe the chart:
             - **Buffer 1 (Blue Line):** The inventory level grows linearly and uncontrollably. This is because the upstream process (Step 1) is feeding it faster than the bottleneck (Step 2) can drain it. This is a recipe for disaster in a real factory.
             - **Buffer 2 (Red Line):** Remains empty. The downstream process (Step 3) is "starved" for material because it is waiting on the slow bottleneck step.
-        2.  **Synchronize the Line:** Now, adjust all four sliders to be at or near the same rate (e.g., 100 units/hr). Observe the chart:
+        2.  **Synchronize the Line:** Now, adjust all four sliders to be at or near the same rate (e.g., 100 units/hr). Click **Run Simulation**. Observe the chart:
             - Both buffer levels remain at or near zero. The line is "balanced" or "synchronized." Material flows smoothly from one step to the next without accumulating.
 
         **The Strategic Insight:** A production line is like a chain—it is only as strong as its weakest link. Investing millions to speed up a non-bottleneck step is a complete waste of money; it will not increase the overall system throughput and will likely make the buffer problems worse. All improvement efforts must be focused on the **constraint** or **bottleneck** of the system.
@@ -12692,7 +12716,6 @@ A successful operation is managed as a single, integrated system, not a collecti
         - **Process Analytical Technology (PAT):** For continuous manufacturing processes, a dynamic model of the line is essential. It can be used to predict the impact of disturbances and to design feed-forward and feedback control loops that maintain a state of control across the entire train.
         - **GAMP 5:** If this ODE model is used to make GxP decisions (e.g., setting production targets, justifying equipment purchases), the model and the software it runs on would need to be formally validated as a Computerized System.
         """)
-
 def render_lean_manufacturing():
     """Renders the comprehensive module for Lean Manufacturing & Value Stream Mapping."""
     st.markdown("""

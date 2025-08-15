@@ -11299,15 +11299,15 @@ def render_capability():
              cpk_a_slider = st.slider("Original Site A Performance (Cpk)", 1.33, 2.5, 1.67, 0.01, help="The historical, validated process capability of the sending site. This is your benchmark.")
              st.markdown("**New Process Simulation**")
              mean_shift_slider = st.slider("Mean Shift at Site B", -2.0, 2.0, 0.5, 0.1, help="Simulates a systematic bias or shift in the process average at the new site. A key risk in tech transfer.")
-                var_change_slider = st.slider("Variability Change Factor at Site B", 0.8, 1.5, 1.1, 0.05, help="Simulates a change in process precision. >1.0 means the new site is more variable (worse); <1.0 means it is less variable (better).")
-                st.markdown("**Statistical Criteria**")
-                n_samples_slider = st.slider("Samples per Site (n)", 30, 200, 50, 10, help="The number of samples taken during the PPQ runs at each site. More samples increase statistical power.")
-                margin_slider = st.slider("Equivalence Margin for Cpk (±)", 0.1, 0.5, 0.2, 0.05, help="The 'goalposts'. How much can the new site's Cpk differ from the original and still be considered equivalent? This is a risk-based decision.")
+             var_change_slider = st.slider("Variability Change Factor at Site B", 0.8, 1.5, 1.1, 0.05, help="Simulates a change in process precision. >1.0 means the new site is more variable (worse); <1.0 means it is less variable (better).")
+             st.markdown("**Statistical Criteria**")
+             n_samples_slider = st.slider("Samples per Site (n)", 30, 200, 50, 10, help="The number of samples taken during the PPQ runs at each site. More samples increase statistical power.")
+             margin_slider = st.slider("Equivalence Margin for Cpk (±)", 0.1, 0.5, 0.2, 0.05, help="The 'goalposts'. How much can the new site's Cpk differ from the original and still be considered equivalent? This is a risk-based decision.")
         
-            fig, is_equivalent, diff_cpk, cpk_a_sample, cpk_b_sample, ci_lower, ci_upper = plot_process_equivalence(
-                cpk_site_a=cpk_a_slider, mean_shift=mean_shift_slider,
-                var_change_factor=var_change_slider, n_samples=n_samples_slider,
-                margin=margin_slider
+             fig, is_equivalent, diff_cpk, cpk_a_sample, cpk_b_sample, ci_lower, ci_upper = plot_process_equivalence(
+             cpk_site_a=cpk_a_slider, mean_shift=mean_shift_slider,
+             var_change_factor=var_change_slider, n_samples=n_samples_slider,
+             margin=margin_slider
             )
             
             st.header("Results Dashboard")

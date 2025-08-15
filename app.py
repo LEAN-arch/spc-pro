@@ -4157,76 +4157,83 @@ def plot_line_sync_ode(rates):
 @st.cache_data
 def plot_value_stream_map(process_times, wait_times):
     """
-    Generates a professional, multi-layered Value Stream Map using Plotly.
+    Generates a professional, multi-layered, and educational Value Stream Map.
     """
     steps = ["Receipt", "Dispensing", "Granulation", "Compression", "QC Testing", "Packaging"]
     total_value_added = sum(process_times)
     total_lead_time = total_value_added + sum(wait_times)
-    process_cycle_efficiency = (total_value_added / total_lead_time) * 100 if total_lead_time > 0 else 0
+    pce = (total_value_added / total_lead_time) * 100 if total_lead_time > 0 else 0
 
     fig = go.Figure()
 
-    # --- 1. Main Process Flow (Sankey-like boxes) ---
-    y_process = 2
-    x_pos = 10
+    # --- LAYOUT CONSTANTS ---
+    y_process = 2.0
+    y_info = 4.0
+    y_timeline = -0.5
+
+    # --- 1. RENDER MAIN PROCESS & INVENTORY FLOW ---
+    x_pos = 10.0
+    x_positions = [x_pos]
     for i, step in enumerate(steps):
         # Process Box
-        fig.add_shape(type="rect", x0=x_pos, y0=y_process-0.5, x1=x_pos+10, y1=y_process+0.5,
+        fig.add_shape(type="rect", x0=x_pos, y0=y_process-0.6, x1=x_pos+12, y1=y_process+0.6,
                       fillcolor=SUCCESS_GREEN, line=dict(color="black", width=2))
-        fig.add_annotation(x=x_pos+5, y=y_process, text=f"<b>{step}</b>", showarrow=False, font_color="white")
+        fig.add_annotation(x=x_pos+6, y=y_process, text=f"<b>{step}</b>", showarrow=False, font_color="white", font_size=14)
         
         # Data Box
-        fig.add_shape(type="rect", x0=x_pos, y0=y_process-1.5, x1=x_pos+10, y1=y_process-0.5,
+        fig.add_shape(type="rect", x0=x_pos, y0=y_process-1.8, x1=x_pos+12, y1=y_process-0.6,
                       fillcolor="white", line=dict(color="black"))
-        fig.add_annotation(x=x_pos+5, y=y_process-1, text=f"C/T: {process_times[i]} hrs<br>Yield: {np.random.uniform(0.95, 0.99):.1%}",
-                           showarrow=False, align="left", xanchor="center")
+        fig.add_annotation(x=x_pos+6, y=y_process-1.2, text=f"C/T: {process_times[i]} hrs<br>Yield: {np.random.uniform(0.95, 0.99):.1%}<br>Uptime: 98%",
+                           showarrow=False, align="left", xanchor="center", font_size=11)
         
-        x_pos += 10
+        x_pos += 12
         # Inventory Triangle (Wait Time)
         if i < len(steps) - 1:
-            fig.add_shape(type="path", path=f"M {x_pos}, {y_process-0.5} L {x_pos+5}, {y_process} L {x_pos}, {y_process+0.5} Z",
+            fig.add_shape(type="path", path=f"M {x_pos}, {y_process-0.7} L {x_pos+6}, {y_process} L {x_pos}, {y_process+0.7} Z",
                           fillcolor="#EF553B", line_color="black")
-            fig.add_annotation(x=x_pos+2.5, y=y_process-1, text=f"{wait_times[i]} hrs", showarrow=False, font_size=12)
-            # Kaizen Burst
-            fig.add_annotation(x=x_pos+2.5, y=y_process+1, text="💥", font=dict(size=24, color="red"), showarrow=False)
-            x_pos += 5
+            fig.add_annotation(x=x_pos+3, y=y_process-1, text=f"{wait_times[i]} hrs", showarrow=False, font_size=12)
+            fig.add_annotation(x=x_pos+3, y=y_process+1, text="💥", font=dict(size=24, color="red"), showarrow=False) # Kaizen Burst
+            x_pos += 6
+        x_positions.append(x_pos)
 
-    # --- 2. Information Flow (Top Layer) ---
-    y_info = 4
-    fig.add_shape(type="rect", x0=35, y0=y_info-0.3, x1=45, y1=y_info+0.3, fillcolor="lightblue", line_color="black")
-    fig.add_annotation(x=40, y=y_info, text="<b>Production<br>Control</b>", showarrow=False)
-    # Arrows to processes
-    fig.add_annotation(ax=40, ay=y_info-0.3, x=15, y=y_process+0.5, arrowhead=2, arrowwidth=2)
-    fig.add_annotation(ax=40, ay=y_info-0.3, x=70, y=y_process+0.5, arrowhead=2, arrowwidth=2)
+    # --- 2. RENDER INFORMATION FLOW ---
+    fig.add_shape(type="rect", x0=45, y0=y_info-0.4, x1=60, y1=y_info+0.4, fillcolor="lightblue", line_color="black")
+    fig.add_annotation(x=52.5, y=y_info, text="<b>Production Control</b>", showarrow=False)
+    # Push signal to first process
+    fig.add_annotation(ax=52.5, ay=y_info-0.4, x=x_positions[0]+6, y=y_process+0.6, arrowhead=2, arrowwidth=2, text="Weekly Schedule")
+    # Kanban Pull Signal (example between Granulation and Dispensing)
+    fig.add_annotation(ax=x_positions[1]+6, ay=y_process+0.6, x=x_positions[2], y=y_process+0.6, arrowhead=2, arrowwidth=2, arrowside="start", line=dict(dash="dash"), text="Kanban Signal")
+
+    # --- 3. RENDER TIMELINE ---
+    timeline_width = x_positions[-1] - x_positions[0]
+    fig.add_shape(type="line", x0=x_positions[0], x1=x_positions[-1], y0=y_timeline, y1=y_timeline, line=dict(color="black", width=3))
     
-    # --- 3. Timeline (Bottom Layer) ---
-    y_time = -1
-    fig.add_shape(type="line", x0=10, x1=x_pos, y0=y_time, y1=y_time, line=dict(color="black", width=3))
-    
-    current_time = 10
+    current_time_pos = x_positions[0]
     for i in range(len(process_times)):
         # Value-add time
-        fig.add_shape(type="line", x0=current_time, x1=current_time+process_times[i]*2, y0=y_time-0.2, y1=y_time+0.2, line=dict(color=SUCCESS_GREEN, width=15))
-        current_time += process_times[i]*2
+        va_width = (process_times[i] / total_lead_time) * timeline_width
+        fig.add_shape(type="line", x0=current_time_pos, x1=current_time_pos+va_width, y0=y_timeline, y1=y_timeline, line=dict(color=SUCCESS_GREEN, width=20))
+        current_time_pos += va_width
         # Wait time
         if i < len(wait_times):
-            fig.add_shape(type="line", x0=current_time, x1=current_time+wait_times[i]*0.5, y0=y_time-0.2, y1=y_time+0.2, line=dict(color="#EF553B", width=15))
-            current_time += wait_times[i]*0.5
+            nva_width = (wait_times[i] / total_lead_time) * timeline_width
+            fig.add_shape(type="line", x0=current_time_pos, x1=current_time_pos+nva_width, y0=y_timeline, y1=y_timeline, line=dict(color="#EF553B", width=20))
+            current_time_pos += nva_width
     
-    fig.add_annotation(x=10, y=y_time-0.5, text=f"<b>Value-Added Time: {total_value_added:.1f} Hours</b>", showarrow=False, xanchor="left", font_color=SUCCESS_GREEN)
-    fig.add_annotation(x=x_pos, y=y_time-0.8, text=f"<b>Total Lead Time: {total_lead_time:.1f} Hours</b>", showarrow=False, xanchor="right", font_color="black")
+    fig.add_annotation(x=x_positions[0], y=y_timeline-0.5, text=f"<b>Value-Added Time: {total_value_added:.1f} Hours</b>", showarrow=False, xanchor="left", font_color=SUCCESS_GREEN)
+    fig.add_annotation(x=x_positions[-1], y=y_timeline-0.5, text=f"<b>Total Lead Time: {total_lead_time:.1f} Hours</b>", showarrow=False, xanchor="right", font_color="black")
     
     fig.update_layout(
-        title=f"<b>Value Stream Map (PCE: {process_cycle_efficiency:.1f}%)</b>",
-        xaxis=dict(visible=False, range=[0, x_pos+10]),
-        yaxis=dict(visible=False, range=[-2, 5]),
+        title=f"<b>Value Stream Map (Process Cycle Efficiency: {pce:.1f}%)</b>",
+        xaxis=dict(visible=False, range=[0, x_positions[-1]+10]),
+        yaxis=dict(visible=False, range=[-2.5, 5]),
         showlegend=False,
         height=600,
-        plot_bgcolor='#F0F2F6'
+        plot_bgcolor='#F0F2F6',
+        margin=dict(l=20, r=20, t=50, b=20)
     )
     
-    return fig, total_lead_time, process_cycle_efficiency
-
+    return fig, total_lead_time, pce
 #===================================================== MONTE CARLO ========================================================
 @st.cache_data
 def plot_monte_carlo_simulation(dist_params, n_trials, lsl, usl):
@@ -12774,8 +12781,6 @@ A successful operation is managed as a single, integrated system, not a collecti
 
 # SNIPPET: Replace the entire render_lean_manufacturing function with this updated version.
 
-# SNIPPET: Replace the entire render_lean_manufacturing function with this enhanced version.
-
 def render_lean_manufacturing():
     """Renders the comprehensive module for Lean Manufacturing & Value Stream Mapping."""
     st.markdown("""
@@ -12787,14 +12792,14 @@ def render_lean_manufacturing():
     """)
     st.info("""
     **Interactive Demo:** You are the Operations Manager.
-    1.  Use the **"Current State"** sliders in the sidebar to input the cycle times for a typical manufacturing process.
+    1.  Use the **"Current State"** sliders in the sidebar to input the cycle times and customer demand for a typical manufacturing process.
     2.  The **Value Stream Map** will instantly update to visualize the flow and highlight the "waste" (red wait times).
-    3.  The **KPIs** will calculate the overall cycle time and the shocking reality of the Process Cycle Efficiency.
+    3.  The **KPI Dashboard** will calculate the overall performance, including critical metrics like WIP and Capacity.
     """)
 
     with st.sidebar:
         st.subheader("Current State VSM Inputs")
-        st.markdown("Enter the time (in hours) for each activity.")
+        st.markdown("**Process Timing (hours)**")
         pt1 = st.slider("Process Time: Receipt", 1, 8, 2, help="The actual 'hands-on' or machine run time for Material Receipt. This is considered Value-Added Time.")
         wt1 = st.slider("Wait Time: Quarantine", 24, 168, 72, help="The idle time material spends in quarantine awaiting QC release. This is a primary form of waste (Muda) in a Lean system.")
         pt2 = st.slider("Process Time: Dispensing", 1, 8, 4, help="The actual 'hands-on' or machine run time for Dispensing. This is considered Value-Added Time.")
@@ -12809,13 +12814,32 @@ def render_lean_manufacturing():
 
         process_times = [pt1, pt2, pt3, pt4, pt5, pt6]
         wait_times = [wt1, wt2, wt3, wt4, wt5]
+        
+        st.divider()
+        st.markdown("**Operational Context**")
+        # --- NEW KPI INPUT ---
+        customer_demand = st.number_input("Customer Demand (units/day)", value=2, help="The number of finished units the customer requires per day.")
+        operating_time = st.number_input("Operating Time (hours/day)", value=24, help="The total available production time per day.")
+
+    # --- NEW KPI CALCULATIONS ---
+    wip_inventory = sum(wait_times)
+    # Takt Time is the required pace of production to meet demand.
+    takt_time_hours = operating_time / customer_demand if customer_demand > 0 else float('inf')
+    # Capacity is limited by the slowest process step (the bottleneck).
+    bottleneck_time = max(process_times)
+    daily_capacity = operating_time / bottleneck_time if bottleneck_time > 0 else float('inf')
 
     st.header("Value Stream Mapping Dashboard")
     fig, total_cycle_time, pce = plot_value_stream_map(process_times, wait_times)
     
-    col1, col2 = st.columns(2)
-    col1.metric("Total Cycle Time (Lead Time)", f"{total_cycle_time:.1f} Hours", help="The total time from the start of the process to the end.")
-    col2.metric("Process Cycle Efficiency (PCE)", f"{pce:.1f}%", help="The percentage of the total cycle time that is actual, value-added work. A PCE below 10% is common in unoptimized processes.")
+    # --- NEW KPI DASHBOARD LAYOUT ---
+    kpi_cols = st.columns(5)
+    kpi_cols[0].metric("Total Lead Time", f"{total_cycle_time:.1f} Hrs", help="The total time from the start of the process to the end.")
+    kpi_cols[1].metric("Process Cycle Efficiency", f"{pce:.1f}%", help="The percentage of the total lead time that is actual, value-added work. World class is >25%.")
+    kpi_cols[2].metric("WIP Inventory", f"{wip_inventory:.1f} Hrs", help="Total hours of non-value-added waiting time, representing trapped capital and risk.")
+    kpi_cols[3].metric("Takt Time", f"{takt_time_hours:.1f} Hrs/Unit", help="The 'heartbeat' of the customer. To meet demand, you must produce one unit every X hours.")
+    kpi_cols[4].metric("Line Capacity", f"{daily_capacity:.1f} Units/Day", delta=f"{daily_capacity - customer_demand:.1f} vs. Demand",
+                      help="The maximum number of units this line can produce per day, limited by its slowest step (the bottleneck).")
 
     st.plotly_chart(fig, use_container_width=True)
     
@@ -12826,11 +12850,11 @@ def render_lean_manufacturing():
     with tabs[0]:
         st.markdown("""
         **A Realistic Workflow & Interpretation:**
-        1.  **Map the Current State:** The first step is always to create an honest VSM of the process *as it is today*.
-        2.  **Identify Waste (Muda):** The VSM instantly makes waste visible. The red "Wait" bars are the most obvious form of waste.
-        3.  **Find Opportunities for Kaizen:** The "Kaizen Bursts" (💥) are visual cues that highlight the largest opportunities for improvement, signaling the ideal location for a focused **Kaizen event** (like a 5S workshop or a setup reduction event).
+        1.  **Map the Current State:** The first step is always to create an honest VSM of the process *as it is today*. The diagram shows the flow of both materials (bottom) and information (top).
+        2.  **Identify Waste (Muda):** The VSM instantly makes waste visible. The **red inventory triangles** represent the Waste of Waiting and Inventory. The **timeline at the bottom** provides the most shocking visual: the vast majority of the time is red (non-value-added).
+        3.  **Find Opportunities for Kaizen:** The "Kaizen Bursts" (💥) are visual cues that highlight the largest opportunities for improvement, signaling the ideal location for a focused **Kaizen event**.
         4.  **Diagnose the Need for Kanban:** A massive WIP pile (a big red 'Wait' bar) is a clear symptom of a "push" system with significant **Mura** (unevenness). The VSM helps justify the need to implement a **Kanban** "pull" system to limit WIP and smooth the flow.
-        5.  **Calculate PCE:** The Process Cycle Efficiency is a shocking metric that reveals the high percentage of non-value-added time, providing a powerful business case for change.
+        5.  **Calculate KPIs:** The dashboard provides the key metrics. **PCE** shows the inefficiency. **WIP** quantifies the trapped inventory. **Capacity** identifies your bottleneck and compares it to your required **Takt Time**.
         """)
         
     with tabs[1]:
@@ -12896,15 +12920,14 @@ A manager learns about a Lean tool like "5S" (Sort, Set in Order, Shine, Standar
 A successful Lean transformation is a strategic, top-down process that focuses on root causes.
 1.  **Map the Value Stream First:** The VSM is the mandatory starting point. It provides the strategic view of the entire process and makes Mura (unevenness) and Muda (waste) visible.
 2.  **Charter a Kaizen Event:** Use the VSM to target the biggest "red bar" (the largest source of waste). Charter a focused, cross-functional Kaizen event to attack this specific problem with a targeted tool (like a **5S workshop** to reduce motion waste, or a setup-reduction event).
-3.  **Implement and Sustain with Kanban:** Often, the solution to a large WIP problem is to implement a **Kanban** system. This "pull" system provides the control mechanism to limit inventory and sustain the gains achieved during the Kaizen event.
-""")
+3.  **Implement and Sustain with Kanban:** Often, the solution to a large WIP problem is to implement a **Kanban** system. This "pull" system provides the control mechanism to limit inventory and sustain the gains achieved during the Kaizen event.""")
 
     with tabs[4]:
         st.markdown("""
         #### Historical Context: From the Weaving Loom to the Assembly Line
         The core principles of Lean Manufacturing were born at the **Toyota Motor Corporation** in post-WWII Japan. Engineers **Taiichi Ohno** and **Shigeo Shingo**, unable to compete with the mass production of American auto giants, developed the **Toyota Production System (TPS)**.
         
-        TPS was a revolutionary philosophy built on two pillars: **Just-in-Time (JIT)** and **Jidoka** (automation with a human touch). The focus was on the relentless elimination of **Muda (waste)**, and its root causes, **Muri (overburden)** and **Mura (unevenness)**. Core tools of TPS included **Kanban** to implement a JIT "pull" system, a culture of **Kaizen** for continuous improvement, and **5S** to create the organized "visual workplace" necessary for all other systems to function. In the 1990s, American researchers codified TPS principles, rebranding them as **"Lean Manufacturing."**
+        TPS was a revolutionary philosophy built on two pillars: **Just-in-Time (JIT)** and **Jidoka** (automation with a human touch). The focus was on the relentless elimination of **Muda (waste)**, and its root causes, **Muri (overburden)** and **Mura (unevenness)**. Core tools of TPS included **Kanban** to implement a JIT "pull" system, a culture of **Kaizen** for continuous improvement, and **5S** to create the organized "visual workplace" necessary for all other systems to function. In the 1990s, American researchers, notably in the book *The Machine That Changed the World*, codified TPS principles, rebranding them as **"Lean Manufacturing."**
         """)
         
     with tabs[5]:

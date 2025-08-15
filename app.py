@@ -6701,7 +6701,7 @@ def render_qrm_suite():
         - **Top-Down (Deductive):** Start with a known **effect** (the failure) and reason backward to deduce the potential **causes**. (FTA).
         """)
     with tabs[1]:
-    st.markdown("""
+        st.markdown("""
         ### The Business Case: From Reactive Firefighting to Proactive Risk Elimination
     
         #### The Problem: The "Hope is a Strategy" Approach

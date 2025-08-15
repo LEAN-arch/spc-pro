@@ -11009,6 +11009,7 @@ def render_causal_inference():
             - **21 CFR 211.192 - Production Record Review:** Requires that any unexplained discrepancy or failure of a batch to meet its specifications "shall be thoroughly investigated."
             - **GAMP 5:** While focused on software, its principles of risk management and root cause analysis for deviations apply broadly.
             """)
+            
 def render_causal_ml():
     """Renders the comprehensive module for Causal Machine Learning."""
     st.markdown("""
@@ -16528,7 +16529,7 @@ with st.sidebar:
             "Process Optimization: From DOE to AI",
             "Bayesian Optimization",
             "Split-Plot Designs",
-            "Causal Inference"
+            "Causal Inference",
             "Causal ML / Double ML",
         ],
         "ACT II: TRANSFER & STABILITY": [

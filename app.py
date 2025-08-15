@@ -11028,6 +11028,8 @@ def render_causal_inference():
             
 # SNIPPET: Replace your entire render_causal_ml function with this final, high-performance version.
 
+# SNIPPET: Replace your entire render_causal_ml function with this corrected, interactive version.
+
 def render_causal_ml():
     """Renders the comprehensive module for Causal Machine Learning."""
     st.markdown("""
@@ -11036,41 +11038,28 @@ def render_causal_ml():
     
     **Strategic Application:** This is the ultimate tool for data-driven Root Cause Analysis and process optimization from historical, "found" data. It allows you to answer the critical question: **"If I change this process parameter by 1 unit, what is the *true causal impact* on my final product quality, after accounting for all other confounding variables?"**
     """)
+    
+    # --- FIX: The user instruction is updated to reflect the new interactive behavior. ---
     st.info("""
     **Interactive Demo:** You are a Data Scientist investigating the effect of a process parameter on product purity.
-    1.  Use the **"Confounding Strength"** slider to control how much the confounder distorts the relationship.
-    2.  Click the **"Run Causal Analysis"** button. Please allow a few moments for the two ML models to train.
-    3.  Observe how the Causal ML model (green line) uncovers the true effect, while the standard ML model (red line) is misled by the confounding.
+    1.  Use the **"Confounding Strength"** slider in the sidebar to control how much the confounder distorts the relationship.
+    2.  The plot will now update **in real-time**, showing how the Causal ML model (green line) uncovers the true effect while the standard ML model (red line) is misled.
     """)
-
-    # --- Initialize session state to hold the results ---
-    if 'causal_ml_fig' not in st.session_state:
-        st.session_state.causal_ml_fig = None
 
     with st.sidebar:
         st.subheader("Causal ML Controls")
         confounding_strength = st.slider("Confounding Strength", 0.0, 2.0, 1.0, 0.1, help="How strongly the confounder (W) influences the choice of the process parameter (T).")
 
-        # --- The "Run" button that triggers the computation ---
-        if st.button("🚀 Run Causal Analysis", use_container_width=True):
-            with st.spinner("Training two XGBoost models for causal inference... This is computationally intensive."):
-                try:
-                    # The call to the cached plotting function
-                    fig = plot_causal_ml_comparison(confounding_strength)
-                    st.session_state.causal_ml_fig = fig
-                except Exception as e:
-                    st.session_state.causal_ml_fig = None # Clear previous results on error
-                    st.error(f"Could not run Causal ML analysis. Error: {e}")
-                    st.warning("Please ensure you have installed the `econml` library: `pip install econml`")
-            st.rerun()
-
+    # --- FIX: The "Run" button and session state logic have been removed. ---
+    # The plotting function is now called directly on every script run, providing real-time interactivity.
     st.header("Causal Machine Learning Dashboard")
-
-    # --- Display results from session state ---
-    if st.session_state.causal_ml_fig:
-        st.plotly_chart(st.session_state.causal_ml_fig, use_container_width=True)
-    else:
-        st.info("Configure the confounding strength in the sidebar and click 'Run Causal Analysis' to see the results.")
+    try:
+        with st.spinner("Training models..."):
+            fig = plot_causal_ml_comparison(confounding_strength)
+            st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Could not run Causal ML analysis. Error: {e}")
+        st.warning("This can occur if the `econml` library is not installed. Please run: `pip install econml`")
 
     st.divider()
     st.subheader("Deeper Dive into Causal Machine Learning")
@@ -11080,7 +11069,7 @@ def render_causal_ml():
         st.markdown("""
         **A Realistic Workflow & Interpretation:**
         1.  **The Raw Data (Grey Dots):** The raw scatter plot shows a complex, messy, and seemingly non-linear relationship between the Process Parameter and the Output.
-        2.  **The Standard ML Prediction (Red Dashed Line):** A standard, powerful ML model like XGBoost is trained to predict the output from the inputs. Its Partial Dependence Plot (PDP) is shown. This line represents the **biased correlation**. It is an excellent *predictor*, but it is a terrible *explanation* of the true causal effect.
+        2.  **The Standard ML Prediction (Red Dashed Line):** A standard, powerful ML model like RandomForest is trained to predict the output from the inputs. Its Partial Dependence Plot (PDP) is shown. This line represents the **biased correlation**. It is an excellent *predictor*, but it is a terrible *explanation* of the true causal effect.
         3.  **The Causal ML Estimate (Green Line):** The Causal ML (Double ML) model is then applied. It intelligently removes the influence of the confounder to isolate the true, underlying relationship. In this simulation, it correctly uncovers the simple, linear causal effect that was hidden within the complex correlational data.
 
         **The Strategic Insight:** Predictive power is not the same as causal understanding. A standard ML model is a powerful **correlation engine**. A Causal ML model is a sophisticated **causal inference engine**. For Root Cause Analysis and process optimization, you must use the right tool for the job. Causal ML is that tool.
@@ -11126,7 +11115,7 @@ def render_causal_ml():
 An analyst trains a powerful predictive model on historical data and uses its feature importance scores or PDP plots to make recommendations about how to change the process.
 - **The Flaw:** They are fundamentally confusing **prediction** with **causation**. The model is an expert at finding correlations, not causes. Any recommendations for action based on a purely predictive model are statistically unjustified and likely to be wrong.""")
         st.success("""🟢 **THE GOLDEN RULE: Use the Right AI for the Right Question**
-1.  **If your question is "What will happen?", use a standard Predictive ML model (like XGBoost).** Its job is to find the best possible correlation-based forecast.
+1.  **If your question is "What will happen?", use a standard Predictive ML model (like RandomForest).** Its job is to find the best possible correlation-based forecast.
 2.  **If your question is "What should I *do*?", you must use a Causal ML model (like Double ML).** Its job is to strip away the correlations to give you an unbiased estimate of the impact of your proposed intervention.
 Using a predictive model to answer a causal question is the most common and dangerous mistake in applied data science.""")
 

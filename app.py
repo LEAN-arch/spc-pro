@@ -11690,7 +11690,7 @@ def render_prophet_forecasting():
     """Renders the dedicated, stable module for Prophet forecasting."""
     st.markdown("""
     #### Purpose & Application: The Automated Forecasting Engine
-    **Purpose:** To provide a dedicated environment for exploring the powerful **Prophet** forecasting library from Meta. This module is designed to showcase Prophet's ability to handle complex scenarios with multiple seasonalities and trend changes.
+    **Purpose:** To provide a dedicated environment for exploring the powerful **Prophet** forecasting library from Meta. This module is designed to showcase Prophet's ability to handle complex scenarios with multiple seasonalities and trend changes that challenge classical models.
     """)
     st.warning("""
     **Performance Notice:** The Prophet model is computationally intensive. After clicking "Run Analysis," please allow **5-15 seconds** for the computation to complete.
@@ -11738,6 +11738,133 @@ def render_prophet_forecasting():
                 st.metric("Prophet MAE", f"{st.session_state.prophet_mae:.2f}")
             else:
                 st.warning("The model failed to produce a valid score.")
+            
+    st.divider()
+    st.subheader("Deeper Dive into Prophet")
+    
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "💡 Prophet's Place in the Toolkit", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+
+    with tabs[0]:
+        st.subheader("How to Interpret the Dashboard: A Guided Tour")
+        st.markdown("""
+        This interactive dashboard is a virtual laboratory for exploring the Prophet forecasting model. By manipulating the "ground truth" of the data in the sidebar, you can discover Prophet's unique strengths.
+
+        ##### The Main Plot: The Prophet in Action
+        The primary chart shows the Prophet model's forecast (dotted red line) against the true data (black line). The light red shaded area represents the model's **80% prediction interval**, its "cone of uncertainty." The **Mean Absolute Error (MAE)** on the right is the scorecard of its performance.
+
+        ---
+        ##### Challenge 1: The Multi-Seasonality Problem
+        1.  In the sidebar, set **Seasonality Type** to `Multiple (Yearly + Quarterly)`.
+        2.  Click **"Run Prophet Analysis"**.
+        3.  **Observe:** Notice how Prophet's forecast correctly captures the complex, bumpy pattern created by two overlapping seasonal cycles. Classical models like Holt-Winters would fail at this task. This is one of Prophet's primary strengths.
+
+        ---
+        ##### Challenge 2: The Trend Changepoint Problem
+        1.  Set **Seasonality Type** back to `Single (Yearly)`.
+        2.  Increase the **Trend Changepoint Strength** to a significant positive or negative value.
+        3.  Click **"Run Prophet Analysis"**.
+        4.  **Observe:** Prophet automatically detects the abrupt change in the trend's slope and adjusts its forecast accordingly. A standard linear trend model would continue along the old trajectory, leading to large errors.
+
+        ---
+        ##### The Core Strategic Insight
+        Prophet's power comes from its **decomposability**. It doesn't see the time series as a single, complex signal. Instead, it models it as a sum of simpler pieces: a trend, a yearly pattern, a weekly pattern, holidays, etc. By fitting these components separately, it can robustly handle the messy, multi-layered data common in real-world business and manufacturing processes.
+        """)
+
+    with tabs[1]:
+        st.subheader("From Reactive Firefighting to Proactive Control")
+        st.markdown("""
+        This section outlines the strategic business case for implementing a robust forecasting program, specifically highlighting the advantages Prophet brings.
+
+        #### The Problem: Traditional Forecasting is Slow and Requires Experts
+        For decades, creating a high-quality forecast required a trained statistician to go through the manual, time-consuming Box-Jenkins process (for ARIMA). This created a bottleneck. Business analysts and process engineers, who had the deep domain knowledge, couldn't easily create their own forecasts.
+
+        #### The Impact of the Problem: Lost Opportunities and Inefficiency
+        This bottleneck meant that forecasting was a rare, high-effort activity, not a routine part of operations. This led to:
+        - **Inaccurate Budgets:** Financial planning was based on simple, often incorrect, extrapolations.
+        - **Reactive Staffing:** Lab and manufacturing teams were constantly surprised by workload peaks.
+        - **Poor Inventory Management:** Critical reagent stock-outs or wasteful over-purchasing were common.
+
+        #### The Solution: Democratized, Scalable Forecasting with Prophet
+        Prophet was designed to solve this exact problem. Its value proposition is not just accuracy, but **accessibility and scalability**.
+        1.  **Democratization:** It allows a process engineer or a business analyst with strong domain knowledge, but without deep statistical training, to create a robust forecast. The parameters (`growth`, `changepoints`, `seasonality`) are intuitive.
+        2.  **Automation & Scale:** It is designed to be run programmatically. A company can use Prophet to automatically generate thousands of forecasts every day for every product, reagent, or quality metric.
+        3.  **Tunability:** It is easy to incorporate business-specific knowledge. Adding a "planned maintenance shutdown" or a "new product launch" is a simple one-line addition, making the forecasts more accurate and trusted by stakeholders.
+
+        #### The Consequence: A Data-Driven Organization
+        By adopting a tool like Prophet, an organization can shift its culture from being reactive to proactive. Forecasting becomes a routine, accessible capability that empowers teams to make smarter, forward-looking decisions about resources, inventory, and process control, directly impacting the bottom line.
+        """)
+
+    with tabs[2]:
+        st.subheader("Prophet's Place in the Forecasting Toolkit")
+        st.markdown("""
+        This is a deep-dive module focused on a single, powerful tool. To see how Prophet compares to the broader family of forecasting models, please visit the main **"Time Series Forecasting Suite"**. However, the table below provides a quick summary of the key trade-offs between Prophet and its main conceptual rivals.
+
+        | Feature | **Prophet (The Smartwatch)** | **SARIMA (The Watchmaker)** | **Exponential Smoothing (The Craftsman)** |
+        | :--- | :--- | :--- | :--- |
+        | **Philosophy** | Pragmatic Curve-Fitting | Rigorous Statistical Model | Intuitive Smoothing |
+        | **Strengths** | Automation, messy data, multiple seasons, changepoints, holidays. | Statistical defensibility, captures complex autocorrelation. | Speed, interpretability, handles multiplicative trends. |
+        | **Weaknesses**| Can be a "black box," less formal. | Requires expertise, manual tuning, and stationary data. | Only handles a single seasonality, struggles with messy data. |
+        | **Best For...** | Business forecasting at scale. | Stable processes requiring high statistical rigor. | Clean, simple data with a single seasonal pattern. |
+        """)
+
+    with tabs[3]:
+        st.markdown("""
+        ##### Glossary of Prophet Terms
+        - **Prophet:** An open-source forecasting library from Meta (formerly Facebook) based on a decomposable additive model.
+        - **Decomposable Model:** A model that represents the time series as a sum of several independent components, typically `y(t) = trend + seasonality + holidays + error`.
+        - **Trend Changepoints:** Points in time where the growth rate of the trend is allowed to change. Prophet can detect these automatically or allow the user to specify them.
+        - **Fourier Series:** The mathematical technique Prophet uses to model seasonality. It approximates any periodic signal by summing up a series of simple sine and cosine waves. This is what allows it to model multiple seasonalities simultaneously.
+        - **Stan:** The high-performance Bayesian statistical modeling language that Prophet uses under the hood to perform the model fitting. The `cmdstanpy` logs you see are from this engine.
+        - **Regressors:** Additional external variables that can be added to the model to improve the forecast (e.g., adding temperature as a regressor to forecast energy consumption).
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        #### Theory, History & Mathematical Context
+        **The Problem (The Facebook Scale):** In the mid-2010s, Facebook faced a unique business challenge. They had thousands of internal analysts who needed to produce high-quality forecasts for a vast number of business metrics (e.g., user growth, event attendance, ad revenue). The classical forecasting tools, particularly the dominant **Box-Jenkins methodology (ARIMA)**, were too slow, too manual, and required too much statistical expertise to be deployed at this scale.
+
+        **The 'Aha!' Moment (Reframing the Problem):** The Facebook Core Data Science team, led by Sean J. Taylor and Ben Letham, had a key insight. They decided to reframe forecasting not as a complex time series problem, but as a more familiar **curve-fitting problem**. They drew inspiration from a class of statistical models known as **Generalized Additive Models (GAMs)**.
+        
+        **The Impact (Prophet, 2017):** They built Prophet from the ground up to be a pragmatic, engineering-focused solution.
+        - The **trend `g(t)`** was modeled with simple piecewise linear segments, with automatic detection of "changepoints" where the slope could change.
+        - **Seasonality `s(t)`** was modeled using a mathematical tool called a **Fourier series**, which can approximate any periodic signal. This was the key to easily modeling multiple seasonalities (e.g., weekly and yearly) at once.
+        - **Holidays `h(t)`** were treated as simple special events.
+
+        By fitting these components together using the powerful Bayesian engine **Stan**, they created a tool that was highly automated, robust to the messy data common in business, and incredibly easy for non-experts to tune. Prophet represents a major philosophical shift from the statistical purity of ARIMA to a more scalable, accessible, and engineering-driven approach to forecasting.
+        
+        ---
+        #### Mathematical Basis
+        Prophet is a decomposable additive model with three main components:
+        """)
+        st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
+        st.markdown(r"""
+        -   **`g(t)` (Trend):** A piecewise linear or logistic growth model. The model automatically selects changepoints where the growth rate can change.
+        -   **`s(t)` (Seasonality):** A Fourier series to model periodic changes. For a yearly seasonality with period `P=365.25`, the series is:
+        """)
+        st.latex(r"s(t) = \sum_{n=1}^{N} \left( a_n \cos\left(\frac{2\pi nt}{P}\right) + b_n \sin\left(\frac{2\pi nt}{P}\right) \right)")
+        st.markdown(r"""
+        -   **`h(t)` (Holidays):** A simple indicator for special events or holidays that affect the time series.
+        -   **`εt` (Error):** The random error term, assumed to be normally distributed.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        ### Regulatory & Compliance Context
+        While "forecasting" is not a specific GxP activity, the use of time series models to monitor, control, and make decisions about a validated process is a core component of a modern, data-driven Pharmaceutical Quality System. Prophet, despite its "black box" nature, can be a validated and compliant tool if the proper framework is used.
+
+        #### The Golden Thread: From Monitoring to Proactive Control
+        1.  **Stage 2: Continued Process Verification (CPV) (FDA Process Validation Guidance, Stage 3):** This is the most common application. A validated Prophet model can establish a **dynamic control band** (its prediction intervals) for a process parameter. An observation falling outside this band serves as an early warning of a potential drift, allowing proactive investigation long before a standard SPC chart would alarm.
+        2.  **Stage 3: Process Analytical Technology (PAT) (FDA PAT Guidance):** A robust, validated Prophet model is a key element of a **"digital twin"** of a process. It can be used to forecast CQAs and support Real-Time Release Testing (RTRT) strategies.
+
+        #### Validation Requirements for Prophet (GAMP 5 & 21 CFR Part 11)
+        If a Prophet model is used to make GxP decisions, it is considered a **Computerized System** and must be fully validated. The validation package is crucial for defending its use to an auditor.
+        -   **URS/FS:** A formal document defining the model's intended use (e.g., "to forecast monthly reagent consumption with an MAE < 10%"), the data inputs, and the required prediction accuracy.
+        -   **Model Validation Protocol & Report:** This is the core of the evidence. It must demonstrate the model's performance on a held-out, independent test set. **Backtesting**—simulating how the model would have performed on historical data—is a key part of this. The final MAE on the test set is the objective evidence that the model is fit for purpose.
+        -   **Change Control:** A procedure for managing the model lifecycle. It must define how and when the model will be retrained, how the performance of the new model will be verified against the old one, and the approval process for deploying an updated model.
+        
+        > **Bottom Line:** An auditor does not need to understand the complex math inside Prophet. They need to see a robust, pre-defined, and documented validation process that proves the model is accurate, reliable, and under control for its specific, intended GxP task.
+        """)
+
 #========================================================================== 9. PREDICTIVE QC (CLASSIFICATION) ACT III============================================================================
 def render_classification_models():
     """Renders the module for Predictive QC (Classification)."""

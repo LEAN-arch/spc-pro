@@ -2496,6 +2496,7 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
 def plot_reliability_weibull(n, beta, eta, test_duration):
     """
     Simulates a censored life test and fits a Weibull distribution to the results.
+    This version is updated for compatibility with newer versions of the 'reliability' library.
     """
     from reliability.Fitters import Fit_Weibull_2P
     
@@ -2508,33 +2509,47 @@ def plot_reliability_weibull(n, beta, eta, test_duration):
     event_observed = failures <= test_duration
     
     # Fit the Weibull model to the (potentially censored) data
-    # The 'reliability' library is excellent for this
     fit = Fit_Weibull_2P(failures=failure_times[event_observed], right_censored=failure_times[~event_observed])
 
     # Generate plots
     fig = make_subplots(
         rows=1, cols=2,
-        subplot_titles=("<b>Probability Plot</b>", "<b>Reliability Curve (Survival Function)</b>")
+        subplot_titles=("<b>Weibull Probability Plot</b>", "<b>Reliability Curve (Survival Function)</b>")
     )
     
-    # 1. Probability Plot
-    # The library's plotting is matplotlib-based, so we extract the data to plot in Plotly
-    x_pp = fit.x_plot
-    y_pp = fit.y_plot
-    fig.add_trace(go.Scatter(x=x_pp, y=y_pp, mode='markers', name='Failure Times', marker=dict(color=PRIMARY_COLOR)), row=1, col=1)
+    # --- START OF THE FIX ---
+    # 1. Probability Plot - Use the public API to get plotting data
+    # We will reconstruct the probability plot data manually for Plotly
+    
+    # Sort the unique failure times for plotting
+    unique_failures = np.sort(np.unique(failure_times[event_observed]))
+    
+    # Calculate the empirical CDF using a median rank method (Benard's approximation)
+    # This is what a standard probability plot does under the hood.
+    n_total = len(failure_times)
+    ranks = np.arange(1, len(unique_failures) + 1)
+    median_ranks = (ranks - 0.3) / (n_total + 0.4)
+    
+    # Transform the y-axis for the Weibull plot (log-log scale)
+    y_pp = np.log(-np.log(1 - median_ranks))
+    # Transform the x-axis (log scale)
+    x_pp = np.log(unique_failures)
+
+    fig.add_trace(go.Scatter(x=unique_failures, y=y_pp, mode='markers', name='Failure Data', marker=dict(color=PRIMARY_COLOR)), row=1, col=1)
     
     # Add the fitted line to the probability plot
-    line_x = np.array([np.min(x_pp), np.max(x_pp)])
-    line_y = (np.log(line_x) - fit.μ) / fit.σ
+    line_x = np.array([unique_failures.min(), unique_failures.max()])
+    # The fitted line on a Weibull plot is y = beta * log(x) - beta * log(eta)
+    line_y = fit.beta * np.log(line_x) - fit.beta * np.log(fit.eta)
     fig.add_trace(go.Scatter(x=line_x, y=line_y, mode='lines', name='Weibull Fit', line=dict(color='red', dash='dash')), row=1, col=1)
+    # --- END OF THE FIX ---
 
-    # 2. Reliability Curve (Survival Function)
+    # 2. Reliability Curve (Survival Function) - This part was already correct
     time_grid = np.linspace(0, test_duration * 1.2, 200)
-    survival_prob = 1 - fit.distribution.CDF(time_grid)
-    lower_ci, upper_ci = fit.distribution.SF(x=time_grid, CI=0.95, CI_type='time')
+    survival_prob = 1 - fit.distribution.CDF(x=time_grid, show_CI=False) # Use the distribution object
+    lower_ci, upper_ci = fit.distribution.SF(x=time_grid, CI=0.95, CI_type='time') # Get CIs separately
     
     fig.add_trace(go.Scatter(x=time_grid, y=survival_prob, mode='lines', name='Reliability', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=2)
-    # Plot confidence interval
     fig.add_trace(go.Scatter(x=time_grid, y=upper_ci, mode='lines', line=dict(width=0), showlegend=False), row=1, col=2)
     fig.add_trace(go.Scatter(x=time_grid, y=lower_ci, mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(0,104,201,0.2)', name='95% CI'), row=1, col=2)
 
@@ -2544,8 +2559,9 @@ def plot_reliability_weibull(n, beta, eta, test_duration):
     fig.add_vline(x=b10_life, line=dict(color='red', dash='dash'), row=1, col=2)
     fig.add_annotation(x=b10_life, y=0.90, text=f"B10 Life: {b10_life:.1f} hrs", showarrow=True, arrowhead=2, ax=50, ay=-40, row=1, col=2)
 
-    fig.update_xaxes(title_text="Time to Failure (Hours)", row=1, col=1)
-    fig.update_yaxes(title_text="Standard Normal Quantiles", row=1, col=1)
+    # Update axes to reflect the Weibull probability scale
+    fig.update_xaxes(title_text="Time to Failure (Hours) [log scale]", type='log', row=1, col=1)
+    fig.update_yaxes(title_text="ln(-ln(1-F))", row=1, col=1)
     fig.update_xaxes(title_text="Operating Time (Hours)", row=1, col=2)
     fig.update_yaxes(title_text="Probability of Survival", range=[0, 1.05], row=1, col=2)
     fig.update_layout(title="<b>Weibull Analysis of Life Test Data</b>", showlegend=False)

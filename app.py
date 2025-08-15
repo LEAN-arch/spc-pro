@@ -4170,7 +4170,22 @@ def plot_value_stream_map(process_times, wait_times):
 
 
 #===================================================== MONTE CARLO ========================================================
-ation < lsl) | (final_concentration > usl))
+@st.cache_data
+def plot_monte_carlo_simulation(dist_params, n_trials, lsl, usl):
+    """
+    Runs and plots a Monte Carlo simulation for process output.
+    """
+    np.random.seed(42)
+    # Simulate the inputs
+    api_potency = np.random.normal(dist_params['api_mean'], dist_params['api_sd'], n_trials)
+    excipient_purity = np.random.normal(dist_params['excipient_mean'], dist_params['excipient_sd'], n_trials)
+    process_loss = np.random.uniform(dist_params['loss_min'], dist_params['loss_max'], n_trials)
+    
+    # Calculate the output based on a model
+    final_concentration = (api_potency / 100) * (excipient_purity / 100) * (100 - process_loss)
+    
+    # Calculate results
+    failures = np.sum((final_concentration < lsl) | (final_concentration > usl))
     failure_rate = failures / n_trials
     
     # Plotting

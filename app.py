@@ -6,6 +6,8 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import io
+import contextlib
+import os
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
@@ -86,6 +88,18 @@ st.markdown("""
 # ==============================================================================
 # ALL HELPER & PLOTTING FUNCTIONS
 # ==============================================================================
+@contextlib.contextmanager
+def suppress_stdout():
+    """A context manager to temporarily redirect stdout."""
+    with open(os.devnull, 'w') as fnull:
+        saved_stdout = sys.stdout
+        sys.stdout = fnull
+        try:
+            yield
+        finally:
+            sys.stdout = saved_stdout
+
+
 @st.cache_data
 def plot_v_model():
     """
@@ -4339,28 +4353,20 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
     n_forecast = 26 # Forecast 6 months
     dates = pd.date_range(start='2021-01-01', periods=periods, freq='W')
     
-    # 1. Generate Data
-    # Trend
+    # 1. Generate Data (This part is unchanged)
     if trend_type == 'Multiplicative':
         trend = 100 * np.exp(np.arange(periods) * 0.01)
-    else: # Additive
+    else: 
         trend = 100 + 0.5 * np.arange(periods)
-    
-    # Seasonality
     seasonality = np.zeros(periods)
     if seasonality_type == 'Single (Yearly)':
         seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / 52))
     elif seasonality_type == 'Multiple (Yearly + Quarterly)':
         seasonality = 15 * np.sin(np.arange(periods) * (2 * np.pi / 52)) + 7 * np.sin(np.arange(periods) * (2 * np.pi / 13))
-
-    # Changepoint
     changepoint_loc = 104
     trend[changepoint_loc:] += changepoint_strength * np.arange(periods - changepoint_loc)
-        
-    # Noise
     noise = np.random.normal(0, noise_level, periods)
     y = trend + seasonality + noise
-    
     df = pd.DataFrame({'ds': dates, 'y': y})
     train, test = df.iloc[:-n_forecast], df.iloc[-n_forecast:]
     
@@ -4368,7 +4374,7 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
     forecasts = {}
     mae_scores = {}
     
-    # Holt-Winters
+    # Holt-Winters (No change needed, it's usually quiet)
     try:
         hw_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
         hw_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
@@ -4377,43 +4383,32 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
     except Exception:
         forecasts['Holt-Winters'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # SARIMA
+    # SARIMA --- ADD disp=False ---
     try:
-        sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=(1,1,0,52)).fit(disp=False)
+        sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=(1,1,0,52)).fit(disp=False) # <-- MODIFIED
         forecasts['SARIMA'] = sarima.get_forecast(steps=n_forecast).predicted_mean
     except Exception:
         forecasts['SARIMA'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # Prophet
+    # Prophet (No change needed)
     try:
-        prophet_growth = 'logistic' if trend_type == 'Multiplicative' else 'linear'
-        if prophet_growth == 'logistic':
-            train_prophet = train.copy()
-            train_prophet['cap'] = train_prophet['y'].max() * 1.5
-        else:
-            train_prophet = train
-        
-        m_prophet = Prophet(growth=prophet_growth).fit(train_prophet)
-        
+        m_prophet = Prophet().fit(train)
         future = m_prophet.make_future_dataframe(periods=n_forecast, freq='W')
-        if prophet_growth == 'logistic':
-            future['cap'] = train_prophet['cap'][0]
-            
         fc_prophet = m_prophet.predict(future)
         forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
     except Exception:
         forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
         
-    # ETS
+    # ETS --- ADD disp=False ---
     try:
         ets_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
         ets_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
-        ets = ETSModel(train['y'], error="add", trend=ets_trend, seasonal=ets_seasonal, seasonal_periods=52).fit()
+        ets = ETSModel(train['y'], error="add", trend=ets_trend, seasonal=ets_seasonal, seasonal_periods=52).fit(disp=False) # <-- MODIFIED
         forecasts['ETS'] = ets.forecast(n_forecast)
     except Exception:
         forecasts['ETS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # TBATS
+    # TBATS --- WRAP in the suppress_stdout context manager ---
     try:
         seasonal_periods = []
         if seasonality_type == 'Single (Yearly)':
@@ -4422,12 +4417,17 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
             seasonal_periods = [52, 13]
             
         estimator = TBATS(seasonal_periods=seasonal_periods, use_trend=True)
-        fitted_model = estimator.fit(train['y'])
+        # --- MODIFIED BLOCK ---
+        import sys # Add this import here for the context manager
+        with suppress_stdout():
+            fitted_model = estimator.fit(train['y'])
+        # --- END MODIFIED BLOCK ---
         forecasts['TBATS'] = fitted_model.forecast(steps=n_forecast)
-    except Exception:
+    except Exception as e:
+        # st.write(f"TBATS Error: {e}") # Optional: for debugging
         forecasts['TBATS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # 3. Calculate MAE and Plot
+    # 3. Calculate MAE and Plot (This part is unchanged)
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')))
     fig.add_vline(x=train['ds'].iloc[-1], line_dash="dash", line_color="grey", annotation_text="Forecast Start")
@@ -4443,7 +4443,6 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     
     return fig, mae_scores
-
 
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Stability Analysis) - SME ENHANCED

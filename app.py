@@ -3099,42 +3099,56 @@ def plot_causal_inference(confounding_strength=5.0):
     return fig_dag, fig_scatter, naive_effect, adjusted_effect
 
 # ============================================ Casual ML ==================================================
+# SNIPPET: Replace your entire plot_causal_ml_comparison function with this optimized version.
+
 @st.cache_data
 def plot_causal_ml_comparison(confounding_strength):
     """
     Compares a standard ML model's PDP to a Causal ML estimate.
+    OPTIMIZED for speed using RandomForestRegressor with fewer estimators and a smaller dataset.
     """
     from econml.dml import CausalForestDML
+    from sklearn.ensemble import RandomForestRegressor
 
     # Simulate data
     np.random.seed(42)
-    n = 1000
+    # --- FIX 1: Reduce number of data points for speed ---
+    n = 500
     W = np.random.uniform(0, 10, size=(n, 1)) # Confounder
     T = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength # Treatment (e.g., process param)
     Y_true = 2 * T + 5 * np.sin(W.flatten()) # True non-linear effect of T and W
     Y = Y_true + np.random.normal(0, 1, n)
 
-    # Standard ML Model
-    ml_model = xgb.XGBRegressor().fit(np.hstack([T.reshape(-1,1), W]), Y)
+    # --- FIX 2: Define a much faster, non-linear base model ---
+    fast_learner = RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42)
     
-    # Causal ML Model
-    est = CausalForestDML(model_y=xgb.XGBRegressor(), model_t=xgb.XGBRegressor(), random_state=42)
+    # Standard ML Model (using the faster model)
+    ml_model = RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42).fit(np.hstack([T.reshape(-1,1), W]), Y)
+    
+    # Causal ML Model (using the faster model for its internal components)
+    est = CausalForestDML(
+        model_y=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42), 
+        model_t=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42), 
+        random_state=42
+    )
     est.fit(Y, T, W=W)
     
-    # Get PDPs
+    # Get PDP for standard model and effect for causal model
     pdp_ml = PartialDependenceDisplay.from_estimator(ml_model, np.hstack([T.reshape(-1,1), W]), features=[0], feature_names=['Parameter', 'Confounder'])
     causal_effect = est.effect(np.linspace(T.min(), T.max(), 100))
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=pdp_ml.pd_results[0]['values'][0], y=pdp_ml.pd_results[0]['average'][0], name='Standard ML PDP (Biased)', line=dict(color='red', dash='dash', width=3)))
-    fig.add_trace(go.Scatter(x=np.linspace(T.min(), T.max(), 100), y=2*np.linspace(T.min(), T.max(), 100) + np.mean(5*np.sin(W)), name='Causal ML Effect (Unbiased)', line=dict(color=SUCCESS_GREEN, width=4)))
+    # Plot the biased correlation found by the standard ML model
+    fig.add_trace(go.Scatter(x=pdp_ml.pd_results[0]['values'][0], y=pdp_ml.pd_results[0]['average'][0], name='Standard ML PDP (Biased Correlation)', line=dict(color='red', dash='dash', width=3)))
+    # Plot the unbiased effect estimated by the Causal ML model
+    fig.add_trace(go.Scatter(x=np.linspace(T.min(), T.max(), 100), y=causal_effect, name='Causal ML Effect (Unbiased)', line=dict(color=SUCCESS_GREEN, width=4)))
+    # Plot raw data for context
     fig.add_trace(go.Scatter(x=T, y=Y, mode='markers', name='Raw Data', marker=dict(opacity=0.1, color='grey')))
     
     fig.update_layout(title="<b>Standard ML vs. Causal ML: Uncovering the True Effect</b>",
                       xaxis_title="Process Parameter Value", yaxis_title="Impact on Process Output",
                       legend=dict(x=0.01, y=0.99))
-    return fig
-##==========================================================================================================================================================================================
+    return fig=====================================================================================================================================================================
 ##=============================================================================================END ACT I ===================================================================================
 ##==========================================================================================================================================================================================
 @st.cache_data

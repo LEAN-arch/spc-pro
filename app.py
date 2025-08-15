@@ -3105,48 +3105,54 @@ def plot_causal_inference(confounding_strength=5.0):
 def plot_causal_ml_comparison(confounding_strength):
     """
     Compares a standard ML model's PDP to a Causal ML estimate.
-    OPTIMIZED for speed and CORRECTED for data shape issues.
+    OPTIMIZED for speed and CORRECTED to use the appropriate LinearDML estimator.
     """
-    from econml.dml import CausalForestDML
+    # --- FIX 1: Import the correct, more stable estimator ---
+    from econml.dml import LinearDML
     from sklearn.ensemble import RandomForestRegressor
 
     # Simulate data
     np.random.seed(42)
     n = 500
-    W = np.random.uniform(0, 10, size=(n, 1)) # Confounder (already 2D)
-    # --- FIX 1: Reshape T immediately after creation to ensure it's a 2D array ---
+    W = np.random.uniform(0, 10, size=(n, 1)) # Confounder
     T_1d = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength # Treatment
-    T = T_1d.reshape(-1, 1) # Reshape to (n_samples, 1)
-    # --- END FIX 1 ---
+    T = T_1d.reshape(-1, 1) # Ensure Treatment is 2D
     
-    Y_true = 2 * T.flatten() + 5 * np.sin(W.flatten()) # True non-linear effect of T and W
-    Y = Y_true + np.random.normal(0, 1, n)
+    # The true effect of T is a constant +2
+    Y = 2 * T.flatten() + 5 * np.sin(W.flatten()) + np.random.normal(0, 1, n)
 
-    # Standard ML Model (now uses the correctly shaped T)
+    # Standard ML Model for comparison
     X_for_ml = np.hstack([T, W])
     ml_model = RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42).fit(X_for_ml, Y)
     
-    # Causal ML Model (now receives T in the correct 2D shape)
-    est = CausalForestDML(
+    # --- FIX 2: Use LinearDML for robust estimation of a constant treatment effect ---
+    # It still uses powerful ML models internally to handle the non-linear confounding from W.
+    est = LinearDML(
         model_y=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42), 
-        model_t=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42), 
+        model_t=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42),
         random_state=42
     )
+    # The fit call is now simpler and more robust, removing the ambiguous X parameter.
     est.fit(Y, T, W=W)
     
-    # Get PDP for standard model
+    # --- FIX 3: Get the single, constant causal effect (ATE) ---
+    ate_estimate = est.const_marginal_effect()
+
+    # Get PDP for the standard, biased ML model
     pdp_ml = PartialDependenceDisplay.from_estimator(ml_model, X_for_ml, features=[0], feature_names=['Parameter', 'Confounder'])
     
-    # --- FIX 2: Ensure the data for effect estimation is also 2D ---
-    T_effect_range = np.linspace(T.min(), T.max(), 100).reshape(-1, 1)
-    causal_effect = est.effect(T_effect_range)
-    # --- END FIX 2 ---
-
+    # --- PLOTTING ---
     fig = go.Figure()
-    # Plot the biased correlation found by the standard ML model
+    
+    # Plot the biased correlation from the standard ML model's PDP
     fig.add_trace(go.Scatter(x=pdp_ml.pd_results[0]['values'][0], y=pdp_ml.pd_results[0]['average'][0], name='Standard ML PDP (Biased Correlation)', line=dict(color='red', dash='dash', width=3)))
-    # Plot the unbiased effect estimated by the Causal ML model
-    fig.add_trace(go.Scatter(x=T_effect_range.flatten(), y=causal_effect, name='Causal ML Effect (Unbiased)', line=dict(color=SUCCESS_GREEN, width=4)))
+    
+    # Plot the true causal effect as a straight line with the slope estimated by LinearDML
+    x_range = np.linspace(T.min(), T.max(), 100)
+    # To center the line correctly, calculate the intercept that makes it pass through the data's mean point
+    intercept_causal = Y.mean() - (ate_estimate * T.mean())
+    fig.add_trace(go.Scatter(x=x_range, y=intercept_causal + ate_estimate * x_range, name=f'Causal ML Effect (ATE ≈ {ate_estimate[0]:.2f})', line=dict(color=SUCCESS_GREEN, width=4)))
+    
     # Plot raw data for context
     fig.add_trace(go.Scatter(x=T.flatten(), y=Y, mode='markers', name='Raw Data', marker=dict(opacity=0.1, color='grey')))
     

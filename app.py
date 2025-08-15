@@ -4201,8 +4201,11 @@ def plot_value_stream_map(process_times, wait_times):
     fig.add_annotation(x=52.5, y=y_info, text="<b>Production Control</b>", showarrow=False)
     # Push signal to first process
     fig.add_annotation(ax=52.5, ay=y_info-0.4, x=x_positions[0]+6, y=y_process+0.6, arrowhead=2, arrowwidth=2, text="Weekly Schedule")
-    # Kanban Pull Signal (example between Granulation and Dispensing)
-    fig.add_annotation(ax=x_positions[1]+6, ay=y_process+0.6, x=x_positions[2], y=y_process+0.6, arrowhead=2, arrowwidth=2, arrowside="start", line=dict(dash="dash"), text="Kanban Signal")
+    
+    # --- THIS IS THE CORRECTED LINE ---
+    # The invalid 'line=dict(dash="dash")' argument has been removed.
+    fig.add_annotation(ax=x_positions[2]+6, ay=y_process+0.6, x=x_positions[1]+12, y=y_process+0.6, arrowhead=2, arrowwidth=2, arrowside="start", text="Kanban Signal")
+    # --- END OF CORRECTION ---
 
     # --- 3. RENDER TIMELINE ---
     timeline_width = x_positions[-1] - x_positions[0]

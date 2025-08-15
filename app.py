@@ -16313,6 +16313,8 @@ A modern, AI-driven approach to robustness testing treats the problem as a forma
         - **GAMP 5 & 21 CFR Part 11:** As this system uses an AI/ML models to inform critical decisions about the process operating range, the models themselves would require a robust validation lifecycle to be used in a GxP environment.
         """)
 
+# SNIPPET: Replace your entire render_digital_twin function with this enhanced version.
+
 def render_digital_twin():
     """Renders the comprehensive module for Digital Twin & Real-Time Simulation."""
     st.markdown("""
@@ -16333,9 +16335,21 @@ def render_digital_twin():
 
     with st.sidebar:
         st.subheader("Process Fault Simulation")
-        fault_type = st.radio("Select Fault Type", ["None", "Drift", "Shift"])
-        fault_time = st.slider("Fault Injection Time (Minutes)", 0, 100, 50)
-        fault_magnitude = st.slider("Fault Magnitude", 0.0, 10.0, 5.0, 0.5)
+        fault_type = st.radio(
+            "Select Fault Type", 
+            ["None", "Drift", "Shift"],
+            help="Choose the type of unexpected event to inject into the live process. 'Drift' is a slow, gradual deviation. 'Shift' is a sudden, step-change."
+        )
+        fault_time = st.slider(
+            "Fault Injection Time (Minutes)", 
+            0, 100, 50,
+            help="The exact time point at which the simulated fault begins to occur."
+        )
+        fault_magnitude = st.slider(
+            "Fault Magnitude", 
+            0.0, 10.0, 5.0, 0.5,
+            help="Controls the severity of the fault. A larger magnitude will create a larger deviation and a bigger spike in the Health Score."
+        )
 
     st.header("Digital Twin Monitoring Dashboard")
     fig = plot_digital_twin_dashboard(fault_type, fault_magnitude, fault_time)

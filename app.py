@@ -2498,26 +2498,25 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
 def plot_reliability_weibull(n, beta, eta, test_duration):
     """
     Simulates a censored life test and fits a Weibull distribution to the results.
-    This version is updated for compatibility with newer versions of the 'reliability' library.
+    This version is updated to use scipy for fitting, removing the complex dependency.
     """
-    from reliability.Fitters import Fit_Weibull_2P
-    
-    # Simulate time-to-failure data from a Weibull distribution
     np.random.seed(42)
+    # Simulate time-to-failure data from a true Weibull distribution
     failures = stats.weibull_min.rvs(c=beta, scale=eta, size=n)
     
     # Censor the data based on the test duration
     failure_times = np.minimum(failures, test_duration)
-    event_observed = failures <= test_duration
-    
-    # Fit the Weibull model to the (potentially censored) data
-    fit = Fit_Weibull_2P(failures=failure_times[event_observed], right_censored=failure_times[~event_observed])
+    event_observed = (failures <= test_duration).astype(int)
 
-    # --- START OF THE FIX ---
-    # The fitted parameters are now called .alpha (scale) and .beta (shape) in newer versions
-    fitted_alpha = fit.alpha
-    fitted_beta = fit.beta
+    # --- START OF THE FIX: Use SciPy for a more robust Weibull fit ---
+    # Fit the Weibull model to the (potentially censored) data using maximum likelihood estimation
+    # The `floc=0` argument fixes the location parameter at 0, which is standard for a 2P Weibull.
+    fit_results = stats.weibull_min.fit(failure_times, floc=0, censorship=1-event_observed)
+    fitted_beta, _, fitted_alpha = fit_results # shape, location, scale
     # --- END OF THE FIX ---
+    
+    # Create the distribution object from the fitted parameters
+    fitted_dist = stats.weibull_min(c=fitted_beta, scale=fitted_alpha)
 
     # Generate plots
     fig = make_subplots(
@@ -2526,44 +2525,28 @@ def plot_reliability_weibull(n, beta, eta, test_duration):
     )
     
     # 1. Probability Plot
-    unique_failures = np.sort(np.unique(failure_times[event_observed]))
-    if len(unique_failures) == 0: # Handle case with no failures
-        return go.Figure().update_layout(title_text="No failures observed. Cannot fit model."), 0, 0, 0
-        
-    n_total = len(failure_times)
-    ranks = np.arange(1, len(unique_failures) + 1)
-    median_ranks = (ranks - 0.3) / (n_total + 0.4)
-    y_pp = np.log(-np.log(1 - median_ranks))
-    
-    fig.add_trace(go.Scatter(x=unique_failures, y=y_pp, mode='markers', name='Failure Data', marker=dict(color=PRIMARY_COLOR)), row=1, col=1)
-    
-    line_x = np.array([unique_failures.min(), unique_failures.max()])
-    # The fitted line on a Weibull plot is y = beta * log(x) - beta * log(alpha)
-    line_y = fitted_beta * np.log(line_x) - fitted_beta * np.log(fitted_alpha)
-    fig.add_trace(go.Scatter(x=line_x, y=line_y, mode='lines', name='Weibull Fit', line=dict(color='red', dash='dash')), row=1, col=1)
+    (osm, osr), (slope, intercept, r) = stats.probplot(failure_times, dist=stats.weibull_min, sparams=(fitted_beta,), plot=None)
+    fig.add_trace(go.Scatter(x=osm, y=osr, mode='markers', name='Failure Data', marker=dict(color=PRIMARY_COLOR)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=osm, y=intercept + slope * osm, mode='lines', name='Weibull Fit', line=dict(color='red', dash='dash')), row=1, col=1)
 
     # 2. Reliability Curve (Survival Function)
     time_grid = np.linspace(0, test_duration * 1.2, 200)
-    survival_prob = 1 - fit.distribution.CDF(x=time_grid, show_CI=False)
-    lower_ci, upper_ci = fit.distribution.SF(x=time_grid, CI=0.95, CI_type='time')
+    survival_prob = fitted_dist.sf(time_grid) # sf = Survival Function (1 - CDF)
     
     fig.add_trace(go.Scatter(x=time_grid, y=survival_prob, mode='lines', name='Reliability', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=2)
-    fig.add_trace(go.Scatter(x=time_grid, y=upper_ci, mode='lines', line=dict(width=0), showlegend=False), row=1, col=2)
-    fig.add_trace(go.Scatter(x=time_grid, y=lower_ci, mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(0,104,201,0.2)', name='95% CI'), row=1, col=2)
-
-    # Calculate B10 Life
-    b10_life = fit.distribution.b(10)
+    
+    # B10 Life Calculation
+    b10_life = fitted_dist.ppf(0.10) # ppf is the inverse of CDF
     fig.add_hline(y=0.90, line=dict(color='red', dash='dash'), row=1, col=2)
     fig.add_vline(x=b10_life, line=dict(color='red', dash='dash'), row=1, col=2)
     fig.add_annotation(x=b10_life, y=0.90, text=f"B10 Life: {b10_life:.1f} hrs", showarrow=True, arrowhead=2, ax=50, ay=-40, row=1, col=2)
 
-    fig.update_xaxes(title_text="Time to Failure (Hours) [log scale]", type='log', row=1, col=1)
-    fig.update_yaxes(title_text="ln(-ln(1-F))", row=1, col=1)
+    fig.update_xaxes(title_text="Theoretical Quantiles", row=1, col=1)
+    fig.update_yaxes(title_text="Ordered Values", row=1, col=1)
     fig.update_xaxes(title_text="Operating Time (Hours)", row=1, col=2)
     fig.update_yaxes(title_text="Probability of Survival", range=[0, 1.05], row=1, col=2)
     fig.update_layout(title="<b>Weibull Analysis of Life Test Data</b>", showlegend=False)
 
-    # Return the correct attribute names
     return fig, fitted_beta, fitted_alpha, b10_life
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (DOE/RSM) - SME ENHANCED

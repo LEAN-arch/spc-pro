@@ -2855,44 +2855,42 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
     
     return fig_pareto, fig_rsm_3d, fig_rsm_2d, pdp_buffer, anova_display_table, opt_ph_real, opt_temp_real, max_response
 
-
-# ===================================================== BAYESIAN OP ========================================
-# SNIPPET: Replace your entire plot_bayesian_optimization_step function with this corrected version.
+# SNIPPET: Replace your entire plot_bayesian_optimization_step function with this correct version.
 
 @st.cache_data
 def plot_bayesian_optimization_step(history, x_range, acquisition_func_type):
     """
     Visualizes a single step of Bayesian Optimization.
     The unhashable true_func has been moved inside this function to make it cacheable.
+    This version fixes the NumPy truth ambiguity error.
     """
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import Matern
     
-    # --- START OF THE FIX ---
-    # Define the "hidden" true function here, inside the cached function,
-    # instead of passing it as an unhashable argument.
     def true_func(x):
         return (-(x - 15)**2 / 20) + 2 * np.sin(x) + 85
-    # --- END OF THE FIX ---
     
     x_hist = np.array(history['x']).reshape(-1, 1)
     y_hist = np.array(history['y'])
     
-    # Fit the Gaussian Process surrogate model
     kernel = Matern(nu=2.5)
     gpr = GaussianProcessRegressor(kernel=kernel, alpha=1e-6, normalize_y=True).fit(x_hist, y_hist)
     
     x_pred = x_range.reshape(-1, 1)
     y_pred, y_std = gpr.predict(x_pred, return_std=True)
     
-    # Calculate the acquisition function
+    # --- START OF THE FIX ---
+    # Calculate the acquisition function safely
     if acquisition_func_type == 'Upper Confidence Bound (UCB)':
         kappa = 1.96
         acquisition = y_pred + kappa * y_std
     else: # Expected Improvement (EI)
         y_best = np.max(y_hist)
-        z = (y_pred - y_best) / y_std if y_std > 0 else 0
-        acquisition = (y_pred - y_best) * norm.cdf(z) + y_std * norm.pdf(z)
+        # Add a small epsilon to y_std to prevent division by zero and handle the array logic correctly.
+        y_std_safe = y_std + 1e-9 
+        z = (y_pred - y_best) / y_std_safe
+        acquisition = (y_pred - y_best) * norm.cdf(z) + y_std_safe * norm.pdf(z)
+    # --- END OF THE FIX ---
 
     next_point_x = x_pred[np.argmax(acquisition)][0]
 
@@ -2900,14 +2898,12 @@ def plot_bayesian_optimization_step(history, x_range, acquisition_func_type):
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
                         subplot_titles=("<b>Surrogate Model (Gaussian Process)</b>", "<b>Acquisition Function</b>"))
 
-    # Plot 1: Surrogate Model
     fig.add_trace(go.Scatter(x=x_range, y=true_func(x_range), name='True Function (Hidden)', line=dict(color='grey', dash='dash')), row=1, col=1)
     fig.add_trace(go.Scatter(x=x_hist.flatten(), y=y_hist, mode='markers', name='Sampled Points', marker=dict(color='red', size=10, symbol='x')), row=1, col=1)
     fig.add_trace(go.Scatter(x=x_pred.flatten(), y=y_pred, name='GP Mean (Belief)', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=1)
     fig.add_trace(go.Scatter(x=x_pred.flatten(), y=y_pred + 1.96 * y_std, line=dict(width=0), showlegend=False), row=1, col=1)
     fig.add_trace(go.Scatter(x=x_pred.flatten(), y=y_pred - 1.96 * y_std, line=dict(width=0), fill='tonexty', fillcolor='rgba(0,104,201,0.2)', name='GP 95% CI'), row=1, col=1)
     
-    # Plot 2: Acquisition Function
     fig.add_trace(go.Scatter(x=x_pred.flatten(), y=acquisition, name='Acquisition Function', line=dict(color=SUCCESS_GREEN, width=3), fill='tozeroy'), row=2, col=1)
     fig.add_vline(x=next_point_x, line=dict(color='red', dash='dash'), row=2, col=1)
     fig.add_annotation(x=next_point_x, y=np.max(acquisition), text="<b>Next Point to Sample!</b>", showarrow=True, arrowhead=2, ax=0, ay=-60, row=2, col=1)

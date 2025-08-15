@@ -9996,8 +9996,8 @@ def render_sample_size_calculator():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-
+        tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
         with tabs[0]:
             st.metric(
                 label=f"Required Sample Size (n) via {model_used}",
@@ -10015,7 +10015,30 @@ def render_sample_size_calculator():
             - As `n` increases, your statistical power increases, allowing you to claim higher reliability.
             - Notice the **Hypergeometric curve (orange dash)** is always above the Binomial curve. This shows that for a finite lot, you need a slightly smaller sample size to make the same statistical claim, as each good part you draw slightly increases the chance the next one is good.
             """)
+        
         with tabs[1]:
+            st.markdown("""
+            ### The Business Case: The Risk vs. Cost Negotiation
+        
+            #### The Problem: The Arbitrary Sample Size
+            A validation team is writing the protocol for a critical Process Performance Qualification (PPQ). When it comes to defining the sampling plan, they fall back on "tribal knowledge": "We've always used n=30." They have no statistical justification for this number, nor can they articulate what level of quality assurance it actually provides.
+        
+            #### The Impact: Indefensible Plans and Unmanaged Risk
+            This arbitrary approach creates significant business and compliance risks:
+            - **Audit Failure:** During a regulatory audit, the team is asked the inevitable question: "How did you determine this sample size was sufficient?" Answering "we've always done it this way" is a major red flag, signaling a lack of statistical control and a superficial approach to validation.
+            - **Hidden Risk Acceptance:** The `n=30` plan might only provide 95% confidence in a 90% reliability rate. However, the business *assumed* it was getting 99% reliability. The company has unknowingly accepted a 10x higher defect rate risk than they were comfortable with, which could lead to future batch failures or customer complaints.
+            - **Wasted Resources:** Conversely, the `n=30` plan might be overkill for a low-risk, non-critical parameter. The company may be spending significant time and money on excessive testing that provides no additional value, slowing down the validation process.
+        
+            #### The Solution: A Formal Negotiation Between Risk and Cost
+            This tool transforms the sample size decision from an arbitrary guess into a formal, transparent **negotiation between business risk and operational cost**. It forces a critical, cross-functional conversation *before* the validation begins.
+            1.  **Define the Risk (The Business Decision):** Stakeholders from Quality, Regulatory, and Business must first agree on the required quality claim: "For this critical process, we must be **95% confident** that the batch is **99% compliant**." This is a business decision about risk tolerance.
+            2.  **Calculate the Cost (The Statistical Output):** The required sample size is the direct mathematical output of that business decision.
+        
+            #### The Consequences: A Defensible, Cost-Effective, and Risk-Based Strategy
+            - **Without This:** The sampling plan is an indefensible, unquantified gamble.
+            - **With This:** The sampling plan is a **defensible, cost-effective, and risk-based contract**. It provides a clear, auditable trail linking the business's risk tolerance directly to the number of samples tested. It ensures that the company is not over-spending on low-risk items or under-testing high-risk ones, leading to an optimized and compliant validation strategy.
+            """)
+        with tabs[2]:
             st.markdown("""
             ##### Glossary of Sampling Terms
             - **Acceptance Sampling:** A statistical method used to determine whether to accept or reject a production lot of material based on the inspection of a sample.
@@ -10024,7 +10047,7 @@ def render_sample_size_calculator():
             - **Binomial Distribution:** A probability model used when sampling from a very large or continuous population (sampling with replacement). The probability of success is constant for each trial.
             - **Hypergeometric Distribution:** A probability model used when sampling from a small, finite population without replacement. The probability of success changes with each draw.
             """)
-        with tabs[2]:
+        with tabs[3]:
             st.error("""🔴 **THE INCORRECT APPROACH: The "Square Root of N Plus One" Fallacy**
 An engineer is asked for a sampling plan and defaults to an arbitrary, non-statistical rule of thumb they learned years ago, like `n = sqrt(Lot Size) + 1`.
 - **The Flaw:** This plan is completely disconnected from risk. It cannot answer the question: "What level of confidence and reliability does this plan provide?" It is indefensible during a regulatory audit.""")
@@ -10034,7 +10057,7 @@ A compliant and statistically sound sampling plan is always derived from pre-def
 2.  **Then, Justify the Model:** Choose the correct statistical model for the situation (Binomial for a continuous process, Hypergeometric for a finite lot).
 3.  **Finally, Calculate `n`:** The required sample size is the direct mathematical output of the first two steps. This creates a clear, traceable, and audit-proof justification for your validation plan.""")
             
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             #### Historical Context: From Gosset's Brewery to Modern Industry
             **The Problem:** At the turn of the 20th century, William Sealy Gosset, a chemist at the Guinness brewery in Dublin, faced a problem central to industrial quality control: how to make reliable conclusions from very small samples. The classical statistical theory of the time required large samples, but Gosset could only afford to take a few measurements from each batch of beer. This practical constraint forced a revolution in statistics.
@@ -10046,7 +10069,7 @@ A compliant and statistically sound sampling plan is always derived from pre-def
             **The Modern Synthesis:** Today's practices blend both legacies. Gosset's "small-sample" thinking justifies using triplicates for preliminary repeatability checks, while the military's acceptance sampling framework provides the high-assurance models needed for final product release and process qualification.
             """)
         
-        with tabs[4]:
+        with tabs[5]:
             st.markdown("""
             A statistically justified sampling plan is a fundamental expectation in any GxP-regulated environment. It provides the **objective evidence** required to support validation claims and batch disposition decisions.
             
@@ -10162,17 +10185,41 @@ def render_stability_design():
         
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    with tabs[0]:
-        st.markdown("""
-        **Interpreting the Designs:**
-        - **Full Study:** This is the baseline, testing every combination of strength and container at every timepoint. It is the most comprehensive but also the most expensive.
-        - **Bracketing:** This design assumes that the stability of the intermediate strengths is represented by the stability at the extremes. It is a powerful cost-saver, but requires strong scientific justification. As you can see, all intermediate strength/container combinations are removed from the study.
-        - **Matrixing:** This design assumes that the stability of the product is similar across all combinations. It reduces the testing burden by, for example, testing only half the samples at each timepoint in a checkerboard pattern. It provides more information about the entire product family than bracketing.
-        
-        **The Strategic Insight:** The choice between these designs is a risk-based decision. **Bracketing** is ideal when the primary stability risk is related to the extremes (e.g., highest strength has a new excipient, lowest strength is more susceptible to degradation). **Matrixing** is ideal when the process and formulation are very consistent across all combinations and you want to reduce the overall testing load.
-        """)
-    with tabs[1]:
+tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+
+with tabs[0]:
+    st.markdown("""
+    **Interpreting the Designs:**
+    - **Full Study:** This is the baseline, testing every combination of strength and container at every timepoint. It is the most comprehensive but also the most expensive.
+    - **Bracketing:** This design assumes that the stability of the intermediate strengths is represented by the stability at the extremes. It is a powerful cost-saver, but requires strong scientific justification. As you can see, all intermediate strength/container combinations are removed from the study.
+    - **Matrixing:** This design assumes that the stability of the product is similar across all combinations. It reduces the testing burden by, for example, testing only half the samples at each timepoint in a checkerboard pattern. It provides more information about the entire product family than bracketing.
+    
+    **The Strategic Insight:** The choice between these designs is a risk-based decision. **Bracketing** is ideal when the primary stability risk is related to the extremes (e.g., highest strength has a new excipient, lowest strength is more susceptible to degradation). **Matrixing** is ideal when the process and formulation are very consistent across all combinations and you want to reduce the overall testing load.
+    """)
+
+with tabs[1]:
+    st.markdown("""
+    ### The Business Case: Accelerating Timelines by Eliminating Redundant Work
+
+    #### The Problem: The Tyranny of the Full Factorial
+    A company is preparing to launch a new drug product that will be available in 5 different strengths and 3 different container types (e.g., vial, pre-filled syringe, auto-injector). The traditional approach to stability testing requires a full, multi-year study on every single one of the 15 combinations.
+
+    #### The Impact: The "Stability Budget" Black Hole
+    This "test everything" approach creates a massive, unsustainable drain on the company's most critical resources.
+    - **Exorbitant Cost:** The cost of a single stability study is enormous, including the cost of the drug product itself, the labor for pulling and testing samples, and the use of expensive, capacity-limited stability chambers. Multiplying this by 15 creates a multi-million dollar budget item.
+    - **Paralyzed R&D Pipeline:** The company's finite stability chambers and QC lab capacity are completely consumed by this single, massive study. This creates a bottleneck that prevents the company from starting stability studies on new, innovative pipeline products, directly slowing down the company's growth engine.
+    - **Delayed Time-to-Market:** The sheer logistical complexity of managing such a large study can lead to delays in the final regulatory submission, postponing the launch and sacrificing months of potential revenue.
+
+    #### The Solution: A Risk-Based, Statistically Justified Reduction
+    Advanced stability designs (Bracketing and Matrixing), as formally sanctioned by the ICH Q1D guideline, are not about "doing less testing." They are a **strategic, risk-based approach to eliminating scientifically redundant testing**. The core principle is to leverage prior knowledge about the product to design a leaner, more intelligent study.
+    - **Bracketing** leverages the knowledge that stability failures are most likely to occur at the extremes of a factor like dosage strength.
+    - **Matrixing** leverages the knowledge that the product is highly consistent across all variations, allowing for a statistically balanced, partial testing schedule.
+
+    #### The Consequences: A Leaner, Faster, and Smarter Stability Program
+    - **Without This:** The stability program is a costly, inefficient bottleneck that consumes an ever-increasing share of the R&D and Quality budget.
+    - **With This:** The company can achieve the same level of regulatory compliance and product quality assurance with **up to 50% fewer samples**. This directly translates to a **multi-million dollar cost savings**, **accelerated timelines** for the current product, and, most importantly, it **frees up critical lab capacity and budget** to advance the next generation of innovative products in the R&D pipeline. It is a key strategy for maintaining a competitive edge.
+    """)
+    with tabs[2]:
         st.markdown("""
         ##### Glossary of Stability Design Terms
         - **Stability Study:** A formal study to determine the time period during which a drug product remains within its specifications under defined storage conditions.
@@ -10181,7 +10228,7 @@ def render_stability_design():
         - **Bracketing:** A reduced design in which only samples on the extremes of certain design factors (e.g., lowest and highest strengths) are tested at all timepoints.
         - **Matrixing:** A reduced design in which a selected subset of the total number of possible samples is tested at a specified timepoint. At a subsequent timepoint, a different subset of samples is tested.
         """)
-    with tabs[2]:
+    with tabs[3]:
         st.error("""🔴 **THE INCORRECT APPROACH: "Ad-Hoc Reduction"**
 A team is running over budget and decides to arbitrarily skip testing some samples from their full stability protocol without pre-approval or a statistical justification.
 - **The Flaw:** This invalidates the entire study. The missing data creates unexplainable gaps, and regulators will reject the study, forcing a costly repeat. It introduces unmanaged risk.""")
@@ -10191,7 +10238,7 @@ A reduced stability design is a powerful, compliant strategy *only* if it is han
 2.  **Document:** The justification and the exact bracketing or matrixing plan must be explicitly detailed in the Stability Protocol.
 3.  **Pre-Approve:** The protocol must be reviewed and approved by Quality Assurance *before* the study begins.""")
         
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         #### Historical Context: The Cost of Complexity
         As the pharmaceutical industry grew in the latter half of the 20th century, the complexity of product portfolios exploded. A single drug product might be marketed in five different strengths, three different container sizes, and be manufactured in two different facilities. The traditional expectation of running a full, multi-year stability study on every single combination became an enormous and often scientifically redundant financial burden.
@@ -10199,7 +10246,7 @@ A reduced stability design is a powerful, compliant strategy *only* if it is han
         Regulators and industry, working through the **International Council for Harmonisation (ICH)**, recognized this challenge. They sought to create a scientifically sound, risk-based framework that would allow companies to reduce their testing burden without compromising patient safety. This led to the development of the **ICH Q1D guideline**, which formally defined and sanctioned the use of Bracketing and Matrixing designs for formal stability studies.
         """)
         
-    with tabs[4]:
+    with tabs[5]:
         st.markdown("""
         The design of stability studies is governed by a specific set of harmonized international guidelines.
         - **ICH Q1D - Bracketing and Matrixing Designs for Stability Testing:** This is the primary global guideline that provides the rationale, definitions, and requirements for implementing and justifying reduced stability study designs.
@@ -10252,7 +10299,7 @@ def render_method_comparison():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             st.metric(label="📈 Mean Bias (Bland-Altman)", value=f"{bias:.2f} units", help="The average systematic difference.")
@@ -10265,7 +10312,35 @@ def render_method_comparison():
             - **Add `Proportional Bias`:** The Deming line *rotates* away from the identity line. The Bland-Altman and %Bias plots now show a clear trend, a major red flag.
             - **Increase `Random Error`:** The points scatter more widely. This has little effect on the average bias but dramatically **widens the Limits of Agreement**, making the methods less interchangeable.
             """)
+        
         with tabs[1]:
+            st.markdown("""
+            ### The Business Case: Ensuring a Seamless "Changing of the Guard"
+        
+            #### The Problem: The "Is the New Ruler the Same as the Old One?" Question
+            A company needs to make a critical change to a measurement system. This could be:
+            - **A Tech Transfer:** Transferring a validated assay from the R&D lab to a new manufacturing site's QC lab.
+            - **A Method Upgrade:** Replacing an old, obsolete instrument with a new, faster model.
+            - **A New Supplier:** Qualifying a second-source supplier for a critical diagnostic kit.
+            In all cases, the business must answer one crucial question with data: "Does the new method give us the same answers as the old, trusted one?"
+        
+            #### The Impact: The High Cost of Unmanaged Method Changes
+            Failing to rigorously quantify the agreement between the old and new methods can have severe consequences for the business and its patients.
+            - **The "Step-Change" Disaster:** The new instrument is installed, and suddenly the process, which had been stable for years, appears to have shifted. This triggers a massive, costly investigation into the manufacturing process, only to discover weeks later that the "shift" was not real—it was just an undetected bias in the new measurement system.
+            - **Invalidating Historical Data:** If the new method is biased, all new data is no longer comparable to years of historical data. This destroys the value of historical databases, makes long-term trend analysis impossible, and can create major issues during regulatory inspections.
+            - **Patient Impact:** In a clinical setting, if a new diagnostic instrument has a proportional bias, it could systematically under-report values for high-risk patients, leading to missed diagnoses and improper treatment.
+        
+            #### The Solution: A Rigorous "Due Diligence" Study
+            A Method Comparison study, using robust tools like **Bland-Altman analysis**, is the formal "due diligence" process for any method change. It is not enough to show the methods are "correlated." This study is designed to forensically dissect the nature of their disagreement by answering three specific questions:
+            1.  Is there a **constant bias** (a fixed offset)?
+            2.  Is there a **proportional bias** (a trend in the disagreement)?
+            3.  What is the expected **range of disagreement** for any future sample (the Limits of Agreement)?
+        
+            #### The Consequences: A Confident and Seamless Transition
+            - **Without This:** Any change to a measurement system is a high-risk gamble that can disrupt operations, invalidate historical data, and create significant compliance risks.
+            - **With This:** The method comparison study provides **objective, quantitative evidence** that the new method is a trustworthy and interchangeable replacement for the old one. It allows the business to confidently make changes and upgrades to its analytical systems without disrupting manufacturing, compromising data integrity, or putting patients at risk. It is the essential tool for ensuring continuity and confidence in the face of analytical evolution.
+            """)
+        with tabs[2]:
             st.markdown("""
             ##### Glossary of Comparison Terms
             - **Agreement:** The degree to which two different methods produce the same result for the same sample. This is different from correlation.
@@ -10275,7 +10350,7 @@ def render_method_comparison():
             - **Bland-Altman Plot:** A graphical method to plot the difference between two measurements against their average. It is the gold standard for visualizing agreement and identifying bias.
             - **Limits of Agreement (LoA):** On a Bland-Altman plot, the interval `[mean_diff ± 1.96 * std_diff]` within which 95% of future differences are expected to fall.
             """)
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("Acceptance criteria must be pre-defined and clinically/technically justified.")
             st.markdown("- **Deming Regression:** The 95% confidence interval for the **slope must contain 1.0**, and the 95% CI for the **intercept must contain 0**.")
             st.markdown(f"- **Bland-Altman:** The primary criterion is that the **95% Limits of Agreement (`{la:.2f}` to `{ua:.2f}`) must be clinically or technically acceptable**.")
@@ -10283,7 +10358,7 @@ def render_method_comparison():
             **The Correlation Catastrophe:** Never use the correlation coefficient (R²) to assess agreement. Two methods can be perfectly correlated (R²=1.0) but have a huge bias (e.g., one method always reads twice as high).
             """)
 
-        with tabs[3]:
+        with tabs[4]:
             # FIX: Restored the full, detailed content for this tab
             st.markdown("""
             #### Historical Context & Origin
@@ -10300,7 +10375,7 @@ def render_method_comparison():
             """)
             st.latex(r"LoA = \bar{d} \pm 1.96 \cdot s_d")
             st.markdown("This interval provides a predictive range: we can be 95% confident that the difference between the two methods for a future sample will fall within these limits.")
-        with tabs[4]:
+        with tabs[5]:
             st.markdown("""
             Method comparison studies are essential for method transfer, validation of a new method against a standard, or bridging studies.
             - **ICH Q2(R1) - Validation of Analytical Procedures:** The principles of comparing methods fall under the assessment of **Accuracy** and **Intermediate Precision**.
@@ -10357,7 +10432,7 @@ def render_tost():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Business case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
         
         with tabs[0]:
             status = "✅ EQUIVALENT" if is_equivalent else "❌ NOT EQUIVALENT"
@@ -10365,23 +10440,43 @@ def render_tost():
                 st.success(f"### Result: {status}")
             else:
                 st.error(f"### Result: {status}")
-
+        
             st.metric(label="p-value (TOST)", value=f"{p_tost:.4f}", help="If p < 0.05, we conclude equivalence.")
             st.metric(label="📊 Observed 90% CI for Difference", value=f"[{ci_lower:.2f}, {ci_upper:.2f}]")
             st.metric(label="📈 Observed Difference", value=f"{diff_mean:.2f}",
                       help="The difference between the two sample means (Mean B - Mean A).")
             st.metric(label="⚖️ Equivalence Margin", value=f"± {delta_slider:.1f} units")
-
+        
             st.markdown("---")
             st.markdown("##### The 3-Plot Story: How the Plots Connect")
             st.markdown("""
             1.  **Plot 1 (The Samples):** Shows the raw data you collected. The vertical dashed lines mark the *mean* of each sample.
             2.  **Plot 2 (The Evidence):** This is the crucial link. It shows our statistical uncertainty about the true difference in means. The shaded area is the **90% Confidence Interval**.
             3.  **Plot 3 (The Verdict):** This is just a compact summary of Plot 2. The bar represents the exact same 90% Confidence Interval.
-
+        
             **The conclusion of 'Equivalence' is reached when the entire shaded distribution in Plot 2 falls inside the light green 'Equivalence Zone'.**
             """)
+        
         with tabs[1]:
+            st.markdown("""
+            ### The Business Case: The Power to Prove "Sameness"
+        
+            #### The Problem: The "Absence of Evidence" Fallacy
+            A company completes a critical technology transfer to a new manufacturing site. They run a standard t-test to compare the average potency of batches from the new site versus the old site. The p-value is 0.35. The project manager triumphantly declares, "Success! The p-value is greater than 0.05, which proves the sites are statistically the same." They include this conclusion in their regulatory filing.
+        
+            #### The Impact: Regulatory Rejection and Unmanaged Risk
+            This is one of the most common and dangerous statistical errors in the industry, and it has severe consequences:
+            - **Guaranteed Regulatory Rejection:** An experienced regulatory reviewer will immediately reject this filing. The company has not *proven* sameness; they have simply **failed to prove a difference**. This is a critical distinction. The study may have been underpowered (too few samples, too much variability) to find a real, meaningful difference that actually exists.
+            - **Accepting Unmanaged Risk:** The new site might, in fact, be producing a product that is consistently 2% lower in potency—a clinically significant difference. But because the study was poorly designed, the t-test lacked the power to detect it. The company is now unknowingly releasing a potentially inferior product based on a flawed statistical conclusion.
+        
+            #### The Solution: Flipping the Burden of Proof
+            Equivalence Testing, using the Two One-Sided Tests (TOST) procedure, is the only statistically valid way to make a positive claim of similarity. It brilliantly flips the burden of proof. Instead of starting with the assumption that the sites are the same (and trying to disprove it), TOST starts with the assumption that the sites are **meaningfully different** (i.e., the difference is outside a pre-defined equivalence margin `Δ`). The burden is on the company to gather enough powerful evidence to **reject this assumption** and prove that any difference is, in fact, small enough to be considered practically irrelevant.
+        
+            #### The Consequences: A Defensible Claim and a Competitive Advantage
+            - **Without This:** Any claim of "sameness" or "comparability" is statistically indefensible and represents a significant compliance risk.
+            - **With This:** TOST provides **positive, objective, and statistically rigorous proof** of equivalence. Mastering this tool is not just a matter of compliance; it's a major competitive advantage. It is the required statistical engine for success in the generic and biosimilar markets, and it provides the unshakeable evidence needed to justify process changes, new equipment qualifications, and technology transfers to global regulators.
+            """)
+        with tabs[2]:
             st.markdown("""
             ##### Glossary of Equivalence Terms
             - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference between two groups or methods is smaller than a pre-specified, practically meaningless amount.
@@ -10389,7 +10484,7 @@ def render_tost():
             - **Equivalence Margin (Δ):** A pre-defined range `[-Δ, +Δ]` within which two products or methods are considered to be practically equivalent. Setting this margin is a critical, risk-based decision.
             - **Confidence Interval Approach:** An equivalent method to TOST. If the 90% confidence interval for the difference between the two groups falls entirely within the equivalence margin, equivalence is demonstrated at the 5% significance level.
             """)
-        with tabs[2]:
+        with tabs[3]:
             st.error("""🔴 **THE INCORRECT APPROACH: The Fallacy of the Non-Significant P-Value**
 - A scientist runs a standard t-test and gets a p-value of 0.25. They exclaim, *"Great, p > 0.05, so the methods are the same!"*
 - **This is wrong.** All they have shown is a *failure to find evidence of a difference*. **Absence of evidence is not evidence of absence.** Their study may have been underpowered (too much noise or too few samples).""")
@@ -10398,7 +10493,7 @@ The TOST procedure forces a more rigorous scientific approach.
 1.  **First, Define the Margin:** Before collecting data, stakeholders must use scientific and clinical judgment to define the equivalence margin (`Δ`). This is the zone where a difference is considered practically meaningless.
 2.  **Then, Prove You're Inside:** Conduct the experiment. The burden of proof is on you to show that your evidence (the 90% CI for the difference) is precise enough to fall entirely within that pre-defined margin.""")
 
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             #### Historical Context: The Rise of Generic Drugs
             **The Problem:** In the early 1980s, the pharmaceutical landscape was changing. The **1984 Hatch-Waxman Act** in the US created the modern pathway for generic drug approval. This created a new statistical challenge for regulators: how could a generic manufacturer *prove* that their drug was "the same as" the innovator's drug in terms of how it was absorbed by the body (bioequivalence)?
@@ -10417,113 +10512,14 @@ The TOST procedure forces a more rigorous scientific approach.
             A mathematically equivalent shortcut is to calculate the **90% confidence interval** for the difference. If this entire interval falls within `[-Δ, +Δ]`, you can conclude equivalence at the 5% significance level.
             """)
             
-        with tabs[4]:
+        with tabs[5]:
             st.markdown("""
             TOST is the required statistical method for demonstrating similarity or equivalence in various regulated contexts.
             - **FDA Guidance on Bioequivalence Studies:** TOST is the standard method for proving that the rate and extent of absorption of a generic drug are not significantly different from the reference listed drug.
             - **USP General Chapter <1224> - Transfer of Analytical Procedures:** Suggests the use of equivalence testing to formally demonstrate that a receiving laboratory can obtain comparable results to the transferring laboratory.
             - **Biosimilars (BPCIA Act):** The principles of equivalence testing are central to the analytical and clinical studies required to demonstrate biosimilarity to a reference biologic product.
             """)
-#===============================================================  5. STATISTICAL EQUIVALENCE FOR PROCESS TRANSFER ================================================
-def render_process_equivalence():
-    """Renders the comprehensive, interactive module for Process Transfer Equivalence."""
-    st.markdown("""
-    #### Purpose & Application: Statistical Proof of Transfer Success
-    **Purpose:** To provide **objective, statistical proof** that a manufacturing process transferred to a new site, scale, or equipment set performs equivalently to the original, validated process.
-    
-    **Strategic Application:** This is a high-level validation activity that goes beyond simply showing the new site is "in control." It formally proves that the new process is **statistically indistinguishable** from the original, providing powerful evidence for regulatory filings and ensuring consistent product quality across a global network. It is the final exam of a technology transfer.
-    """)
-    
-    st.info("""
-    **Interactive Demo:** You are the Head of Tech Transfer. Use the sidebar controls to simulate the performance of the new manufacturing site (Site B).
-    - The dashboard tells a 3-part story: the **raw process comparison** (top), the **statistical evidence** about the difference (middle), and the **final verdict** (bottom).
-    - **The Goal:** Achieve a "PASS" verdict by ensuring the entire evidence distribution in Plot 2 falls within the red equivalence margins.
-    """)
-    
-    with st.sidebar:
-        st.subheader("Process Equivalence Controls")
-        st.markdown("**Baseline Process**")
-        cpk_a_slider = st.slider("Original Site A Performance (Cpk)", 1.33, 2.5, 1.67, 0.01, help="The historical, validated process capability of the sending site. This is your benchmark.")
-        st.markdown("**New Process Simulation**")
-        mean_shift_slider = st.slider("Mean Shift at Site B", -2.0, 2.0, 0.5, 0.1, help="Simulates a systematic bias or shift in the process average at the new site. A key risk in tech transfer.")
-        var_change_slider = st.slider("Variability Change Factor at Site B", 0.8, 1.5, 1.1, 0.05, help="Simulates a change in process precision. >1.0 means the new site is more variable (worse); <1.0 means it is less variable (better).")
-        st.markdown("**Statistical Criteria**")
-        n_samples_slider = st.slider("Samples per Site (n)", 30, 200, 50, 10, help="The number of samples taken during the PPQ runs at each site. More samples increase statistical power.")
-        margin_slider = st.slider("Equivalence Margin for Cpk (±)", 0.1, 0.5, 0.2, 0.05, help="The 'goalposts'. How much can the new site's Cpk differ from the original and still be considered equivalent? This is a risk-based decision.")
 
-    fig, is_equivalent, diff_cpk, cpk_a_sample, cpk_b_sample, ci_lower, ci_upper = plot_process_equivalence(
-        cpk_site_a=cpk_a_slider, mean_shift=mean_shift_slider,
-        var_change_factor=var_change_slider, n_samples=n_samples_slider,
-        margin=margin_slider
-    )
-    
-    st.header("Results Dashboard")
-    col1, col2 = st.columns([0.65, 0.35])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.subheader("Analysis & Interpretation")
-        if is_equivalent:
-            st.success("### Verdict: ✅ PASS - Processes are Equivalent")
-        else:
-            st.error("### Verdict: ❌ FAIL - Processes are NOT Equivalent")
-        
-        c1, c2 = st.columns(2)
-        c1.metric("Site A Sample Cpk", f"{cpk_a_sample:.2f}")
-        c2.metric("Site B Sample Cpk", f"{cpk_b_sample:.2f}", delta=f"{(diff_cpk):.2f} vs Site A")
-        
-        st.metric("90% CI for Cpk Difference", f"[{ci_lower:.2f}, {ci_upper:.2f}]", help="The range of plausible true differences between the sites' Cpk values, based on the sample data.")
-        st.metric("Equivalence Margin", f"± {margin_slider}", help="The pre-defined goalposts for success.")
-        
-    st.divider()
-    st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-    
-    with tabs[0]:
-        st.markdown("""
-        **The 3-Plot Story: From Data to Decision**
-        1.  **Plot 1 (Process Comparison):** This shows what you see in the raw data from the validation runs. The smooth curves represent the "Voice of the Process" for each site relative to the specification limits (the "Voice of the Customer").
-        2.  **Plot 2 (Statistical Evidence):** This is the crucial bridge. It shows the result of a bootstrap simulation—a histogram of all the likely "true" differences in Cpk between the sites. The shaded area is the 90% confidence interval, representing our statistical evidence.
-        3.  **Plot 3 (The Verdict):** This is a simple summary of Plot 2. The colored bar is the same 90% confidence interval. **The test passes only if this entire bar is inside the equivalence zone defined by the red dashed lines.**
-        
-        **Core Insight:** A tech transfer doesn't just need to produce good product (high Cpk); it needs to produce product that is **statistically consistent** with the original site. This analysis provides the formal proof. Notice how a small `Mean Shift` or an increase in `Variability` at Site B can quickly lead to a failed equivalence test, even if Site B's Cpk is still above 1.33.
-        """)
-    with tabs[1]:
-        st.markdown("""
-        ##### Glossary of Transfer Terms
-        - **Technology Transfer:** The process of transferring skills, knowledge, technologies, and methods of manufacturing among organizations to ensure that scientific and technological developments are accessible to a wider range of users.
-        - **Process Performance Qualification (PPQ):** Stage 2 of the FDA Process Validation lifecycle, where the process design is evaluated to determine if it is capable of reproducible commercial manufacturing.
-        - **Cpk (Process Capability Index):** A key performance indicator for a manufacturing process. A high Cpk (>1.33) indicates a capable process.
-        - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference in performance between two processes (e.g., the original and transferred site) is smaller than a pre-specified, practically meaningless amount.
-        - **Bootstrap Simulation:** A computer-intensive statistical method that uses resampling of the original data to estimate the sampling distribution and confidence intervals of a statistic (like the difference in Cpk).
-        """)
-    with tabs[2]:
-        st.error("""🔴 **THE INCORRECT APPROACH: The "Cpk is Cpk" Fallacy**
-A manager reviews the Site B PPQ data, sees a Cpk of 1.40 (which is > 1.33), and declares the transfer a success, even though the original site's Cpk was 1.80.
-- **The Flaw:** This significant drop in performance is ignored, introducing a new, hidden level of risk into the manufacturing network. The process is now less robust and more likely to fail in the future. They have proven capability, but not comparability.""")
-        st.success("""🟢 **THE GOLDEN RULE: Pre-Define Equivalence, Then Prove It**
-A robust tech transfer plan treats equivalence as a formal acceptance criterion.
-1.  **Define the Margin:** Before the transfer, stakeholders must agree on the equivalence margin for a key performance metric (like Cpk). This is a risk-based decision: how much of a performance drop are we willing to accept?
-2.  **Prove You're Inside:** Conduct the PPQ runs and perform the equivalence test. The burden of proof is on the receiving site to demonstrate that their process performance is statistically indistinguishable from the sending site, within the pre-defined margin.""")
-
-    with tabs[3]:
-        st.markdown("""
-        #### Historical Context: A Modern Synthesis
-        This tool represents a modern synthesis of two powerful statistical ideas that both came to prominence in the 1980s but in different industries:
-        1.  **Process Capability (Cpk):** Popularized by the **Six Sigma** movement at Motorola, Cpk became the universal language for quantifying how well a process fits within its specification limits. It answered the question, "Is our process good enough?"
-        2.  **Equivalence Testing (TOST):** Championed by the **FDA** for generic drug approvals, equivalence testing provided the rigorous framework for proving two things were "the same" within a practical margin. It answered the question, "Is Drug B the same as Drug A?"
-        
-        **The Impact:** In modern tech transfer and lifecycle management, these two ideas are fused. By applying the rigorous logic of equivalence testing to a key performance indicator like Cpk, we create a powerful, modern tool for validating process transfers, scale-up, and other post-approval changes. The use of computer-intensive **bootstrapping** to calculate the confidence interval for a complex metric like Cpk is a distinctly 21st-century statistical technique that makes this analysis possible.
-        """)
-        
-    with tabs[4]:
-        st.markdown("""
-        This analysis is a best-practice implementation for several key regulatory activities that require demonstrating comparability.
-        - **FDA Process Validation Guidance:** This tool is ideal for **Stage 2 (Process Qualification)** when transferring a process. It provides objective evidence that the receiving site has successfully reproduced the performance of the sending site.
-        - **ICH Q5E - Comparability of Biotechnological/Biological Products:** While this guideline focuses on product quality attributes, its core principle is demonstrating comparability after a manufacturing process change. This statistical approach provides a quantitative framework for that demonstration.
-        - **Technology Transfer (ICH Q10):** A robust tech transfer protocol should have pre-defined acceptance criteria. Proving statistical equivalence of process capability is a state-of-the-art criterion.
-        - **SUPAC (Scale-Up and Post-Approval Changes):** When making a change to a validated process, this analysis can be used to prove that the change has not adversely impacted process performance.
-        """)
 #=======================================================================================================================================================================================================
 #============================================================================================SPECIAL SECTION COMPARING METHODS (ANOVA/T-TEST, WASSERSTEIN, TOST =====================================================================
 #=========================================================================================================================================================================================================
@@ -10606,7 +10602,8 @@ def render_wasserstein_distance():
 
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
     with tabs[0]:
         st.markdown(f"""
         **The Core Insight for the '{scenario}' Scenario:**
@@ -10616,14 +10613,38 @@ def render_wasserstein_distance():
         
         **Strategic Conclusion:** Relying solely on tests of mean and variance creates a massive blind spot. The Wasserstein distance provides a far more robust and sensitive measure of true process comparability, making it a superior tool for risk-based tech transfer.
         """)
+    
     with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The High-Resolution "Process CT Scan"
+    
+        #### The Problem: The Blurry X-Ray of Traditional Statistics
+        A company validates a critical tech transfer to a new site by showing that the mean of the new process is not significantly different from the original (t-test p > 0.05) and the variance is not significantly different (Levene's test p > 0.05). Management signs off on the transfer, believing the two processes are the same.
+    
+        #### The Impact: The Hidden Failure That Kills a Product Line
+        Six months later, the new site experiences a series of catastrophic batch failures. The investigation reveals the devastating truth: a subtle equipment issue at the new site was causing the process distribution to become **bimodal** (splitting into two sub-populations). The mean and variance of this bimodal distribution were almost identical to the original site's normal distribution. The traditional statistical tests were like a **blurry X-ray**—they could see the average density and overall size, but were completely blind to the critical underlying pathology. The company was flying blind for six months, producing at-risk material.
+    
+        #### The Solution: A High-Resolution "Process CT Scan"
+        The Wasserstein Distance is a fundamentally more powerful tool because it doesn't just look at summary statistics; it compares the **entire, high-resolution fingerprint of the process distribution**. It's the difference between an X-ray and a full-body CT scan. It is sensitive to any change in the distribution:
+        -   A shift in the **mean** (like a t-test).
+        -   A change in the **variance** (like a Levene's test).
+        -   A change in **skewness** (which traditional tests miss).
+        -   A change to **bimodality** (which traditional tests are dangerously blind to).
+        
+        It quantifies the "work" required to transform one process's distribution into the other, providing a single, holistic, and incredibly sensitive metric of process difference.
+    
+        #### The Consequences: Seeing the Whole Picture and Preventing Disasters
+        - **Without This:** Companies are making multi-million dollar decisions based on a low-resolution, incomplete picture of their processes. They are exposed to significant, unmanaged risk from complex failure modes that their statistical "safety net" cannot detect.
+        - **With This:** The Wasserstein Distance provides a **complete, high-fidelity view of process comparability**. It is the ultimate safety net. By adopting this state-of-the-art metric, a company can de-risk its technology transfers, gain a much deeper understanding of its process dynamics, and detect subtle but critical deviations long before they escalate into catastrophic quality events.
+        """)
+    with tabs[2]:
         st.markdown("""
         ##### Glossary of Terms
         - **Wasserstein Distance / Earth Mover's Distance (EMD):** A measure of the distance between two probability distributions. It is the minimum "cost" of transforming one distribution into the other, where cost is defined as the amount of "dirt" moved times the distance it's moved.
         - **Probability Density Function (PDF):** A function that describes the relative likelihood for a random variable to take on a given value. The top plot shows the estimated PDFs (also called KDEs).
         - **Cumulative Distribution Function (CDF):** A function that describes the probability that a random variable will take on a value less than or equal to `x`. The bottom plot shows the CDFs. For 1D data, the Wasserstein distance is equal to the area between the two CDF curves.
         """)
-    with tabs[2]:
+    with tabs[3]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "Parameter Myopia" Fallacy**
 An engineer validates a tech transfer by showing that the means are not significantly different (t-test p > 0.05) and the variances are not significantly different (F-test p > 0.05).
 - **The Flaw:** They have only proven that two summary statistics are similar. They are completely blind to changes in the fundamental *shape* of the process distribution. A new process that produces a bimodal output (e.g., from two different filling heads) might have the same mean and variance as the original, but it is clearly not the same process.""")
@@ -10633,7 +10654,7 @@ A modern, robust approach to comparability goes beyond simple parameters.
 2.  **Use a Holistic Metric:** Use a metric like the Wasserstein distance that compares the entire "fingerprint" (the full distribution) of the processes.
 3.  **Set a Practical Margin:** The equivalence threshold should be a risk-based decision, pre-defined in the validation plan. A common method is to set it based on a fraction of the specification range (e.g., 10% of USL - LSL).""")
 
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         #### Historical Context: From Cannonballs to Code
         **The Problem (1781):** The French mathematician **Gaspard Monge** posed a practical problem: given a pile of dirt (e.g., from an excavation) and a desired final shape (e.g., a fortification), what is the most efficient way to move the dirt? This "earth mover's problem" laid the mathematical groundwork for what we now call **optimal transport theory**.
@@ -10645,7 +10666,7 @@ A modern, robust approach to comparability goes beyond simple parameters.
         **The Modern Synthesis:** In the 2010s, statisticians and machine learning researchers connected EMD back to its mathematical roots and the **Wasserstein metric**. They developed highly efficient algorithms to compute it, making it a practical tool. Its ability to compare entire distributions in a way that is sensitive to shape has made it a state-of-the-art metric in fields ranging from generative AI (in GANs) to modern, robust process validation.
         """)
         
-    with tabs[4]:
+    with tabs[5]:
         st.markdown("""
         The use of advanced, distribution-based metrics is a state-of-the-art implementation of the principles of demonstrating process comparability and control.
         - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This guideline requires a demonstration that manufacturing changes do not adversely impact the product. While it focuses on product quality attributes, using a holistic statistical tool like Wasserstein distance to compare the process parameter distributions provides powerful supporting evidence.
@@ -10734,25 +10755,25 @@ def render_two_process_suite():
     st.divider()
     st.subheader("Deeper Dive into Two-Process Comparison")
     
-    tabs = st.tabs(["💡 Key Insights (The Courtroom Analogy)", "📋 Glossary", "✅ The Golden Rule", "📖 Theory, History & Math", "🏛️ Regulatory & Compliance"])
-
+    tabs = st.tabs(["💡 Key Insights (The Courtroom Analogy)", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory, History & Math", "🏛️ Regulatory & Compliance"])
+    
     with tabs[0]:
         st.markdown("""
         ### Why "Failing to Prove Difference" is NOT "Proving Similarity"
         A user correctly asked: *"Shouldn't 'how different' something is be the opposite of 'how similar' it is?"* While true in conversation, it is dangerously false in statistics. This distinction is the most important concept in validation and tech transfer.
-
+    
         #### The Courtroom Analogy: Innocent Until Proven Guilty
         Think of a standard hypothesis test (like a **t-test**) as a criminal trial.
         -   **The Null Hypothesis (H₀):** "The defendant is innocent." (The process means are the same: `μ₁ = μ₂`).
         -   **The Goal of the Prosecutor (You):** To gather enough evidence (data) to reject H₀ and prove guilt "beyond a reasonable doubt."
         -   **The p-value:** The strength of your evidence. A small p-value (p < 0.05) is like having overwhelming DNA evidence.
-
+    
         Now, consider the two possible verdicts:
         1.  **Verdict: "Guilty" (p < 0.05):** You reject H₀. You have strong evidence to conclude the means are different. This is a definitive conclusion.
         2.  **Verdict: "Not Guilty" (p > 0.05):** You **fail to reject** H₀. The verdict is **NOT "Innocent."** It simply means the prosecutor did not present enough evidence. This could be because the defendant is truly innocent, OR because the experiment was **underpowered** (too much noise, too few samples). A t-test cannot tell the difference.
-
+    
         > **This is why a non-significant p-value from a t-test is an inconclusive result and can NEVER be used to claim two processes are the same.**
-
+    
         #### Equivalence Testing (TOST): Flipping the Burden of Proof
         **TOST** flips the courtroom on its head. It assumes the processes are **"Different Until Proven Similar."**
         -   **The Null Hypothesis (H₀):** "The processes are meaningfully different." (The difference is outside our acceptable margin `Δ`).
@@ -10760,8 +10781,33 @@ def render_two_process_suite():
         
         > **This is why TOST is the correct, rigorous tool for validation.** It forces you to make a strong, positive claim of similarity, which is exactly what regulators and quality systems require.
         """)
-        
+    
     with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Right Question for the Right Risk
+    
+        #### The Problem: The One-Sided Story
+        A team is validating a critical technology transfer. They perform a single statistical test (e.g., a t-test) and get a single answer (e.g., p=0.15). They are now in a state of "statistical limbo." They haven't proven the processes are different, but they certainly haven't proven they are the same. They have answered a single, simple question, but the business has a complex, multi-faceted risk that remains unquantified.
+    
+        #### The Impact: Incomplete Risk Assessment and Poor Decisions
+        This one-dimensional analysis leads to poor decision-making because it fails to capture the full picture of the process change.
+        - **Unseen Risks:** The team might conclude "no difference in the mean" while completely missing a critical increase in process variability or a change in the process shape (skewness).
+        - **Flawed Justifications:** They may try to use the inconclusive t-test result to justify equivalence in a regulatory filing, which will be rejected.
+        - **Inability to Quantify Agreement:** If the change involves a new analytical method, they have no data on the practical, sample-by-sample agreement, such as the worst-case difference a doctor might see between the two tests.
+    
+        #### The Solution: The "Interrogation Room" for Process Data
+        The Comparability Suite is not just a collection of tests; it is a strategic **"interrogation room"** for your process data. It allows you to ask a series of precise, targeted questions to uncover the full story of the change.
+        1.  **The t-test asks:** "Is there any evidence these processes are *different*?" (Useful for scientific discovery).
+        2.  **The TOST asks:** "Is there strong evidence these processes are *the same*?" (Essential for regulatory proof of equivalence).
+        3.  **The Wasserstein test asks:** "Are the entire process *fingerprints* the same?" (The ultimate check for any change in process behavior).
+        4.  **The Bland-Altman plot asks:** "For any given sample, how much are these two methods likely to *disagree*?" (Critical for understanding clinical or practical interchangeability).
+    
+        #### The Consequences: A 360-Degree View of Risk and Performance
+        - **Without This:** The understanding of a process change is a blurry, one-dimensional snapshot.
+        - **With This:** The suite provides a **complete, 360-degree view of comparability**. It allows the business to confidently and defensibly answer every relevant question about a process change. It ensures that the right statistical tool is used to manage the right risk, leading to robust validation packages, successful regulatory submissions, and a deep, multi-faceted understanding of process performance.
+        """)
+        
+    with tabs[2]:
         st.markdown("""
         ##### Glossary of Two-Process Comparison Terms
         - **t-test:** A statistical hypothesis test used to determine if there is a significant difference between the means of two groups. Its null hypothesis is that the means are equal.
@@ -10771,7 +10817,7 @@ def render_two_process_suite():
         - **Paired vs. Independent Data:** Paired data comes from measuring the same sample/subject twice (e.g., with Method A and Method B). Independent data comes from two separate, unrelated groups (e.g., Batch A vs. Batch B).
         """)
 
-    with tabs[2]:
+    with tabs[3]:
         st.error("""🔴 **THE INCORRECT APPROACH: The "p > 0.05" Fallacy**
 An engineer runs a t-test on data from two manufacturing sites. The p-value is 0.40. They write in the validation report: "Because p > 0.05, we have shown the two sites are statistically equivalent."
 - **The Flaw:** This is a critical statistical error. They have only shown an **absence of evidence for a difference**, which is not the same as **evidence of absence of a difference**. An auditor would immediately reject this conclusion as statistically invalid.""")
@@ -10781,7 +10827,7 @@ A mature, data-driven culture uses a clear logic for choosing its statistical me
 2.  **If you need to prove *sameness* (e.g., validation/tech transfer), use an equivalence test (TOST, Wasserstein).**
 3.  **If you need to measure *agreement* (e.g., method validation), use Bland-Altman analysis.**""")
 
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         #### Theory, History & Mathematical Context
         - **t-test (1908):** Invented by **William Sealy Gosset** ("Student") at the Guinness brewery to handle small samples. It asks, "How likely is it to see a difference this large between my samples if the true means were actually identical?"
@@ -10789,7 +10835,7 @@ A mature, data-driven culture uses a clear logic for choosing its statistical me
         - **Bland-Altman (1986):** A direct response by **Martin Bland and Douglas Altman** to the rampant misuse of correlation for method comparison. Their brilliantly simple plot of `Difference vs. Average` directly visualizes the key clinical and technical questions: What is the average bias, and what is the expected range of disagreement for a future sample?
         """)
         
-    with tabs[4]:
+    with tabs[5]:
         st.markdown("""
         Using the appropriate statistical method for comparability is a core regulatory expectation and a cornerstone of a robust Quality Management System.
         - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This guideline is the primary driver for these studies. It requires a demonstration that manufacturing changes do not adversely impact product quality. The choice of statistical methods and acceptance criteria is a key component of the comparability protocol.
@@ -10887,19 +10933,42 @@ def render_multi_process_suite():
 
     st.divider()
     st.subheader("Deeper Dive into Multi-Process Comparison")
-    tabs = st.tabs(["💡 Method Selection Map", "📋 Detailed Comparison Table", "📋 Glossary", "✅ The Golden Rule", "📖 Theory, History & Math", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Method Selection Map", "✅ The Business Case", "📋 Detailed Comparison Table", "📋 Glossary", "✅ The Golden Rule", "📖 Theory, History & Math", "🏛️ Regulatory & Compliance"])
     
     with tabs[0]:
         st.markdown("""
         ### Method Selection Map: A Strategic Decision Framework
         Choosing your statistical weapon is the most critical decision in a comparability study. Use this guide to select and defend your approach based on the specific question you need to answer.
-
+    
         | **Your Question** | **Recommended Tool** | **Why? (Pros)** | **What to Watch Out For (Cons)** |
         | :--- | :--- | :--- | :--- |
         | **"Is there *any* evidence of a difference in the average performance of my 3+ lines?"** | **ANOVA** | **The Universal Screener:** Fast, simple, and the industry standard for a first-pass check on means. It provides a single p-value to answer the global question of "any difference?" | **Doesn't tell you *which* lines differ.** It's a fire alarm, not a firefighter. It is strictly mean-centric, completely blind to changes in process variability or shape. |
         | **"Can I *prove* my new process mean is practically the same as the old one?"** | **TOST (Equivalence Testing)** | **The Regulatory Gold Standard:** The only method that correctly frames the hypothesis to prove similarity. Forces a crucial, upfront conversation about what "practically the same" means (the margin Δ). | **Mean-centric:** Can declare two processes equivalent even if their variances are wildly different. The choice of the margin Δ can be difficult to justify and is often a point of regulatory scrutiny. |
         | **"How well do my two measurement methods agree across their entire range?"** | **Bland-Altman / Deming** | **The Bias Detective:** The only method designed to quantify and diagnose the *type* of bias (constant vs. proportional). The Limits of Agreement are directly interpretable in the units of the measurement, making them clinically and technically relevant. | **Requires Paired Data:** You must have measured the exact same set of samples on both methods. It is completely inappropriate for comparing independent batches from two processes. |
         | **"Can I prove my new process behaves *identically* to the old one, considering its entire fingerprint?"** | **Wasserstein or Anderson-Darling** | **The Holistic Guardian:** The most powerful and robust approach. It compares the entire process "fingerprint" (shape, center, spread). Non-parametric, so it's immune to non-normal data. It is the only method here guaranteed to catch dangerous changes like bimodality. | **Less Familiar to Regulators:** May require more explanation in a submission. Selecting a defensible equivalence threshold for the Wasserstein distance can be more challenging than for the mean-based TOST. |
+        """)
+    
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: Managing a Global Manufacturing Network
+    
+        #### The Problem: The "Apples to Oranges" Comparison
+        A company manufactures a critical product at three different global sites (A, B, and C). Each site monitors its own process using local control charts, and each site reports that its process is "capable." However, management has a nagging fear: is a "good" batch from Site A the same as a "good" batch from Site B? They have no statistically valid way to compare performance across the entire network to ensure a single, consistent standard of quality.
+    
+        #### The Impact: Hidden Risks and Inefficient Operations
+        This inability to perform a network-level comparison creates significant strategic risks:
+        - **Inconsistent Product Quality:** Site C might be running a process that is consistently biased high, but still within specification. This means patients in one region are receiving a systematically different product than patients in another, creating a potential clinical and regulatory risk.
+        - **Inefficient "Best Practice" Sharing:** Site A may have a significantly less variable process than the others, but without a formal comparison, this excellence is never identified or shared. The opportunity to improve the entire network to the standard of the best site is lost.
+        - **Flawed Supply Chain Decisions:** During a supply shortage, management needs to decide which site to ramp up. Without a clear, data-driven understanding of which site is truly the most capable and reliable, they are forced to make a critical supply chain decision based on incomplete information.
+    
+        #### The Solution: The "Fleet Analysis" for Manufacturing
+        The Multi-Process Comparability Suite provides the tools for a formal **"fleet analysis"** of the entire manufacturing network. It allows a business to move from site-level monitoring to network-level strategic management.
+        1.  **The Fire Alarm (ANOVA / Anderson-Darling):** These tests provide a single, global p-value to answer the first critical question: "Is there *any* statistically significant difference in performance across our entire network?"
+        2.  **The Forensic Investigator (Tukey's HSD / Q-Q Plots):** If the alarm sounds, these post-hoc tests provide the immediate, detailed diagnosis. They pinpoint *exactly which* sites are different from each other and *how* their process distributions differ, guiding a targeted investigation.
+    
+        #### The Consequences: A Standardized, Optimized Global Network
+        - **Without This:** A "global" manufacturing network is just a collection of disconnected local sites. The company has no way to enforce a single standard of quality or to identify and propagate best practices.
+        - **With This:** The suite provides the **objective, data-driven foundation for true global process management**. It enables the business to **identify and correct** site-to-site performance gaps, **transfer best practices** from high-performing sites to others, and make **intelligent, risk-based supply chain decisions**. This ensures that the company's brand represents a single, consistent, and high standard of quality, regardless of where the product was made.
         """)
 
     with tabs[1]:
@@ -10982,15 +11051,15 @@ def render_spc_charts():
     fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
     
     st.subheader(f"Analysis & Interpretation: {scenario} Process")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
     with tabs[0]:
         st.info("💡 Each chart type is a different 'lead' on your EKG, designed for a specific kind of data. Use the expanders below to see how to read each one.")
-
+    
         with st.expander("Indivduals & Moving Range (I-MR) Chart", expanded=True):
             st.plotly_chart(fig_imr, use_container_width=True)
             st.markdown("- **Interpretation:** The I-chart tracks the process center, while the MR-chart tracks short-term variability. **Both** must be stable. An out-of-control MR chart is a leading indicator of future problems.")
-
+    
         with st.expander("X-bar & Range (X̄-R) Chart", expanded=True):
             st.plotly_chart(fig_xbar, use_container_width=True)
             st.markdown("- **Interpretation:** The X-bar chart tracks variation *between* subgroups and is extremely sensitive to small shifts. The R-chart tracks variation *within* subgroups, a measure of process consistency.")
@@ -10998,6 +11067,27 @@ def render_spc_charts():
         with st.expander("Proportion (P) Chart", expanded=True):
             st.plotly_chart(fig_p, use_container_width=True)
             st.markdown("- **Interpretation:** This chart tracks the proportion of defects. The control limits become tighter for larger batches, reflecting increased statistical certainty.")
+    
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Real-Time "Nervous System" for Manufacturing
+    
+        #### The Problem: The "Lagging Indicator" Trap
+        A company's entire quality strategy is based on **final QC testing**. They produce an entire multi-million dollar batch of product over several days, then send a sample to the lab. They wait a week for the results, which show the batch failed its specification. Now they are in a reactive crisis mode.
+    
+        #### The Impact: The High Cost of "Driving with the Rear-View Mirror"
+        This "inspect quality in at the end" approach is enormously wasteful and risky.
+        - **Maximum Scrap Cost:** The company has already incurred 100% of the material and labor cost to produce an entire batch of worthless product. The financial loss is maximized.
+        - **Ineffective Root Cause Analysis:** The failure could have been caused by a brief event that happened days ago. Trying to find the "needle in the haystack" root cause after the fact is a slow, difficult, and often inconclusive investigation.
+        - **Supply Chain Disruption:** The unexpected loss of a batch can lead to stock-outs, forcing the company to pay huge expedited shipping fees and potentially failing to supply the market.
+    
+        #### The Solution: A Proactive, Real-Time "Nervous System"
+        Statistical Process Control (SPC) charts are the **real-time nervous system** of a modern manufacturing process. Instead of waiting for the final result (a lagging indicator), SPC charts monitor the vital signs of the process (the Critical Process Parameters) as they are happening. The control chart is not designed to see if the product is in-spec; it is designed to detect **changes in the process's behavior** long before those changes result in out-of-spec product. It is a **leading indicator**.
+    
+        #### The Consequences: From "Detect and Scrap" to "Predict and Prevent"
+        - **Without This:** The company is stuck in a costly "detect and scrap" cycle. They are constantly reacting to failures that have already happened.
+        - **With This:** SPC transforms the quality paradigm to **"predict and prevent."** An out-of-control signal on a control chart is an **early warning** that the process has deviated from its normal, validated state. This allows operators to **stop, investigate, and correct** the problem in real-time. This prevents the creation of defective material, dramatically reduces scrap, enables effective root cause analysis, and ensures a stable, predictable, and profitable manufacturing operation.
+        """)
         with tabs[1]:
             st.markdown("""
             ##### Glossary of SPC Terms
@@ -11073,7 +11163,8 @@ def render_capability():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
         with tabs[0]:
             st.metric(label="📈 KPI: Process Capability (Cpk)",
                       value=f"{cpk_val:.2f}" if not np.isnan(cpk_val) else "INVALID",
@@ -11089,6 +11180,64 @@ def render_capability():
             
             **The Bimodal Case:**
             - The **'Bimodal'** scenario shows two distinct sub-processes running. This violates the normality assumption of Cpk and requires investigation to find and eliminate the source of the two populations.
+            """)
+        
+        with tabs[1]:
+            st.markdown("""
+            ### The Business Case: The Universal Scorecard for Process Excellence
+        
+            #### The Problem: The "Is It Good Enough?" Debate
+            A manufacturing process is stable and in-control, but a significant portion of its output is borderline, hovering dangerously close to the specification limits. This leads to frequent, contentious debates between departments:
+            - **Manufacturing:** "The process is running fine. The material is in-spec, so it's good to ship."
+            - **Quality:** "We're seeing a lot of near-misses. This is too risky. We need to investigate."
+            - **Business:** "How much risk are we really talking about? Can you give me a number?"
+            There is no common, quantitative language to describe how "good" the process actually is.
+        
+            #### The Impact: Unmanaged Risk and the "Hidden Factory"
+            This lack of a capability metric creates a "hidden factory"—a massive, invisible cost center dedicated to dealing with the consequences of a marginal process.
+            - **Intensive Inspection and Testing:** The QC lab is forced to perform extensive testing because they can't trust the process to consistently produce good material.
+            - **Chronic OOS Investigations:** The borderline material frequently tips over the specification limit, triggering costly and time-consuming Out-of-Specification (OOS) investigations.
+            - **Low Yield and High Scrap:** A significant portion of the factory's capacity is wasted producing material that is either scrapped immediately or rejected later, directly impacting the bottom line.
+            - **Inability to Improve:** Without a clear metric, the company can't set meaningful goals for process improvement or measure the ROI of new equipment.
+        
+            #### The Solution: A Universal Language for Performance
+            The Process Capability Index (Cpk) is the solution. It is a single, powerful, and universally understood metric that distills complex process performance into a simple "scorecard." It provides a quantitative, data-driven answer to the question "Is it good enough?" by directly comparing the **"Voice of the Process"** (its natural variation) to the **"Voice of the Customer"** (the specification limits).
+        
+            #### The Consequences: A Data-Driven Culture of Excellence
+            - **Without This:** The organization is trapped in a cycle of debate, rework, and waste, driven by subjective opinions about process performance.
+            - **With This:** Cpk becomes the **common language of quality** across the entire organization.
+                - **It sets clear, data-driven goals:** "Our goal for this process is to achieve and maintain a Cpk of 1.67."
+                - **It justifies investment:** "Investing $500k in this new equipment is projected to increase our Cpk from 1.1 to 1.7, which will reduce our scrap rate by 90% and save us $2M per year."
+                - **It drives a competitive advantage:** A company that systematically measures and improves the Cpk of its critical processes will have lower costs, higher yields, and a more reliable supply chain than its competitors. It is the fundamental KPI for a culture of continuous improvement and operational excellence.
+            """)
+        
+        with tabs[1]:
+            st.markdown("""
+            ### The Business Case: The Universal Scorecard for Process Excellence
+        
+            #### The Problem: The "Is It Good Enough?" Debate
+            A manufacturing process is stable and in-control, but a significant portion of its output is borderline, hovering dangerously close to the specification limits. This leads to frequent, contentious debates between departments:
+            - **Manufacturing:** "The process is running fine. The material is in-spec, so it's good to ship."
+            - **Quality:** "We're seeing a lot of near-misses. This is too risky. We need to investigate."
+            - **Business:** "How much risk are we really talking about? Can you give me a number?"
+            There is no common, quantitative language to describe how "good" the process actually is.
+        
+            #### The Impact: Unmanaged Risk and the "Hidden Factory"
+            This lack of a capability metric creates a "hidden factory"—a massive, invisible cost center dedicated to dealing with the consequences of a marginal process.
+            - **Intensive Inspection and Testing:** The QC lab is forced to perform extensive testing because they can't trust the process to consistently produce good material.
+            - **Chronic OOS Investigations:** The borderline material frequently tips over the specification limit, triggering costly and time-consuming Out-of-Specification (OOS) investigations.
+            - **Low Yield and High Scrap:** A significant portion of the factory's capacity is wasted producing material that is either scrapped immediately or rejected later, directly impacting the bottom line.
+            - **Inability to Improve:** Without a clear metric, the company can't set meaningful goals for process improvement or measure the ROI of new equipment.
+        
+            #### The Solution: A Universal Language for Performance
+            The Process Capability Index (Cpk) is the solution. It is a single, powerful, and universally understood metric that distills complex process performance into a simple "scorecard." It provides a quantitative, data-driven answer to the question "Is it good enough?" by directly comparing the **"Voice of the Process"** (its natural variation) to the **"Voice of the Customer"** (the specification limits).
+        
+            #### The Consequences: A Data-Driven Culture of Excellence
+            - **Without This:** The organization is trapped in a cycle of debate, rework, and waste, driven by subjective opinions about process performance.
+            - **With This:** Cpk becomes the **common language of quality** across the entire organization.
+                - **It sets clear, data-driven goals:** "Our goal for this process is to achieve and maintain a Cpk of 1.67."
+                - **It justifies investment:** "Investing $500k in this new equipment is projected to increase our Cpk from 1.1 to 1.7, which will reduce our scrap rate by 90% and save us $2M per year."
+                - **It drives a competitive advantage:** A company that systematically measures and improves the Cpk of its critical processes will have lower costs, higher yields, and a more reliable supply chain than its competitors. It is the fundamental KPI for a culture of continuous improvement and operational excellence.
             """)
         with tabs[1]:
             st.markdown("""
@@ -11127,6 +11276,134 @@ def render_capability():
             - **FDA Process Validation Guidance (Stage 2):** The goal of PPQ is to demonstrate that the process, operating under normal conditions, is capable of consistently producing conforming product. A high Cpk is the statistical evidence that this goal has been met.
             - **Global Harmonization Task Force (GHTF):** For medical devices, guidance on process validation similarly requires demonstrating that the process output consistently meets predetermined requirements.
             """)
+
+#===============================================================  5. STATISTICAL EQUIVALENCE FOR PROCESS TRANSFER ================================================
+    def render_process_equivalence():
+        """Renders the comprehensive, interactive module for Process Transfer Equivalence."""
+        st.markdown("""
+        #### Purpose & Application: Statistical Proof of Transfer Success
+        **Purpose:** To provide **objective, statistical proof** that a manufacturing process transferred to a new site, scale, or equipment set performs equivalently to the original, validated process.
+            
+        **Strategic Application:** This is a high-level validation activity that goes beyond simply showing the new site is "in control." It formally proves that the new process is **statistically indistinguishable** from the original, providing powerful evidence for regulatory filings and ensuring consistent product quality across a global network. It is the final exam of a technology transfer.
+        """)
+            
+        st.info("""
+        **Interactive Demo:** You are the Head of Tech Transfer. Use the sidebar controls to simulate the performance of the new manufacturing site (Site B).
+        - The dashboard tells a 3-part story: the **raw process comparison** (top), the **statistical evidence** about the difference (middle), and the **final verdict** (bottom).
+        - **The Goal:** Achieve a "PASS" verdict by ensuring the entire evidence distribution in Plot 2 falls within the red equivalence margins.
+        """)
+            
+        with st.sidebar:
+             st.subheader("Process Equivalence Controls")
+             st.markdown("**Baseline Process**")
+             cpk_a_slider = st.slider("Original Site A Performance (Cpk)", 1.33, 2.5, 1.67, 0.01, help="The historical, validated process capability of the sending site. This is your benchmark.")
+             st.markdown("**New Process Simulation**")
+             mean_shift_slider = st.slider("Mean Shift at Site B", -2.0, 2.0, 0.5, 0.1, help="Simulates a systematic bias or shift in the process average at the new site. A key risk in tech transfer.")
+                var_change_slider = st.slider("Variability Change Factor at Site B", 0.8, 1.5, 1.1, 0.05, help="Simulates a change in process precision. >1.0 means the new site is more variable (worse); <1.0 means it is less variable (better).")
+                st.markdown("**Statistical Criteria**")
+                n_samples_slider = st.slider("Samples per Site (n)", 30, 200, 50, 10, help="The number of samples taken during the PPQ runs at each site. More samples increase statistical power.")
+                margin_slider = st.slider("Equivalence Margin for Cpk (±)", 0.1, 0.5, 0.2, 0.05, help="The 'goalposts'. How much can the new site's Cpk differ from the original and still be considered equivalent? This is a risk-based decision.")
+        
+            fig, is_equivalent, diff_cpk, cpk_a_sample, cpk_b_sample, ci_lower, ci_upper = plot_process_equivalence(
+                cpk_site_a=cpk_a_slider, mean_shift=mean_shift_slider,
+                var_change_factor=var_change_slider, n_samples=n_samples_slider,
+                margin=margin_slider
+            )
+            
+            st.header("Results Dashboard")
+            col1, col2 = st.columns([0.65, 0.35])
+            with col1:
+                st.plotly_chart(fig, use_container_width=True)
+            with col2:
+                st.subheader("Analysis & Interpretation")
+                if is_equivalent:
+                    st.success("### Verdict: ✅ PASS - Processes are Equivalent")
+                else:
+                    st.error("### Verdict: ❌ FAIL - Processes are NOT Equivalent")
+                
+                c1, c2 = st.columns(2)
+                c1.metric("Site A Sample Cpk", f"{cpk_a_sample:.2f}")
+                c2.metric("Site B Sample Cpk", f"{cpk_b_sample:.2f}", delta=f"{(diff_cpk):.2f} vs Site A")
+                
+                st.metric("90% CI for Cpk Difference", f"[{ci_lower:.2f}, {ci_upper:.2f}]", help="The range of plausible true differences between the sites' Cpk values, based on the sample data.")
+                st.metric("Equivalence Margin", f"± {margin_slider}", help="The pre-defined goalposts for success.")
+                
+            st.divider()
+            st.subheader("Deeper Dive")
+            tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+            
+            with tabs[0]:
+                st.markdown("""
+                **The 3-Plot Story: From Data to Decision**
+                1.  **Plot 1 (Process Comparison):** This shows what you see in the raw data from the validation runs. The smooth curves represent the "Voice of the Process" for each site relative to the specification limits (the "Voice of the Customer").
+                2.  **Plot 2 (Statistical Evidence):** This is the crucial bridge. It shows the result of a bootstrap simulation—a histogram of all the likely "true" differences in Cpk between the sites. The shaded area is the 90% confidence interval, representing our statistical evidence.
+                3.  **Plot 3 (The Verdict):** This is a simple summary of Plot 2. The colored bar is the same 90% confidence interval. **The test passes only if this entire bar is inside the equivalence zone defined by the red dashed lines.**
+                
+                **Core Insight:** A tech transfer doesn't just need to produce good product (high Cpk); it needs to produce product that is **statistically consistent** with the original site. This analysis provides the formal proof. Notice how a small `Mean Shift` or an increase in `Variability` at Site B can quickly lead to a failed equivalence test, even if Site B's Cpk is still above 1.33.
+                """)
+            
+            with tabs[1]:
+                st.markdown("""
+                ### The Business Case: De-Risking Multi-Million Dollar Changes
+            
+                #### The Problem: The "Looks Good Enough" Fallacy
+                A company is executing a major, high-stakes manufacturing change, such as:
+                - Transferring production of a blockbuster drug to a new, larger facility.
+                - Scaling up a process from a 200L pilot reactor to a 2000L commercial reactor.
+                - Qualifying a new, cheaper raw material supplier.
+                
+                They perform validation runs and the new process meets the minimum quality requirement (e.g., Cpk > 1.33). Management declares the project a success.
+            
+                #### The Impact: The Slow Creep of Process Degradation
+                This "good enough" mindset is a major strategic blunder that introduces hidden, long-term risk.
+                - **Reduced Robustness:** The new process, while technically "capable," might be significantly less robust than the original. Its Cpk might have dropped from a world-class 2.0 to a marginal 1.4. This means the process now has a much smaller buffer against normal operational variations, leading to a future of chronic, low-level deviations and higher scrap rates.
+                - **Incomparable Data:** The company can no longer pool data from the old and new processes for annual product reviews or global trend analysis, because they are no longer statistically the same population.
+                - **Regulatory Scrutiny:** Regulators expect a formal demonstration of **comparability**, not just capability. Simply meeting a minimum threshold is not sufficient proof that the change has not adversely impacted the process. This can lead to lengthy review cycles and requests for more data.
+            
+                #### The Solution: A Formal Proof of "Sameness"
+                Statistical Equivalence analysis is the tool that moves beyond "good enough" to provide **positive, objective proof that the new process is statistically indistinguishable from the old one**. It is a formal "due diligence" on the performance of the process itself. By applying the rigorous logic of equivalence testing to a key performance indicator like Cpk, it forces the business to answer the right question: "Did we successfully replicate our gold-standard process, or did we unknowingly degrade it?"
+            
+                #### The Consequences: A Consistent Global Standard of Excellence
+                - **Without This:** Every process change introduces the risk of silent, gradual degradation of the manufacturing network's performance. The company's "best" process slowly erodes over time.
+                - **With This:** Statistical Equivalence becomes the **gatekeeper for all major process changes**. It provides the unshakeable, data-driven evidence that a tech transfer, scale-up, or supplier change has been successful without compromising the process's validated state of control. This ensures a consistent, high standard of performance across the global network, satisfies regulatory expectations for comparability, and protects the long-term profitability and robustness of the company's most valuable assets.
+                """)
+                with tabs[2]:
+                    st.markdown("""
+                    ##### Glossary of Transfer Terms
+                    - **Technology Transfer:** The process of transferring skills, knowledge, technologies, and methods of manufacturing among organizations to ensure that scientific and technological developments are accessible to a wider range of users.
+                    - **Process Performance Qualification (PPQ):** Stage 2 of the FDA Process Validation lifecycle, where the process design is evaluated to determine if it is capable of reproducible commercial manufacturing.
+                    - **Cpk (Process Capability Index):** A key performance indicator for a manufacturing process. A high Cpk (>1.33) indicates a capable process.
+                    - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference in performance between two processes (e.g., the original and transferred site) is smaller than a pre-specified, practically meaningless amount.
+                    - **Bootstrap Simulation:** A computer-intensive statistical method that uses resampling of the original data to estimate the sampling distribution and confidence intervals of a statistic (like the difference in Cpk).
+                    """)
+                with tabs[3]:
+                    st.error("""🔴 **THE INCORRECT APPROACH: The "Cpk is Cpk" Fallacy**
+                    A manager reviews the Site B PPQ data, sees a Cpk of 1.40 (which is > 1.33), and declares the transfer a success, even though the original site's Cpk was 1.80.
+                    - **The Flaw:** This significant drop in performance is ignored, introducing a new, hidden level of risk into the manufacturing network. The process is now less robust and more likely to fail in the future. They have proven capability, but not comparability.""")
+                            st.success("""🟢 **THE GOLDEN RULE: Pre-Define Equivalence, Then Prove It**
+                    A robust tech transfer plan treats equivalence as a formal acceptance criterion.
+                    1.  **Define the Margin:** Before the transfer, stakeholders must agree on the equivalence margin for a key performance metric (like Cpk). This is a risk-based decision: how much of a performance drop are we willing to accept?
+                    2.  **Prove You're Inside:** Conduct the PPQ runs and perform the equivalence test. The burden of proof is on the receiving site to demonstrate that their process performance is statistically indistinguishable from the sending site, within the pre-defined margin.""")
+                    
+                with tabs[4]:
+                    st.markdown("""
+                    #### Historical Context: A Modern Synthesis
+                    This tool represents a modern synthesis of two powerful statistical ideas that both came to prominence in the 1980s but in different industries:
+                    1.  **Process Capability (Cpk):** Popularized by the **Six Sigma** movement at Motorola, Cpk became the universal language for quantifying how well a process fits within its specification limits. It answered the question, "Is our process good enough?"
+                    2.  **Equivalence Testing (TOST):** Championed by the **FDA** for generic drug approvals, equivalence testing provided the rigorous framework for proving two things were "the same" within a practical margin. It answered the question, "Is Drug B the same as Drug A?"
+                            
+                    **The Impact:** In modern tech transfer and lifecycle management, these two ideas are fused. By applying the rigorous logic of equivalence testing to a key performance indicator like Cpk, we create a powerful, modern tool for validating process transfers, scale-up, and other post-approval changes. The use of computer-intensive **bootstrapping** to calculate the confidence interval for a complex metric like Cpk is a distinctly 21st-century statistical technique that makes this analysis possible.
+                        """)
+                            
+                with tabs[5]:
+                    st.markdown("""
+                    This analysis is a best-practice implementation for several key regulatory activities that require demonstrating comparability.
+                    - **FDA Process Validation Guidance:** This tool is ideal for **Stage 2 (Process Qualification)** when transferring a process. It provides objective evidence that the receiving site has successfully reproduced the performance of the sending site.
+                    - **ICH Q5E - Comparability of Biotechnological/Biological Products:** While this guideline focuses on product quality attributes, its core principle is demonstrating comparability after a manufacturing process change. This statistical approach provides a quantitative framework for that demonstration.
+                    - **Technology Transfer (ICH Q10):** A robust tech transfer protocol should have pre-defined acceptance criteria. Proving statistical equivalence of process capability is a state-of-the-art criterion.
+                    - **SUPAC (Scale-Up and Post-Approval Changes):** When making a change to a validated process, this analysis can be used to prove that the change has not adversely impacted process performance.
+                    """)
+
 #=============================================================================== 9. FIRST TIME YIELD & COST OF QUALITY  ============================================================================
 def render_fty_coq():
     """Renders the comprehensive, interactive module for First Time Yield & Cost of Quality."""
@@ -11176,7 +11453,8 @@ def render_fty_coq():
     
     st.divider()
     st.subheader("Deeper Dive")
-    tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
     with tabs[0]:
         st.markdown("""
         **The 4-Plot Story: A Realistic Improvement Workflow**
@@ -11186,7 +11464,34 @@ def render_fty_coq():
         3.  **What is the overall impact? (Sankey Plot):** This shows the cumulative effect of all step yields on the final output (RTY). Improving the worst step has the biggest impact on widening the green "Final Output" flow.
         4.  **What is the financial consequence? (Iceberg Chart):** This translates the operational improvements into business terms. The investment in better process control (making the iceberg tip bigger) dramatically shrinks the hidden costs of failure (the much larger submerged part).
         """)
+    
     with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Rosetta Stone for Quality and Finance
+    
+        #### The Problem: Two Different Languages
+        The organization is split into two worlds speaking different languages.
+        - **The Operations World:** Speaks in terms of **things**. They talk about `yield`, `defect rates`, `scrap`, `rework`, and `process capability`.
+        - **The Business World:** Speaks in terms of **money**. They talk about `profit margins`, `cost of goods sold (COGS)`, `return on investment (ROI)`, and `shareholder value`.
+        When the Head of Quality asks for a $2 million investment in a new validation program to "improve the Rolled Throughput Yield from 85% to 95%," the CFO hears only the cost, not the value.
+    
+        #### The Impact: Underinvestment in Quality and Chronic Inefficiency
+        This language barrier is the single biggest obstacle to achieving operational excellence.
+        - **Quality is Seen as a Cost Center:** Because its value is not translated into financial terms, the Quality department is viewed as a pure cost center, a bureaucratic necessity. Its budget is the first to be cut.
+        - **"Good Enough" Becomes the Standard:** The business tolerates a chronically inefficient process with a low RTY because they don't see the full financial picture. The "hidden factory"—the massive cost of scrap, rework, and investigations—is accepted as "the cost of doing business" rather than a target for elimination.
+        - **Failed Improvement Projects:** Engineers are unable to get funding for critical process improvement projects because they cannot articulate the financial return on investment to the executive team.
+    
+        #### The Solution: The "Rosetta Stone" of Quality
+        First Time Yield (FTY), Rolled Throughput Yield (RTY), and the Cost of Quality (COQ) are the **Rosetta Stone** that translates the language of the factory floor directly into the language of the boardroom.
+        1.  **FTY and RTY** quantify the physical reality of process efficiency.
+        2.  **The COQ framework** takes those physical numbers and assigns a dollar value to them, showing the massive, hidden cost of poor quality (the submerged part of the iceberg).
+        3.  **The "Return on Quality Investment"** metric provides the final, undeniable business case, proving that investing in prevention (like validation) is not a cost, but one of the highest-ROI activities the company can undertake.
+    
+        #### The Consequences: Quality as a Profit Center
+        - **Without This:** Quality and Operations are stuck defending their budgets and unable to articulate their value. The company stagnates with inefficient processes.
+        - **With This:** The COQ dashboard becomes a central tool for strategic planning. The Head of Quality can now walk into the boardroom and say: **"A $2 million investment in this validation project will reduce our internal failure costs by $8 million per year, generating a 4x ROI within 12 months."** This reframes Quality from a cost center into a **profit center** and a key driver of business value, unlocking the investment needed to achieve true operational excellence.
+        """)
+    with tabs[2]:
         st.markdown("""
         ##### Glossary of Quality Management Terms
         - **First Time Yield (FTY):** The percentage of units that pass a single process step without any defects or rework. Also known as First Pass Yield.
@@ -11197,7 +11502,7 @@ def render_fty_coq():
         - **Internal Failure Costs:** Costs of defects found *before* the product is delivered to the customer (e.g., scrap, rework, investigation).
         - **External Failure Costs:** Costs of defects found *after* the product is delivered to the customer (e.g., recalls, warranty claims, lawsuits). These are the most damaging costs.
         """)
-    with tabs[2]:
+    with tabs[3]:
         st.error("""🔴 **THE INCORRECT APPROACH: "The Firefighting Mentality"**
 A company under-invests in prevention and appraisal to minimize short-term costs. Their quality system is entirely reactive, consisting of a large QC department to "inspect quality in" at the end, and a large QA team to manage the constant deviations, rework, and scrap.
 - **The Flaw:** They are paying the highest possible Cost of Quality. The massive, hidden costs of internal and external failures far outweigh the savings from skimping on prevention, and their low RTY creates unpredictable production schedules.""")
@@ -11207,7 +11512,7 @@ The goal of a mature quality system is to strategically shift spending from fail
 2.  **Quantify the Cost of Quality:** Use the COQ framework to translate yield losses and failures into a financial number that gets management's attention.
 3.  **Justify Investment:** Use the RTY and COQ data to build a powerful business case for investing in process validation, better equipment, and more robust quality systems. This tool shows that such investments have a massive positive return.""")
         
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("""
         #### Historical Context: The Quality Gurus
         The concepts of FTY and COQ were developed by the pioneers of the 20th-century quality management movement.
@@ -11217,7 +11522,7 @@ The goal of a mature quality system is to strategically shift spending from fail
         Together, these concepts provided the financial and operational language for the quality revolution, allowing engineers and scientists to frame quality not as an expense, but as a high-return investment.
         """)
         
-    with tabs[4]:
+    with tabs[5]:
         st.markdown("""
         FTY and COQ are not explicitly named in many regulations, but they are the underlying metrics and business drivers for the entire GxP quality system.
         - **ICH Q9 - Quality Risk Management:** The COQ framework is a powerful tool for quantifying the financial impact of risks identified in an FMEA. The potential for high "External Failure Costs" is a key driver for risk mitigation activities.
@@ -11261,18 +11566,42 @@ def render_tolerance_intervals():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.metric(label="🎯 Desired Coverage", value=f"{coverage_pct:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
+        st.metric(label="📏 Resulting Tolerance Interval", value=f"[{ti[0]:.1f}, {ti[1]:.1f}]", help="The final calculated range. Note how much wider it is than the CI.")
         
-        with tabs[0]:
-            st.metric(label="🎯 Desired Coverage", value=f"{coverage_slider:.1f}% of Population", help="The proportion of the entire process output we want our interval to contain.")
-            st.metric(label="📏 Resulting Tolerance Interval", value=f"[{ti[0]:.1f}, {ti[1]:.1f}]", help="The final calculated range. Note how much wider it is than the CI.")
-            
-            st.info("Play with the sliders in the sidebar and observe the results!")
-            st.markdown("""
-            - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
-            - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
-            """)
-        with tabs[1]:
+        st.info("Play with the sliders in the sidebar and observe the results!")
+        st.markdown("""
+        - **Increase `Sample Size (n)`:** As you collect more data, your estimates of the mean and standard deviation become more reliable. Notice how both the **Confidence Interval (orange)** and the **Tolerance Interval (green)** become **narrower**. This shows the direct link between sampling cost and statistical precision.
+        - **Increase `Desired Population Coverage`:** As you increase the strength of your quality promise from 90% to 99.9%, the **Tolerance Interval becomes dramatically wider**. To be more certain of capturing a larger percentage of parts, you must widen your interval.
+        """)
+    
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Statistical "Quality Promise"
+    
+        #### The Problem: The "Average is Good Enough" Fallacy
+        A team completes a Process Performance Qualification (PPQ) study for a new medical device component. The specification is 95-105 units. They calculate a 95% **confidence interval** for the process mean and find that it is tightly centered at [99.9, 100.1]. Based on this, they conclude the process is excellent and approve it for commercial manufacturing.
+    
+        #### The Impact: The Catastrophe of the Individual Unit
+        This is a critical, and unfortunately common, statistical misunderstanding with severe consequences.
+        - **Field Failures and Recalls:** The process, while having a perfect *average*, also has significant variability. A large percentage of *individual units* are actually falling outside the specification limits. Because the team used the wrong statistical interval, they were completely blind to this. This leads to product failures in the field, customer complaints, and potentially a multi-million dollar product recall.
+        - **Failed Release Criteria:** The team tries to use the confidence interval to set release specifications for future batches. An auditor immediately rejects this, because a confidence interval makes a claim about the *average*, while a product specification applies to *every single unit*. The validation is deemed inadequate.
+    
+        #### The Solution: The Right Interval for the Right Question
+        The Tolerance Interval is the only statistically valid tool for answering the question that truly matters to customers and regulators: **"Based on our sample, what is the range that we are confident contains almost all of our individual product units?"** It is fundamentally different from a confidence interval.
+        -   A **Confidence Interval** is a statement about the **mean**.
+        -   A **Tolerance Interval** is a statement about a **large proportion of the individuals**.
+        
+        It is the correct tool for making a statistically sound "quality promise" about the performance of the units you ship.
+    
+        #### The Consequences: A Defensible Specification and Managed Risk
+        - **Without This:** The company is making unsubstantiated claims about the quality of its individual products. They are exposed to significant compliance risk and the potential for costly field failures.
+        - **With This:** The Tolerance Interval provides the **objective, statistical evidence** to support a release specification. It allows the company to make a defensible statement like: *"We are 95% confident that 99.9% of all units produced by this process will fall between 94.5 and 105.5 units."* This allows the business to set realistic specifications, manage the risk of out-of-spec material, and provide robust, data-driven proof of quality to regulators.
+        """)
+        with tabs[2]:
             st.markdown("""
             ##### Glossary of Statistical Intervals
             - **Confidence Interval (CI):** An interval estimate for a population **parameter** (like the mean). A 95% CI provides a plausible range for the *average* of the process.
@@ -11281,7 +11610,7 @@ def render_tolerance_intervals():
             - **Coverage:** The proportion of the population that the tolerance interval is intended to contain (e.g., 99%).
             - **Confidence:** The probability that a given interval, constructed from a random sample, will actually contain the true value it is intended to estimate.
             """)
-        with tabs[2]:
+        with tabs[3]:
             st.error("""
             🔴 **THE INCORRECT APPROACH: The Confidence Interval Fallacy**
             - A manager sees that the 95% **Confidence Interval** for the mean is [99.9, 100.1] and their product specification is [95, 105]. They declare victory, believing all their product is in spec.
@@ -11297,7 +11626,7 @@ def render_tolerance_intervals():
             Never use a confidence interval to make a statement about where individual values are expected to fall.
             """)
 
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             #### Historical Context: The Surviving Bomber Problem
             The development of tolerance intervals is credited to the brilliant mathematician **Abraham Wald** during World War II. He is famous for the "surviving bombers" problem: when analyzing bullet holes on returning planes, the military wanted to reinforce the most-hit areas. Wald's revolutionary insight was that they should reinforce the areas with **no bullet holes**—because planes hit there never made it back.
@@ -11310,7 +11639,7 @@ def render_tolerance_intervals():
             st.markdown("""
             - **`k`**: The **k-factor** is the magic ingredient. It is a special value that depends on **three** inputs: the sample size (`n`), the desired population coverage (e.g., 99%), and the desired confidence level (e.g., 95%). This `k`-factor is mathematically constructed to account for the "double uncertainty" of not knowing the true mean *or* the true standard deviation.
             """)
-        with tabs[4]:
+        with tabs[5]:
             st.markdown("""
             Tolerance intervals are a statistically rigorous method for setting acceptance criteria and release specifications based on validation data.
             - **FDA Process Validation Guidance (Stage 2):** PPQ runs are used to demonstrate that the process can reliably produce product meeting its Critical Quality Attributes (CQAs). A tolerance interval calculated from PPQ data provides a high-confidence range where a large proportion of all future production will fall.
@@ -11360,7 +11689,8 @@ def render_bayesian():
         
     with col2:
         st.subheader("Analysis & Interpretation")
-        tabs = st.tabs(["💡 Key Insights", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ Acceptance Criteria", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
         with tabs[0]:
             st.metric(
                 label="🎯 Primary KPI: Prob(Pass Rate > 90%)",
@@ -11380,7 +11710,28 @@ def render_bayesian():
             st.markdown("---")
             st.metric(label="Prior Mean Rate", value=f"{prior_mean:.1%}", help="The initial belief *before* seeing the new QC data.")
             st.metric(label="Data-only Estimate (k/n)", value=f"{mle:.1%}", help="The evidence from the new QC data alone (the frequentist result).")
+        
         with tabs[1]:
+            st.markdown("""
+            ### The Business Case: The High Cost of Corporate Amnesia
+        
+            #### The Problem: The "Groundhog Day" Validation
+            A company is performing a technology transfer of a well-understood process to a new site. The process has been run hundreds of times at the original site with a consistent 99.5% pass rate. However, the validation protocol at the new site, written using a traditional (Frequentist) approach, pretends none of this prior knowledge exists. The new site is required to perform a large, expensive PPQ campaign (e.g., n=300) to prove, *from a blank slate*, that the process is reliable.
+        
+            #### The Impact: Wasted Resources and Slower Timelines
+            This "corporate amnesia," where each study starts from scratch, is enormously inefficient and costly.
+            - **Redundant Data Generation:** The company spends hundreds of thousands of dollars and months of time generating data to re-prove something it already knows with a high degree of certainty.
+            - **Delayed Revenue:** The long, inefficient validation process at the new site delays the site's approval and its ability to contribute to the supply chain, directly impacting revenue.
+            - **Inability to Answer Direct Questions:** Management asks a simple, critical business question: "Based on everything we know, what is the *probability* that this new site will achieve a pass rate above 99%?" Traditional statistics cannot answer this direct probabilistic question.
+        
+            #### The Solution: A Formal Framework for Accumulated Knowledge
+            Bayesian Inference is the solution to corporate amnesia. It provides a formal, auditable, and mathematically rigorous framework to **combine prior knowledge with new data**. It is not about using subjective feelings; it is about using historical data to create a quantitative **Prior distribution**. This prior is then mathematically updated with the new, smaller dataset from the new site to produce a final, robust **Posterior** conclusion.
+        
+            #### The Consequences: Accelerated Decisions and Optimized Resources
+            - **Without This:** The company is trapped in a slow, inefficient cycle of re-validating the same knowledge over and over again.
+            - **With This:** Bayesian Inference becomes a powerful tool for **accelerating timelines and optimizing resources**. A tech transfer might be validated with a much smaller confirmation study, saving millions of dollars and months of time. It allows the business to make decisions that are informed by the **totality of its evidence**, not just the most recent experiment. Furthermore, it allows managers to answer direct, risk-based business questions, such as "What is the probability of success?", which is the language of business, not just statistics.
+            """)
+        with tabs[2]:
             st.markdown("""
             ##### Glossary of Bayesian Terms
             - **Prior Distribution:** A probability distribution that represents one's belief about a parameter *before* seeing the new data.
@@ -11389,12 +11740,12 @@ def render_bayesian():
             - **Credible Interval:** The Bayesian equivalent of a confidence interval. A 95% credible interval `[X, Y]` means there is a 95% probability that the true value of the parameter lies within that range.
             - **Conjugate Prior:** A prior distribution that, when combined with a given likelihood, results in a posterior distribution from the same family (e.g., Beta prior for binomial likelihood results in a Beta posterior).
             """)
-        with tabs[2]:
+        with tabs[3]:
             st.markdown("- The acceptance criterion is framed in terms of the **posterior distribution** and is probabilistic.")
             st.markdown("- **Example Criterion 1 (Probability Statement):** 'There must be at least a 95% probability that the true pass rate is greater than 90%.'")
             st.markdown("- **Example Criterion 2 (Credible Interval):** 'The lower bound of the **95% Credible Interval** must be above the target of 90%.'")
             st.warning("**The Prior is Critical:** In a regulated setting, the prior must be transparent, justified by historical data, and pre-specified in the validation protocol. An unsubstantiated, overly optimistic prior is a major red flag.")
-        with tabs[3]:
+        with tabs[4]:
             st.markdown("""
             #### Historical Context: The 200-Year Winter
             **The Problem:** The underlying theorem was conceived by the Reverend **Thomas Bayes** in the 1740s and published posthumously. However, for nearly 200 years, Bayesian inference remained a philosophical curiosity, largely overshadowed by the Frequentist school of Neyman and Fisher. There were two huge barriers:
@@ -11417,7 +11768,7 @@ def render_bayesian():
             For binomial data (pass/fail), the **Beta distribution** is a **conjugate prior**. This means if you start with a Beta prior and have a binomial likelihood, your posterior is also a simple, updated Beta distribution.
             """)
             st.latex(r"\text{Posterior} \sim \text{Beta}(\alpha_{prior} + k, \beta_{prior} + n - k)")
-        with tabs[4]:
+        with tabs[5]:
             st.markdown("""
             While less common than frequentist methods, Bayesian statistics are explicitly accepted and even encouraged by regulators in certain contexts, particularly where prior information is valuable.
             - **FDA Guidance on Adaptive Designs for Clinical Trials:** This guidance openly discusses and accepts the use of Bayesian methods for modifying trial designs based on accumulating data.

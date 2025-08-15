@@ -3105,27 +3105,28 @@ def plot_causal_inference(confounding_strength=5.0):
 def plot_causal_ml_comparison(confounding_strength):
     """
     Compares a standard ML model's PDP to a Causal ML estimate.
-    OPTIMIZED for speed using RandomForestRegressor with fewer estimators and a smaller dataset.
+    OPTIMIZED for speed and CORRECTED for data shape issues.
     """
     from econml.dml import CausalForestDML
     from sklearn.ensemble import RandomForestRegressor
 
     # Simulate data
     np.random.seed(42)
-    # --- FIX 1: Reduce number of data points for speed ---
     n = 500
-    W = np.random.uniform(0, 10, size=(n, 1)) # Confounder
-    T = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength # Treatment (e.g., process param)
-    Y_true = 2 * T + 5 * np.sin(W.flatten()) # True non-linear effect of T and W
+    W = np.random.uniform(0, 10, size=(n, 1)) # Confounder (already 2D)
+    # --- FIX 1: Reshape T immediately after creation to ensure it's a 2D array ---
+    T_1d = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength # Treatment
+    T = T_1d.reshape(-1, 1) # Reshape to (n_samples, 1)
+    # --- END FIX 1 ---
+    
+    Y_true = 2 * T.flatten() + 5 * np.sin(W.flatten()) # True non-linear effect of T and W
     Y = Y_true + np.random.normal(0, 1, n)
 
-    # --- FIX 2: Define a much faster, non-linear base model ---
-    fast_learner = RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42)
+    # Standard ML Model (now uses the correctly shaped T)
+    X_for_ml = np.hstack([T, W])
+    ml_model = RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42).fit(X_for_ml, Y)
     
-    # Standard ML Model (using the faster model)
-    ml_model = RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42).fit(np.hstack([T.reshape(-1,1), W]), Y)
-    
-    # Causal ML Model (using the faster model for its internal components)
+    # Causal ML Model (now receives T in the correct 2D shape)
     est = CausalForestDML(
         model_y=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42), 
         model_t=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42), 
@@ -3133,17 +3134,21 @@ def plot_causal_ml_comparison(confounding_strength):
     )
     est.fit(Y, T, W=W)
     
-    # Get PDP for standard model and effect for causal model
-    pdp_ml = PartialDependenceDisplay.from_estimator(ml_model, np.hstack([T.reshape(-1,1), W]), features=[0], feature_names=['Parameter', 'Confounder'])
-    causal_effect = est.effect(np.linspace(T.min(), T.max(), 100))
+    # Get PDP for standard model
+    pdp_ml = PartialDependenceDisplay.from_estimator(ml_model, X_for_ml, features=[0], feature_names=['Parameter', 'Confounder'])
+    
+    # --- FIX 2: Ensure the data for effect estimation is also 2D ---
+    T_effect_range = np.linspace(T.min(), T.max(), 100).reshape(-1, 1)
+    causal_effect = est.effect(T_effect_range)
+    # --- END FIX 2 ---
 
     fig = go.Figure()
     # Plot the biased correlation found by the standard ML model
     fig.add_trace(go.Scatter(x=pdp_ml.pd_results[0]['values'][0], y=pdp_ml.pd_results[0]['average'][0], name='Standard ML PDP (Biased Correlation)', line=dict(color='red', dash='dash', width=3)))
     # Plot the unbiased effect estimated by the Causal ML model
-    fig.add_trace(go.Scatter(x=np.linspace(T.min(), T.max(), 100), y=causal_effect, name='Causal ML Effect (Unbiased)', line=dict(color=SUCCESS_GREEN, width=4)))
+    fig.add_trace(go.Scatter(x=T_effect_range.flatten(), y=causal_effect, name='Causal ML Effect (Unbiased)', line=dict(color=SUCCESS_GREEN, width=4)))
     # Plot raw data for context
-    fig.add_trace(go.Scatter(x=T, y=Y, mode='markers', name='Raw Data', marker=dict(opacity=0.1, color='grey')))
+    fig.add_trace(go.Scatter(x=T.flatten(), y=Y, mode='markers', name='Raw Data', marker=dict(opacity=0.1, color='grey')))
     
     fig.update_layout(title="<b>Standard ML vs. Causal ML: Uncovering the True Effect</b>",
                       xaxis_title="Process Parameter Value", yaxis_title="Impact on Process Output",

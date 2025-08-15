@@ -2857,13 +2857,23 @@ def plot_doe_optimization_suite(ph_effect, temp_effect, interaction_effect, ph_q
 
 
 # ===================================================== BAYESIAN OP ========================================
+# SNIPPET: Replace your entire plot_bayesian_optimization_step function with this corrected version.
+
 @st.cache_data
-def plot_bayesian_optimization_step(history, true_func, x_range, acquisition_func_type):
+def plot_bayesian_optimization_step(history, x_range, acquisition_func_type):
     """
     Visualizes a single step of Bayesian Optimization.
+    The unhashable true_func has been moved inside this function to make it cacheable.
     """
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import Matern
+    
+    # --- START OF THE FIX ---
+    # Define the "hidden" true function here, inside the cached function,
+    # instead of passing it as an unhashable argument.
+    def true_func(x):
+        return (-(x - 15)**2 / 20) + 2 * np.sin(x) + 85
+    # --- END OF THE FIX ---
     
     x_hist = np.array(history['x']).reshape(-1, 1)
     y_hist = np.array(history['y'])
@@ -2881,7 +2891,7 @@ def plot_bayesian_optimization_step(history, true_func, x_range, acquisition_fun
         acquisition = y_pred + kappa * y_std
     else: # Expected Improvement (EI)
         y_best = np.max(y_hist)
-        z = (y_pred - y_best) / y_std
+        z = (y_pred - y_best) / y_std if y_std > 0 else 0
         acquisition = (y_pred - y_best) * norm.cdf(z) + y_std * norm.pdf(z)
 
     next_point_x = x_pred[np.argmax(acquisition)][0]

@@ -6047,15 +6047,17 @@ def create_pso_static_figure(zz, x_range, y_range, history_start, history_end, g
         height=600
     )
     
-    return fig
+    return fig 🛠️ 
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================
 
+# SNIPPET: Replace your entire render_introduction_content() function with this new version.
+
 def render_introduction_content():
-    """Renders the complete, all-in-one introduction and framework dashboard."""
-    st.title("🛠️ V&V Analytics Toolkit")
-    st.markdown("### An Interactive Guide to Biotech/Medical Device Validation, Tech Transfer, and Lifecycle Management")
+    """Renders the complete, all-in-one introduction and framework dashboard for V&V Sentinel."""
+    st.title("🛡️🛠️ V&V Sentinel")
+    st.markdown("### The Interactive Playbook for Biotech & MedTech Validation")
     
     st.markdown(
         """
@@ -6070,48 +6072,64 @@ def render_introduction_content():
         unsafe_allow_html=True
     )
     st.divider()
-    
-    st.markdown("Welcome! This toolkit is a collection of interactive modules designed to explore the statistical and machine learning methods that form the backbone of a robust V&V, technology transfer, and process monitoring plan.")
+
+    st.markdown(
+        """
+        Welcome to **V&V Sentinel**, your guide through the complex landscape of Verification and Validation. 
+        This application is more than a collection of tools; it's an interactive, educational journey designed for the modern scientist, engineer, and quality professional in the regulated life sciences industry. 
+        
+        Whether you are planning a process validation, transferring a new analytical method, or managing the lifecycle of a commercial product, the Sentinel is here to illuminate the statistical and AI-driven methods that form the backbone of a robust, compliant, and data-driven quality system.
+        """
+    )
     st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
 
-    # --- NEW: Integrated Core V&V Logic ---
-    st.header("🎯 The Core Logic of Verification & Validation (V&V)")
-    st.markdown("The purpose of V&V is to prove with objective evidence that what you built works as intended, under expected (and sometimes unexpected) conditions, and that it continues to work reliably over time. It's built on two simple but powerful questions:")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("1️⃣ Verification: Did we build it right?")
-        st.markdown("This is an internal-facing question. It confirms that the design, code, or process meets all the pre-defined, documented requirements and specifications that your team created.")
-    with col2:
-        st.subheader("2️⃣ Validation: Did we build the right thing?")
-        st.markdown("This is an external-facing question. It confirms that the final product actually meets the user's needs and intended use in their real-world environment.")
-
-    st.success("""
-    **✅ Bottom line:** V&V isn’t just to “make runs stay between specs” — it’s to prove reliability, compliance, and robustness under real-world conditions while minimizing risk, cost, and surprises.
-    """)
-    # --- END OF NEW SECTION ---
+    # --- NEW SECTION ADDED HERE ---
+    st.header("What's Inside the Sentinel?")
+    st.markdown("Each module is a self-contained deep-dive, equipped with a comprehensive set of features to provide a 360-degree understanding of the topic.")
     
-    st.header("📖 The Scientist's/Engineer's Journey: A Four-Act Story")
-    st.markdown("""The journey from a novel idea to a robust, routine process can be viewed as a four-act story. A successful project is not just about executing tests; it begins with rigorous planning and strategy. The toolkit is structured to follow that complete narrative.""")
+    c1, c2, c3 = st.columns(3)
+    c1.subheader("🔬 Interactive Tools")
+    c1.markdown("- **Gadget Controls:** Use sidebar sliders, buttons, and selectors to simulate real-world scenarios and see how the models and charts react in real-time.")
+    c1.markdown("- **Statistical & ML Models:** From classical ANOVA to advanced AI like Transformers and GNNs, explore a wide array of analytical engines.")
+
+    c2.subheader("📊 Rich Content & Insights")
+    c2.markdown("- **Key Insights:** A quick-start guide to interpreting the charts and understanding the core strategic takeaway of each tool.")
+    c2.markdown("- **The Business Case:** A detailed breakdown of the problem, impact, solution, and consequences, framing each tool's value in financial and strategic terms for stakeholders.")
+    
+    c3.subheader("🎓 Deep Educational Context")
+    c3.markdown("- **Glossaries & Golden Rules:** Clear definitions of key terms and actionable "best practice" advice.")
+    c3.markdown("- **Theory, History & Math:** Explore the fascinating origins of each method, from WWII code-breaking to the biotech revolution, and understand the core mathematical principles.")
+    c3.markdown("- **Regulatory & Compliance:** Connect each tool to specific FDA, ICH, and ISO guidelines to understand its role in a compliant GxP environment.")
+    
+    st.divider()
+    # --- END OF NEW SECTION ---
+
+    st.header("📖 The Scientist's Journey: A Four-Act Story")
+    st.markdown(
+        """
+        The path from a novel idea to a stable, commercial process is a story in four acts. 
+        **V&V Sentinel** is structured to follow this complete narrative, demonstrating that a successful project is not just about executing tests, but about a holistic strategy that begins with rigorous planning and continues through the entire product lifecycle.
+        """
+    )
     
     act0, act1, act2, act3 = st.columns(4)
     with act0:
         st.subheader("Act 0: Planning & Strategy")
-        st.markdown("Before a single experiment is run, a successful project is defined. This is the act of creating the project's 'North Star'—defining the goals, assessing the risks, and creating the master plan for validation.")
+        st.markdown("**The Blueprint.** Before a single experiment is run, a successful project is defined. This is the act of creating the project's 'North Star'—defining goals, assessing risks, and creating the master plan for validation.")
     with act1: 
         st.subheader("Act I: Characterization")
-        st.markdown("With a plan in place, we build a deep, data-driven understanding of the process. This act is about discovering the fundamental capabilities, limitations, and sensitivities of the new method or process.")
+        st.markdown("**The Discovery.** With a plan in place, we build a deep, data-driven understanding of the process. This act is about discovering the fundamental capabilities, limitations, and sensitivities of the new method or process.")
     with act2: 
         st.subheader("Act II: Qualification & Transfer")
-        st.markdown("Here, the method or process faces its crucible. It must prove its performance in a new environment—a new lab, a new scale, a new team. This is about demonstrating stability, equivalence, and capability.")
+        st.markdown("**The Crucible.** Here, the method or process faces its ultimate test. It must prove its performance in a new environment—a new lab, a new scale, a new team. This is about demonstrating stability, equivalence, and capability.")
     with act3: 
         st.subheader("Act III: Lifecycle Management")
-        st.markdown("Once live, the journey isn't over. This final act is about continuous guardianship: monitoring process health, detecting subtle drifts, and using advanced analytics to predict and prevent future failures.")
+        st.markdown("**The Guardianship.** Once live, the journey isn't over. This final act is about continuous vigilance: monitoring process health, detecting subtle drifts, and using advanced analytics to predict and prevent future failures.")
     
     st.divider()
 
     st.header("🚀 The V&V Model: A Strategic Framework")
-    st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, widely accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
+    st.markdown("The **Verification & Validation (V&V) Model**, shown below, provides a structured, globally accepted framework for ensuring a system meets its intended purpose, from initial requirements to final deployment.")
     fig_v_model = plot_v_model()
     st.plotly_chart(fig_v_model, use_container_width=True)
 
@@ -6123,7 +6141,7 @@ def render_introduction_content():
     st.divider()
     
     st.header("📈 Project Workflow")
-    st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value.")
+    st.markdown("This timeline organizes the entire toolkit by its application in a typical project lifecycle. Tools are grouped by the project phase where they provide the most value, following the four-act structure.")
     st.plotly_chart(plot_act_grouped_timeline(), use_container_width=True)
 
     st.header("⏳ A Chronological View of V&V Analytics")
@@ -6133,7 +6151,6 @@ def render_introduction_content():
     st.header("🗺️ Conceptual Map of Tools")
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
-
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================

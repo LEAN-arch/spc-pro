@@ -4900,109 +4900,7 @@ def plot_clustering(separation=15, spread=2.5, n_true_clusters=3):
     fig.update_xaxes(title_text='Number of Clusters (k)', row=2, col=2); fig.update_yaxes(title_text='Mean Silhouette Score', row=2, col=2)
                              
     return fig, final_silhouette, optimal_k
-    
-# ==============================================================================
-# HELPER & PLOTTING FUNCTION (Predictive QC) - SME ENHANCED
-# ==============================================================================
-@st.cache_data
-def plot_classification_models(boundary_radius=12):
-    """
-    Generates an enhanced, more realistic classification dashboard, including
-    probabilistic decision boundaries and a comparative ROC curve plot.
-    """
-    np.random.seed(1)
-    n_points = 200
-    # SME Enhancement: Frame data with a more realistic scenario
-    purity = np.random.uniform(95, 105, n_points)
-    bioactivity = np.random.uniform(80, 120, n_points)
-    
-    # The decision boundary is a circle centered at (100, 100).
-    distance_from_center_sq = (purity - 100)**2 + (bioactivity - 100)**2
-    prob_of_failure = 1 / (1 + np.exp(distance_from_center_sq - boundary_radius))
-    y = np.random.binomial(1, prob_of_failure) # 1 = Fail (red), 0 = Pass (blue)
-    
-    X = np.column_stack((purity, bioactivity))
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-    # --- Re-fit models and calculate dynamic KPIs ---
-    lr = LogisticRegression().fit(X_train, y_train)
-    lr_probs = lr.predict_proba(X_test)[:, 1]
-    
-    rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-    rf_probs = rf.predict_proba(X_test)[:, 1]
-
-    # Calculate ROC curves
-    fpr_lr, tpr_lr, _ = roc_curve(y_test, lr_probs)
-    auc_lr = auc(fpr_lr, tpr_lr)
-    fpr_rf, tpr_rf, _ = roc_curve(y_test, rf_probs)
-    auc_rf = auc(fpr_rf, tpr_rf)
-
-    # --- Plotting Dashboard ---
-    fig = make_subplots(
-        rows=1, cols=3,
-        subplot_titles=(f"<b>Logistic Regression</b>", f"<b>Random Forest</b>", "<b>Performance: ROC Curves</b>"),
-        column_widths=[0.4, 0.4, 0.2]
-    )
-
-    # Create meshgrid for decision boundary
-    xx, yy = np.meshgrid(np.linspace(95, 105, 100), np.linspace(80, 120, 100))
-    
-    # Plot Logistic Regression with probability contour
-    Z_lr = lr.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1].reshape(xx.shape)
-    contour_lr = go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, colorscale='RdBu', showscale=False,
-                            opacity=0.5, name='LR Prob.',
-                            contours=dict(start=0, end=1, size=0.1))
-    # Highlight the 50% decision boundary
-    contour_lr_boundary = go.Contour(x=xx[0], y=yy[:,0], z=Z_lr, showscale=False,
-                                     contours_coloring='lines', line_width=3,
-                                     contours=dict(start=0.5, end=0.5, size=0))
-    fig.add_trace(contour_lr, row=1, col=1)
-    fig.add_trace(contour_lr_boundary, row=1, col=1)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers',
-                             marker=dict(color=y, colorscale=[[0, 'blue'], [1, 'red']],
-                                         line=dict(width=1, color='black'))), row=1, col=1)
-
-    # Plot Random Forest with probability contour
-    Z_rf = rf.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1].reshape(xx.shape)
-    contour_rf = go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, colorscale='RdBu', showscale=False,
-                            opacity=0.5, name='RF Prob.',
-                            contours=dict(start=0, end=1, size=0.1))
-    contour_rf_boundary = go.Contour(x=xx[0], y=yy[:,0], z=Z_rf, showscale=False,
-                                     contours_coloring='lines', line_width=3,
-                                     contours=dict(start=0.5, end=0.5, size=0))
-    fig.add_trace(contour_rf, row=1, col=2)
-    fig.add_trace(contour_rf_boundary, row=1, col=2)
-    fig.add_trace(go.Scatter(x=X[:,0], y=X[:,1], mode='markers',
-                             marker=dict(color=y, colorscale=[[0, 'blue'], [1, 'red']],
-                                         line=dict(width=1, color='black'))), row=1, col=2)
-
-    # Plot ROC Curves
-    fig.add_trace(go.Scatter(x=fpr_lr, y=tpr_lr, mode='lines', name=f'Logistic Reg. (AUC={auc_lr:.3f})',
-                             line=dict(color='royalblue', width=3)), row=1, col=3)
-    fig.add_trace(go.Scatter(x=fpr_rf, y=tpr_rf, mode='lines', name=f'Random Forest (AUC={auc_rf:.3f})',
-                             line=dict(color='darkorange', width=3)), row=1, col=3)
-    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='No-Discrimination',
-                             line=dict(color='grey', width=2, dash='dash')), row=1, col=3)
-
-    fig.update_layout(title="<b>Predictive QC: Linear vs. Non-Linear Models</b>", showlegend=False, height=500)
-    fig.update_xaxes(title_text="Peak Purity (HPLC)", row=1, col=1)
-    fig.update_yaxes(title_text="Bioactivity (%)", row=1, col=1)
-    fig.update_xaxes(title_text="Peak Purity (HPLC)", row=1, col=2)
-    fig.update_yaxes(title_text="Bioactivity (%)", row=1, col=2)
-    fig.update_xaxes(title_text="1 - Specificity", range=[-0.05, 1.05], row=1, col=3)
-    fig.update_yaxes(title_text="Sensitivity", range=[-0.05, 1.05], row=1, col=3)
-    
-    return fig, auc_lr, auc_rf
-
-def wilson_score_interval(p_hat, n, z=1.96):
-    # This helper function remains the same, but it's good to keep it near the plotting function.
-    if n == 0: return (0, 1)
-    term1 = (p_hat + z**2 / (2 * n)); denom = 1 + z**2 / n; term2 = z * np.sqrt((p_hat * (1-p_hat)/n) + (z**2 / (4 * n**2))); return (term1 - term2) / denom, (term1 + term2) / denom
-    
-# ==============================================================================
-# HELPER & PLOTTING FUNCTION (Anomaly Detection) - SME ENHANCED
-# ==============================================================================
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (Anomaly Detection) - ROBUST STATIC TREE VERSION
 # ==============================================================================
@@ -5101,7 +4999,91 @@ def plot_isolation_forest_static_tree(contamination_rate=0.1):
     fig_hist.update_layout(showlegend=False)
 
     return fig_scatter, fig_hist, fig_tree_viz, (y_pred == -1).sum()
+
+@st.cache_data
+def plot_predictive_modeling_suite(boundary_radius, mlp_params):
+    """
+    Trains and visualizes Logistic Regression, Random Forest, and a tuned MLP Classifier.
+    """
+    # Import MLPClassifier locally within the function
+    from sklearn.neural_network import MLPClassifier
+
+    np.random.seed(1)
+    n_points = 200
+    purity = np.random.uniform(95, 105, n_points)
+    bioactivity = np.random.uniform(80, 120, n_points)
+    distance_from_center_sq = (purity - 100)**2 + (bioactivity - 100)**2
+    prob_of_failure = 1 / (1 + np.exp(distance_from_center_sq - boundary_radius))
+    y = np.random.binomial(1, prob_of_failure)
+    X = np.column_stack((purity, bioactivity))
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    # --- Fit all three models ---
+    lr = LogisticRegression().fit(X_train, y_train)
+    rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
     
+    # MLP with user-defined hyperparameters
+    mlp = MLPClassifier(
+        hidden_layer_sizes=mlp_params['layers'],
+        activation=mlp_params['activation'],
+        solver='adam',
+        learning_rate_init=mlp_params['learning_rate'],
+        max_iter=500, # Increased for better convergence
+        random_state=42
+    ).fit(X_train, y_train)
+
+    # --- Calculate ROC curves for all models ---
+    lr_probs = lr.predict_proba(X_test)[:, 1]
+    rf_probs = rf.predict_proba(X_test)[:, 1]
+    mlp_probs = mlp.predict_proba(X_test)[:, 1]
+    
+    fpr_lr, tpr_lr, _ = roc_curve(y_test, lr_probs)
+    auc_lr = auc(fpr_lr, tpr_lr)
+    fpr_rf, tpr_rf, _ = roc_curve(y_test, rf_probs)
+    auc_rf = auc(fpr_rf, tpr_rf)
+    fpr_mlp, tpr_mlp, _ = roc_curve(y_test, mlp_probs)
+    auc_mlp = auc(fpr_mlp, tpr_mlp)
+
+    # --- Create plots ---
+    fig = make_subplots(
+        rows=1, cols=4,
+        subplot_titles=("<b>Logistic Regression</b>", "<b>Random Forest</b>", "<b>MLP Neural Network</b>", "<b>Performance: ROC Curves</b>"),
+        column_widths=[0.3, 0.3, 0.3, 0.1]
+    )
+    
+    # Create meshgrid for decision boundaries
+    xx, yy = np.meshgrid(np.linspace(95, 105, 100), np.linspace(80, 120, 100))
+    grid = np.c_[xx.ravel(), yy.ravel()]
+    
+    # Plot models
+    models = {'lr': lr, 'rf': rf, 'mlp': mlp}
+    for i, (name, model) in enumerate(models.items()):
+        Z = model.predict_proba(grid)[:, 1].reshape(xx.shape)
+        contour = go.Contour(x=xx[0], y=yy[:,0], z=Z, colorscale='RdBu', showscale=False, opacity=0.5,
+                             contours=dict(start=0, end=1, size=0.1))
+        boundary = go.Contour(x=xx[0], y=yy[:,0], z=Z, showscale=False, contours_coloring='lines', 
+                              line_width=3, contours=dict(start=0.5, end=0.5, size=0))
+        scatter = go.Scatter(x=X[:,0], y=X[:,1], mode='markers', showlegend=False,
+                             marker=dict(color=y, colorscale=[[0, 'blue'], [1, 'red']], line=dict(width=1, color='black')))
+        
+        fig.add_trace(contour, row=1, col=i+1)
+        fig.add_trace(boundary, row=1, col=i+1)
+        fig.add_trace(scatter, row=1, col=i+1)
+
+    # Plot ROC Curves
+    fig.add_trace(go.Scatter(x=fpr_lr, y=tpr_lr, mode='lines', name=f'Logistic Reg. (AUC={auc_lr:.3f})'), row=1, col=4)
+    fig.add_trace(go.Scatter(x=fpr_rf, y=tpr_rf, mode='lines', name=f'Random Forest (AUC={auc_rf:.3f})'), row=1, col=4)
+    fig.add_trace(go.Scatter(x=fpr_mlp, y=tpr_mlp, mode='lines', name=f'MLP (AUC={auc_mlp:.3f})'), row=1, col=4)
+    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Random Chance', line=dict(color='grey', dash='dash')), row=1, col=4)
+
+    fig.update_layout(title="<b>Predictive Modeling Suite: Linear vs. Ensemble vs. Neural Network</b>", height=450,
+                      legend=dict(orientation="v", yanchor="bottom", y=0.05, xanchor="left", x=1.02))
+    fig.update_xaxes(title_text="Purity", row=1, col=1); fig.update_yaxes(title_text="Bioactivity", row=1, col=1)
+    fig.update_xaxes(title_text="Purity", row=1, col=2); fig.update_yaxes(title_text="Bioactivity", row=1, col=2, showticklabels=False)
+    fig.update_xaxes(title_text="Purity", row=1, col=3); fig.update_yaxes(title_text="Bioactivity", row=1, col=3, showticklabels=False)
+    fig.update_xaxes(title_text="1-Spec", row=1, col=4); fig.update_yaxes(title_text="Sens", row=1, col=4)
+    
+    return fig, auc_lr, auc_rf, auc_mlp
 # ==============================================================================
 # HELPER & PLOTTING FUNCTION (XAI/SHAP) - SME ENHANCED & PDP FIX
 # ==============================================================================
@@ -11900,11 +11882,26 @@ def render_predictive_modeling_suite():
             "2 Layers (64, 32)": (64, 32),
             "3 Layers (100, 50, 25)": (100, 50, 25)
         }
-        layer_choice = st.selectbox("Hidden Layers & Neurons", options=list(layer_options.keys()), index=1)
+        layer_choice = st.selectbox(
+            "Hidden Layers & Neurons", 
+            options=list(layer_options.keys()), 
+            index=1,
+            help="Controls the architecture (depth and width) of the neural network. More layers and neurons can learn more complex patterns but increase the risk of overfitting."
+        )
         
-        activation_choice = st.selectbox("Activation Function", options=['relu', 'tanh'], index=0)
+        activation_choice = st.selectbox(
+            "Activation Function", 
+            options=['relu', 'tanh'], 
+            index=0,
+            help="The non-linear function neurons use to process information. 'ReLU' is the modern default, known for efficiency. 'Tanh' is a classic alternative."
+        )
         
-        learning_rate_choice = st.select_slider("Learning Rate", options=[0.0001, 0.001, 0.01, 0.1], value=0.001)
+        learning_rate_choice = st.select_slider(
+            "Learning Rate", 
+            options=[0.0001, 0.001, 0.01, 0.1], 
+            value=0.001,
+            help="Controls how quickly the model learns. A smaller rate is slower but more stable. A large rate can cause the model to learn incorrectly and 'overshoot' the optimal solution."
+        )
 
         mlp_params = {
             'layers': layer_options[layer_choice],
@@ -11936,11 +11933,11 @@ def render_predictive_modeling_suite():
     st.subheader("Deeper Dive into Predictive Modeling")
     
     tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "💡 Model Selection Guide", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-
+    
     with tabs[0]:
         st.subheader("How to Interpret the Dashboard: A Guided Tour")
         st.markdown("""
-        This dashboard is a virtual laboratory for comparing different types of predictive models. By controlling the "problem" and the "solution," you can build a deep intuition for their behavior.
+        This interactive dashboard is a virtual laboratory for comparing different types of predictive models. By controlling the "problem" and the "solution," you can build a deep intuition for their behavior.
 
         ##### The Plots: The Arena of Competition
         - **Decision Boundaries (Plots 1-3):** These maps show how each model sees the world. The color shows the predicted probability of failure, and the dark line is the 50% "decision boundary." A good model's boundary should closely match the true pattern of red (Fail) and blue (Pass) dots.
@@ -12053,7 +12050,6 @@ def render_predictive_modeling_suite():
         4.  **Model Validation Report:** The objective evidence of the model's performance on an independent, held-out test set. This report would include the ROC curves and AUC metrics shown in this dashboard.
         5.  **Change Control Procedure:** A formal procedure that defines how the model will be monitored over time and the criteria for when it must be retrained and re-validated.
         """)
-
 def render_xai_shap():
     """Renders the module for Explainable AI (XAI) using SHAP."""
     st.markdown("""

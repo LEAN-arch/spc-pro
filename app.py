@@ -3056,13 +3056,11 @@ def plot_causal_ml_comparison(confounding_strength):
 # ============================================ Casual ML ==================================================
 # SNIPPET: Replace your entire plot_causal_ml_comparison function with this optimized version.
 
-# SNIPPET 1: Replace the entire plot_causal_ml_comparison function with this corrected version.
-
 @st.cache_data
 def plot_causal_ml_comparison(confounding_strength):
     """
-    Compares a standard ML model's PDP to a Causal ML estimate.
-    OPTIMIZED for speed and CORRECTED for data shape and return type issues.
+    Compares a standard model's correlation to a Causal ML estimate.
+    OPTIMIZED for speed and CORRECTED for all data shape and return type issues.
     """
     from econml.dml import LinearDML
     from sklearn.ensemble import RandomForestRegressor
@@ -3071,9 +3069,11 @@ def plot_causal_ml_comparison(confounding_strength):
     # Simulate data
     np.random.seed(42)
     n = 500
-    W = np.random.uniform(0, 10, size=(n, 1))
-    T_1d = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength
-    T = T_1d.reshape(-1, 1)
+    W = np.random.uniform(0, 10, size=(n, 1)) # Confounder
+    T_1d = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength # Treatment
+    T = T_1d.reshape(-1, 1) # Ensure Treatment is 2D: (n_samples, 1)
+    
+    # The true causal effect of T is a constant +2
     Y = 2 * T.flatten() + 5 * np.sin(W.flatten()) + np.random.normal(0, 1, n)
 
     # --- Causal ML Model (LinearDML) ---
@@ -3082,11 +3082,16 @@ def plot_causal_ml_comparison(confounding_strength):
         model_t=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42),
         random_state=42
     )
-    est.fit(Y, T, W=W)
-    causal_effect_ate = est.const_marginal_effect()[0] # FIX: Extract scalar from array
+    
+    # --- THIS IS THE DEFINITIVE FIX ---
+    # Ensure Y is a 1D array (`.ravel()`) to prevent the scikit-learn DataConversionWarning.
+    est.fit(Y.ravel(), T, W=W)
+    # Extract the final estimate as a simple float using .item()
+    causal_effect_ate = est.const_marginal_effect().item()
+    # --- END OF DEFINITIVE FIX ---
 
     # --- Standard OLS Model for Naive Correlation ---
-    # This provides a single coefficient to display as the biased effect
+    # This provides a simple coefficient to display as the biased effect
     naive_model = sm.OLS(Y, sm.add_constant(T)).fit()
     naive_effect_coeff = naive_model.params[1]
 
@@ -3108,7 +3113,7 @@ def plot_causal_ml_comparison(confounding_strength):
                       xaxis_title="Process Parameter Value", yaxis_title="Impact on Process Output",
                       legend=dict(x=0.01, y=0.99))
                       
-    # FIX: Return the figure and the two scalar effect values
+    # Return the figure and the two simple float values
     return fig, causal_effect_ate, naive_effect_coeff
     
 #=====================================================================================================================================================================

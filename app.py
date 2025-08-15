@@ -14623,6 +14623,7 @@ A modern, AI-driven approach to robustness testing treats the problem as a forma
 # MAIN APP LOGIC AND LAYOUT
 # ==============================================================================
 
+
 # --- Initialize Session State ---
 if 'current_view' not in st.session_state:
     st.session_state.current_view = 'Introduction'
@@ -14714,14 +14715,6 @@ with st.sidebar:
                 st.session_state.current_view = tool
                 st.rerun()
 
-# --- Main Content Area Dispatcher ---
-view = st.session_state.current_view
-
-if view == 'Introduction':
-    render_introduction_content()
-else:
-    st.header(f"🔧 {view}")
-
     # --- FIX: Extra indentation at the end of this dictionary is removed ---
     PAGE_DISPATCHER = {
         # Act 0
@@ -14797,7 +14790,6 @@ view = st.session_state.current_view
 if view == 'Introduction':
     render_introduction_content()
 elif view in PAGE_DISPATCHER:
-    # st.header(f"🔧 {view}") # This line is already inside each render function
     render_function = PAGE_DISPATCHER[view]
     render_function()
 else:

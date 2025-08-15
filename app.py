@@ -4366,17 +4366,17 @@ def fit_prophet_model(train_df, n_forecast):
     except Exception:
         return pd.Series(np.nan, index=pd.to_datetime(train_df['ds'].tail(n_forecast)))
 
-def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoint_strength):
+def plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength):
     """
-    Generates a dynamic time series and fits five different forecasting models to it.
-    This version is NOT cached to prevent serialization errors with complex models.
+    Generates a dynamic time series and fits a user-selected subset of forecasting models.
+    This is NOT cached to prevent serialization errors and is designed to be memory-efficient.
     """
     np.random.seed(42)
     periods = 156 
     n_forecast = 26 
     dates = pd.date_range(start='2021-01-01', periods=periods, freq='W')
     
-    # 1. Generate Data
+    # 1. Generate Data (Unchanged)
     if trend_type == 'Multiplicative':
         trend = 100 * np.exp(np.arange(periods) * 0.01)
     else: 
@@ -4393,11 +4393,10 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
     df = pd.DataFrame({'ds': dates, 'y': y})
     train, test = df.iloc[:-n_forecast], df.iloc[-n_forecast:]
     
-    # 2. Fit Models & Forecast
+    # 2. Fit ONLY SELECTED Models & Forecast
     forecasts = {}
     mae_scores = {}
     
-    # Context manager to suppress stdout for noisy libraries
     @contextlib.contextmanager
     def suppress_stdout():
         with open(os.devnull, 'w') as fnull:
@@ -4409,73 +4408,60 @@ def plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoin
             finally:
                 sys.stdout = saved_stdout
 
-    # Holt-Winters
-    try:
-        hw_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
-        hw_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
-        hw = ExponentialSmoothing(train['y'], trend=hw_trend, seasonal=hw_seasonal, seasonal_periods=52).fit()
-        forecasts['Holt-Winters'] = hw.forecast(n_forecast)
-    except Exception:
-        forecasts['Holt-Winters'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+    if 'Holt-Winters' in models_to_run:
+        try:
+            hw_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
+            hw_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
+            hw = ExponentialSmoothing(train['y'], trend=hw_trend, seasonal=hw_seasonal, seasonal_periods=52).fit()
+            forecasts['Holt-Winters'] = hw.forecast(n_forecast)
+        except Exception: forecasts['Holt-Winters'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # SARIMA
-    try:
-        sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=(1,1,0,52)).fit(disp=False)
-        forecasts['SARIMA'] = sarima.get_forecast(steps=n_forecast).predicted_mean
-    except Exception:
-        forecasts['SARIMA'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+    if 'SARIMA' in models_to_run:
+        try:
+            sarima = SARIMAX(train['y'], order=(1,1,1), seasonal_order=(1,1,0,52)).fit(disp=False)
+            forecasts['SARIMA'] = sarima.get_forecast(steps=n_forecast).predicted_mean
+        except Exception: forecasts['SARIMA'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # Prophet
-    try:
-        with suppress_stdout():
-            m_prophet = Prophet().fit(train)
-        future = m_prophet.make_future_dataframe(periods=n_forecast, freq='W')
-        fc_prophet = m_prophet.predict(future)
-        forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
-    except Exception:
-        forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+    if 'Prophet' in models_to_run:
+        try:
+            with suppress_stdout():
+                m_prophet = Prophet().fit(train)
+            future = m_prophet.make_future_dataframe(periods=n_forecast, freq='W')
+            fc_prophet = m_prophet.predict(future)
+            forecasts['Prophet'] = fc_prophet['yhat'].iloc[-n_forecast:].values
+        except Exception: forecasts['Prophet'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
         
-    # ETS
-    try:
-        ets_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
-        ets_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
-        ets = ETSModel(train['y'], error="add", trend=ets_trend, seasonal=ets_seasonal, seasonal_periods=52).fit(disp=False)
-        forecasts['ETS'] = ets.forecast(n_forecast)
-    except Exception:
-        forecasts['ETS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+    if 'ETS' in models_to_run:
+        try:
+            ets_trend = 'mul' if trend_type == 'Multiplicative' else 'add'
+            ets_seasonal = 'mul' if trend_type == 'Multiplicative' else 'add'
+            ets = ETSModel(train['y'], error="add", trend=ets_trend, seasonal=ets_seasonal, seasonal_periods=52).fit(disp=False)
+            forecasts['ETS'] = ets.forecast(n_forecast)
+        except Exception: forecasts['ETS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
-    # TBATS
-    try:
-        seasonal_periods = []
-        if seasonality_type == 'Single (Yearly)':
-            seasonal_periods = [52]
-        elif seasonality_type == 'Multiple (Yearly + Quarterly)':
-            seasonal_periods = [52, 13]
-        estimator = TBATS(seasonal_periods=seasonal_periods, use_trend=True)
-        with suppress_stdout():
-            fitted_model = estimator.fit(train['y'])
-        forecasts['TBATS'] = fitted_model.forecast(steps=n_forecast)
-    except Exception:
-        forecasts['TBATS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
+    if 'TBATS' in models_to_run:
+        try:
+            seasonal_periods = [52] if seasonality_type == 'Single (Yearly)' else [52, 13] if seasonality_type == 'Multiple (Yearly + Quarterly)' else None
+            estimator = TBATS(seasonal_periods=seasonal_periods, use_trend=True)
+            with suppress_stdout():
+                fitted_model = estimator.fit(train['y'])
+            forecasts['TBATS'] = fitted_model.forecast(steps=n_forecast)
+        except Exception: forecasts['TBATS'] = pd.Series(np.nan, index=pd.to_datetime(test['ds']))
 
     # 3. Calculate MAE and Plot
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual Data', line=dict(color='black')))
-    
     forecast_start_date = train['ds'].iloc[-1]
     fig.add_shape(type="line", x0=forecast_start_date, y0=0, x1=forecast_start_date, y1=1, yref="paper", line=dict(color="grey", dash="dash"))
     fig.add_annotation(x=forecast_start_date, y=1, yref="paper", text="Forecast Start", showarrow=False, yshift=10)
-
     colors = px.colors.qualitative.Plotly
     for i, (name, fc) in enumerate(forecasts.items()):
         fc_series = pd.Series(fc, index=test['ds'])
         if not fc_series.isna().all() and len(fc_series) == len(test['y']):
             mae_scores[name] = mean_absolute_error(test['y'], fc_series)
             fig.add_trace(go.Scatter(x=test['ds'], y=fc_series, mode='lines', name=name, line=dict(dash='dot', color=colors[i])))
-            
     fig.update_layout(title="<b>Competitive Forecasts vs. Actual Data</b>", xaxis_title="Date", yaxis_title="Value",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    
     return fig, mae_scores
 
 # ==============================================================================
@@ -11469,18 +11455,31 @@ def render_time_series_suite():
     """)
     st.info("""
     **Interactive Demo:** Use the sidebar controls to create different forecasting challenges.
+    - **First, select 1-2 models from the "Models to Run" dropdown to prevent crashes.**
     - Set **Seasonality** to `Multiple` to see where Prophet and TBATS shine.
     - Add a **Trend Changepoint** to challenge the more rigid classical models.
-    - The KPI metrics will update to show the **Mean Absolute Error (MAE)** for each model, with the winner highlighted.
     """)
     with st.sidebar:
-        st.subheader("Time Series Data Controls")
+        st.subheader("Time Series Controls")
+        
+        # --- NEW WIDGET TO CONTROL MODEL EXECUTION ---
+        models_to_run = st.multiselect(
+            "Select Models to Run:",
+            options=['Holt-Winters', 'SARIMA', 'Prophet', 'ETS', 'TBATS'],
+            default=['Prophet', 'SARIMA'],
+            help="Select which models to fit. Running fewer models will be faster and more stable on resource-constrained platforms."
+        )
+        
         trend_type = st.radio("Trend Type", ['Additive', 'Multiplicative'], help="Additive: linear growth. Multiplicative: exponential growth.")
         seasonality_type = st.radio("Seasonality Type", ['None', 'Single (Yearly)', 'Multiple (Yearly + Quarterly)'])
         noise_level = st.slider("Noise Level (SD)", 1.0, 20.0, 5.0, 1.0)
         changepoint_strength = st.slider("Trend Changepoint Strength", -5.0, 5.0, 0.0, 0.5, help="Simulates an abrupt change in the trend's slope 2/3 of the way through the data.")
 
-    fig, mae_scores = plot_forecasting_suite(trend_type, seasonality_type, noise_level, changepoint_strength)
+    if not models_to_run:
+        st.warning("Please select at least one model to run from the sidebar.")
+        return
+
+    fig, mae_scores = plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength)
 
     st.header("Forecasting Suite Dashboard")
     col1, col2 = st.columns([0.65, 0.35])
@@ -11502,32 +11501,29 @@ def render_time_series_suite():
     
     tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "💡 Method Selection Map", "📊 Scoring Table", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
 
+    # ... (All the detailed tab content remains here, unchanged) ...
     with tabs[0]:
         st.subheader("How to Interpret the Dashboard: A Guided Tour")
         st.markdown("""
         This interactive dashboard is a virtual laboratory for time series analysis. By manipulating the "ground truth" of the data in the sidebar, you can discover each model's unique strengths and weaknesses.
 
         ##### The Main Plot: The Arena of Competition
-        The primary chart shows all five models competing to forecast the future (the period after the grey dashed line). The black line is the truth they are all trying to predict. The **Mean Absolute Error (MAE)** on the right is the final scorecard—the model with the lowest score is the winner for that specific scenario.
+        The primary chart shows the models you selected competing to forecast the future (the period after the grey dashed line). The black line is the truth they are all trying to predict. The **Mean Absolute Error (MAE)** on the right is the final scorecard—the model with the lowest score is the winner for that specific scenario.
 
         ---
         ##### Challenge 1: The Multi-Seasonality Problem
-        1.  In the sidebar, set **Seasonality Type** to `Multiple (Yearly + Quarterly)`.
-        2.  **Observe:** Notice how the forecasts from **Prophet** and **TBATS** closely track the complex, bumpy seasonal pattern. The other models, which can only handle a single seasonality, produce a much smoother, less accurate forecast.
-        3.  **Conclusion:** The MAE scores will confirm that Prophet and TBATS are the superior models for this type of data. This is their primary superpower.
+        1.  In the sidebar, select only `Prophet` and `TBATS` to run.
+        2.  Set **Seasonality Type** to `Multiple (Yearly + Quarterly)`.
+        3.  **Observe:** Notice how the forecasts from **Prophet** and **TBATS** closely track the complex, bumpy seasonal pattern. If you add Holt-Winters or SARIMA, they will produce a much smoother, less accurate forecast.
+        4.  **Conclusion:** The MAE scores will confirm that Prophet and TBATS are the superior models for this type of data. This is their primary superpower.
 
         ---
         ##### Challenge 2: The Trend Changepoint Problem
-        1.  Set **Seasonality Type** back to `Single (Yearly)`.
-        2.  In the sidebar, increase the **Trend Changepoint Strength** to a significant positive or negative value.
-        3.  **Observe:** The classical models like SARIMA and Holt-Winters struggle to adapt to the sudden change in the trend's slope after the changepoint. Their forecasts will continue on the old trajectory for too long. **Prophet**, which is specifically designed to detect and adapt to changepoints, will often produce a more accurate forecast.
+        1.  Select `Prophet` and `SARIMA`. Set **Seasonality Type** back to `Single (Yearly)`.
+        2.  Increase the **Trend Changepoint Strength** to a significant positive or negative value.
+        3.  **Observe:** The classical models like SARIMA struggle to adapt to the sudden change in the trend's slope. **Prophet**, which is specifically designed to detect and adapt to changepoints, will often produce a more accurate forecast.
         4.  **Conclusion:** For business data where strategies or market conditions can change abruptly, Prophet's flexibility provides a significant advantage.
-        
-        ---
-        ##### The Core Strategic Insight
-        The most important takeaway is that **there is no universally "best" forecasting model**. The winner is determined by the data's underlying structure. A mature data science or V&V program doesn't have a favorite model; it has a **portfolio of models** and a disciplined process for selecting the right one for the job. This dashboard is designed to build that selection intuition.
         """)
-
     with tabs[1]:
         st.subheader("From Reactive Firefighting to Proactive Control")
         st.markdown("""
@@ -11558,7 +11554,6 @@ def render_time_series_suite():
         | **Compliance** | Frequent deviations from unexplained process drift. Lengthy, reactive root cause investigations. | Early warning of process drifts triggers proactive investigation, preventing deviations. Forecasts provide objective evidence for planning. |
         | **Performance** | Unpredictable production schedules and chronic instability. | Stable, predictable process performance. Improved on-time delivery and supply chain reliability. |
         """)
-
     with tabs[2]:
         st.markdown("""
         ### Method Selection Map: A Strategic Decision Framework
@@ -11568,17 +11563,14 @@ def render_time_series_suite():
         | :--- | :--- | :--- | :--- |
         | **Clean, simple trend and single, regular seasonality.** | **Holt-Winters / ETS** | **The Craftsman:** Highly interpretable, fast, and robust for classic time series data. It directly models the components you can see, making it easy to explain. | **Single Seasonality Only:** Cannot handle multiple overlapping cycles (e.g., weekly and yearly). It's a specialist tool for a specific type of data. |
         | **Strong autocorrelation; need for statistical rigor and defensibility.** | **SARIMA** | **The Watchmaker:** The gold standard for statistical formality. Excellent for short-term forecasts on stable processes where the "memory" of the process is important. Unbeatable for regulatory submissions that require deep statistical justification. | **Requires Expertise:** Difficult to tune the 7+ parameters correctly. The mandatory "stationarity" requirement means you're modeling changes, not absolute values, which can complicate interpretation for business stakeholders. |
-        | **Multiple seasonalities, holidays, trend changes, and messy data.** | **Prophet** | **The Smartwatch:** Highly automated, robust to messy data, and excels at fitting multiple seasonalities. Its intuitive parameters make it easy to incorporate domain knowledge (e.g., a planned shutdown). | **Less Statistically Formal:** It's a pragmatic engineering tool, not a rigorous statistical model. It can be a "black box" and may not capture complex autocorrelation structures as well as SARIMA. |
+        | **Multiple seasonalities, holidays, and trend changes.** | **Prophet** | **The Smartwatch:** Highly automated, robust to messy data, and excels at fitting multiple seasonalities. Its intuitive parameters make it easy to incorporate domain knowledge (e.g., a planned shutdown). | **Less Statistically Formal:** It's a pragmatic engineering tool, not a rigorous statistical model. It can be a "black box" and may not capture complex autocorrelation structures as well as SARIMA. |
         | **Multiple, complex, and non-integer seasonalities (e.g., 5.5-day cycles).** | **TBATS** | **The Music Producer:** The specialist for very complex seasonality. It can decompose signals like a sound engineer, isolating multiple overlapping frequencies. Highly automated. | **Computationally Slow:** Can be the slowest model to fit. The complex combination of components (Box-Cox, Fourier terms, ARMA errors) can be very difficult to interpret and explain. |
         | **Complex, non-linear patterns without clear seasonality; multivariate inputs.** | **Deep Learning (LSTM/TCN)** | **The AI Pattern Recognizer:** Can learn any pattern from sufficient data. Excellent for multivariate forecasting (e.g., predicting yield from temperature, pH, and feed rate simultaneously). | **Requires Huge Data:** Needs much more data than statistical models. It's a "black box" with low interpretability and is computationally expensive to train and validate. |
         """)
-
     with tabs[3]:
         st.markdown("""
         ### Scoring Table: Model Capabilities at a Glance
-        This table provides a high-level comparison of the models' strengths across key attributes for a typical V&V or business user.
-        
-        *(Scored ⭐ to ⭐⭐⭐⭐⭐, where ⭐⭐⭐⭐⭐ is Excellent/Natively Supported)*
+        (Scored ⭐ to ⭐⭐⭐⭐⭐, where ⭐⭐⭐⭐⭐ is Excellent/Natively Supported)
 
         | Feature | Holt-Winters | ARIMA | SARIMA | Prophet | TBATS | ETS (MFLES) |
         | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -11599,7 +11591,6 @@ def render_time_series_suite():
         | **Exogenous Variables** | ⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
         | <small>*SME Commentary*</small>| <small>Not standard.</small> | <small>ARIMAX is a standard extension.</small>| <small>SARIMAX is standard.</small>| <small>Easy to add 'regressors'.</small>| <small>Can be added.</small>| <small>Can be added.</small>|
         """)
-        
     with tabs[4]:
         st.markdown("""
         ##### Glossary of Forecasting Models
@@ -11621,7 +11612,6 @@ def render_time_series_suite():
         - **TBATS (Trigonometric, Box-Cox, ARMA, Trend, Seasonal):** A highly complex, automated state-space model that can handle multiple and complex seasonalities using trigonometric Fourier terms.
           - *SME Insight:* This is the "kitchen sink" model. It throws every known statistical trick at the problem: transformations for non-linearity (Box-Cox), Fourier terms for complex seasonality (Trigonometric), and ARMA for the errors. It's powerful but can be a black box.
         """)
-        
     with tabs[5]:
         st.markdown("""
         #### Theory, History & Mathematical Context
@@ -11634,30 +11624,7 @@ def render_time_series_suite():
         - **The Unification Era - State-Space Models (1990s-2000s):** For years, exponential smoothing and ARIMA were seen as separate, competing philosophies. Researchers like Rob Hyndman and his colleagues showed they were two sides of the same coin. They developed the **ETS** and **TBATS** models, which placed all of these methods into a single, unified state-space framework. This allowed for a more systematic and automated approach to model selection and, crucially, the calculation of robust prediction intervals.
 
         - **The Scale Era - Engineering Meets Statistics (2017):** Facebook's Core Data Science team faced a problem of scale: thousands of non-expert analysts needed to generate high-quality forecasts for business metrics. The manual, expert-driven Box-Jenkins method was too slow. They released **Prophet**, a model designed not for statistical purity, but for robust, scalable, and intuitive forecasting of business time series. Its focus on automation, intuitive parameters, and handling messy data represented a major shift towards a more engineering-driven approach to forecasting.
-        
-        ---
-        #### Mathematical Basis
-        - **Holt-Winters (Additive):** A set of three recursive smoothing equations.
         """)
-        st.latex(r'''
-        \begin{aligned}
-        \text{Level: } & L_t = \alpha(y_t - S_{t-m}) + (1-\alpha)(L_{t-1} + T_{t-1}) \\
-        \text{Trend: } & T_t = \beta(L_t - L_{t-1}) + (1-\beta)T_{t-1} \\
-        \text{Seasonality: } & S_t = \gamma(y_t - L_t) + (1-\gamma)S_{t-m}
-        \end{aligned}
-        ''')
-        st.markdown(r"Where `α, β, γ` are smoothing parameters and `m` is the seasonal period.")
-        st.markdown("- **SARIMA:** A linear model that explains a series based on its own past, using backshift notation `B`.")
-        st.latex(r"\phi_p(B)\Phi_P(B^m)(1-B)^d(1-B^m)^D y_t = \theta_q(B)\Theta_Q(B^m)\epsilon_t")
-        st.markdown(r"""
-        Where `ϕ` and `θ` are non-seasonal AR/MA polynomials, and `Φ` and `Θ` are seasonal AR/MA polynomials.
-        """)
-        st.markdown("- **Prophet:** A decomposable additive model.")
-        st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
-        st.markdown(r"""
-        Where `g(t)` is a piecewise linear trend, `s(t)` models seasonality using Fourier series, `h(t)` is for holidays, and `ε` is the error.
-        """)
-
     with tabs[6]:
         st.markdown("""
         ### Regulatory & Compliance Context

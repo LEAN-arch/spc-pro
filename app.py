@@ -296,11 +296,11 @@ def create_styled_v_model_table(df):
     
 @st.cache_data
 def plot_act_grouped_timeline():
-    """Generates the project-based timeline with all tools, including the new Act 0 modules."""
+    """Generates the project-based timeline with all tools, including all added modules."""
     all_tools_data = [
-        # --- ACT 0 ---
+        # --- ACT 0: PLANNING & STRATEGY ---
         {'name': 'TPP & CQA Cascade', 'act': 0, 'year': 2009, 'inventor': 'ICH Q8', 'desc': 'Defines the "golden thread" of Quality by Design.'},
-        {'name': 'Analytical Target Profile', 'act': 0, 'year': 2012, 'inventor': 'FDA/AAPS', 'desc': 'Creates the "contract" for a new analytical method.'},
+        {'name': 'Analytical Target Profile', 'act': 0, 'year': 2012, 'inventor': 'FDA/AAPS', 'desc': 'Creates the "contract" for a new analytical method or system.'},
         {'name': 'Quality Risk Management (QRM) Suite', 'act': 0, 'year': 1949, 'inventor': 'US Military', 'desc': 'Proactively identifies and mitigates process risks (FMEA, FTA, etc.).'},
         {'name': 'V&V Strategy & Justification', 'act': 0, 'year': 1990, 'inventor': 'FDA/Industry', 'desc': 'The foundational "why" behind all validation activities.'},
         {'name': 'Design Controls & DHF', 'act': 0, 'year': 1990, 'inventor': 'FDA (SMDA)', 'desc': 'The formal, auditable framework for medical device and complex system development.'},
@@ -308,7 +308,10 @@ def plot_act_grouped_timeline():
         {'name': 'Design for Excellence (DfX)', 'act': 0, 'year': 1980, 'inventor': 'Concurrent Engineering', 'desc': 'Optimizing design for the entire product lifecycle.'},
         {'name': 'Validation Master Plan', 'act': 0, 'year': 1990, 'inventor': 'GAMP Forum', 'desc': 'The master project plan for any validation effort.'},
         {'name': 'Requirements Traceability Matrix', 'act': 0, 'year': 1980, 'inventor': 'Systems Engineering', 'desc': 'Ensures all requirements are built and tested.'},
-        # --- ACT I ---
+        {'name': 'Gap Analysis & Change Control', 'act': 0, 'year': 1980, 'inventor': 'ITSM/QMS', 'desc': 'The formal framework for managing the evolution of a validated system.'},
+        {'name': 'Root Cause Analysis (RCA)', 'act': 0, 'year': 1930, 'inventor': 'Toyota/Ishikawa', 'desc': 'The forensic toolkit for moving from symptom to the true underlying cause.'},
+
+        # --- ACT I: FOUNDATION & CHARACTERIZATION ---
         {'name': 'Exploratory Data Analysis (EDA)', 'act': 1, 'year': 1977, 'inventor': 'John Tukey', 'desc': 'The critical first step of understanding any dataset.'},
         {'name': 'Confidence Interval Concept', 'act': 1, 'year': 1937, 'inventor': 'Jerzy Neyman', 'desc': 'Neyman formalizes the frequentist confidence interval.'},
         {'name': 'Confidence Intervals for Proportions', 'act': 1, 'year': 1927, 'inventor': 'Edwin B. Wilson', 'desc': 'Wilson develops a superior confidence interval for pass/fail data.'},
@@ -319,24 +322,34 @@ def plot_act_grouped_timeline():
         {'name': 'Gage R&R / VCA', 'act': 1, 'year': 1982, 'inventor': 'AIAG', 'desc': 'AIAG codifies Measurement Systems Analysis (MSA).'},
         {'name': 'Attribute Agreement Analysis', 'act': 1, 'year': 1960, 'inventor': 'Cohen/Fleiss', 'desc': 'Validating human inspectors for pass/fail decisions.'},
         {'name': 'Comprehensive Diagnostic Validation', 'act': 1, 'year': 1950, 'inventor': 'Multi-Disciplinary', 'desc': 'A full suite of metrics for validating IVDs.'},
+        {'name': 'Component Reliability Testing', 'act': 1, 'year': 1951, 'inventor': 'Waloddi Weibull', 'desc': 'Using life data to model failure rates and predict component lifetime.'},
         {'name': 'ROC Curve Analysis', 'act': 1, 'year': 1945, 'inventor': 'Signal Processing Labs', 'desc': 'Developed for radar, now the standard for diagnostic tests.'},
         {'name': 'Assay Robustness (DOE)', 'act': 1, 'year': 1926, 'inventor': 'R.A. Fisher', 'desc': 'Fisher publishes his work on Design of Experiments.'},
         {'name': 'Mixture Design (Formulations)', 'act': 1, 'year': 1958, 'inventor': 'Henry Scheffé', 'desc': 'Specialized DOE for optimizing formulations and blends.'},
         {'name': 'Process Optimization: From DOE to AI', 'act': 1, 'year': 2017, 'inventor': 'Modern Synthesis', 'desc': 'Combining classic DOE with modern ML for deep optimization.'},
+        {'name': 'Bayesian Optimization', 'act': 1, 'year': 1998, 'inventor': 'Jones et al.', 'desc': 'Intelligent, sequential search for optimizing expensive "black box" processes.'},
         {'name': 'Split-Plot Designs', 'act': 1, 'year': 1930, 'inventor': 'R.A. Fisher & F. Yates', 'desc': 'Specialized DOE for factors that are "hard-to-change".'},
-        {'name': 'Causal Inference', 'act': 1, 'year': 2018, 'inventor': 'Judea Pearl et al.', 'desc': 'Moving beyond correlation to identify root causes.'},
-        # --- ACT II ---
+        {'name': 'Causal Inference', 'act': 1, 'year': 1990, 'inventor': 'Judea Pearl et al.', 'desc': 'Moving beyond correlation to identify root causes.'},
+        {'name': 'Causal ML / Double ML', 'act': 1, 'year': 2018, 'inventor': 'Chernozhukov et al.', 'desc': 'Using AI to find true causal effects in complex observational data.'},
+
+        # --- ACT II: TRANSFER & STABILITY ---
         {'name': 'Sample Size for Qualification', 'act': 2, 'year': 1940, 'inventor': 'Dodge/Romig', 'desc': 'Statistically justifying the number of samples for validation.'},
         {'name': 'Advanced Stability Design', 'act': 2, 'year': 2003, 'inventor': 'ICH Q1D', 'desc': 'Using Bracketing & Matrixing to create efficient stability studies.'},
         {'name': 'Method Comparison', 'act': 2, 'year': 1986, 'inventor': 'Bland & Altman', 'desc': 'Bland & Altman revolutionize method agreement studies.'},
         {'name': 'Equivalence Testing (TOST)', 'act': 2, 'year': 1987, 'inventor': 'Donald Schuirmann', 'desc': 'Schuirmann proposes TOST for bioequivalence.'},
+        {'name': 'Wasserstein Distance', 'act': 2, 'year': 1990, 'inventor': 'CS Community', 'desc': "A robust metric for comparing the entire 'fingerprint' of two process distributions."},
         {'name': 'Statistical Equivalence for Process Transfer', 'act': 2, 'year': 1990, 'inventor': 'Modern Synthesis', 'desc': 'Proving two processes perform equivalently after a transfer.'},
         {'name': 'Process Stability (SPC)', 'act': 2, 'year': 1924, 'inventor': 'Walter Shewhart', 'desc': 'Shewhart invents the control chart at Bell Labs.'},
         {'name': 'Process Capability (Cpk)', 'act': 2, 'year': 1986, 'inventor': 'Bill Smith (Motorola)', 'desc': 'Motorola popularizes Cpk with the Six Sigma initiative.'},
+        {'name': 'Production Line Sync (ODE)', 'act': 2, 'year': 1984, 'inventor': 'TOC/Goldratt', 'desc': 'Modeling process flow to identify bottlenecks and optimize throughput.'},
+        {'name': 'Lean Manufacturing & VSM', 'act': 2, 'year': 1990, 'inventor': 'TPS/Womack', 'desc': 'A toolkit for maximizing value by systematically eliminating waste from a process.'},
+        {'name': 'Monte Carlo Simulation for Risk Analysis', 'act': 2, 'year': 1940, 'inventor': 'Ulam/Von Neumann', 'desc': 'A "virtual factory" to simulate thousands of future runs and predict failure rates.'},
         {'name': 'First Time Yield & Cost of Quality', 'act': 2, 'year': 1980, 'inventor': 'Six Sigma/TQM', 'desc': 'Quantifying the business impact of process performance.'},
         {'name': 'Tolerance Intervals', 'act': 2, 'year': 1942, 'inventor': 'Abraham Wald', 'desc': 'Wald develops intervals to cover a proportion of a population.'},
         {'name': 'Bayesian Inference', 'act': 2, 'year': 1990, 'inventor': 'Metropolis et al.', 'desc': 'Computational methods (MCMC) make Bayes practical.'},
-        # --- ACT III ---
+
+        # --- ACT III: LIFECYCLE & PREDICTIVE MGMT ---
+        {'name': 'Overall Equipment Effectiveness (OEE)', 'act': 3, 'year': 1960, 'inventor': 'Seiichi Nakajima', 'desc': 'The single best metric for measuring manufacturing productivity.'},
         {'name': 'Process Control Plan Builder', 'act': 3, 'year': 1980, 'inventor': 'Automotive Industry', 'desc': 'Creating the operational playbook for process monitoring.'},
         {'name': 'Run Validation (Westgard)', 'act': 3, 'year': 1981, 'inventor': 'James Westgard', 'desc': 'Westgard publishes his multi-rule QC system.'},
         {'name': 'Small Shift Detection', 'act': 3, 'year': 1954, 'inventor': 'Page/Roberts', 'desc': 'Charts for faster detection of small process drifts.'},
@@ -344,8 +357,9 @@ def plot_act_grouped_timeline():
         {'name': 'Stability Analysis (Shelf-Life)', 'act': 3, 'year': 1993, 'inventor': 'ICH', 'desc': 'ICH guidelines formalize statistical shelf-life estimation.'},
         {'name': 'Reliability / Survival Analysis', 'act': 3, 'year': 1958, 'inventor': 'Kaplan & Meier', 'desc': 'Kaplan-Meier estimator for time-to-event data.'},
         {'name': 'Time Series Forecasting Suite', 'act': 3, 'year': 1970, 'inventor': 'Box/Jenkins', 'desc': 'A suite of models (Holt-Winters, SARIMA, Prophet) for forecasting.'},
+        {'name': 'Prophet Forecasting', 'act': 3, 'year': 2017, 'inventor': 'Meta', 'desc': 'An automated forecasting engine for complex business time series.'},
         {'name': 'Multivariate Analysis (MVA)', 'act': 3, 'year': 1975, 'inventor': 'Herman Wold', 'desc': 'Partial Least Squares for modeling complex process data.'},
-        {'name': 'Predictive QC (Classification)', 'act': 3, 'year': 1958, 'inventor': 'David Cox', 'desc': 'Cox develops Logistic Regression for binary outcomes.'},
+        {'name': 'Predictive Modeling Suite', 'act': 3, 'year': 1958, 'inventor': 'David Cox et al.', 'desc': 'A suite of models (LR, RF, MLP) for predicting pass/fail outcomes.'},
         {'name': 'Explainable AI (XAI)', 'act': 3, 'year': 2017, 'inventor': 'Lundberg et al.', 'desc': 'Methods like SHAP to open the AI "black box".'},
         {'name': 'Clustering (Unsupervised)', 'act': 3, 'year': 1957, 'inventor': 'Stuart Lloyd', 'desc': 'Algorithm for finding hidden groups in data.'},
         {'name': 'Anomaly Detection', 'act': 3, 'year': 2008, 'inventor': 'Liu et al.', 'desc': 'Using Isolation Forests to find novel failures.'},
@@ -356,7 +370,8 @@ def plot_act_grouped_timeline():
         {'name': 'RL for Chart Tuning', 'act': 3, 'year': 2005, 'inventor': 'RL Community', 'desc': 'Using AI to economically optimize control chart parameters, balancing risk and cost.'},
         {'name': 'TCN + CUSUM', 'act': 3, 'year': 2018, 'inventor': 'Bai, Kolter & Koltun', 'desc': 'Hybrid model using AI to de-seasonalize data for ultra-sensitive drift detection.'},
         {'name': 'LSTM Autoencoder + Hybrid Monitoring', 'act': 3, 'year': 1997, 'inventor': 'Hochreiter/Schmidhuber', 'desc': 'Unsupervised anomaly detection by learning a process\'s normal dynamic fingerprint.'},
-        {'name': 'PSO + Autoencoder', 'act': 3, 'year': 2010, 'inventor': 'Modern Synthesis', 'desc': 'Using AI to intelligently search for hidden process failure modes.'}
+        {'name': 'PSO + Autoencoder', 'act': 3, 'year': 2010, 'inventor': 'Modern Synthesis', 'desc': 'Using AI to intelligently search for hidden process failure modes.'},
+        {'name': 'Digital Twin & Real-Time Simulation', 'act': 3, 'year': 1970, 'inventor': 'NASA/Grieves', 'desc': 'A live, virtual replica of a physical process for advanced monitoring and what-if analysis.'},
     ]
     all_tools_data.sort(key=lambda x: (x['act'], x['year']))
     
@@ -375,7 +390,7 @@ def plot_act_grouped_timeline():
         for i, tool in enumerate(tools_in_act):
             tool['x'] = x_coords[i]
             
-    y_offsets = [3.0, -3.0, 3.8, -3.8, 2.5, -2.5, 4.5, -4.5, 2.0, -2.0, 5.0, -5.0, 1.5, -1.5]
+    y_offsets = [3.0, -3.0, 3.8, -3.8, 2.5, -2.5, 4.5, -4.5, 2.0, -2.0, 5.0, -5.0, 1.5, -1.5, 3.3, -3.3, 4.2, -4.2]
     for i, tool in enumerate(all_tools_data):
         tool['y'] = y_offsets[i % len(y_offsets)]
     
@@ -390,9 +405,7 @@ def plot_act_grouped_timeline():
     
     for act_info in acts.values():
         x0, x1 = act_info['boundary']
-        # --- THIS IS THE FIX ---
         fig.add_shape(type="rect", x0=x0, y0=-6.0, x1=x1, y1=6.0, line=dict(width=0), fillcolor='rgba(230, 230, 230, 0.7)', layer='below')
-        # --- END OF FIX ---
         fig.add_annotation(x=(x0 + x1) / 2, y=7.0, text=f"<b>{act_info['name']}</b>", showarrow=False, font=dict(size=20, color="#555"))
 
     fig.add_shape(type="line", x0=-5, y0=0, x1=180, y1=0, line=dict(color="black", width=3), layer='below')
@@ -410,18 +423,18 @@ def plot_act_grouped_timeline():
 
     fig.update_layout(title_text='<b>The V&V Analytics Toolkit: A Project-Based View</b>', title_font_size=28, title_x=0.5,
                       xaxis=dict(visible=False), yaxis=dict(visible=False, range=[-8, 8]), plot_bgcolor='white', paper_bgcolor='white',
-                      height=900, margin=dict(l=20, r=20, t=140, b=20), showlegend=True,
+                      height=1000, margin=dict(l=20, r=20, t=140, b=20), showlegend=True,
                       legend=dict(title_text="<b>Project Phase</b>", title_font_size=16, font_size=14, orientation="h",
                                   yanchor="bottom", y=1.02, xanchor="center", x=0.5))
     return fig
-
+    
 # FIX: Replace the entire plot_chronological_timeline function with this new, complete version.
 @st.cache_data
 def plot_chronological_timeline():
     """Generates the chronological timeline, now including all tools."""
     all_tools_data = [
-        # --- 'Linearity & Range' (year 1805) has been removed from this list ---
-        {'name': 'Process Stability', 'year': 1924, 'inventor': 'Walter Shewhart', 'reason': 'The dawn of mass manufacturing (telephones) required new methods for controlling process variation.'},
+        # --- 'Linearity & Range' (year 1805) has been removed from this list as it's a concept, not an invention.
+        {'name': 'Process Stability (SPC)', 'year': 1924, 'inventor': 'Walter Shewhart', 'reason': 'The dawn of mass manufacturing (telephones) required new methods for controlling process variation.'},
         {'name': 'Assay Robustness (DOE)', 'year': 1926, 'inventor': 'R.A. Fisher', 'reason': 'To revolutionize agricultural science by efficiently testing multiple factors (fertilizers, varieties) at once.'},
         {'name': 'Confidence Intervals for Proportions', 'year': 1927, 'inventor': 'Edwin B. Wilson', 'reason': 'To solve the poor performance of the standard binomial confidence interval, especially for small samples.'},
         {'name': 'Split-Plot Designs', 'year': 1930, 'inventor': 'R.A. Fisher & F. Yates', 'reason': 'To solve agricultural experiments with factors that were difficult or expensive to change on a small scale.'},
@@ -432,20 +445,23 @@ def plot_chronological_timeline():
         {'name': 'ROC Curve Analysis', 'year': 1945, 'inventor': 'Signal Processing Labs', 'reason': 'Developed during WWII to distinguish enemy radar signals from noise, a classic signal detection problem.'},
         {'name': 'Quality Risk Management (FMEA)', 'year': 1949, 'inventor': 'US Military', 'reason': 'To proactively assess and mitigate reliability risks in complex military systems.'},
         {'name': 'Comprehensive Diagnostic Validation', 'year': 1950, 'inventor': 'Multi-Disciplinary', 'reason': 'The post-war boom in epidemiology required a full suite of metrics to validate new disease screening tests.'},
-        {'name': 'Assay Robustness (RSM)', 'year': 1951, 'inventor': 'Box & Wilson', 'reason': 'The post-war chemical industry boom created demand for efficient process optimization techniques.'},
+        {'name': 'Component Reliability Testing', 'year': 1951, 'inventor': 'Waloddi Weibull', 'reason': 'The need to model the lifetime of variable components like ball bearings, moving beyond simple averages.'},
         {'name': 'Small Shift Detection', 'year': 1954, 'inventor': 'Page (CUSUM) & Roberts (EWMA)', 'reason': 'Maturing industries required charts more sensitive to small, slow process drifts than Shewhart\'s original design.'},
         {'name': 'Clustering (Unsupervised)', 'year': 1957, 'inventor': 'Stuart Lloyd', 'reason': 'The advent of early digital computing at Bell Labs made iterative, data-driven grouping algorithms feasible.'},
         {'name': 'Predictive QC (Classification)', 'year': 1958, 'inventor': 'David Cox', 'reason': 'A need to model binary outcomes (pass/fail, live/die) in a regression framework.'},
-        {'name': 'Reliability / Survival Analysis', 'year': 1958, 'inventor': 'Kaplan & Meier', 'reason': 'The rise of clinical trials necessitated a formal way to handle \'censored\' data.'},
+        {'name': 'Reliability / Survival Analysis', 'year': 1958, 'inventor': 'Kaplan & Meier', 'reason': 'The rise of clinical trials necessitated a formal way to handle \'censored\' data where the event has not yet occurred.'},
         {'name': 'Mixture Design (Formulations)', 'year': 1958, 'inventor': 'Henry Scheffé', 'reason': 'To provide a systematic way for chemists and food scientists to optimize recipes and formulations.'},
         {'name': 'Attribute Agreement Analysis', 'year': 1960, 'inventor': 'Cohen/Fleiss', 'reason': 'Psychologists needed to measure the reliability of judgments between raters, corrected for chance agreement.'},
         {'name': 'Kalman Filter + Residual Chart', 'year': 1960, 'inventor': 'Rudolf E. Kálmán', 'reason': 'The Apollo program needed a way to navigate to the moon using noisy sensor data, requiring optimal state estimation.'},
+        {'name': 'Root Cause Analysis (RCA)', 'year': 1960, 'inventor': 'Kaoru Ishikawa', 'reason': 'To provide a structured, visual tool for brainstorming and categorizing the potential causes of a problem.'},
         {'name': 'LOD & LOQ', 'year': 1968, 'inventor': 'Lloyd Currie (NIST)', 'reason': 'To create a harmonized, statistically rigorous framework for defining the sensitivity of analytical methods.'},
         {'name': 'FAT & SAT', 'year': 1970, 'inventor': 'Good Engineering Practice', 'reason': 'To de-risk large capital projects by finding issues at the factory, not the final site.'},
         {'name': 'Time Series Forecasting Suite', 'year': 1970, 'inventor': 'Box & Jenkins', 'reason': 'To provide a comprehensive statistical methodology for forecasting and control in industrial and economic processes.'},
+        {'name': 'Digital Twin & Real-Time Simulation', 'year': 1970, 'inventor': 'NASA (Apollo 13)', 'reason': 'To solve the Apollo 13 crisis, NASA used mirrored simulators on the ground, creating the first true digital twin.'},
         {'name': 'Multivariate Analysis (MVA)', 'year': 1975, 'inventor': 'Herman Wold', 'reason': 'To model "data-rich but theory-poor" systems in social science, later adapted for chemometrics.'},
         {'name': 'Core Validation Parameters', 'year': 1980, 'inventor': 'ICH / FDA', 'reason': 'Globalization of the pharmaceutical industry required harmonized standards for drug approval.'},
         {'name': 'Requirements Traceability Matrix', 'year': 1980, 'inventor': 'Systems Engineering', 'reason': 'To manage complexity in large-scale projects, ensuring all requirements are built and tested.'},
+        {'name': 'Design for Excellence (DfX)', 'year': 1980, 'inventor': 'Concurrent Engineering', 'reason': 'The auto industry, facing a quality crisis, needed to formally integrate manufacturing and lifecycle concerns into the design phase.'},
         {'name': 'Run Validation (Westgard)', 'year': 1981, 'inventor': 'James Westgard', 'reason': 'The automation of clinical labs demanded a more sensitive, diagnostic system for daily quality control.'},
         {'name': 'Gage R&R / VCA', 'year': 1982, 'inventor': 'AIAG', 'reason': 'The US auto industry, facing a quality crisis, needed to formalize the analysis of their measurement systems.'},
         {'name': 'Method Comparison', 'year': 1986, 'inventor': 'Bland & Altman', 'reason': 'A direct response to the widespread misuse of correlation for comparing clinical measurement methods.'},
@@ -455,6 +471,7 @@ def plot_chronological_timeline():
         {'name': 'V&V Strategy & Justification', 'year': 1990, 'inventor': 'FDA/Industry', 'reason': 'To formalize the principles of V&V as a response to product failures and establish a clear regulatory framework.'},
         {'name': 'Validation Master Plan', 'year': 1990, 'inventor': 'GAMP Forum', 'reason': 'Increasingly complex computerized systems required a high-level strategic plan for validation.'},
         {'name': 'Bayesian Inference', 'year': 1990, 'inventor': 'Metropolis et al.', 'reason': 'The explosion in computing power made simulation-based methods (MCMC) practical, unlocking Bayesian inference.'},
+        {'name': 'Lean Manufacturing & VSM', 'year': 1990, 'inventor': 'Womack et al. (TPS)', 'reason': 'To codify the principles of the Toyota Production System, focusing on waste elimination and value stream optimization.'},
         {'name': 'MEWMA + XGBoost Diagnostics', 'year': 1992, 'inventor': 'Lowry et al.', 'reason': 'A need to generalize the sensitive EWMA chart to monitor multiple correlated variables at once.'},
         {'name': 'Stability Analysis (Shelf-Life)', 'year': 1993, 'inventor': 'ICH', 'reason': 'To harmonize global pharmaceutical regulations for determining a product\'s shelf-life.'},
         {'name': 'LSTM Autoencoder + Hybrid Monitoring', 'year': 1997, 'inventor': 'Hochreiter/Schmidhuber', 'reason': 'A need to model long-range temporal dependencies in data, later adapted for unsupervised anomaly detection.'},
@@ -466,13 +483,15 @@ def plot_chronological_timeline():
         {'name': 'PSO + Autoencoder', 'year': 2010, 'inventor': 'Modern Synthesis', 'reason': 'Using AI (PSO) to intelligently search for the failure modes of another AI model (Autoencoder).'},
         {'name': 'Analytical Target Profile', 'year': 2012, 'inventor': 'FDA/AAPS', 'reason': 'To extend QbD principles to the lifecycle of analytical methods, defining a "contract" for method performance.'},
         {'name': 'Explainable AI (XAI)', 'year': 2017, 'inventor': 'Lundberg et al.', 'reason': 'The rise of powerful but opaque "black box" models necessitated methods to explain their reasoning (XAI).'},
+        {'name': 'Prophet Forecasting', 'year': 2017, 'inventor': 'Meta (Facebook)', 'reason': 'A need for a scalable, automated forecasting tool that could be used by non-experts to handle complex business time series.'},
         {'name': 'Advanced AI Concepts', 'year': 2017, 'inventor': 'Vaswani et al.', 'reason': 'The Deep Learning revolution produced powerful new architectures like Transformers for sequence modeling.'},
         {'name': 'TCN + CUSUM', 'year': 2018, 'inventor': 'Bai, Kolter & Koltun', 'reason': 'A need for a faster, more effective deep learning architecture for sequence modeling to rival LSTMs.'},
+        {'name': 'Causal ML / Double ML', 'year': 2018, 'inventor': 'Chernozhukov et al.', 'reason': 'A fusion of machine learning and econometrics to find true causal effects in complex, messy observational data.'},
         {'name': 'Causal Inference', 'year': 2018, 'inventor': 'Judea Pearl et al.', 'reason': 'The limitations of purely predictive models spurred a "causal revolution" to answer "why" questions.'},
     ]
     all_tools_data.sort(key=lambda x: x['year'])
     
-    y_offsets = [3.0, -3.0, 3.5, -3.5, 2.5, -2.5, 4.0, -4.0, 2.0, -2.0, 4.5, -4.5, 1.5, -1.5]
+    y_offsets = [3.0, -3.0, 3.5, -3.5, 2.5, -2.5, 4.0, -4.0, 2.0, -2.0, 4.5, -4.5, 1.5, -1.5, 3.2, -3.2, 3.8, -3.8]
     for i, tool in enumerate(all_tools_data):
         tool['y'] = y_offsets[i % len(y_offsets)]
     
@@ -489,7 +508,7 @@ def plot_chronological_timeline():
         fig.add_shape(type="rect", x0=x0, y0=-5.5, x1=x1, y1=5.5, line=dict(width=0), fillcolor=era_info['color'], opacity=0.15, layer='below')
         fig.add_annotation(x=(x0 + x1) / 2, y=6.5, text=f"<b>{era_name}</b>", showarrow=False, font=dict(size=18, color=era_info['color']))
 
-    fig.add_shape(type="line", x0=1800, y0=0, x1=2025, y1=0, line=dict(color="black", width=3), layer='below')
+    fig.add_shape(type="line", x0=1920, y0=0, x1=2025, y1=0, line=dict(color="black", width=3), layer='below')
 
     for tool in all_tools_data:
         x_coord, y_coord = tool['year'], tool['y']
@@ -501,43 +520,71 @@ def plot_chronological_timeline():
 
     fig.update_layout(title_text='<b>A Chronological Timeline of V&V Analytics</b>', title_font_size=28, title_x=0.5,
                       xaxis=dict(range=[1920, 2025], showgrid=True), yaxis=dict(visible=False, range=[-8, 8]),
-                      plot_bgcolor='white', paper_bgcolor='white', height=700, margin=dict(l=20, r=20, t=100, b=20), showlegend=False)
+                      plot_bgcolor='white', paper_bgcolor='white', height=800, margin=dict(l=20, r=20, t=100, b=20), showlegend=False)
     return fig
     
 @st.cache_data
 def create_toolkit_conceptual_map():
-    # SME Note: Completely re-architected the map to reflect the new four-act structure and all tools.
+    """Generates the conceptual map, now including all tools."""
     structure = {
-        'Validation Planning & Strategy': ['Risk Management', 'Requirements Definition', 'Design Principles'],
+        'Validation Planning & Strategy': ['Risk Management', 'Requirements Definition', 'Design Principles', 'Project Management'],
         'Method & Process Characterization': ['Foundational Statistics', 'Measurement Systems Analysis', 'Experimental Design'],
-        'Process & Lifecycle Management': ['Statistical Process Control', 'Validation & Qualification'],
+        'Process & Lifecycle Management': ['Statistical Process Control', 'Validation & Qualification', 'Operational Excellence'],
         'Advanced Analytics (ML/AI)': ['Predictive Modeling', 'Unsupervised Learning', 'Time Series & Sequential']
     }
     sub_structure = {
-        'Risk Management': ['Quality Risk Management (QRM) Suite'],
-        'Requirements Definition': ['TPP & CQA Cascade', 'Analytical Target Profile (ATP) Builder', 'V&V Strategy & Justification', 'Design Controls & DHF', 'Requirements Traceability Matrix (RTM)'],
+        'Risk Management': ['Quality Risk Management (QRM) Suite', 'Root Cause Analysis (RCA)'],
+        'Requirements Definition': ['TPP & CQA Cascade', 'Analytical Target Profile (ATP) Builder', 'V&V Strategy & Justification', 'Design Controls & DHF'],
         'Design Principles': ['Design for Excellence (DfX)', 'FAT & SAT'],
-        'Foundational Statistics': ['Confidence Interval Concept', 'Confidence Intervals for Proportions', 'Bayesian Inference', 'Comprehensive Diagnostic Validation'],
-        'Measurement Systems Analysis': ['Gage R&R / VCA', 'Attribute Agreement Analysis', 'Method Comparison', 'LOD & LOQ'],
-        'Experimental Design': ['Assay Robustness (DOE)', 'Process Optimization: From DOE to AI', 'Mixture Design (Formulations)', 'Split-Plot Designs', 'Causal Inference'],
+        'Project Management': ['Validation Master Plan (VMP) Builder', 'Requirements Traceability Matrix (RTM)', 'Gap Analysis & Change Control'],
+        'Foundational Statistics': ['Exploratory Data Analysis (EDA)', 'Confidence Interval Concept', 'Confidence Intervals for Proportions', 'Bayesian Inference', 'Comprehensive Diagnostic Validation'],
+        'Measurement Systems Analysis': ['Gage R&R / VCA', 'Attribute Agreement Analysis', 'Method Comparison', 'LOD & LOQ', 'ROC Curve Analysis'],
+        'Experimental Design': ['Assay Robustness (DOE)', 'Mixture Design (Formulations)', 'Split-Plot Designs', 'Causal Inference', 'Bayesian Optimization'],
         'Statistical Process Control': ['Process Stability (SPC)', 'Small Shift Detection', 'Multivariate SPC', 'MEWMA + XGBoost Diagnostics', 'Run Validation (Westgard)'],
-        'Validation & Qualification': ['Process Capability (Cpk)', 'Tolerance Intervals', 'Reliability / Survival Analysis', 'Stability Analysis (Shelf-Life)', 'Sample Size for Qualification', 'Statistical Equivalence for Process Transfer', 'Advanced Stability Design', 'First Time Yield & Cost of Quality'],
-        'Predictive Modeling': ['Linearity & Range', 'Non-Linear Regression (4PL/5PL)', 'Multivariate Analysis (MVA)', 'Predictive QC (Classification)', 'Explainable AI (XAI)'],
-        'Unsupervised Learning': ['Clustering (Unsupervised)', 'Anomaly Detection', 'LSTM Autoencoder', 'PSO + Autoencoder'],
-        'Time Series & Sequential': ['Time Series Forecasting Suite', 'BOCPD + ML Features', 'Kalman Filter + Residual Chart', 'TCN + CUSUM', 'RL for Chart Tuning', 'Advanced AI Concepts']
+        'Validation & Qualification': ['Process Capability (Cpk)', 'Tolerance Intervals', 'Component Reliability Testing', 'Reliability / Survival Analysis', 'Stability Analysis (Shelf-Life)', 'Sample Size for Qualification', 'Statistical Equivalence for Process Transfer', 'Advanced Stability Design', 'Equivalence Testing (TOST)', 'Wasserstein Distance'],
+        'Operational Excellence': ['First Time Yield & Cost of Quality', 'Overall Equipment Effectiveness (OEE)', 'Lean Manufacturing & VSM', 'Production Line Sync (ODE)'],
+        'Predictive Modeling': ['Linearity & Range', 'Non-Linear Regression (4PL/5PL)', 'Multivariate Analysis (MVA)', 'Predictive Modeling Suite', 'Explainable AI (XAI)', 'Causal ML / Double ML'],
+        'Unsupervised Learning': ['Clustering (Unsupervised)', 'Anomaly Detection', 'LSTM Autoencoder + Hybrid Monitoring', 'PSO + Autoencoder'],
+        'Time Series & Sequential': ['Time Series Forecasting Suite', 'Prophet Forecasting', 'BOCPD + ML Features', 'Kalman Filter + Residual Chart', 'TCN + CUSUM', 'RL for Chart Tuning', 'Advanced AI Concepts', 'Digital Twin & Real-Time Simulation']
     }
     tool_origins = {
-        'TPP & CQA Cascade': 'Biostatistics', 'Analytical Target Profile (ATP) Builder': 'Biostatistics', 'Quality Risk Management (QRM) Suite': 'Industrial Quality Control', 
-        'V&V Strategy & Justification': 'Industrial Quality Control', 'Design Controls & DHF': 'Industrial Quality Control', 'FAT & SAT': 'Industrial Quality Control',
-        'Design for Excellence (DfX)': 'Industrial Quality Control', 'Validation Master Plan (VMP) Builder': 'Industrial Quality Control', 'Requirements Traceability Matrix (RTM)': 'Industrial Quality Control',
-        'Confidence Interval Concept': 'Statistics', 'Confidence Intervals for Proportions': 'Statistics', 'Equivalence Testing (TOST)': 'Biostatistics', 'Bayesian Inference': 'Statistics', 'ROC Curve Analysis': 'Statistics', 'Comprehensive Diagnostic Validation': 'Biostatistics',
-        'Gage R&R / VCA': 'Industrial Quality Control', 'Attribute Agreement Analysis': 'Statistics', 'Method Comparison': 'Biostatistics', 'LOD & LOQ': 'Statistics',
-        'Assay Robustness (DOE)': 'Statistics', 'Process Optimization: From DOE to AI': 'Data Science / ML', 'Mixture Design (Formulations)': 'Statistics', 'Split-Plot Designs': 'Statistics', 'Causal Inference': 'Data Science / ML',
-        'Process Stability (SPC)': 'Industrial Quality Control', 'Small Shift Detection': 'Industrial Quality Control', 'Multivariate SPC': 'Industrial Quality Control', 'MEWMA + XGBoost Diagnostics': 'Data Science / ML', 'Run Validation (Westgard)': 'Biostatistics',
-        'Process Capability (Cpk)': 'Industrial Quality Control', 'Tolerance Intervals': 'Statistics', 'Reliability / Survival Analysis': 'Biostatistics', 'Stability Analysis (Shelf-Life)': 'Biostatistics', 'Sample Size for Qualification': 'Industrial Quality Control', 'Statistical Equivalence for Process Transfer': 'Biostatistics', 'Advanced Stability Design': 'Biostatistics', 'First Time Yield & Cost of Quality': 'Industrial Quality Control',
-        'Linearity & Range': 'Statistics', 'Non-Linear Regression (4PL/5PL)': 'Biostatistics', 'Multivariate Analysis (MVA)': 'Data Science / ML', 'Predictive QC (Classification)': 'Data Science / ML', 'Explainable AI (XAI)': 'Data Science / ML',
-        'Clustering (Unsupervised)': 'Data Science / ML', 'Anomaly Detection': 'Data Science / ML', 'LSTM Autoencoder': 'Data Science / ML', 'PSO + Autoencoder': 'Data Science / ML',
-        'Time Series Forecasting Suite': 'Statistics', 'BOCPD + ML Features': 'Data Science / ML', 'Kalman Filter + Residual Chart': 'Statistics', 'TCN + CUSUM': 'Data Science / ML', 'RL for Chart Tuning': 'Data Science / ML', 'Advanced AI Concepts': 'Data Science / ML'
+        # Act 0
+        'TPP & CQA Cascade': 'Biostatistics', 'Analytical Target Profile (ATP) Builder': 'Biostatistics',
+        'Quality Risk Management (QRM) Suite': 'Industrial Quality Control', 'Root Cause Analysis (RCA)': 'Industrial Quality Control',
+        'V&V Strategy & Justification': 'Industrial Quality Control', 'Design Controls & DHF': 'Industrial Quality Control',
+        'Design for Excellence (DfX)': 'Industrial Quality Control', 'FAT & SAT': 'Industrial Quality Control',
+        'Validation Master Plan (VMP) Builder': 'Industrial Quality Control', 'Requirements Traceability Matrix (RTM)': 'Industrial Quality Control',
+        'Gap Analysis & Change Control': 'Industrial Quality Control',
+        # Act I
+        'Exploratory Data Analysis (EDA)': 'Statistics', 'Confidence Interval Concept': 'Statistics',
+        'Confidence Intervals for Proportions': 'Statistics', 'Bayesian Inference': 'Statistics',
+        'Comprehensive Diagnostic Validation': 'Biostatistics', 'Gage R&R / VCA': 'Industrial Quality Control',
+        'Attribute Agreement Analysis': 'Statistics', 'Method Comparison': 'Biostatistics',
+        'LOD & LOQ': 'Statistics', 'ROC Curve Analysis': 'Statistics', 'Assay Robustness (DOE)': 'Statistics',
+        'Mixture Design (Formulations)': 'Statistics', 'Split-Plot Designs': 'Statistics',
+        'Causal Inference': 'Data Science / ML', 'Bayesian Optimization': 'Data Science / ML', 'Causal ML / Double ML': 'Data Science / ML',
+        'Component Reliability Testing': 'Industrial Quality Control', 'Process Optimization: From DOE to AI': 'Data Science / ML',
+        # Act II
+        'Process Stability (SPC)': 'Industrial Quality Control', 'Small Shift Detection': 'Industrial Quality Control',
+        'Multivariate SPC': 'Industrial Quality Control', 'MEWMA + XGBoost Diagnostics': 'Data Science / ML',
+        'Run Validation (Westgard)': 'Biostatistics', 'Process Capability (Cpk)': 'Industrial Quality Control',
+        'Tolerance Intervals': 'Statistics', 'Reliability / Survival Analysis': 'Biostatistics',
+        'Stability Analysis (Shelf-Life)': 'Biostatistics', 'Sample Size for Qualification': 'Industrial Quality Control',
+        'Statistical Equivalence for Process Transfer': 'Biostatistics', 'Advanced Stability Design': 'Biostatistics',
+        'Equivalence Testing (TOST)': 'Biostatistics', 'Wasserstein Distance': 'Data Science / ML',
+        'First Time Yield & Cost of Quality': 'Industrial Quality Control', 'Overall Equipment Effectiveness (OEE)': 'Industrial Quality Control',
+        'Lean Manufacturing & VSM': 'Industrial Quality Control', 'Production Line Sync (ODE)': 'Industrial Quality Control',
+        'Monte Carlo Simulation for Risk Analysis': 'Statistics',
+        # Act III
+        'Linearity & Range': 'Statistics', 'Non-Linear Regression (4PL/5PL)': 'Biostatistics',
+        'Multivariate Analysis (MVA)': 'Data Science / ML', 'Predictive Modeling Suite': 'Data Science / ML',
+        'Explainable AI (XAI)': 'Data Science / ML', 'Clustering (Unsupervised)': 'Data Science / ML',
+        'Anomaly Detection': 'Data Science / ML', 'LSTM Autoencoder + Hybrid Monitoring': 'Data Science / ML',
+        'PSO + Autoencoder': 'Data Science / ML', 'Time Series Forecasting Suite': 'Statistics', 'Prophet Forecasting': 'Data Science / ML',
+        'BOCPD + ML Features': 'Data Science / ML', 'Kalman Filter + Residual Chart': 'Statistics',
+        'TCN + CUSUM': 'Data Science / ML', 'RL for Chart Tuning': 'Data Science / ML',
+        'Advanced AI Concepts': 'Data Science / ML', 'Digital Twin & Real-Time Simulation': 'Data Science / ML',
+        'Process Control Plan Builder': 'Industrial Quality Control'
     }
     origin_colors = {'Statistics': '#1f77b4', 'Biostatistics': '#2ca02c', 'Industrial Quality Control': '#ff7f0e', 'Data Science / ML': '#d62728', 'Structure': '#6A5ACD'}
 
@@ -547,16 +594,18 @@ def create_toolkit_conceptual_map():
     y_coords = np.linspace(len(all_tools_flat) * vertical_spacing, -len(all_tools_flat) * vertical_spacing, len(all_tools_flat))
     x_positions = [4, 5]
     for i, tool_key in enumerate(all_tools_flat):
-        short_name = tool_key.replace(' +', '<br>+').replace(' (', '<br>(').replace('Comprehensive ', 'Comprehensive<br>').replace(': From', ':<br>From').replace('V&V Strategy', 'V&V<br>Strategy')
-        nodes[tool_key] = {'x': x_positions[i % 2], 'y': y_coords[i], 'name': tool_key, 'short': short_name, 'origin': tool_origins.get(tool_key)}
+        short_name = tool_key.replace(' +', '<br>+').replace(' (', '<br>(').replace('Comprehensive ', 'Comprehensive<br>').replace(': From', ':<br>From').replace('V&V Strategy', 'V&V<br>Strategy').replace('Statistical Equivalence', 'Stat.<br>Equivalence')
+        nodes[tool_key] = {'x': x_positions[i % 2], 'y': y_coords[i], 'name': tool_key, 'short': short_name, 'origin': tool_origins.get(tool_key, 'Statistics')}
 
     for l2_key, l3_keys in sub_structure.items():
-        child_ys = [nodes[child_key]['y'] for child_key in l3_keys]
-        nodes[l2_key] = {'x': 2.5, 'y': np.mean(child_ys), 'name': l2_key, 'short': l2_key.replace(' ', '<br>'), 'origin': 'Structure'}
+        child_ys = [nodes[child_key]['y'] for child_key in l3_keys if child_key in nodes]
+        if child_ys:
+            nodes[l2_key] = {'x': 2.5, 'y': np.mean(child_ys), 'name': l2_key, 'short': l2_key.replace(' ', '<br>'), 'origin': 'Structure'}
 
     for l1_key, l2_keys in structure.items():
-        child_ys = [nodes[child_key]['y'] for child_key in l2_keys]
-        nodes[l1_key] = {'x': 1, 'y': np.mean(child_ys), 'name': l1_key, 'short': l1_key.replace(' ', '<br>').replace('Validation Planning', 'Validation<br>Planning'), 'origin': 'Structure'}
+        child_ys = [nodes[child_key]['y'] for child_key in l2_keys if child_key in nodes]
+        if child_ys:
+            nodes[l1_key] = {'x': 1, 'y': np.mean(child_ys), 'name': l1_key, 'short': l1_key.replace(' ', '<br>').replace('Validation Planning', 'Validation<br>Planning'), 'origin': 'Structure'}
 
     nodes['CENTER'] = {'x': -0.5, 'y': 0, 'name': 'V&V Analytics Toolkit', 'short': 'V&V Analytics<br>Toolkit', 'origin': 'Structure'}
     
@@ -565,8 +614,9 @@ def create_toolkit_conceptual_map():
                 [(l1, l2) for l1, l2s in structure.items() for l2 in l2s] + \
                 [(l2, l3) for l2, l3s in sub_structure.items() for l3 in l3s]
     for start_key, end_key in all_edges:
-        fig.add_shape(type="line", x0=nodes[start_key]['x'], y0=nodes[start_key]['y'],
-                      x1=nodes[end_key]['x'], y1=nodes[end_key]['y'], line=dict(color="lightgrey", width=1.5))
+        if start_key in nodes and end_key in nodes:
+            fig.add_shape(type="line", x0=nodes[start_key]['x'], y0=nodes[start_key]['y'],
+                          x1=nodes[end_key]['x'], y1=nodes[end_key]['y'], line=dict(color="lightgrey", width=1.5))
     
     data_by_origin = {name: {'x': [], 'y': [], 'short': [], 'full': [], 'size': [], 'font_size': []} for name in origin_colors.keys()}
     size_map = {'CENTER': 150, 'Level1': 130, 'Level2': 110, 'Tool': 90}
@@ -602,6 +652,107 @@ def create_toolkit_conceptual_map():
         xaxis=dict(visible=False, range=[-1, 6]),
         yaxis=dict(visible=False, range=[-len(all_tools_flat)*1.2, len(all_tools_flat)*1.2]),
         height=len(all_tools_flat) * 45, # Adjusted height
+        margin=dict(l=20, r=20, t=60, b=20),
+        plot_bgcolor='#FFFFFF', paper_bgcolor='#f0f2f6'
+    )
+    return fig
+
+@st.cache_data
+def create_business_case_map():
+    """
+    Generates a conceptual map organizing the toolkit by core business case themes.
+    """
+    business_themes = {
+        'De-Risking Launches & Transfers': {'icon': '🚀', 'color': '#0068C9'},
+        'Maximizing Profitability & Value': {'icon': '💰', 'color': '#2ca02c'},
+        'Accelerating Innovation & Troubleshooting': {'icon': '💡', 'color': '#ff7f0e'},
+        'Ensuring Compliance & Data Integrity': {'icon': '🏛️', 'color': '#d62728'},
+        'Proactive Lifecycle Management': {'icon': '🛡️', 'color': '#9467bd'}
+    }
+
+    tool_to_theme = {
+        'De-Risking Launches & Transfers': [
+            'Analytical Target Profile (ATP) Builder', 'Quality Risk Management (QRM) Suite',
+            'FAT & SAT', 'Sample Size for Qualification', 'Method Comparison',
+            'Equivalence Testing (TOST)', 'Wasserstein Distance', 'Statistical Equivalence for Process Transfer'
+        ],
+        'Maximizing Profitability & Value': [
+            'Design for Excellence (DfX)', 'LOD & LOQ', 'Comprehensive Diagnostic Validation',
+            'Process Capability (Cpk)', 'First Time Yield & Cost of Quality', 'Overall Equipment Effectiveness (OEE)',
+            'Lean Manufacturing & VSM', 'Production Line Sync (ODE)', 'Tolerance Intervals'
+        ],
+        'Accelerating Innovation & Troubleshooting': [
+            'Root Cause Analysis (RCA)', 'Mixture Design (Formulations)',
+            'Process Optimization: From DOE to AI', 'Bayesian Optimization', 'Causal Inference',
+            'Causal ML / Double ML', 'Clustering (Unsupervised)', 'PSO + Autoencoder'
+        ],
+        'Ensuring Compliance & Data Integrity': [
+            'TPP & CQA Cascade', 'V&V Strategy & Justification', 'Design Controls & DHF',
+            'Validation Master Plan (VMP) Builder', 'Requirements Traceability Matrix (RTM)', 'Gap Analysis & Change Control',
+            'Exploratory Data Analysis (EDA)', 'Confidence Interval Concept', 'Confidence Intervals for Proportions',
+            'Core Validation Parameters', 'Linearity & Range', 'Non-Linear Regression (4PL/5PL)',
+            'Gage R&R / VCA', 'Attribute Agreement Analysis', 'ROC Curve Analysis'
+        ],
+        'Proactive Lifecycle Management': [
+            'Component Reliability Testing', 'Advanced Stability Design', 'Process Stability (SPC)',
+            'Process Control Plan Builder', 'Run Validation (Westgard)', 'Small Shift Detection',
+            'Multivariate SPC', 'Stability Analysis (Shelf-Life)', 'Reliability / Survival Analysis',
+            'Time Series Forecasting Suite', 'Prophet Forecasting', 'Multivariate Analysis (MVA)',
+            'Predictive Modeling Suite', 'Explainable AI (XAI)', 'Anomaly Detection',
+            'Advanced AI Concepts', 'MEWMA + XGBoost Diagnostics', 'BOCPD + ML Features',
+            'Kalman Filter + Residual Chart', 'RL for Chart Tuning', 'TCN + CUSUM',
+            'LSTM Autoencoder + Hybrid Monitoring', 'Digital Twin & Real-Time Simulation', 'Bayesian Inference'
+        ]
+    }
+
+    fig = go.Figure()
+    nodes = {}
+
+    # Center Node
+    nodes['CENTER'] = {'x': 0, 'y': 0, 'name': 'Business Value', 'short': 'Business<br>Value', 'color': DARK_GREY, 'size': 150, 'font_size': 16}
+
+    # Theme Nodes (L1)
+    num_themes = len(business_themes)
+    angle_step_l1 = 2 * np.pi / num_themes
+    radius_l1 = 1.5
+    for i, (theme, props) in enumerate(business_themes.items()):
+        angle = i * angle_step_l1
+        x, y = radius_l1 * np.cos(angle), radius_l1 * np.sin(angle)
+        nodes[theme] = {'x': x, 'y': y, 'name': theme, 'short': f"{props['icon']}<br><b>{theme.replace(' & ', '<br>& ')}</b>", 'color': props['color'], 'size': 120, 'font_size': 12}
+        fig.add_shape(type="line", x0=nodes['CENTER']['x'], y0=nodes['CENTER']['y'], x1=x, y1=y, line=dict(color="lightgrey", width=2))
+
+    # Tool Nodes (L2)
+    radius_l2 = 3.5
+    total_tools = sum(len(tools) for tools in tool_to_theme.values())
+    
+    current_angle = 0
+    for i, (theme, tools) in enumerate(tool_to_theme.items()):
+        arc_angle = (len(tools) / total_tools) * 2 * np.pi
+        angle_step_l2 = arc_angle / (len(tools) + 1)
+        
+        for j, tool in enumerate(tools):
+            angle = current_angle + (j + 1) * angle_step_l2
+            x, y = radius_l2 * np.cos(angle), radius_l2 * np.sin(angle)
+            nodes[tool] = {'x': x, 'y': y, 'name': tool, 'short': tool.replace(' (', '<br>(').replace(' & ', '<br>& ').replace(' for ', '<br>for '), 'color': business_themes[theme]['color'], 'size': 70, 'font_size': 9}
+            fig.add_shape(type="line", x0=nodes[theme]['x'], y0=nodes[theme]['y'], x1=x, y1=y, line=dict(color="lightgrey", width=1))
+        current_angle += arc_angle
+
+    # Plot Nodes
+    for key, props in nodes.items():
+        fig.add_trace(go.Scatter(
+            x=[props['x']], y=[props['y']], text=[props['short']],
+            mode='markers+text', textposition="middle center",
+            marker=dict(size=props['size'], color=props['color'], symbol='circle', line=dict(width=2, color='black')),
+            textfont=dict(size=props['font_size'], color='white', family="Arial, sans-serif"),
+            hovertext=f"<b>{props['name']}</b>", hoverinfo='text',
+            showlegend=False
+        ))
+
+    fig.update_layout(
+        title_text='<b>Toolkit Map by Business Case Theme</b>',
+        xaxis=dict(visible=False, showgrid=False, range=[-4.5, 4.5]),
+        yaxis=dict(visible=False, showgrid=False, range=[-4.5, 4.5], scaleanchor="x", scaleratio=1),
+        height=1000,
         margin=dict(l=20, r=20, t=60, b=20),
         plot_bgcolor='#FFFFFF', paper_bgcolor='#f0f2f6'
     )
@@ -6584,8 +6735,6 @@ def plot_digital_twin_dashboard(fault_type, fault_magnitude, fault_time):
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================
 
-# SNIPPET: Replace your entire render_introduction_content() function with this corrected version.
-
 def render_introduction_content():
     """Renders the complete, all-in-one introduction and framework dashboard for V&V Sentinel."""
     st.title("🛡️ V&V Sentinel")
@@ -6628,9 +6777,7 @@ def render_introduction_content():
     c2.markdown("- **The Business Case:** A detailed breakdown of the problem, impact, solution, and consequences, framing each tool's value in financial and strategic terms for stakeholders.")
     
     c3.subheader("🎓 Deep Educational Context")
-    # --- THIS IS THE CORRECTED LINE ---
     c3.markdown('- **Glossaries & Golden Rules:** Clear definitions of key terms and actionable "best practice" advice.')
-    # --- END OF CORRECTION ---
     c3.markdown("- **Theory, History & Math:** Explore the fascinating origins of each method, from WWII code-breaking to the biotech revolution, and understand the core mathematical principles.")
     c3.markdown("- **Regulatory & Compliance:** Connect each tool to specific FDA, ICH, and ISO guidelines to understand its role in a compliant GxP environment.")
     
@@ -6684,6 +6831,11 @@ def render_introduction_content():
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
 
+    # --- NEW SECTION FOR THE BUSINESS CASE MAP ---
+    st.header("💼 Map by Business Case Theme")
+    st.markdown("This map re-organizes the entire toolkit by the primary business problem it solves. Use this to communicate the value of these analytical tools to stakeholders and to build a business case for a data-driven validation strategy.")
+    st.plotly_chart(create_business_case_map(), use_container_width=True)
+    # --- END OF NEW SECTION ---
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================

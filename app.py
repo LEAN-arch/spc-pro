@@ -2498,7 +2498,7 @@ def plot_tost(delta=5.0, true_diff=1.0, std_dev=5.0, n_samples=50):
 def plot_reliability_weibull(n, beta, eta, test_duration):
     """
     Simulates a censored life test and fits a Weibull distribution to the results.
-    This version is updated to use the robust 'lifelines' library for fitting.
+    This version is updated for maximum stability using lifelines for fitting and scipy for plotting.
     """
     from lifelines import WeibullFitter
     
@@ -2510,15 +2510,13 @@ def plot_reliability_weibull(n, beta, eta, test_duration):
     durations = np.minimum(failures, test_duration)
     event_observed = (failures <= test_duration)
 
-    # --- START OF THE FIX: Use lifelines for a robust Weibull fit ---
+    # Use lifelines for its robust fitting of censored data
     wf = WeibullFitter()
     wf.fit(durations, event_observed=event_observed)
     
     # Extract the fitted parameters (lifelines uses lambda_ and rho_)
-    # lambda_ is the scale (eta/alpha), rho_ is the shape (beta)
-    fitted_alpha = wf.lambda_
-    fitted_beta = wf.rho_
-    # --- END OF THE FIX ---
+    fitted_alpha = wf.lambda_ # This is the Scale parameter (eta)
+    fitted_beta = wf.rho_    # This is the Shape parameter (beta)
 
     # Generate plots
     fig = make_subplots(
@@ -2526,39 +2524,43 @@ def plot_reliability_weibull(n, beta, eta, test_duration):
         subplot_titles=("<b>Weibull Probability Plot</b>", "<b>Reliability Curve (Survival Function)</b>")
     )
     
+    # --- START OF THE FIX: Use scipy.stats.probplot for a robust probability plot ---
     # 1. Probability Plot
-    # lifelines has a built-in method to generate probability plots
-    fig_prob = plt.figure()
-    ax_prob = fig_prob.add_subplot(111)
-    wf.plot_probability_plot(ax=ax_prob)
-    # Extract data from the matplotlib plot to replot in Plotly
-    points = ax_prob.collections[0]
-    line = ax_prob.lines[0]
-    fig.add_trace(go.Scatter(x=np.exp(points.get_offsets()[:, 0]), y=points.get_offsets()[:, 1], mode='markers', name='Failure Data', marker=dict(color=PRIMARY_COLOR)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=np.exp(line.get_xdata()), y=line.get_ydata(), mode='lines', name='Weibull Fit', line=dict(color='red', dash='dash')), row=1, col=1)
-    plt.close(fig_prob)
+    # We only plot the points that actually failed to check the fit.
+    failed_durations = durations[event_observed]
+    if len(failed_durations) < 2: # Need at least 2 points to plot a line
+        return go.Figure().update_layout(title_text="Not enough failures to plot. Increase test duration or sample size."), 0, 0, 0
 
-    # 2. Reliability Curve (Survival Function)
+    # `probplot` generates theoretical quantiles vs. ordered data values.
+    # For a Weibull plot, we plot against the weibull_min distribution.
+    (osm, osr), (slope, intercept, r) = stats.probplot(failed_durations, dist=stats.weibull_min, sparams=(fitted_beta, 0, fitted_alpha))
+    
+    # Plot the ordered data against the theoretical quantiles
+    fig.add_trace(go.Scatter(x=osm, y=osr, mode='markers', name='Failure Data', marker=dict(color=PRIMARY_COLOR)), row=1, col=1)
+    
+    # Plot the best-fit line
+    fig.add_trace(go.Scatter(x=osm, y=intercept + slope * osm, mode='lines', name='Weibull Fit', line=dict(color='red', dash='dash')), row=1, col=1)
+    # --- END OF THE FIX ---
+
+    # 2. Reliability Curve (Survival Function) - this part is correct and robust
     time_grid = np.linspace(0, test_duration * 1.2, 200)
     survival_prob = wf.survival_function_at_times(time_grid)
     ci_df = wf.confidence_interval_survival_function_
     
     fig.add_trace(go.Scatter(x=survival_prob.index, y=survival_prob.values, mode='lines', name='Reliability', line=dict(color=PRIMARY_COLOR, width=3)), row=1, col=2)
-    # Plot confidence interval
     fig.add_trace(go.Scatter(x=ci_df.index, y=ci_df.iloc[:, 1], mode='lines', line=dict(width=0), showlegend=False), row=1, col=2)
     fig.add_trace(go.Scatter(x=ci_df.index, y=ci_df.iloc[:, 0], mode='lines', line=dict(width=0), fill='tonexty', fillcolor='rgba(0,104,201,0.2)', name='95% CI'), row=1, col=2)
 
-    # B10 Life Calculation (time at which survival is 90%)
     try:
-        b10_life = wf.predict(0.90)
+        b10_life = wf.predict(0.90) # Time at which 90% are still surviving
         fig.add_hline(y=0.90, line=dict(color='red', dash='dash'), row=1, col=2)
         fig.add_vline(x=b10_life, line=dict(color='red', dash='dash'), row=1, col=2)
         fig.add_annotation(x=b10_life, y=0.90, text=f"B10 Life: {b10_life:.1f} hrs", showarrow=True, arrowhead=2, ax=50, ay=-40, row=1, col=2)
-    except:
-        b10_life = 0 # Handle cases where it can't be calculated
+    except Exception:
+        b10_life = 0
 
-    fig.update_xaxes(title_text="Time to Failure (Hours) [log scale]", type='log', row=1, col=1)
-    fig.update_yaxes(title_text="Standard Normal Quantiles", row=1, col=1)
+    fig.update_xaxes(title_text="Weibull Theoretical Quantiles", row=1, col=1)
+    fig.update_yaxes(title_text="Ordered Failure Times", row=1, col=1)
     fig.update_xaxes(title_text="Operating Time (Hours)", row=1, col=2)
     fig.update_yaxes(title_text="Probability of Survival", range=[0, 1.05], row=1, col=2)
     fig.update_layout(title="<b>Weibull Analysis of Life Test Data</b>", showlegend=False)

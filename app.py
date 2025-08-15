@@ -2996,107 +2996,62 @@ def plot_split_plot_doe(lot_variation_sd=0.5, interaction_effect=0.0):
 # HELPER & PLOTTING FUNCTION (Causal Inference) - SME ENHANCED
 # ==============================================================================
 @st.cache_data
-def plot_causal_inference(confounding_strength=5.0):
+def plot_causal_ml_comparison(confounding_strength):
     """
-    Generates enhanced, more realistic dynamic plots for the Causal Inference module,
-    featuring a professionally redesigned Directed Acyclic Graph (DAG).
+    Compares a standard model's correlation to a Causal ML estimate.
+    OPTIMIZED for speed and CORRECTED for data shape and return type issues.
     """
-    # --- 1. The Causal Map (DAG) - Redesigned for professional rendering ---
-    fig_dag = go.Figure()
+    from econml.dml import LinearDML
+    from sklearn.ensemble import RandomForestRegressor
+    import statsmodels.api as sm
 
-    # Node positions and properties
-    nodes = {
-        'Sensor Reading': {'pos': (0, 0), 'color': '#636EFA'},
-        'Product Purity': {'pos': (3, 0), 'color': '#00CC96'},
-        'Calibration Age': {'pos': (1.5, 1.5), 'color': '#EF553B'}
-    }
-    
-    # --- THIS IS THE CORRECTED BLOCK ---
-    # Add Edges (Arrows) with color-coding for paths
-    # The arguments `axshift` and `ayshift` have been removed.
-    # The arrow's tail is now precisely controlled by `ax` and `ay` in data coordinates.
-    # Causal Path (Green)
-    fig_dag.add_annotation(x=nodes['Product Purity']['pos'][0] - 0.45, y=nodes['Product Purity']['pos'][1], # Arrow head
-                           ax=nodes['Sensor Reading']['pos'][0] + 0.45, ay=nodes['Sensor Reading']['pos'][1], # Arrow tail
-                           xref='x', yref='y', axref='x', ayref='y', showarrow=True,
-                           arrowhead=2, arrowwidth=4, arrowcolor='#00CC96')
-    
-    # Backdoor Path (Red)
-    fig_dag.add_annotation(x=nodes['Sensor Reading']['pos'][0] + 0.15, y=nodes['Sensor Reading']['pos'][1] + 0.4,
-                           ax=nodes['Calibration Age']['pos'][0] - 0.15, ay=nodes['Calibration Age']['pos'][1] - 0.4,
-                           xref='x', yref='y', axref='x', ayref='y', showarrow=True,
-                           arrowhead=2, arrowwidth=3, arrowcolor='#EF553B')
-    fig_dag.add_annotation(x=nodes['Product Purity']['pos'][0] - 0.15, y=nodes['Product Purity']['pos'][1] + 0.4,
-                           ax=nodes['Calibration Age']['pos'][0] + 0.15, ay=nodes['Calibration Age']['pos'][1] - 0.4,
-                           xref='x', yref='y', axref='x', ayref='y', showarrow=True,
-                           arrowhead=2, arrowwidth=3, arrowcolor='#EF553B')
-    # --- END OF CORRECTION ---
-
-    # Add Nodes (Circles)
-    for name, attrs in nodes.items():
-        fig_dag.add_shape(type="circle", xref="x", yref="y",
-                          x0=attrs['pos'][0] - 0.5, y0=attrs['pos'][1] - 0.5,
-                          x1=attrs['pos'][0] + 0.5, y1=attrs['pos'][1] + 0.5,
-                          line_color="Black", fillcolor=attrs['color'], line_width=2)
-        fig_dag.add_annotation(x=attrs['pos'][0], y=attrs['pos'][1], text=f"<b>{name.replace(' ', '<br>')}</b>",
-                               showarrow=False, font=dict(color='white', size=12))
-
-    # Add Path Labels
-    fig_dag.add_annotation(x=1.5, y=-0.3, text="<b><span style='color:#00CC96'>Direct Causal Path</span></b>",
-                           showarrow=False, font_size=14)
-    fig_dag.add_annotation(x=1.5, y=0.8, text="<b><span style='color:#EF553B'>Confounding 'Backdoor' Path</span></b>",
-                           showarrow=False, font_size=14)
-
-    fig_dag.update_layout(
-        title="<b>1. The Causal Map (DAG): Calibration Drift Scenario</b>",
-        showlegend=False, xaxis=dict(visible=False, showgrid=False, range=[-1, 4]),
-        yaxis=dict(visible=False, showgrid=False, range=[-1, 2.5]),
-        height=400, margin=dict(t=50, b=20), plot_bgcolor='rgba(0,0,0,0)'
-    )
-
-    # --- 2. Simulate data demonstrating Simpson's Paradox ---
+    # Simulate data
     np.random.seed(42)
-    n_samples = 200
-    cal_age = np.random.randint(0, 2, n_samples)
+    n = 500
+    W = np.random.uniform(0, 10, size=(n, 1))
+    T_1d = np.random.uniform(0, 5, n) + W.flatten() * confounding_strength
+    T = T_1d.reshape(-1, 1) # Ensure Treatment is 2D: (n_samples, 1)
     
-    true_causal_effect_sensor_on_purity = 0.8
-    true_effect_age_on_purity = -confounding_strength
-    true_effect_age_on_sensor = confounding_strength
-    
-    sensor = 50 + true_effect_age_on_sensor * cal_age + np.random.normal(0, 5, n_samples)
-    purity = 90 + true_causal_effect_sensor_on_purity * (sensor - 50) + true_effect_age_on_purity * cal_age + np.random.normal(0, 5, n_samples)
-    
-    df = pd.DataFrame({'SensorReading': sensor, 'Purity': purity, 'CalibrationAge': cal_age})
-    df['calibration_status'] = df['CalibrationAge'].apply(lambda x: 'Old' if x == 1 else 'New')
+    # The true causal effect of T is a constant +2
+    Y = 2 * T.flatten() + 5 * np.sin(W.flatten()) + np.random.normal(0, 1, n)
 
-    # --- 3. Calculate effects ---
-    naive_model = ols('Purity ~ SensorReading', data=df).fit()
-    naive_effect = naive_model.params['SensorReading']
-    
-    adjusted_model = ols('Purity ~ SensorReading + C(calibration_status)', data=df).fit()
-    adjusted_effect = adjusted_model.params['SensorReading']
+    # --- Causal ML Model (LinearDML) ---
+    est = LinearDML(
+        model_y=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42), 
+        model_t=RandomForestRegressor(n_estimators=30, min_samples_leaf=10, random_state=42),
+        random_state=42
+    )
+    est.fit(Y, T, W=W)
+    # --- THIS IS THE FIX ---
+    # .const_marginal_effect() returns an array, so we extract the single float value from it.
+    causal_effect_ate = est.const_marginal_effect().item()
+    # --- END OF FIX ---
 
-    # --- 4. Create the scatter plot ---
-    fig_scatter = px.scatter(df, x='SensorReading', y='Purity', color='calibration_status',
-                             title="<b>2. Simpson's Paradox: The Danger of Confounding</b>",
-                             color_discrete_map={'New': 'blue', 'Old': 'red'},
-                             labels={'SensorReading': 'In-Process Sensor Reading', 'calibration_status': 'Calibration Status'})
-    
-    x_range = np.array([df['SensorReading'].min(), df['SensorReading'].max()])
-    
-    fig_scatter.add_trace(go.Scatter(x=x_range, y=naive_model.predict({'SensorReading': x_range}), mode='lines', 
-                                     name='Naive Correlation (Misleading)', line=dict(color='orange', width=4, dash='dash')))
-    
-    intercept_new = adjusted_model.params['Intercept']
-    intercept_old = intercept_new + adjusted_model.params['C(calibration_status)[T.Old]']
-    fig_scatter.add_trace(go.Scatter(x=x_range, y=intercept_new + adjusted_effect * x_range, mode='lines', 
-                                     name='True Causal Effect (Within Groups)', line=dict(color='darkgreen', width=4)))
-    fig_scatter.add_trace(go.Scatter(x=x_range, y=intercept_old + adjusted_effect * x_range, mode='lines', 
-                                     showlegend=False, line=dict(color='darkgreen', width=4)))
+    # --- Standard OLS Model for Naive Correlation ---
+    # This provides a simple coefficient to display as the biased effect
+    naive_model = sm.OLS(Y, sm.add_constant(T)).fit()
+    naive_effect_coeff = naive_model.params[1]
 
-    fig_scatter.update_layout(height=500, legend=dict(x=0.01, y=0.99))
+    # --- PLOTTING ---
+    fig = go.Figure()
     
-    return fig_dag, fig_scatter, naive_effect, adjusted_effect
+    # Plot the naive (biased) regression line
+    x_range_plot = np.linspace(T.min(), T.max(), 100)
+    fig.add_trace(go.Scatter(x=x_range_plot, y=naive_model.predict(sm.add_constant(x_range_plot)), name=f'Naive Correlation (Slope ≈ {naive_effect_coeff:.2f})', line=dict(color='red', dash='dash', width=3)))
+    
+    # Plot the true causal effect line
+    intercept_causal = Y.mean() - (causal_effect_ate * T.mean())
+    fig.add_trace(go.Scatter(x=x_range_plot, y=intercept_causal + causal_effect_ate * x_range_plot, name=f'Causal ML Effect (ATE ≈ {causal_effect_ate:.2f})', line=dict(color=SUCCESS_GREEN, width=4)))
+    
+    # Plot raw data for context
+    fig.add_trace(go.Scatter(x=T.flatten(), y=Y, mode='markers', name='Raw Data', marker=dict(opacity=0.1, color='grey')))
+    
+    fig.update_layout(title="<b>Standard Correlation vs. Causal ML: Uncovering the True Effect</b>",
+                      xaxis_title="Process Parameter Value", yaxis_title="Impact on Process Output",
+                      legend=dict(x=0.01, y=0.99))
+                      
+    # Return the figure and the two simple float values
+    return fig, causal_effect_ate, naive_effect_coeff
 
 # ============================================ Casual ML ==================================================
 # SNIPPET: Replace your entire plot_causal_ml_comparison function with this optimized version.

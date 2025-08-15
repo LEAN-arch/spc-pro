@@ -7588,32 +7588,29 @@ This ensures alignment from start to finish and guarantees the final deliverable
 def render_ivd_regulatory_framework():
     """Renders the comprehensive module for the IVD & Medical Device Regulatory Framework."""
     st.markdown("""
-    #### Purpose & Application: The Regulatory Roadmap
-    **Purpose:** To provide a clear, high-level overview of the regulatory pathways for In Vitro Diagnostics (IVDs) and Medical Devices in the United States. This module explains the risk-based classification system (Class I, II, III) and the corresponding submission types (510(k), PMA, De Novo, EUA) required to bring a product to market.
+    #### Purpose & Application: The Global Regulatory Roadmap
+    **Purpose:** To provide a clear, high-level overview of the major global regulatory pathways for In Vitro Diagnostics (IVDs) and Medical Devices. This module explains the internationally harmonized risk-based classification system and the corresponding submission types (510(k), PMA, CE Marking) required to bring a product to market in key regions like the US and EU.
     
-    **Strategic Application:** This is the most critical strategic decision in a product's lifecycle. The choice of regulatory pathway, determined by the device's **Intended Use**, dictates the entire project's timeline, cost, data requirements, and ultimate business model. Understanding this roadmap is non-negotiable for R&D, Quality, Regulatory Affairs, and business leadership.
+    **Strategic Application:** This is the most critical strategic decision in a product's lifecycle. The choice of regulatory pathway, determined by the device's **Intended Use**, dictates the entire project's timeline, cost, data requirements, and ultimate business model. Understanding this global roadmap is non-negotiable for R&D, Quality, Regulatory Affairs, and business leadership.
     """)
     st.info("""
     **Interactive Demo:** You are the Head of Regulatory Affairs for a startup.
     1.  Select a **Product Concept** from the dropdown menu in the sidebar.
-    2.  The flowchart will instantly **highlight the correct regulatory pathway** for that product type.
-    3.  Review the **"Applicable Regulations"** matrix and **"Key Considerations"** expanders below to understand the specific requirements for your chosen path.
+    2.  The flowchart will instantly **highlight the US FDA regulatory pathway** for that product type.
+    3.  Review the **"Global Harmonization"** tab to compare this with the European and Japanese systems, and explore the other tabs for a deep dive into the specific requirements.
     """)
 
     with st.sidebar:
         st.subheader("Regulatory Pathway Simulator")
         product_concept = st.selectbox(
-            "Select Your Product Concept:",
+            "Select Your Product Concept (US FDA Example):",
             ["General IVD (510k)", "Novel IVD (PMA)", "Point-of-Care (POC) Device", "Software as a Medical Device (SaMD)", "Emergency Use (EUA) Device", "Novel Low-Risk Device (De Novo)"],
-            help="Your choice determines the device's risk level and corresponding regulatory pathway."
+            help="Your choice determines the device's risk level and corresponding US FDA regulatory pathway."
         )
 
     path_map = {
-        "General IVD (510k)": "510k",
-        "Novel IVD (PMA)": "pma",
-        "Point-of-Care (POC) Device": "510k",
-        "Software as a Medical Device (SaMD)": "510k",
-        "Emergency Use (EUA) Device": "eua",
+        "General IVD (510k)": "510k", "Novel IVD (PMA)": "pma", "Point-of-Care (POC) Device": "510k",
+        "Software as a Medical Device (SaMD)": "510k", "Emergency Use (EUA) Device": "eua",
         "Novel Low-Risk Device (De Novo)": "denovo"
     }
     highlight_path = path_map[product_concept]
@@ -7621,7 +7618,7 @@ def render_ivd_regulatory_framework():
     st.header(f"Regulatory Pathway for: {product_concept}")
     fig = plot_ivd_regulatory_pathway(highlight_path)
     st.plotly_chart(fig, use_container_width=True)
-
+    
     st.header("Applicable Regulations & Key Considerations")
     
     st.markdown("""
@@ -7631,95 +7628,38 @@ def render_ivd_regulatory_framework():
         .reg-table th { background-color: #f2f2f2; }
         .reg-table tr:nth-child(even) { background-color: #f9f9f9; }
     </style>
+    <b>US FDA Quick Reference Matrix</b>
     <table class="reg-table">
-        <tr>
-            <th>Regulation / Standard</th>
-            <th>Class I</th>
-            <th>Class II</th>
-            <th>Class III</th>
-        </tr>
-        <tr>
-            <td><b>21 CFR 820 (QSR)</b></td>
-            <td>⚠️ Partially Exempt</td>
-            <td>✅ Fully Applies</td>
-            <td>✅ Fully Applies</td>
-        </tr>
-        <tr>
-            <td><b>Design Controls (§820.30)</b></td>
-            <td>❌ Mostly Exempt</td>
-            <td>✅ Required</td>
-            <td>✅ Required</td>
-        </tr>
-        <tr>
-            <td><b>Premarket Submission</b></td>
-            <td> Exempt </td>
-            <td><b> 510(k) </b> or <b> De Novo </b></td>
-            <td><b> PMA </b></td>
-        </tr>
-        <tr>
-            <td><b>Clinical Data Required</b></td>
-            <td> No </td>
-            <td> Sometimes (for 510(k)/De Novo) </td>
-            <td> ✅ Always (Extensive) </td>
-        </tr>
-        <tr>
-            <td><b>ISO 13485 (QMS)</b></td>
-            <td> Recommended </td>
-            <td> ✅ Required for EU/Canada </td>
-            <td> ✅ Required for EU/Canada </td>
-        </tr>
+        <tr> <th>Regulation / Standard</th> <th>Class I</th> <th>Class II</th> <th>Class III</th> </tr>
+        <tr> <td><b>21 CFR 820 (QSR)</b></td> <td>⚠️ Partially Exempt</td> <td>✅ Fully Applies</td> <td>✅ Fully Applies</td> </tr>
+        <tr> <td><b>Design Controls (§820.30)</b></td> <td>❌ Mostly Exempt</td> <td>✅ Required</td> <td>✅ Required</td> </tr>
+        <tr> <td><b>Premarket Submission</b></td> <td> Exempt </td> <td><b> 510(k) </b> or <b> De Novo </b></td> <td><b> PMA </b></td> </tr>
     </table>
     """, unsafe_allow_html=True)
     st.caption("This is a simplified summary. Always consult with a regulatory professional.")
 
-    with st.expander("Key Considerations for Point-of-Care (POC) Devices"):
+    with st.expander("Key Considerations for Point-of-Care (POC), SaMD, De Novo, and EUA"):
         st.markdown("""
-        POC devices, which are used near the patient outside of a traditional lab, face special scrutiny.
-        - **Human Factors & Usability (IEC 62366):** This is paramount. The device must be safe and effective when used by diverse operators (nurses, technicians, sometimes patients) in challenging environments. Extensive HFE validation is required.
-        - **CLIA Waiver:** To be used in non-lab settings in the US, many POC devices must obtain a **CLIA Waiver** by proving they are simple and have an insignificant risk of erroneous results. This often requires dedicated, large-scale clinical studies.
-        - **Robustness:** The device must be robust to a wide range of environmental conditions (temperature, humidity) and sample types (e.g., fingerstick vs. venous blood).
-        """)
-
-    with st.expander("Key Considerations for Software as a Medical Device (SaMD)"):
-        st.markdown("""
-        SaMD is a device where the software *is* the medical device (e.g., an AI algorithm that analyzes MRI scans).
-        - **Risk Classification:** SaMD has its own risk framework (I-IV) defined by the IMDRF, based on the seriousness of the condition and the information provided.
-        - **IEC 62304 (Software Lifecycle):** This is the international standard for medical device software development, and compliance is a global expectation. It mandates a rigorous, documented software development lifecycle.
-        - **Cybersecurity:** Protecting patient data and ensuring the device cannot be compromised is a critical and heavily scrutinized part of the submission.
-        - **AI/ML Validation:** For AI-based SaMD, the FDA's new guidance requires a robust validation plan, including data transparency, model explainability (XAI), and a plan for managing post-market model changes (GMLP).
-        """)
-
-    with st.expander("Key Considerations for the De Novo Pathway"):
-        st.markdown("""
-        The De Novo pathway is a risk-based classification process for novel devices that have no "predicate."
-        - **Purpose:** It provides a pathway to market for new, low-to-moderate risk devices that would otherwise automatically be classified as high-risk Class III simply because they are first-of-a-kind.
-        - **Requirements:** The submission is more comprehensive than a 510(k) but less burdensome than a PMA. It requires a convincing argument about the device's risk profile and the effectiveness of proposed "special controls" to mitigate those risks. Clinical data is often required.
-        - **Outcome:** A successful De Novo request results in the device being classified as Class I or II, and it can then serve as a **new predicate** for future 510(k) submissions from other companies.
-        """)
-
-    with st.expander("Key Considerations for Emergency Use Authorization (EUA)"):
-        st.markdown("""
-        The EUA pathway is a special, temporary mechanism that is only available during a declared public health emergency (like the COVID-19 pandemic).
-        - **Lower Bar for Evidence:** The standard for an EUA is not "safe and effective," but that the device **"may be effective"** and that the known benefits outweigh the known risks. This allows for much faster market access in a crisis.
-        - **Temporary Authorization:** An EUA is not a full approval or clearance. The authorization is only valid for the duration of the emergency declaration.
-        - **Transition to Full Submission:** Companies that receive an EUA are expected to gather additional data and submit for a full 510(k) or PMA to keep their product on the market after the emergency ends.
+        - **Point-of-Care (POC):** These devices face special scrutiny on **Human Factors & Usability (IEC 62366)** and may require a **CLIA Waiver** in the US, proving simplicity and low risk of error.
+        - **Software as a Medical Device (SaMD):** Must comply with the **IEC 62304** software lifecycle standard. AI/ML-based SaMD requires a robust validation plan for the model, as per emerging FDA guidance.
+        - **De Novo Pathway:** This is the US pathway for novel, low-to-moderate risk devices that have no "predicate." A successful De Novo creates a new predicate for future devices.
+        - **Emergency Use Authorization (EUA):** A temporary authorization in the US during a declared public health emergency. The standard is "may be effective," which is a lower bar than a full submission.
         """)
 
     st.divider()
     st.subheader("Deeper Dive into the Regulatory Framework")
-    tabs = st.tabs(["💡 The Golden Rule", "✅ The Business Case", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "🌐 Global Harmonization & Key Standards", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     
     with tabs[0]:
-        st.success("""
-        🟢 **THE GOLDEN RULE: Your Claims Define Your Device, and the Device Defines the Controls**
-        The entire regulatory framework is built on a clear, logical cascade that you control.
-        1.  **Your words (marketing, labeling, instructions) define the Intended Use.** You cannot hide from the claims you make about what your product does.
-        2.  **The Intended Use defines the Risk Class.** A claim to "diagnose cancer" is inherently higher risk than a claim to "measure glucose."
-        3.  **The Risk Class defines the Regulatory Pathway (510(k) vs. PMA vs. De Novo).**
-        4.  **The Regulatory Pathway defines the required Controls (e.g., Design Controls, Clinical Trials).**
-        This chain is unbreakable. The process must start with a deliberate, documented, and consistently communicated Intended Use.
+        st.markdown("""
+        **Interpreting the Global Framework:**
+        1.  **Intended Use is Universal King:** The entire global system is built on one principle: your product's **Intended Use and the claims you make** determine its risk level.
+        2.  **Risk is the Common Denominator:** While the names and number of risk classes differ (I, IIa, IIb, III in the EU; I-IV in Canada), the concept is universal. Low-risk devices have a simpler path to market; high-risk devices require extensive clinical evidence of safety and performance.
+        3.  **Harmonization is Key to Efficiency:** A company doesn't need to reinvent its entire Quality Management System for each region. By building a QMS that complies with the international standard **ISO 13485**, you create a single, robust system that meets the foundational requirements for the US, EU, Canada, Japan, and most other major markets.
+        
+        **The Strategic Insight:** The flowchart shows the detailed US FDA pathway as an example, but the strategic thinking is global. The choice between a lower-risk "equivalence" pathway (like a 510(k)) and a high-risk "novel technology" pathway (like a PMA) exists in every major regulatory system.
         """)
-    
+        
     with tabs[1]:
         st.markdown("""
         ### The Business Case: Choosing Your Mountain
@@ -7746,40 +7686,77 @@ def render_ivd_regulatory_framework():
         
     with tabs[2]:
         st.markdown("""
-        ##### Glossary of Key Regulatory Terms
-        - **IVD (In Vitro Diagnostic):** A device used to perform tests on samples taken from the human body.
-        - **510(k) (Premarket Notification):** A submission to the FDA to demonstrate **Substantial Equivalence** to a legally marketed "predicate" device. The pathway for most Class II devices.
-        - **PMA (Premarket Approval):** The most stringent submission, requiring extensive clinical data to prove **Safety and Efficacy**. The pathway for Class III devices.
-        - **De Novo Classification Request:** A pathway for novel, low-to-moderate risk devices that have no predicate. It allows the FDA to classify them as Class I or II instead of defaulting to Class III.
-        - **EUA (Emergency Use Authorization):** A temporary authorization granted by the FDA during a public health emergency to allow the use of unapproved medical products.
-        - **QSR (Quality System Regulation) / 21 CFR 820:** The cGMP requirements for medical devices, which includes mandatory **Design Controls**.
-        - **SaMD (Software as a Medical Device):** Software intended for medical purposes that is not part of a hardware medical device.
-        - **CLIA (Clinical Laboratory Improvement Amendments):** US federal regulations that govern all laboratory testing performed on humans. A **CLIA Waiver** is required for simple, low-risk tests to be performed in point-of-care settings.
-        - **RUO (For Research Use Only):** A product intended for lab research only, not for use in clinical diagnostic procedures.
-        - **IEC 62304:** The international standard for the software development lifecycle of medical device software.
+        ### Global Harmonization: Speaking a Common Language of Quality
+        While each region has its own specific laws, a massive global effort has been made to harmonize the underlying principles and standards. This allows manufacturers to build a single, robust Quality Management System (QMS) that can meet the requirements of multiple countries.
+
+        **Comparison of Major Regulatory Systems**
+        <table class="reg-table">
+            <tr> <th>Feature</th> <th>USA (FDA)</th> <th>European Union (EU)</th> <th>Japan (MHLW/PMDA)</th> <th>Canada (Health Canada)</th> </tr>
+            <tr> <td><b>Primary Law</b></td> <td>FD&C Act</td> <td>MDR & IVDR</td> <td>PMD Act</td> <td>Food and Drugs Act</td> </tr>
+            <tr> <td><b>"Gatekeeper"</b></td> <td>FDA (Direct review)</td> <td>Notified Body (Third-party audit)</td> <td>PMDA (Direct review)</td> <td>Health Canada (Direct review)</td> </tr>
+            <tr> <td><b>Quality System</b></td> <td>21 CFR 820 (QSR)</td> <td>ISO 13485 + MDR/IVDR Annexes</td> <td>MHLW Ordinance 169</td> <td>ISO 13485 (via MDSAP)</td> </tr>
+            <tr> <td><b>Risk Classes</b></td> <td>I, II, III</td> <td>I, IIa, IIb, III (Devices) / A, B, C, D (IVDs)</td> <td>I, II, III, IV</td> <td>I, II, III, IV</td> </tr>
+            <tr> <td><b>Key Approval Mark</b></td> <td>510(k) Clearance / PMA Approval</td> <td><b>CE Mark</b></td> <td>Shonin Approval</td> <td>Medical Device License</td> </tr>
+        </table>
+        
+        ---
+        ### The Pillars of Global Compliance: Harmonized Standards
+        The key to an efficient global strategy is to build your QMS on internationally recognized standards. Compliance with these standards provides a "presumption of conformity" with the specific regulations in many regions.
+        - **ISO 13485: Medical devices — Quality management systems.** This is the foundational standard for a QMS. It is the basis for the US FDA's QSR, the EU's MDR/IVDR, and Canada's requirements. If you comply with ISO 13485, you have met the core QMS requirements for most of the world.
+        - **ISO 14971: Medical devices — Application of risk management.** This is the global gold standard for risk management. All major regulatory bodies expect a risk management process that aligns with this standard.
+        - **IEC 62304: Medical device software — Software life cycle processes.** If your device includes software, this standard is non-negotiable. It defines the rigorous process for software development, verification, and validation that is expected by both the FDA and EU authorities.
         """)
         
     with tabs[3]:
+        st.markdown("""
+        ##### Glossary of Global Regulatory Terms
+        - **510(k):** US pathway for Class II devices based on **Substantial Equivalence**.
+        - **PMA:** US pathway for Class III devices requiring proof of **Safety and Efficacy**.
+        - **De Novo:** US pathway for novel, low-risk devices with no predicate.
+        - **EUA:** US temporary authorization during a public health emergency.
+        - **QSR (21 CFR 820):** The US FDA's cGMP requirements for medical devices.
+        - **CE Mark:** The mandatory conformity mark for products sold in the European Economic Area. It signifies that the manufacturer has verified the product complies with all applicable EU regulations.
+        - **Notified Body:** A third-party organization designated by an EU country to assess the conformity of certain products before being placed on the market. They perform the audit and grant the CE Mark for most devices (Class IIa, IIb, III).
+        - **MDR (Medical Device Regulation):** The new, more stringent regulation for medical devices in the EU (Regulation (EU) 2017/745).
+        - **IVDR (In Vitro Diagnostic Regulation):** The new, more stringent regulation for IVDs in the EU (Regulation (EU) 2017/746).
+        - **IMDRF (International Medical Device Regulators Forum):** The current global harmonization body, a successor to the GHTF, that develops standardized guidance for medical device regulation.
+        - **PMDA (Pharmaceuticals and Medical Devices Agency):** The primary regulatory agency in Japan, analogous to the FDA.
+        - **MDSAP (Medical Device Single Audit Program):** A program that allows a single audit of a medical device manufacturer's QMS to satisfy the requirements of multiple regulatory jurisdictions (USA, Canada, Brazil, Australia, Japan).
+        """)
+        
+    with tabs[4]:
+        st.error("""🔴 **THE INCORRECT APPROACH: "RUO Creep"**
+A company sells a reagent kit labeled "For Research Use Only" (RUO). Their marketing materials and sales team, however, strongly imply or even directly state that the kit can be used by clinical labs to help in the diagnosis of a disease.
+- **The Flaw:** This is a major regulatory violation. They are illegally marketing an unapproved medical device. This "intended use creep" can lead to severe FDA enforcement action, including warning letters and product seizures.""")
+        st.success("""🟢 **THE GOLDEN RULE: Your Claims Define Your Device, and the Device Defines the Controls**
+The entire regulatory framework is built on a clear, logical cascade that you control.
+1.  **Your words (marketing, labeling, instructions) define the Intended Use.** You cannot hide from the claims you make.
+2.  **The Intended Use defines the Risk Class.** A claim to diagnose a critical disease will always be higher risk than a claim to measure a routine health marker.
+3.  **The Risk Class defines the Regulatory Pathway (510(k) vs. PMA vs. CE Class).**
+4.  **The Regulatory Pathway defines the required Controls (e.g., Design Controls, Clinical Trials).**
+This chain is unbreakable. The process must start with a deliberate, documented, and consistently communicated Intended Use.""")
+
+    with tabs[5]:
         st.markdown("""
         #### Historical Context: From Elixirs of Death to a Risk-Based Framework
         The US regulatory framework for medical devices was forged in response to public health crises.
         - **1938 FD&C Act:** Passed after the Elixir Sulfanilamide tragedy, it gave the FDA authority over drugs but left devices largely unregulated.
         - **1976 Medical Device Amendments:** The pivotal moment. Passed in response to catastrophic failures like the **Dalkon Shield IUD**, this act created the modern, risk-based framework: the **three-tiered classification system (Class I, II, III)** and the corresponding **510(k)** and **PMA** pathways.
-        - **1990 Safe Medical Devices Act:** Strengthened the FDA's authority, particularly in post-market surveillance, and led to the creation of the mandatory **Design Controls** regulation to prevent failures from happening in the first place.
+        - **1990 Safe Medical Devices Act:** Strengthened the FDA's authority and led to the creation of the mandatory **Design Controls** regulation to prevent failures from happening in the first place.
         This history shows a clear legislative evolution from a reactive, post-market system to a proactive, pre-market, risk-based framework designed to ensure patient safety.
         """)
         
-    with tabs[4]:
+    with tabs[6]:
         st.markdown("""
         This framework is built on a foundation of specific US FDA regulations and is harmonized with international standards.
-        - **The Federal Food, Drug, and Cosmetic (FD&C) Act:** The original law that gives the FDA its authority.
-        - **21 CFR Part 820 - Quality System Regulation (QSR):** The "GMP for medical devices." It mandates a comprehensive quality system, including the critical **Design Controls** process (§820.30) for Class II and III devices.
-        - **21 CFR Part 807 - Establishment Registration and Device Listing:** Contains the regulations governing the **510(k) (Premarket Notification)** process.
-        - **21 CFR Part 814 - Premarket Approval of Medical Devices:** Contains the regulations governing the **PMA** process.
-        - **21 CFR Part 812 - Investigational Device Exemptions (IDE):** Contains the regulations for conducting clinical trials with unapproved medical devices.
-        - **21 CFR Part 809 - In Vitro Diagnostic Products:** Contains specific labeling requirements for IVDs, including the clear distinction for **RUO** and **IUO** products.
-        - **ISO 13485:2016:** The international standard for medical device quality management systems.
-        - **IEC 62304 & IEC 62366:** International standards for medical device software lifecycle and usability engineering, respectively.
+        - **USA:** The **FD&C Act** and **21 CFR Parts 800-1299** (especially **Part 820**, the Quality System Regulation).
+        - **Europe:** The **MDR (EU 2017/745)** and **IVDR (EU 2017/746)** are the primary laws. Compliance is often demonstrated via adherence to harmonized standards.
+        - **Japan:** The **PMD Act** is the primary law, administered by the Ministry of Health, Labour and Welfare (MHLW) and the Pharmaceuticals and Medical Devices Agency (PMDA).
+        - **International Standards (The "How-To" Guides):**
+            - **ISO 13485:** The global standard for a Quality Management System.
+            - **ISO 14971:** The global standard for Risk Management.
+            - **IEC 62304:** The global standard for Software Lifecycle Processes.
+            - **IEC 62366:** The global standard for Usability / Human Factors Engineering.
         """)
 #============================================================================== 3. QUALITY RISK MANAGEMENT (FMEA) ========================================================
 def render_qrm_suite():

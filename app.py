@@ -11453,15 +11453,15 @@ def render_time_series_suite():
     
     **Strategic Application:** This dashboard serves as a decision-making and training tool for anyone involved in demand planning, resource forecasting, or process monitoring. It allows you to simulate different real-world data scenarios (e.g., a sudden trend change, multiple seasonalities) and instantly see which forecasting model performs best, providing a clear rationale for your choice of tool.
     """)
-    st.info("""
-    **Interactive Demo:** This suite is now fully interactive and stable.
-    1.  Use the **sidebar controls** to configure your desired data scenario.
-    2.  Select the specific **Models to Run**.
-    3.  Click the **"Run Forecast Analysis"** button to perform the computation. The sliders will feel instant, and the analysis will only run when you command it.
+    st.success("""
+    **⚡ Performance Upgrade:** This module now uses an intelligent caching strategy. 
+    The **first time** you run a specific scenario, it may take a few seconds to compute. 
+    Every subsequent time you run that **same scenario**, the results will load instantly.
     """)
     
-    # --- STEP 1: Initialize session_state to hold results ---
-    if 'ts_fig' not in st.session_state:
+    # --- STEP 1: Initialize session_state to hold the manual cache and current results ---
+    if 'ts_cache' not in st.session_state:
+        st.session_state.ts_cache = {}
         st.session_state.ts_fig = None
         st.session_state.ts_mae_scores = {}
 
@@ -11480,23 +11480,39 @@ def render_time_series_suite():
         noise_level = st.slider("Noise Level (SD)", 1.0, 20.0, 5.0, 1.0)
         changepoint_strength = st.slider("Trend Changepoint Strength", -5.0, 5.0, 0.0, 0.5, help="Simulates an abrupt change in the trend's slope 2/3 of the way through the data.")
 
-        # --- STEP 2: The "Run" button that triggers the computation ---
+        # --- STEP 2: The "Run" button with manual caching logic ---
         if st.button("🚀 Run Forecast Analysis", use_container_width=True):
             if not models_to_run:
                 st.warning("Please select at least one model to run.")
                 st.session_state.ts_fig = None
                 st.session_state.ts_mae_scores = {}
             else:
-                with st.spinner("Fitting models and generating forecasts... This may take a moment."):
-                    fig, mae_scores = plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength)
-                    # Store the results in session state
+                # Create a unique key from all current settings
+                cache_key = (tuple(sorted(models_to_run)), trend_type, seasonality_type, noise_level, changepoint_strength)
+                
+                # Check if the results are already in our manual cache
+                if cache_key in st.session_state.ts_cache:
+                    # CACHE HIT: Instantly retrieve the results
+                    st.toast("Loading results from cache!", icon="⚡")
+                    fig, mae_scores = st.session_state.ts_cache[cache_key]
                     st.session_state.ts_fig = fig
                     st.session_state.ts_mae_scores = mae_scores
-                st.rerun() # Rerun to ensure the UI updates with the new state
+                else:
+                    # CACHE MISS: Run the long computation
+                    with st.spinner("Fitting models and generating forecasts... This may take a moment."):
+                        fig, mae_scores = plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength)
+                        
+                        # Store the new results in session state for immediate display
+                        st.session_state.ts_fig = fig
+                        st.session_state.ts_mae_scores = mae_scores
+                        
+                        # IMPORTANT: Also store the results in our manual cache for future runs
+                        st.session_state.ts_cache[cache_key] = (fig, mae_scores)
+                st.rerun()
 
     st.header("Forecasting Suite Dashboard")
     
-    # --- STEP 3: Display results from session state, not by re-running the function ---
+    # --- STEP 3: Always display results from session state ---
     if st.session_state.ts_fig is None:
         st.info("Configure your scenario in the sidebar and click 'Run Forecast Analysis' to see the results.")
     else:
@@ -11518,7 +11534,7 @@ def render_time_series_suite():
     st.divider()
     st.subheader("Deeper Dive: Model Selection & Comparison")
     
-    # The detailed informational tabs remain unchanged.
+    # The detailed informational tabs remain unchanged and will display correctly.
     tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "💡 Method Selection Map", "📊 Scoring Table", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
         st.subheader("How to Interpret the Dashboard: A Guided Tour")
@@ -11583,7 +11599,7 @@ def render_time_series_suite():
         | :--- | :--- | :--- | :--- |
         | **Clean, simple trend and single, regular seasonality.** | **Holt-Winters / ETS** | **The Craftsman:** Highly interpretable, fast, and robust for classic time series data. It directly models the components you can see, making it easy to explain. | **Single Seasonality Only:** Cannot handle multiple overlapping cycles (e.g., weekly and yearly). It's a specialist tool for a specific type of data. |
         | **Strong autocorrelation; need for statistical rigor and defensibility.** | **SARIMA** | **The Watchmaker:** The gold standard for statistical formality. Excellent for short-term forecasts on stable processes where the "memory" of the process is important. Unbeatable for regulatory submissions that require deep statistical justification. | **Requires Expertise:** Difficult to tune the 7+ parameters correctly. The mandatory "stationarity" requirement means you're modeling changes, not absolute values, which can complicate interpretation for business stakeholders. |
-        | **Multiple seasonalities, holidays, trend changes, and messy data.** | **Prophet** | **The Smartwatch:** Highly automated, robust to messy data, and excels at fitting multiple seasonalities. Its intuitive parameters make it easy to incorporate domain knowledge (e.g., a planned shutdown). | **Less Statistically Formal:** It's a pragmatic engineering tool, not a rigorous statistical model. It can be a "black box" and may not capture complex autocorrelation structures as well as SARIMA. |
+        | **Multiple seasonalities, holidays, and trend changes.** | **Prophet** | **The Smartwatch:** Highly automated, robust to messy data, and excels at fitting multiple seasonalities. Its intuitive parameters make it easy to incorporate domain knowledge (e.g., a planned shutdown). | **Less Statistically Formal:** It's a pragmatic engineering tool, not a rigorous statistical model. It can be a "black box" and may not capture complex autocorrelation structures as well as SARIMA. |
         | **Multiple, complex, and non-integer seasonalities (e.g., 5.5-day cycles).** | **TBATS** | **The Music Producer:** The specialist for very complex seasonality. It can decompose signals like a sound engineer, isolating multiple overlapping frequencies. Highly automated. | **Computationally Slow:** Can be the slowest model to fit. The complex combination of components (Box-Cox, Fourier terms, ARMA errors) can be very difficult to interpret and explain. |
         | **Complex, non-linear patterns without clear seasonality; multivariate inputs.** | **Deep Learning (LSTM/TCN)** | **The AI Pattern Recognizer:** Can learn any pattern from sufficient data. Excellent for multivariate forecasting (e.g., predicting yield from temperature, pH, and feed rate simultaneously). | **Requires Huge Data:** Needs much more data than statistical models. It's a "black box" with low interpretability and is computationally expensive to train and validate. |
         """)

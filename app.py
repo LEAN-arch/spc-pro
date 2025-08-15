@@ -12817,29 +12817,36 @@ def render_lean_manufacturing():
         
         st.divider()
         st.markdown("**Operational Context**")
-        # --- NEW KPI INPUT ---
-        customer_demand = st.number_input("Customer Demand (units/day)", value=2, help="The number of finished units the customer requires per day.")
-        operating_time = st.number_input("Operating Time (hours/day)", value=24, help="The total available production time per day.")
+        customer_demand = st.number_input("Customer Demand (units/day)", value=2, min_value=0, help="The number of finished units the customer requires per day. Set to 0 to see how Takt Time becomes N/A.")
+        operating_time = st.number_input("Operating Time (hours/day)", value=24, min_value=1, help="The total available production time per day.")
 
-    # --- NEW KPI CALCULATIONS ---
+    # KPI Calculations
     wip_inventory = sum(wait_times)
-    # Takt Time is the required pace of production to meet demand.
     takt_time_hours = operating_time / customer_demand if customer_demand > 0 else float('inf')
-    # Capacity is limited by the slowest process step (the bottleneck).
     bottleneck_time = max(process_times)
     daily_capacity = operating_time / bottleneck_time if bottleneck_time > 0 else float('inf')
 
     st.header("Value Stream Mapping Dashboard")
     fig, total_cycle_time, pce = plot_value_stream_map(process_times, wait_times)
     
-    # --- NEW KPI DASHBOARD LAYOUT ---
+    # --- THIS IS THE FIX ---
+    # The KPI dashboard now handles the edge case where demand is zero, preventing the crash.
     kpi_cols = st.columns(5)
     kpi_cols[0].metric("Total Lead Time", f"{total_cycle_time:.1f} Hrs", help="The total time from the start of the process to the end.")
     kpi_cols[1].metric("Process Cycle Efficiency", f"{pce:.1f}%", help="The percentage of the total lead time that is actual, value-added work. World class is >25%.")
     kpi_cols[2].metric("WIP Inventory", f"{wip_inventory:.1f} Hrs", help="Total hours of non-value-added waiting time, representing trapped capital and risk.")
-    kpi_cols[3].metric("Takt Time", f"{takt_time_hours:.1f} Hrs/Unit", help="The 'heartbeat' of the customer. To meet demand, you must produce one unit every X hours.")
-    kpi_cols[4].metric("Line Capacity", f"{daily_capacity:.1f} Units/Day", delta=f"{daily_capacity - customer_demand:.1f} vs. Demand",
+    
+    # Safely handle Takt Time display
+    takt_display = f"{takt_time_hours:.1f} Hrs/Unit" if takt_time_hours != float('inf') else "N/A"
+    kpi_cols[3].metric("Takt Time", takt_display, help="The 'heartbeat' of the customer. To meet demand, you must produce one unit every X hours.")
+    
+    # Safely handle Capacity display and delta
+    capacity_display = f"{daily_capacity:.1f} Units/Day" if daily_capacity != float('inf') else "Infinite"
+    delta_val = daily_capacity - customer_demand if daily_capacity != float('inf') else float('inf')
+    delta_display = f"{delta_val:.1f}" if delta_val != float('inf') else "N/A"
+    kpi_cols[4].metric("Line Capacity", capacity_display, delta=f"{delta_display} vs. Demand",
                       help="The maximum number of units this line can produce per day, limited by its slowest step (the bottleneck).")
+    # --- END OF FIX ---
 
     st.plotly_chart(fig, use_container_width=True)
     
@@ -12853,7 +12860,7 @@ def render_lean_manufacturing():
         1.  **Map the Current State:** The first step is always to create an honest VSM of the process *as it is today*. The diagram shows the flow of both materials (bottom) and information (top).
         2.  **Identify Waste (Muda):** The VSM instantly makes waste visible. The **red inventory triangles** represent the Waste of Waiting and Inventory. The **timeline at the bottom** provides the most shocking visual: the vast majority of the time is red (non-value-added).
         3.  **Find Opportunities for Kaizen:** The "Kaizen Bursts" (💥) are visual cues that highlight the largest opportunities for improvement, signaling the ideal location for a focused **Kaizen event**.
-        4.  **Diagnose the Need for Kanban:** A massive WIP pile (a big red 'Wait' bar) is a clear symptom of a "push" system with significant **Mura** (unevenness). The VSM helps justify the need to implement a **Kanban** "pull" system to limit WIP and smooth the flow.
+        4.  **Diagnose the Need for Kanban:** The dashed arrow shows a "Kanban" signal. Implementing a "pull" system like this is a common solution to the massive WIP piles (red triangles) caused by a "push" system.
         5.  **Calculate KPIs:** The dashboard provides the key metrics. **PCE** shows the inefficiency. **WIP** quantifies the trapped inventory. **Capacity** identifies your bottleneck and compares it to your required **Takt Time**.
         """)
         

@@ -6052,7 +6052,7 @@ def create_pso_static_figure(zz, x_range, y_range, history_start, history_end, g
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================
 
-# SNIPPET: Replace your entire render_introduction_content() function with this new version.
+# SNIPPET: Replace your entire render_introduction_content() function with this corrected version.
 
 def render_introduction_content():
     """Renders the complete, all-in-one introduction and framework dashboard for V&V Sentinel."""
@@ -6083,7 +6083,6 @@ def render_introduction_content():
     )
     st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
 
-    # --- NEW SECTION ADDED HERE ---
     st.header("What's Inside the Sentinel?")
     st.markdown("Each module is a self-contained deep-dive, equipped with a comprehensive set of features to provide a 360-degree understanding of the topic.")
     
@@ -6097,12 +6096,13 @@ def render_introduction_content():
     c2.markdown("- **The Business Case:** A detailed breakdown of the problem, impact, solution, and consequences, framing each tool's value in financial and strategic terms for stakeholders.")
     
     c3.subheader("🎓 Deep Educational Context")
-    c3.markdown("- **Glossaries & Golden Rules:** Clear definitions of key terms and actionable "best practice" advice.")
+    # --- THIS IS THE CORRECTED LINE ---
+    c3.markdown('- **Glossaries & Golden Rules:** Clear definitions of key terms and actionable "best practice" advice.')
+    # --- END OF CORRECTION ---
     c3.markdown("- **Theory, History & Math:** Explore the fascinating origins of each method, from WWII code-breaking to the biotech revolution, and understand the core mathematical principles.")
     c3.markdown("- **Regulatory & Compliance:** Connect each tool to specific FDA, ICH, and ISO guidelines to understand its role in a compliant GxP environment.")
     
     st.divider()
-    # --- END OF NEW SECTION ---
 
     st.header("📖 The Scientist's Journey: A Four-Act Story")
     st.markdown(
@@ -6151,6 +6151,7 @@ def render_introduction_content():
     st.header("🗺️ Conceptual Map of Tools")
     st.markdown("This map illustrates the relationships between the foundational concepts and the specific tools available in this application. Use it to navigate how different methods connect to broader analytical strategies.")
     st.plotly_chart(create_toolkit_conceptual_map(), use_container_width=True)
+
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================

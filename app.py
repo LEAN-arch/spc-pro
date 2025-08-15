@@ -43,7 +43,7 @@ from PIL import Image
 import shap
 import xgboost as xgb
 from scipy.special import logsumexp
-
+from scipy.stats import mannwhitneyu
 # ==============================================================================
 # APP CONFIGURATION
 # ==============================================================================
@@ -6731,13 +6731,230 @@ def plot_digital_twin_dashboard(fault_type, fault_magnitude, fault_time):
     fig.update_xaxes(title_text="Time (Minutes)", row=2, col=1)
     
     return fig
+
+#=========================================================================================================================================================================================================================
+#========================================================================================== LAS TOOLS ====================================================================================================================
+
+# SNIPPET: Add these six new plotting functions to the end of the "ALL HELPER & PLOTTING FUNCTIONS" section of your app.py file.
+
+@st.cache_data
+def plot_mpc_simulation(disturbance_size, control_aggressiveness):
+    """Simulates and plots a comparison of Reactive vs. Model Predictive Control."""
+    np.random.seed(42)
+    n_points = 100
+    time = np.arange(n_points)
+    set_point = 100.0
+    
+    # Simple process model with inertia
+    true_process = np.zeros(n_points)
+    true_process[0] = set_point
+    for t in range(1, n_points):
+        # Simulate a disturbance
+        disturbance = disturbance_size if t == 40 else 0
+        true_process[t] = 0.95 * true_process[t-1] + 0.05 * set_point + np.random.normal(0, 0.2) + disturbance
+
+    # Reactive (PID-like) Controller
+    reactive_control = np.zeros(n_points)
+    reactive_control[0] = set_point
+    for t in range(1, n_points):
+        error = set_point - reactive_control[t-1]
+        control_action = control_aggressiveness * error
+        reactive_control[t] = 0.95 * reactive_control[t-1] + 0.05 * set_point + control_action * 0.1 + np.random.normal(0, 0.2)
+        if t == 40: reactive_control[t] += disturbance_size
+
+    # Model Predictive Controller (MPC) - Simulated
+    mpc_control = np.zeros(n_points)
+    mpc_control[0] = set_point
+    for t in range(1, n_points):
+        # MPC 'predicts' the disturbance and starts acting early and smoothly
+        future_error_prediction = disturbance_size if 35 <= t < 40 else 0
+        error = set_point - mpc_control[t-1]
+        control_action = control_aggressiveness * error + future_error_prediction * 0.5
+        mpc_control[t] = 0.95 * mpc_control[t-1] + 0.05 * set_point + control_action * 0.08 + np.random.normal(0, 0.2)
+        if t == 40: mpc_control[t] += disturbance_size
+        
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=time, y=reactive_control, name='Reactive Control', line=dict(color='orange', width=3)))
+    fig.add_trace(go.Scatter(x=time, y=mpc_control, name='Model Predictive Control', line=dict(color=SUCCESS_GREEN, width=3)))
+    fig.add_hline(y=set_point, line=dict(color='black', dash='dash'), name='Setpoint')
+    fig.add_vline(x=40, line=dict(color='red', dash='dot'), annotation_text="Disturbance")
+
+    fig.update_layout(title="<b>Model Predictive Control vs. Reactive Control</b>",
+                      xaxis_title="Time (Minutes)", yaxis_title="Critical Process Parameter",
+                      legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+                      
+    overshoot_mpc = np.max(mpc_control[40:]) - set_point
+    overshoot_reactive = np.max(reactive_control[40:]) - set_point
+    return fig, overshoot_mpc, overshoot_reactive
+
+@st.cache_data
+def plot_rtrt_dashboard(model_accuracy, lab_delay, lab_noise):
+    """Simulates and plots a Real-Time Release Testing dashboard."""
+    np.random.seed(1)
+    n_batches = 20
+    true_cqa = np.random.normal(100, 1.5, n_batches)
+    pat_prediction = true_cqa + np.random.normal(0, (100-model_accuracy)/20, n_batches)
+    lab_result = true_cqa + np.random.normal(0, lab_noise, n_batches)
+    
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=("<b>Analytical Results: PAT vs. Lab</b>", "<b>Batch Status Timeline</b>"))
+    
+    # Plot 1: Results
+    fig.add_trace(go.Scatter(y=true_cqa, name='True CQA (Hidden)', mode='lines', line=dict(color='black', dash='dash')), row=1, col=1)
+    fig.add_trace(go.Scatter(y=pat_prediction, name='PAT Prediction (Instant)', mode='lines+markers', line=dict(color=SUCCESS_GREEN)), row=1, col=1)
+    lab_x = np.arange(n_batches) + lab_delay
+    fig.add_trace(go.Scatter(x=lab_x, y=lab_result, name=f'Lab Result ({lab_delay} day delay)', mode='markers', marker=dict(color='orange', symbol='x', size=10)), row=1, col=1)
+    
+    # Plot 2: Status Timeline
+    df_timeline = pd.DataFrame([
+        dict(Batch=f"Batch {i+1}", Start=i, Finish=i+0.9, Status="In-Process") for i in range(n_batches)
+    ] + [
+        dict(Batch=f"Batch {i+1}", Start=i+0.9, Finish=i+lab_delay, Status="Awaiting QC") for i in range(n_batches)
+    ] + [
+        dict(Batch=f"Batch {i+1}", Start=i+lab_delay, Finish=i+lab_delay+0.1, Status="Released") for i in range(n_batches)
+    ])
+    fig_timeline = px.timeline(df_timeline, x_start="Start", x_end="Finish", y="Batch", color="Status",
+                               color_discrete_map={"In-Process": PRIMARY_COLOR, "Awaiting QC": "orange", "Released": SUCCESS_GREEN})
+    for trace in fig_timeline.data:
+        fig.add_trace(trace, row=2, col=1)
+
+    fig.update_layout(height=600, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig.update_yaxes(title_text="CQA Value", row=1, col=1)
+    fig.update_xaxes(title_text="Time (Days)", row=2, col=1)
+    return fig
+
+@st.cache_data
+def plot_biosimilarity_dashboard(mean_shift_potency, variance_factor_impurity):
+    """Simulates and plots a multi-CQA comparability dashboard for biosimilarity."""
+    np.random.seed(42)
+    n = 50
+    cqas = {
+        "Potency (%)": {'mean': 100, 'std': 5, 'margin': 5},
+        "Aggregate (%)": {'mean': 1.0, 'std': 0.2, 'margin': 0.5},
+        "Main Peak Purity (%)": {'mean': 99.0, 'std': 0.3, 'margin': 1.0},
+        "Glycan Profile G0F (%)": {'mean': 40, 'std': 3, 'margin': 4}
+    }
+    
+    results = []
+    for cqa, params in cqas.items():
+        data_orig = np.random.normal(params['mean'], params['std'], n)
+        mean_b = params['mean']
+        std_b = params['std']
+        if "Potency" in cqa: mean_b += mean_shift_potency
+        if "Aggregate" in cqa: std_b *= variance_factor_impurity
+        
+        data_bio = np.random.normal(mean_b, std_b, n)
+        
+        # TOST Calculation
+        diff_mean = np.mean(data_bio) - np.mean(data_orig)
+        std_err_diff = np.sqrt(np.var(data_bio, ddof=1)/n + np.var(data_orig, ddof=1)/n)
+        df_welch = (std_err_diff**4) / (((np.var(data_bio, ddof=1)/n)**2 / (n-1)) + ((np.var(data_orig, ddof=1)/n)**2 / (n-1)))
+        ci_margin = stats.t.ppf(0.95, df_welch) * std_err_diff
+        ci_lower, ci_upper = diff_mean - ci_margin, diff_mean + ci_margin
+        
+        is_equivalent = (ci_lower >= -params['margin']) and (ci_upper <= params['margin'])
+        results.append({'cqa': cqa, 'ci_lower': ci_lower, 'ci_upper': ci_upper, 'margin': params['margin'], 'equivalent': is_equivalent})
+    
+    df_results = pd.DataFrame(results)
+    
+    fig = go.Figure()
+    for _, row in df_results.iterrows():
+        color = SUCCESS_GREEN if row['equivalent'] else 'red'
+        fig.add_trace(go.Scatter(x=[row['ci_lower'], row['ci_upper']], y=[row['cqa'], row['cqa']],
+                                 mode='lines', line=dict(color=color, width=8), showlegend=False))
+        fig.add_trace(go.Scatter(x=[(row['ci_lower']+row['ci_upper'])/2], y=[row['cqa']],
+                                 mode='markers', marker=dict(color='white', size=8, line=dict(color='black', width=2)), showlegend=False))
+    
+    for _, row in df_results.iterrows():
+        fig.add_shape(type="line", x0=-row['margin'], x1=row['margin'], y0=row['cqa'], y1=row['cqa'],
+                      line=dict(color='black', width=12, dash='dot'), opacity=0.3)
+
+    fig.update_layout(title="<b>Analytical Comparability: Equivalence Tier Results</b>",
+                      xaxis_title="Difference (Biosimilar - Original)",
+                      yaxis=dict(categoryorder='total ascending'))
+    return fig, df_results
+
+@st.cache_data
+def plot_nonparametric_comparison(outlier_magnitude):
+    """Compares a t-test vs. a Mann-Whitney U test in the presence of an outlier."""
+    np.random.seed(1)
+    n = 30
+    group_a = np.random.normal(10, 2, n)
+    group_b = np.random.normal(10, 2, n)
+    if outlier_magnitude > 0:
+        group_b[0] = 10 + outlier_magnitude * 2
+    
+    ttest_p = stats.ttest_ind(group_a, group_b).pvalue
+    mwu_p = mannwhitneyu(group_a, group_b).pvalue
+    
+    df = pd.concat([pd.DataFrame({'value': group_a, 'group': 'A'}),
+                    pd.DataFrame({'value': group_b, 'group': 'B'})])
+    
+    fig = px.box(df, x='group', y='value', points='all', title="<b>Data Distributions with Outlier</b>")
+    return fig, ttest_p, mwu_p
+
+@st.cache_data
+def plot_capa_effectiveness(improvement_magnitude):
+    """Simulates and plots a process before and after a CAPA."""
+    np.random.seed(42)
+    n = 50
+    # Before CAPA: Shifted and variable process
+    data_before = np.random.normal(104, 2.5, n)
+    # After CAPA: Mean and variance are improved
+    mean_after = 104 - 2 * improvement_magnitude
+    std_after = 2.5 - 1 * improvement_magnitude
+    data_after = np.random.normal(mean_after, std_after, n)
+    
+    lsl, usl = 95, 105
+    def calc_cpk(data, lsl, usl):
+        m, s = np.mean(data), np.std(data, ddof=1)
+        if s == 0: return 10.0
+        return min((usl - m) / (3 * s), (m - lsl) / (3 * s))
+    
+    cpk_before = calc_cpk(data_before, lsl, usl)
+    cpk_after = calc_cpk(data_after, lsl, usl)
+    
+    fig = make_subplots(rows=1, cols=2, subplot_titles=("<b>Process State Before CAPA</b>", "<b>Process State After CAPA</b>"))
+    
+    fig.add_trace(go.Histogram(x=data_before, name='Before', marker_color='red'), row=1, col=1)
+    fig.add_trace(go.Histogram(x=data_after, name='After', marker_color=SUCCESS_GREEN), row=1, col=2)
+    
+    for col in [1, 2]:
+        fig.add_vline(x=lsl, line=dict(dash='dot', color='black'), row=1, col=col)
+        fig.add_vline(x=usl, line=dict(dash='dot', color='black'), row=1, col=col)
+
+    fig.update_layout(showlegend=False, bargap=0.1, title_text="<b>CAPA Effectiveness: Before vs. After</b>")
+    return fig, cpk_before, cpk_after
+
+@st.cache_data
+def plot_hfe_dashboard(design_clarity, task_complexity):
+    """Simulates and plots a dashboard for Human Factors Engineering usability data."""
+    np.random.seed(42)
+    # Simulate SUS Scores
+    sus_base_score = 25 + design_clarity * 7
+    sus_scores = np.random.normal(sus_base_score, 15, 20)
+    sus_scores = np.clip(sus_scores, 0, 100)
+    final_sus = np.mean(sus_scores)
+    
+    # Simulate Task Failures
+    tasks = ["1. Setup Device", "2. Enter Patient ID", "3. Run Sample", "4. Read Result", "5. Clean Device"]
+    base_fail_prob = 0.2 - (design_clarity * 0.015) + (task_complexity * 0.01)
+    fail_rates = [np.clip(base_fail_prob + np.random.uniform(-0.05, 0.05) + (i*0.01*task_complexity), 0.01, 0.5) for i in range(len(tasks))]
+    
+    fig_tasks = px.bar(x=tasks, y=fail_rates, title="<b>Task Failure Analysis</b>",
+                       labels={'x': 'User Task', 'y': 'Observed Failure Rate'},
+                       color=fail_rates, color_continuous_scale='Reds')
+    fig_tasks.update_layout(yaxis_tickformat=".0%")
+    
+    return fig_tasks, final_sus
+
 # =================================================================================================================================================================================================
 # ALL UI RENDERING FUNCTIONS
 # ==================================================================================================================================================================================================
 
 def render_introduction_content():
     """Renders the complete, all-in-one introduction and framework dashboard for V&V Sentinel."""
-    st.title("🛡️ V&V Sentinel")
+    st.title("🛡️ V&V Sentinel Toolkit")
     st.markdown("### The Interactive Playbook for Biotech & MedTech Validation")
     
     st.markdown(
@@ -6756,7 +6973,7 @@ def render_introduction_content():
 
     st.markdown(
         """
-        Welcome to **V&V Sentinel**, your guide through the complex landscape of Verification and Validation. 
+        Welcome to **V&V Sentinel Toolkit**, your guide through the complex landscape of Verification and Validation. 
         This application is more than a collection of tools; it's an interactive, educational journey designed for the modern scientist, engineer, and quality professional in the regulated life sciences industry. 
         
         Whether you are planning a process validation, transferring a new analytical method, or managing the lifecycle of a commercial product, the Sentinel is here to illuminate the statistical and AI-driven methods that form the backbone of a robust, compliant, and data-driven quality system.
@@ -6764,7 +6981,7 @@ def render_introduction_content():
     )
     st.info("#### 👈 Select a tool from the sidebar to explore an interactive module.")
 
-    st.header("What's Inside the Sentinel?")
+    st.header("What's Inside the Sentinel Toolkit?")
     st.markdown("Each module is a self-contained deep-dive, equipped with a comprehensive set of features to provide a 360-degree understanding of the topic.")
     
     c1, c2, c3 = st.columns(3)
@@ -16716,6 +16933,651 @@ A true digital twin is not a one-time project; it is a living asset that must be
         - **ICH Q12 - Technical and Regulatory Considerations for Pharmaceutical Product Lifecycle Management:** This guideline encourages a more robust, post-approval Change Management Protocol. A validated digital twin can provide powerful in-silico evidence to support the justification for certain process changes, potentially reducing the regulatory burden.
         - **GAMP 5 & 21 CFR Part 11:** A digital twin used for any GxP purpose (especially for RTRT) is a highly complex Computerized System that requires a rigorous validation package. The validation must prove not only that the software is reliable, but that the underlying mathematical model is accurate and fit for its intended use.
         """)
+#==================================================================================================================================================================================================================
+#========================================================================================== LAST TOOLS ============================================================================================================
+# SNIPPET: Add these six new rendering functions to the "ALL UI RENDERING FUNCTIONS" section of your app.py file.
+
+def render_mpc():
+    """Renders the comprehensive module for Model Predictive Control."""
+    st.markdown("""
+    #### Purpose & Application: The AI Process Pilot
+    **Purpose:** To deploy an intelligent **AI Process Pilot** that can anticipate future disturbances and act *proactively* to keep a process on target. **Model Predictive Control (MPC)** uses a dynamic model of the process (a digital twin) to look ahead, optimizing its control moves over a future time horizon.
+    
+    **Strategic Application:** This is a state-of-the-art control strategy that moves beyond simple reactive control (like a PID loop) to proactive, intelligent control. It is essential for processes with long delays, complex dynamics, or where minimizing overshoot and settling time is critical for product quality and throughput.
+    """)
+    st.info("""
+    **Interactive Demo:** You are a Control Engineer. A known disturbance (e.g., a raw material change) will occur at Time=40.
+    - **`Control Aggressiveness`**: Controls how strongly each controller reacts to an error.
+    - **Observe:** The **Reactive Controller (orange)** only acts *after* the disturbance hits, leading to a large overshoot. The **MPC Controller (green)** sees the disturbance coming and begins to adjust *before* it happens, resulting in a much smoother, more controlled response.
+    """)
+
+    with st.sidebar:
+        st.subheader("MPC Simulation Controls")
+        disturbance_size = st.slider("Disturbance Magnitude", 1.0, 10.0, 5.0, 0.5, help="The size of the unexpected process shock at Time=40.")
+        control_aggressiveness = st.slider("Control Aggressiveness (Kp)", 0.1, 1.0, 0.5, 0.1, help="How strongly the controllers react to errors. High values can cause instability.")
+        
+    st.header("Control Strategy Performance Dashboard")
+    fig, overshoot_mpc, overshoot_reactive = plot_mpc_simulation(disturbance_size, control_aggressiveness)
+    
+    col1, col2 = st.columns(2)
+    col1.metric("MPC Overshoot", f"{overshoot_mpc:.2f} units", help="Peak deviation from setpoint for the MPC controller.")
+    col2.metric("Reactive Overshoot", f"{overshoot_reactive:.2f} units", help="Peak deviation from setpoint for the reactive controller.")
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive into Model Predictive Control")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Simulation:**
+        - **Reactive Controller (Orange):** This controller is "blind" to the future. It only knows the current error (the difference between its current state and the setpoint). When the disturbance hits at Time=40, it is caught by surprise and overreacts, causing a large overshoot and a long settling time.
+        - **MPC Controller (Green):** This controller is "prescient." It uses its internal process model to simulate the future. Because it "knows" a disturbance is coming, it begins making small, proactive adjustments *before* the event. When the disturbance hits, the MPC is already prepared, resulting in a much smaller deviation and a faster return to the setpoint.
+
+        **The Strategic Insight:** Traditional control is about correcting past errors. Model Predictive Control is about **optimizing future performance**. By using a predictive model, MPC can achieve a level of performance and stability that is fundamentally impossible for a purely reactive controller, especially in complex processes with long delays.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: From "Driving by the Rear-View Mirror" to "Autopilot"
+
+        #### The Problem: The Lagging Control System
+        A complex, high-value process (like a large-scale bioreactor or a continuous manufacturing line) is controlled by a traditional PID (Proportional-Integral-Derivative) control system. This system is a **reactive workhorse**. It measures the current error and adjusts accordingly. However, the process has long delays—it can take hours for a change in a feed rate to have a measurable impact on the output.
+
+        #### The Impact: Chronic Oscillation and Sub-Optimal Performance
+        This reactive, "rear-view mirror" approach in a slow process leads to chronic inefficiency and risk.
+        - **Process Oscillations:** The PID controller makes an adjustment, but due to the time lag, it doesn't see the effect immediately. It overreacts, pushing the process too far in the other direction. This creates a constant, wasteful oscillation around the setpoint, never truly settling. This variability reduces yield and can compromise product quality.
+        - **Inability to Handle Constraints:** The PID controller doesn't understand physical limits. It might try to command a valve to open to 110%, or a pump to exceed its maximum flow rate, leading to equipment stress and inefficient control.
+        - **Sub-Optimal Throughput:** Because the system is unstable and prone to overshooting, engineers are forced to run the process with very conservative, sub-optimal setpoints to provide a large safety buffer, sacrificing throughput and profitability.
+
+        #### The Solution: The "Autopilot" for Your Process
+        Model Predictive Control (MPC) is the **"autopilot" for your chemical plant or bioreactor**. It is a fundamentally more intelligent control strategy that uses a **digital twin** of the process to look into the future. At every control step, it runs thousands of simulations to answer the question: "Given my current state and my model of the process, what is the optimal sequence of control moves over the next several hours to keep me on target while respecting all equipment constraints?" It then implements only the first step of that optimal plan and repeats the entire calculation at the next time step.
+
+        #### The Consequences: Increased Throughput, Stability, and Profitability
+        - **Without This:** The process is chronically unstable, inefficient, and must be run conservatively, leaving significant value on the table.
+        - **With This:** MPC provides a **step-change in control performance**. By proactively managing disturbances and optimizing the control path, it **dampens oscillations, reduces variability, and allows the process to be run much closer to its optimal, high-throughput setpoints**. In the chemical and refining industries, where MPC is standard, it is credited with unlocking billions of dollars in value through increased efficiency and throughput. It is a key enabling technology for the high-performance, autonomous operations of Pharma 4.0.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **MPC (Model Predictive Control):** An advanced method of process control that uses a dynamic model of the process to predict its future behavior and make optimal control decisions.
+        - **Digital Twin:** The real-time, dynamic model of the process that MPC uses as its "crystal ball" to simulate future states.
+        - **Control Horizon:** The number of future time steps over which the MPC calculates its optimal sequence of control moves.
+        - **Prediction Horizon:** The total time horizon into the future that the MPC simulates to evaluate the impact of its control moves.
+        - **Setpoint:** The target value for a critical process parameter that the control system is trying to maintain.
+        - **PID Controller (Proportional-Integral-Derivative):** The most common form of reactive feedback controller in industry. It calculates a control action based on the present error (P), past errors (I), and predicted future errors (D).
+        """)
+
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Aggressive PID" Fallacy**
+An engineer tries to fix a sluggish, oscillating process by aggressively tuning the PID controller (e.g., cranking up the Proportional gain).
+- **The Flaw:** This makes the problem worse. The controller overreacts even more violently to any small error, leading to wilder oscillations and instability. The fundamental problem is the time delay, which a reactive controller cannot solve.""")
+        st.success("""🟢 **THE GOLDEN RULE: Control the Future, Not the Past**
+A robust, modern control strategy is predictive, not just reactive.
+1.  **Invest in the Model:** The performance of an MPC system is entirely dependent on the quality of its underlying dynamic model (the digital twin). The first and most critical step is to develop a high-fidelity model based on a combination of first principles (physics, chemistry) and real-world process data.
+2.  **Define the Objective:** The MPC's goal is not just to stay at a setpoint, but to do so while minimizing an **objective function**. This function can be tuned to prioritize different business goals, such as minimizing energy consumption, minimizing settling time, or maximizing yield.
+3.  **Deploy and Monitor:** Once deployed, the performance of the MPC controller itself must be monitored to ensure the digital twin remains an accurate representation of the real process.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From Shell Oil to SpaceX
+        **The Problem:** In the 1970s, the oil and chemical industries were facing a new challenge. Their processes were slow, complex, and had many interacting variables and constraints. Traditional PID controllers, which are brilliant for simple, fast-acting systems, were struggling to provide stable control, leading to inefficiency and waste.
+        
+        **The 'Aha!' Moment:** Engineers and mathematicians, particularly Charles Cutler at Shell Oil, pioneered a new approach in the late 1970s and early 1980s. The key insight was to use a computer model of the process to **predict its future behavior** and then use an optimization algorithm to calculate the best control moves in advance. This was the birth of **Model Predictive Control**.
+        
+        **The Impact:** The results were revolutionary. MPC provided a way to achieve tight, stable control of previously "uncontrollable" processes. It became the standard for advanced process control in the refining, chemical, and petrochemical industries, where it is credited with saving billions of dollars annually. Today, the same technology is used in everything from the flight control systems of SpaceX rockets to the adaptive cruise control in modern cars. Its application to the complex, slow dynamics of biopharmaceutical manufacturing is a key part of the Pharma 4.0 revolution.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        MPC is a state-of-the-art control methodology that is a direct implementation of the principles of **Process Analytical Technology (PAT)**.
+        - **FDA Guidance for Industry - PAT:** The PAT guidance is built on the principle of "Design and control the process." It states that "process control is critical for a process that is operated in a state of control that ensures the final product quality." MPC is the most advanced form of this control.
+        - **ICH Q8(R2) - Pharmaceutical Development:** A validated MPC system that keeps a process within its proven **Design Space** is a powerful demonstration of a robust **Control Strategy**.
+        - **GAMP 5 & 21 CFR Part 11:** An MPC system used to control a GxP process is a highly complex, high-risk (GAMP Category 5) Computerized System. Both the software platform and the underlying process model require rigorous validation to prove they are fit for their intended use. The validation package would need to demonstrate the model's accuracy, the controller's robustness, and the system's reliability.
+        """)
+
+def render_rtrt():
+    """Renders the comprehensive module for Real-Time Release Testing."""
+    st.markdown("""
+    #### Purpose & Application: The Ultimate Goal of PAT
+    **Purpose:** To create a validated system that allows for **Real-Time Release Testing (RTRT)**—the ability to release a batch based on in-process data, rather than waiting for slow, end-of-line laboratory tests.
+    
+    **Strategic Application:** This is the pinnacle of the Pharma 4.0 and Process Analytical Technology (PAT) initiatives. It represents a paradigm shift from "quality by testing" to "quality by design and control." Achieving RTRT is a massive competitive advantage, as it can slash release times from weeks to days, freeing up enormous amounts of capital and dramatically improving supply chain agility.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Head of Quality.
+    - **`PAT Model Accuracy`**: Controls how well your in-process model predicts the final lab result.
+    - **`Lab Turnaround Time`**: The current bottleneck you are trying to eliminate.
+    - **Observe:** The dashboard shows the instant PAT prediction versus the delayed lab result. The timeline below visualizes the massive reduction in "Awaiting QC" time that RTRT enables.
+    """)
+
+    with st.sidebar:
+        st.subheader("RTRT Simulation Controls")
+        model_accuracy = st.slider("PAT Model Accuracy (R²)", 80, 100, 95, 1, help="The predictive accuracy of your real-time PAT model. Higher is better, and regulators will demand a very high R² to approve RTRT.")
+        lab_delay = st.slider("Lab Turnaround Time (Days)", 1, 14, 7, 1, help="The time it takes to get a final result from the traditional QC lab. This is the bottleneck you are eliminating.")
+        lab_noise = st.slider("Lab Method Noise (SD)", 0.5, 3.0, 1.5, 0.1, help="The random variability of the traditional QC lab method.")
+        
+    st.header("Real-Time Release Dashboard")
+    fig = plot_rtrt_dashboard(model_accuracy, lab_delay, lab_noise)
+    wip_reduction = lab_delay * 100000 # Example calculation
+    
+    col1, col2 = st.columns(2)
+    col1.metric("Time Saved per Batch", f"{lab_delay} Days")
+    col2.metric("WIP Inventory Reduction", f"${wip_reduction:,.0f}")
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive into Real-Time Release")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Dashboard:**
+        - **Top Plot (Analytical Results):** This plot shows the core of the validation argument for RTRT. You must prove that your PAT model's predictions (green line) are a reliable surrogate for the traditional lab test (orange 'x' markers). The closer the green line is to the black "truth" line, the more accurate your model.
+        - **Bottom Plot (Timeline):** This is the business case. It provides a stark visualization of the "before" and "after." The long orange "Awaiting QC" bar is the bottleneck that RTRT eliminates, allowing the batch to move from "In-Process" directly to "Released," slashing the total lead time.
+
+        **The Strategic Insight:** RTRT is not just about having a good predictive model. It requires a holistic, validated system that combines **1) advanced PAT sensors**, **2) a highly accurate and validated predictive model**, and **3) a robust quality system and regulatory strategy** to support the approach.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Multi-Million Dollar Waiting Game
+
+        #### The Problem: The "Hurry Up and Wait" Supply Chain
+        A company manufactures a high-value biologic drug. The manufacturing process itself takes 3 days. However, the final release testing in the QC lab—a series of complex, slow bioassays—takes an additional **14 days**. This means a multi-million dollar batch of life-saving medicine sits in a refrigerated warehouse, in a state of "quarantine," for two weeks.
+
+        #### The Impact: Strangled Cash Flow and a Brittle Supply Chain
+        This QC testing bottleneck is a massive, often invisible, drain on the company's financial health and operational agility.
+        - **Massive Trapped Capital:** With a 14-day quarantine period, the company can have hundreds of millions of dollars of finished product inventory that is physically complete but cannot be sold. This is a huge drag on working capital and cash flow.
+        - **Supply Chain Fragility:** If a sudden surge in demand occurs (e.g., during a pandemic), the company cannot respond quickly. They have a warehouse full of product they can't release. This inability to be agile leads to drug shortages, lost revenue, and can have serious public health consequences.
+        - **The Risk of the Unknown:** If a deviation is discovered during the final testing, it's too late. The entire batch must be rejected, leading to a massive write-off and a sudden hole in the supply plan.
+
+        #### The Solution: The "Certificate of Analysis" from the Production Line
+        Real-Time Release Testing (RTRT) is the solution. It is a paradigm shift that aims to generate the "Certificate of Analysis" directly from the manufacturing line, using data, not just from the final lab test. It is built on the core principle of **Process Analytical Technology (PAT)**: if you have a deep, validated understanding of your process and can monitor its Critical Quality Attributes (CQAs) in real-time, you can be assured of the final product quality without needing the slow, retrospective lab test.
+
+        #### The Consequences: A Fast, Lean, and Agile Supply Chain
+        - **Without This:** The QC lab is a permanent bottleneck, making the supply chain slow, expensive, and fragile.
+        - **With This:** Achieving RTRT is a transformative competitive advantage. It **slashes inventory costs**, **frees up hundreds of millions in working capital**, and creates a hyper-agile supply chain that can respond to patient needs in days, not weeks. It is the ultimate goal of the Pharma 4.0 revolution, turning the quality unit from a gatekeeper into a real-time enabler of business velocity.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **RTRT (Real-Time Release Testing):** The ability to evaluate and ensure the quality of in-process and/or final product based on process data, which typically includes a valid combination of assessed material attributes and process controls.
+        - **PAT (Process Analytical Technology):** A system for designing, analyzing, and controlling manufacturing through timely measurements of critical quality and performance attributes of raw and in-process materials and processes, with the goal of ensuring final product quality.
+        - **CQA (Critical Quality Attribute):** A physical, chemical, biological or microbiological property or characteristic that should be within an appropriate limit, range, or distribution to ensure the desired product quality.
+        - **Digital Twin:** A high-fidelity, real-time model of the process that is often used as the engine to make the RTRT predictions.
+        - **Surrogate Model:** The PAT prediction is a "surrogate" for the traditional lab test. The validation of RTRT involves proving that this surrogate is a reliable and accurate replacement.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Model is Magic" Fallacy**
+A team develops a highly accurate predictive model in R&D. They assume they can immediately use it to release batches from the manufacturing floor.
+- **The Flaw:** They have confused a good model with a validated system. The model was never validated on real-world manufacturing data, the PAT sensors on the floor are not qualified, the software is not 21 CFR Part 11 compliant, and there is no approved regulatory filing that allows for this approach. The model is a "science project," not a GxP system.""")
+        st.success("""🟢 **THE GOLDEN RULE: RTRT is a Strategy, Not Just a Model**
+Achieving RTRT is a multi-year, strategic initiative that requires a holistic approach.
+1.  **Deep Process Understanding (QbD):** You must first have a deep, fundamental understanding of your process, with well-defined CQAs and CPPs.
+2.  **Robust PAT Implementation:** You need qualified, real-time sensors to measure the critical parameters that feed the model.
+3.  **Rigorous Model Validation:** The predictive model must be rigorously validated to prove its accuracy, precision, and robustness on real manufacturing data. This validation must be just as thorough as the validation of a traditional lab method.
+4.  **Proactive Regulatory Engagement:** An RTRT strategy must be discussed and agreed upon with regulatory agencies *before* it is implemented for commercial release.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From Steel Mills to Sterile Suites
+        **The Problem:** For over a century, the dominant model for quality was "make and test." A batch of steel, a car, or a pharmaceutical tablet was produced, and then a sample was taken to a laboratory for testing. This created a fundamental time lag and inefficiency in every industry.
+
+        **The 'Aha!' Moment (PAT Initiative):** In the early 2000s, the US Food and Drug Administration (FDA), led by visionaries like Dr. Janet Woodcock, looked at other high-tech industries like semiconductors and petrochemicals. They saw that these industries had moved far beyond the slow "make and test" paradigm. They were using advanced sensors and real-time models to control their processes and ensure quality was built-in from the start. The FDA realized that the pharmaceutical industry was lagging far behind.
+        
+        **The Impact:** In 2004, the FDA launched its landmark guidance, **"PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance."** This was a call to arms for the industry to modernize. The concept of **Real-Time Release Testing (RTRT)** was the ultimate prize offered by this new PAT framework. It represented a complete paradigm shift—from Quality by Testing to Quality by Design and Control. While the adoption has been slow due to the high technical and regulatory hurdles, RTRT remains the "North Star" for the modern, efficient, and data-driven pharmaceutical manufacturing of the future.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        RTRT is an advanced strategy that is explicitly defined and encouraged by global regulatory bodies as the ultimate goal of a modern quality system.
+        - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This is the foundational guidance that introduced and defined RTRT. It outlines the expectation that RTRT is based on deep process understanding, real-time monitoring, and a robust control strategy.
+        - **ICH Q8(R2) - Pharmaceutical Development:** The principles of Quality by Design (QbD) are the scientific foundation for RTRT. A well-defined Design Space and Control Strategy are prerequisites for justifying a real-time release approach.
+        - **GAMP 5 & 21 CFR Part 11:** An RTRT system is the quintessential high-risk, GAMP Category 5 Computerized System. The entire system—from the PAT sensors to the data historian, the predictive model, and the final release decision logic—must be rigorously validated to ensure data integrity, model accuracy, and system reliability.
+        """)
+def render_biosimilarity():
+    """Renders the comprehensive module for Analytical Comparability & Biosimilarity."""
+    st.markdown("""
+    #### Purpose & Application: The Gauntlet of "Sameness"
+    **Purpose:** To provide a statistically rigorous framework for demonstrating **analytical biosimilarity**. This dashboard simulates the "equivalence tier" approach, where multiple Critical Quality Attributes (CQAs) of a biosimilar product are statistically compared against a reference product to prove they are "highly similar."
+    
+    **Strategic Application:** This is a mission-critical activity for any company developing biosimilar or generic drug products. The entire business case rests on the ability to provide a convincing, multi-faceted, data-driven argument to regulators that your product is statistically indistinguishable from the innovator's product. This dashboard is the scorecard for that argument.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Head of Biosimilar Development.
+    - Use the sliders to introduce subtle differences in the `Potency` and `Impurity` profiles of your biosimilar candidate.
+    - The dashboard will run a formal **Equivalence Test (TOST)** for each CQA.
+    - The final verdict depends on **all CQAs** passing their individual, pre-defined equivalence margins (the grey dotted bars).
+    """)
+
+    with st.sidebar:
+        st.subheader("Biosimilar Comparability Controls")
+        mean_shift_potency = st.slider("Mean Shift in Potency (%)", -2.0, 2.0, 0.5, 0.1, help="Simulates a small bias in the biosimilar's potency assay. A large shift will cause this CQA to fail equivalence.")
+        variance_factor_impurity = st.slider("Variance Factor for Aggregate", 1.0, 2.0, 1.2, 0.05, help="Simulates if the biosimilar's aggregate impurity profile is more variable than the original. High variability widens the CI, making it harder to prove equivalence.")
+        
+    st.header("Biosimilarity Equivalence Dashboard")
+    fig, df_results = plot_biosimilarity_dashboard(mean_shift_potency, variance_factor_impurity)
+    
+    passing_cqas = df_results['equivalent'].sum()
+    total_cqas = len(df_results)
+    
+    st.metric("Comparability Verdict", f"{passing_cqas} out of {total_cqas} CQAs are equivalent")
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive into Analytical Comparability")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Equivalence Tiers:**
+        - **The Goalposts (Grey Dotted Bars):** For each CQA, a pre-defined **equivalence margin** is set based on its clinical criticality. Highly critical attributes like Potency have very tight margins.
+        - **The Evidence (Colored Bars):** Each colored bar represents the **90% Confidence Interval** for the difference between your biosimilar and the original product for that CQA.
+        - **The Verdict:** The test for a CQA **passes (green)** only if its entire confidence interval falls *within* the grey goalposts. If any part of the bar extends beyond the margin, the test **fails (red)**.
+        
+        **The Strategic Insight:** Demonstrating biosimilarity is not about being "close" on average; it is about proving, with high statistical confidence, that any difference is smaller than a pre-defined, clinically irrelevant amount **across all critical attributes**. A single failure on a key CQA can jeopardize the entire program.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Multi-Billion Dollar Statistical Argument
+
+        #### The Problem: The "Looks Similar" Fallacy
+        A company invests hundreds of millions of dollars developing a biosimilar for a blockbuster biologic drug. Their analytical data shows that, on average, their product's key quality attributes "look pretty similar" to the innovator's product. They prepare a regulatory submission based on this qualitative assessment, supported by simple t-tests that show "no significant difference."
+
+        #### The Impact: A Failed Submission and a Wasted Investment
+        This approach is doomed to fail, potentially wasting a billion-dollar investment.
+        - **Regulatory Rejection:** Global regulators (FDA, EMA) will immediately reject a submission based on the flawed logic that "failing to prove a difference" is the same as "proving similarity." The company has failed to meet the fundamental statistical requirement of a biosimilarity package.
+        - **Unmanaged Clinical Risk:** The company's product might have a subtle but clinically significant difference in potency or impurity profile that their underpowered statistical analysis completely missed. If approved, this could lead to differences in patient outcomes and a potential recall.
+        - **Total Loss of Investment:** Without regulatory approval, the hundreds of millions invested in R&D, clinical trials, and manufacturing scale-up are a complete write-off.
+
+        #### The Solution: A Formal, Tiered Gauntlet of Equivalence
+        A successful biosimilarity program is built on a **formal, pre-defined statistical analysis plan** that uses the rigorous logic of **equivalence testing**. The approach, demonstrated in this dashboard, is a statistical gauntlet:
+        1.  **Tiering of Attributes:** CQAs are stratified into tiers based on their potential impact on patient safety and efficacy. Tier 1 attributes (e.g., Potency) face the most stringent statistical hurdles.
+        2.  **Pre-defined Margins:** For each CQA, a scientifically-justified **equivalence margin** is defined *before* the study. This is the "goalpost" for success.
+        3.  **Rigorous Equivalence Testing:** The data is analyzed using **TOST** to provide positive proof that any difference is well within these pre-defined margins.
+
+        #### The Consequences: A Defensible Pathway to Market
+        - **Without This:** A biosimilar program is a high-stakes gamble with a high probability of regulatory failure.
+        - **With This:** The tiered equivalence testing framework provides the **objective, statistically rigorous, and defensible evidence** that regulators require. It is the **mathematical foundation of the entire biosimilar business model**. By successfully navigating this statistical gauntlet, the company can provide the high degree of assurance needed to gain regulatory approval, unlock a multi-billion dollar market, and provide patients with safe, effective, and more affordable medicines.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Biosimilar:** A biologic medical product that is almost an identical copy of an original product that is manufactured by a different company.
+        - **Comparability:** The demonstration that a product remains highly similar in its quality attributes before and after a manufacturing process change. The same statistical principles as biosimilarity apply.
+        - **CQA (Critical Quality Attribute):** A property of the drug that should be within an appropriate limit to ensure the desired product quality.
+        - **Equivalence Testing (TOST):** The statistical method used to prove that the difference between two groups (e.g., biosimilar vs. original) is within a pre-defined, practically insignificant margin.
+        - **Tiering:** The practice of stratifying CQAs into different risk categories (e.g., Tiers 1, 2, and 3) based on their potential clinical impact. Tier 1 attributes are subjected to the most stringent equivalence criteria.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Cherry-Picking" Fallacy**
+An analyst runs dozens of different statistical tests and only presents the ones that show a favorable result in the regulatory submission. They ignore the CQAs where equivalence could not be demonstrated.
+- **The Flaw:** This is a serious breach of scientific and regulatory integrity. Regulators expect a full, transparent report on *all* pre-specified critical attributes. Hiding unfavorable results will lead to a complete loss of trust and a likely rejection.""")
+        st.success("""🟢 **THE GOLDEN RULE: Pre-Define the Entire Gauntlet**
+A successful and defensible comparability study is based on a pre-defined and unchangeable plan.
+1.  **Define the Tiers:** Before the study, formally classify all CQAs into risk-based tiers.
+2.  **Define the Margins:** For each CQA, prospectively define and justify the equivalence margin based on scientific knowledge and clinical relevance.
+3.  **Define the Statistics:** Pre-specify the exact statistical test that will be used for each CQA.
+4.  **Execute and Report All:** Execute the plan and report the results for *all* pre-specified attributes, whether they pass or fail. Any failures must be addressed with a thorough scientific justification.
+This disciplined approach is the only way to build a trustworthy and successful submission.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: The Biologic Revolution
+        **The Problem:** The rise of biologic drugs (monoclonal antibodies, therapeutic proteins) in the 1990s and 2000s created a new regulatory and scientific challenge. Unlike small-molecule drugs that can be perfectly copied to create a "generic," large-molecule biologics are produced by living cells and are exquisitely sensitive to the manufacturing process. It is impossible to create a truly "identical" copy.
+        
+        **The 'Aha!' Moment:** Regulators, led by the EMA in Europe and the FDA in the US, recognized that a new pathway was needed. They created the concept of a **"biosimilar"**—a product that is not identical, but is **"highly similar"** to the reference product with no clinically meaningful differences. This created a massive statistical challenge: how do you prove "high similarity"?
+        
+        **The Impact:** The statistical framework of **equivalence testing**, which had already been perfected for small-molecule bioequivalence, was adopted as the core engine for this new challenge. However, it was elevated to a new level of complexity. Instead of just testing the equivalence of a single pharmacokinetic parameter, a biosimilar developer now had to prove the equivalence of a whole **"fingerprint"** of dozens of Critical Quality Attributes. The **tiered approach** to equivalence, demonstrated in this dashboard, became the industry-standard framework for managing this complexity and presenting a convincing, risk-based argument to regulators. This statistical framework is the key that unlocked the multi-billion dollar global biosimilar market.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        Analytical comparability is governed by a specific set of guidelines for biologics and biosimilars.
+        - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This is the foundational guideline. It establishes the principle that the quality of a product must be shown to be highly similar before and after a manufacturing change. It introduces the concept of a "comparability exercise."
+        - **FDA Guidance for Industry - "Scientific Considerations in Demonstrating Biosimilarity to a Reference Product":** This guidance explicitly outlines the FDA's expectation for a stepwise, risk-based approach to demonstrating biosimilarity, with a heavy emphasis on a comprehensive analytical comparison as the foundation.
+        - **Biologics Price Competition and Innovation Act (BPCIA):** The US law that created the abbreviated licensure pathway for biosimilars, legally defining the standard as "highly similar" with "no clinically meaningful differences."
+        - **Equivalence Testing (TOST):** While not a regulation itself, the use of equivalence testing is the universally accepted statistical method for fulfilling the requirements of the above guidelines.
+        """)
+
+def render_nonparametric_workbench():
+    """Renders the comprehensive module for Non-Parametric Statistics."""
+    st.markdown("""
+    #### Purpose & Application: The Statistical "Off-Road Vehicle"
+    **Purpose:** To provide a toolkit of **non-parametric** statistical methods. These are "distribution-free" tests that do not assume your data follows a specific shape (like the classic bell curve of the normal distribution).
+    
+    **Strategic Application:** This is your statistical "off-road vehicle," essential for situations where the assumptions of standard tests are violated.
+    - **Handling Outliers:** Non-parametric tests are highly robust to outliers that would invalidate a standard t-test.
+    - **Analyzing Skewed Data:** Many real-world processes, especially those involving counts or impurities, produce skewed, non-normal data.
+    - **Small Sample Sizes:** When `n` is too small to confidently assume normality, non-parametric tests provide a safer, more conservative alternative.
+    """)
+    st.info("""
+    **Interactive Demo:** You are comparing two batches. Use the slider to inject a single, large **outlier** into Group B.
+    - **Observe:** The **t-test**, which is based on means, is highly sensitive to the outlier and incorrectly concludes the groups are different (a false positive).
+    - **Observe:** The **Mann-Whitney U test**, which is based on ranks, is robust to the outlier and correctly concludes that the underlying distributions are the same.
+    """)
+
+    with st.sidebar:
+        st.subheader("Non-Parametric Controls")
+        outlier_magnitude = st.slider("Outlier Magnitude (in SDs)", 0, 10, 5, 1, help="Controls the size of a single outlier added to Group B. A value of 0 means no outlier. Watch how the t-test p-value collapses as the outlier grows.")
+        
+    st.header("Parametric vs. Non-Parametric Test Robustness")
+    fig, ttest_p, mwu_p = plot_nonparametric_comparison(outlier_magnitude)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Statistical Verdict")
+        st.metric("Student's t-test p-value", f"{ttest_p:.4f}")
+        if ttest_p < 0.05: st.error("❌ t-test Verdict: Groups are different (misled by outlier).")
+        else: st.success("✅ t-test Verdict: No evidence of a difference found.")
+        
+        st.metric("Mann-Whitney U p-value", f"{mwu_p:.4f}")
+        if mwu_p < 0.05: st.error("❌ M-W Verdict: Groups are different.")
+        else: st.success("✅ M-W Verdict: No evidence of a difference found (robust to outlier).")
+    
+    st.divider()
+    st.subheader("Deeper Dive into Non-Parametric Methods")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Common Non-Parametric Tests", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Simulation:**
+        - **The t-test's Weakness:** The t-test works by comparing the **means** of the two groups. A single extreme outlier has a massive effect on the mean, pulling it far away from the true center of the data. This causes the t-test to detect a "significant difference" that is not real, but is just an artifact of the one bad data point.
+        - **The Mann-Whitney's Strength:** The Mann-Whitney U test works by a completely different principle. It first **converts all the data into ranks** (1st, 2nd, 3rd, etc.) and then tests if the ranks from one group are systematically higher or lower than the other. The extreme outlier is simply given the highest rank, but its actual *magnitude* is ignored. This makes the test incredibly robust to outliers.
+
+        **The Strategic Insight:** Your choice of statistical test is a critical risk-based decision. If your data is known to be clean and well-behaved, a parametric test like the t-test is more powerful. However, if you suspect the presence of outliers or your data is not normally distributed, a non-parametric test is a much safer and more reliable choice that protects you from drawing false conclusions.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The High Cost of a False Positive
+    
+        #### The Problem: The "Perfectly Normal" Assumption
+        A company is running a critical comparability study to prove that a new raw material supplier is equivalent to the old one. The analyst runs a standard t-test on the data. Unbeknownst to them, a single, anomalous data point—caused by a minor lab error—has crept into the dataset.
+    
+        #### The Impact: A Multi-Million Dollar Decision Based on a Glitch
+        The t-test is highly sensitive to this outlier. It produces a p-value of 0.04, leading to the formal conclusion that the two suppliers are **statistically different**.
+        - **Unnecessary Rejection of a Good Supplier:** Based on this single false positive result, the company rejects the new, potentially cheaper and more reliable supplier. The multi-million dollar cost-saving initiative is cancelled.
+        - **Wasted Investigation:** A massive investigation is launched to understand the "significant difference" between the suppliers. The team spends weeks of engineering time trying to find a root cause for a difference that doesn't actually exist.
+        - **Loss of Trust in Data:** When the true cause (the single outlier) is eventually found, management loses confidence in the statistical methods and the data analysis team.
+    
+        #### The Solution: A Statistical "Safety Net"
+        Non-parametric tests are the statistical "safety net" that protects against these kinds of costly errors. They are designed to be robust to the messy realities of real-world data. By converting data to ranks, they are inherently insensitive to the magnitude of extreme outliers. A Mann-Whitney U test on the same data would have produced a p-value > 0.05, correctly concluding that there is no evidence of a true difference between the suppliers and that the single strange point was likely just noise.
+    
+        #### The Consequences: Robust Decisions and Increased Efficiency
+        - **Without This:** The organization is vulnerable to making major strategic errors based on statistically significant but practically meaningless results caused by data glitches.
+        - **With This:** A culture of robust statistical practice, which includes the use of non-parametric tests when appropriate, leads to **more reliable and defensible conclusions**. It **prevents costly wild goose chases**, saves engineering resources, and ensures that critical business decisions are based on the true underlying signal in the data, not just the noise.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        Non-parametric tests are often called "distribution-free" because they don't assume the data follows a specific distribution (like the normal distribution). Here are some of the most common non-parametric alternatives to standard parametric tests.
+
+        | **Goal of the Test** | **Parametric Test (Assumes Normality)** | **Non-Parametric Alternative (No Assumption)** |
+        | :--- | :--- | :--- |
+        | Compare **two independent groups** | Independent Samples t-test | **Mann-Whitney U Test** (also called Wilcoxon Rank-Sum Test) |
+        | Compare **two paired groups** (e.g., before & after) | Paired Samples t-test | **Wilcoxon Signed-Rank Test** |
+        | Compare **three or more independent groups** | One-Way ANOVA | **Kruskal-Wallis Test** |
+        | Compare **three or more related groups** | Repeated Measures ANOVA | **Friedman's Test** |
+        | Measure the **correlation** between two variables | Pearson Correlation | **Spearman Rank Correlation** |
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Ignore the Assumptions" Fallacy**
+An analyst runs a t-test on a small dataset with a clear outlier without first checking the assumptions of the test.
+- **The Flaw:** All statistical tests are built on a set of assumptions. If you violate those assumptions, the results (especially the p-value) are not reliable. The most common violated assumption is that the data is normally distributed, a vulnerability that non-parametric tests are designed to fix.""")
+        st.success("""🟢 **THE GOLDEN RULE: Check Your Assumptions, Then Choose Your Test**
+A robust statistical analysis always follows a disciplined workflow.
+1.  **Visualize Your Data First (EDA):** Always start with a box plot or a histogram to understand the shape of your data. This is the best way to spot outliers and severe skewness.
+2.  **Formally Test Assumptions:** Use a formal statistical test for normality (like the Shapiro-Wilk test) if you are unsure.
+3.  **Choose the Right Tool:**
+    - If the data looks reasonably symmetric, has no major outliers, and the sample size is large (e.g., >30), a **parametric test** is generally preferred as it has more statistical power.
+    - If the data is skewed, contains outliers, or the sample size is very small, a **non-parametric test** is the safer, more robust, and more defensible choice.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: The Rise of "Distribution-Free" Methods
+        **The Problem:** The "golden age" of statistics in the early 20th century, led by giants like R.A. Fisher, was built on a foundation of elegant but strict mathematical assumptions—chief among them, the assumption that the data followed a normal (Gaussian) distribution. This was a powerful simplification, but many real-world datasets, especially in fields like biology and social sciences, simply weren't that well-behaved.
+        
+        **The 'Aha!' Moment:** In the 1940s, a new school of thought emerged, led by statisticians like **Frank Wilcoxon**. Their brilliant insight was to get rid of the "tyranny of the normal distribution" by getting rid of the data's actual values altogether. They developed methods based on **ranks**. Instead of comparing the means of two groups, Wilcoxon's test (later refined by **Henry Mann** and **Donald Whitney**) simply asked: "If you mix all the data together and rank it from smallest to largest, are the ranks from Group A systematically higher or lower than the ranks from Group B?"
+        
+        **The Impact:** This was a revolutionary idea. By converting data to ranks, the test became immune to outliers and made no assumptions about the data's original shape. These "distribution-free" or **non-parametric** methods provided a robust and reliable toolkit for analyzing the messy, non-normal data that was common in the real world. While they are sometimes less powerful than parametric tests *if* the assumptions are met, their robustness has made them an essential part of any modern statistician's toolkit.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        The use of valid statistical techniques is a core GxP requirement. Choosing the correct test based on the data's properties is a key part of demonstrating statistical rigor.
+        - **21 CFR 820.250 (Statistical Techniques):** This regulation for medical devices requires manufacturers to establish and maintain procedures for identifying **"valid statistical techniques"**. Using a non-parametric test when the assumptions for a parametric test are clearly violated is a direct fulfillment of this requirement. Failing to do so could be cited as using an "invalid" technique.
+        - **ICH Q9 (Quality Risk Management):** The risk of drawing an incorrect conclusion from a statistical test is a significant data integrity risk. Choosing a robust, non-parametric method can be a risk mitigation strategy when data quality is uncertain.
+        - **Regulatory Submissions:** In a submission to the FDA or other agencies, the choice of statistical methods must be pre-specified and justified in the statistical analysis plan. If the data is expected to be non-normal, justifying the use of a non-parametric test upfront demonstrates statistical foresight and robustness.
+        """)
+
+def render_capa_effectiveness():
+    """Renders the comprehensive module for CAPA Effectiveness."""
+    st.markdown("""
+    #### Purpose & Application: Closing the Loop
+    **Purpose:** To provide a formal, data-driven method for proving that a **Corrective and Preventive Action (CAPA)** was effective. This dashboard moves beyond simply closing a CAPA to statistically demonstrating that the implemented fix actually improved the process.
+    
+    **Strategic Application:** This is the final, critical step in any robust CAPA system. It is the objective evidence required by auditors to prove that your quality system is not just identifying problems, but is **permanently solving them**. A CAPA without an effectiveness check is just a documented guess.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Quality Engineer responsible for a CAPA.
+    - A process was running off-center and with high variability (`Cpk < 1.0`).
+    - Use the **`CAPA Improvement Magnitude`** slider to simulate how effective your implemented fix was.
+    - The dashboard shows a clear "Before vs. After" comparison, with the change in Process Capability (Cpk) as the primary quantitative measure of success.
+    """)
+
+    with st.sidebar:
+        st.subheader("CAPA Effectiveness Controls")
+        improvement_magnitude = st.slider("CAPA Improvement Magnitude", 0.0, 2.0, 1.0, 0.1, help="How effective the implemented CAPA was at centering the process and reducing its variability. A higher value represents a more successful fix.")
+        
+    st.header("CAPA Effectiveness Dashboard")
+    fig, cpk_before, cpk_after = plot_capa_effectiveness(improvement_magnitude)
+    
+    col1, col2 = st.columns(2)
+    col1.metric("Process Capability (Cpk) Before CAPA", f"{cpk_before:.2f}")
+    col2.metric("Process Capability (Cpk) After CAPA", f"{cpk_after:.2f}", delta=f"{cpk_after - cpk_before:.2f}")
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive into CAPA Effectiveness")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Dashboard:**
+        - **Before CAPA (Red Histogram):** This shows the original problem. The process distribution is wide and significantly off-center, leading to a very poor Cpk.
+        - **After CAPA (Green Histogram):** This shows the process after the fix. As you increase the **`Improvement Magnitude`**, the green distribution becomes narrower (less variation) and moves closer to the center of the specification limits.
+        - **The Cpk Metric:** This is your primary KPI. It quantifies the improvement in a single number. A successful CAPA should result in a significant, measurable increase in Cpk.
+
+        **The Strategic Insight:** A CAPA is not complete when the action is done; it is complete when the data proves the action was **effective**. This dashboard provides the objective evidence for that conclusion. The goal is not just to fix the problem, but to demonstrate a quantifiable improvement in process performance and robustness.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: From "Whack-a-Mole" to Permanent Solutions
+
+        #### The Problem: The "Paper Tiger" CAPA System
+        A company has a CAPA system that is excellent at paperwork but poor at problem-solving. A deviation occurs, a lengthy investigation is performed, and a corrective action is implemented (e.g., "Retrain operator"). The CAPA is then closed in the system. Management sees a report of "100% of CAPAs closed on time" and assumes the quality system is working perfectly.
+
+        #### The Impact: The "Groundhog Day" of Recurring Failures
+        This is a "paper tiger" quality system—it looks good on paper but has no real teeth.
+        - **Recurring Deviations:** Six months later, the exact same deviation occurs. The company is trapped in a costly "Groundhog Day" cycle, investigating and re-investigating the same problems over and over because they never fixed the true root cause.
+        - **Wasted Resources:** The engineering and quality teams are in a constant state of firefighting, their time consumed by managing recurring crises instead of working on value-added process improvement.
+        - **Severe Audit Findings:** During an audit, an inspector will review the deviation log. When they see the same problem recurring every six months, they will issue a severe finding for having an **ineffective CAPA system**. This is a major red flag that can lead to a Warning Letter.
+
+        #### The Solution: A Formal, Data-Driven "Proof of Effectiveness"
+        A robust CAPA system has a mandatory final step: the **Effectiveness Check**. This is a formal, pre-defined plan to gather and analyze data *after* the corrective action has been implemented to prove, with objective evidence, that the problem has been solved and has not recurred. This dashboard simulates that proof. It uses key performance indicators like **Process Capability (Cpk)** to provide a quantitative "before and after" picture.
+
+        #### The Consequences: A Learning Organization and a Bulletproof Audit Trail
+        - **Without This:** The CAPA system is a bureaucratic illusion that provides a false sense of security while allowing underlying problems to fester.
+        - **With This:** The mandatory effectiveness check transforms the CAPA system from a reactive "fix-it" process into a powerful **organizational learning loop**. It forces the team to confirm that their solutions are working and provides the hard data to justify further investment if they are not. For an auditor, a well-documented effectiveness check is the ultimate proof of a mature, functioning, and compliant quality system.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **CAPA (Corrective and Preventive Action):** A formal process within a Quality Management System (QMS) to investigate and correct non-conformities (Corrective Action) and to prevent their recurrence (Preventive Action).
+        - **Root Cause Analysis (RCA):** The investigation performed to identify the underlying cause of the problem. A successful CAPA depends on an accurate RCA.
+        - **Effectiveness Check:** A planned, documented, and evidence-based verification that the actions taken as part of a CAPA have successfully addressed the root cause and have not introduced any new, adverse effects.
+        - **Process Capability (Cpk):** A key statistical metric used to measure process performance. A significant improvement in Cpk is strong evidence of CAPA effectiveness for a manufacturing process.
+        - **Recurrence:** The reappearance of the same non-conformity after a CAPA has been implemented and closed. It is a direct indicator of an ineffective CAPA system.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Trust Me, It's Fixed" Method**
+An engineer implements a fix for a process deviation. A manager asks if it worked. The engineer replies, "Yes, I watched the next run and it looked much better." The CAPA is closed.
+- **The Flaw:** This is based on anecdote and opinion, not data. There is no objective, quantitative evidence that the process is truly more stable or capable than it was before. This would not withstand an audit.""")
+        st.success("""🟢 **THE GOLDEN RULE: If You Can't Measure It, You Can't Prove It Was Fixed**
+A robust CAPA effectiveness check is a formal, data-driven mini-validation.
+1.  **Define "Effective" Upfront:** The CAPA plan itself must define what "effective" means in measurable terms. For example: "The CAPA will be considered effective if the Cpk of the process increases to ≥ 1.33 and the issue does not recur for 90 days."
+2.  **Collect the Data:** Gather sufficient data from the process *after* the change has been implemented.
+3.  **Analyze and Document:** Perform the statistical analysis (e.g., calculating the new Cpk) and create a formal report with the data, analysis, and a final conclusion. This report becomes the final, critical record in the CAPA file.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From Military Defects to Modern Quality Systems
+        The concept of a formal system for corrective action has its roots in military and quality management standards from the mid-20th century.
+        
+        **The Problem:** In complex manufacturing (like for military hardware), defects and deviations were common. The initial response was often a simple "fix-and-forget." This led to recurring problems that compromised quality and reliability.
+        
+        **The 'Aha!' Moment:** Quality pioneers like **W. Edwards Deming** and **Joseph Juran** championed a more systematic approach. The core idea, embodied in Deming's **Plan-Do-Check-Act (PDCA)** cycle, was that fixing a problem is not a single event, but a continuous loop.
+        -   **Plan:** Identify the problem and a potential solution.
+        -   **Do:** Implement the solution.
+        -   **Check:** Gather data to verify if the solution worked. **This is the Effectiveness Check.**
+        -   **Act:** If the solution worked, standardize it. If not, go back to the planning stage.
+        
+        **The Impact:** This simple but powerful idea was formalized into the **Corrective and Preventive Action (CAPA)** systems required by modern quality management standards like ISO 9001 and the GxP regulations for pharmaceuticals and medical devices. The "Effectiveness Check" is the mandatory "Check" step that ensures the quality system is actually learning and improving, not just spinning its wheels.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        The requirement for a formal CAPA system, including effectiveness checks, is one of the most fundamental and frequently audited parts of any GxP Quality Management System.
+        - **FDA 21 CFR 820.100 (Medical Devices):** This regulation explicitly requires manufacturers to establish procedures for CAPA. It mandates "(4) Verifying or validating the corrective and preventive action to ensure that such action is effective and does not adversely affect the finished device."
+        - **FDA 21 CFR 211.192 (Pharmaceuticals):** Requires that investigations into discrepancies include "the conclusions and follow-up." A documented effectiveness check is the standard way to prove the follow-up was successful.
+        - **ICH Q10 - Pharmaceutical Quality System:** Section 3.2.2 describes the CAPA system as a key element for continual improvement. It requires that the effectiveness of the actions taken should be monitored.
+        - **ISO 13485:2016:** The international quality standard for medical devices has nearly identical requirements to 21 CFR 820 regarding the need to verify that corrective actions are effective.
+        """)
+
+def render_hfe():
+    """Renders the comprehensive module for Usability & Human Factors Engineering."""
+    st.markdown("""
+    #### Purpose & Application: Designing for the Human Element
+    **Purpose:** To systematically analyze and improve the usability of a medical device or system. **Human Factors Engineering (HFE)** is a scientific discipline that focuses on understanding the interactions between humans and a system to optimize for performance, safety, and user satisfaction.
+    
+    **Strategic Application:** This is a **mandatory design control activity** for most medical devices. It is the primary method for identifying and mitigating risks associated with **"use error"**—when a user, even with the best intentions, makes a mistake due to a confusing interface, poor ergonomics, or unclear instructions. A robust HFE validation file is a critical component of any regulatory submission (e.g., to the FDA).
+    """)
+    st.info("""
+    **Interactive Demo:** You are the HFE Lead for a new diagnostic instrument.
+    - Use the sliders to simulate the quality of the device's design and the complexity of the tasks a user must perform.
+    - The **System Usability Scale (SUS) Score** provides a standardized, quantitative measure of perceived usability.
+    - The **Task Failure Analysis** plot identifies which specific steps in the workflow are the most error-prone, guiding your design improvement efforts.
+    """)
+
+    with st.sidebar:
+        st.subheader("HFE Simulation Controls")
+        design_clarity = st.slider("UI/UX Design Clarity Score", 1, 10, 7, 1, help="A proxy for how intuitive and well-designed the device interface is. A higher score leads to better SUS scores and lower task failure rates.")
+        task_complexity = st.slider("Critical Task Complexity", 1, 10, 5, 1, help="How inherently difficult the most critical user tasks are. Higher complexity increases the probability of use error.")
+
+    st.header("Usability Study Results Dashboard")
+    fig_tasks, sus_score = plot_hfe_dashboard(design_clarity, task_complexity)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("System Usability Scale (SUS) Score", f"{sus_score:.1f}")
+        if sus_score > 80.3: st.success("Grade: A (Excellent)")
+        elif sus_score > 68: st.success("Grade: B (Good)")
+        elif sus_score > 51: st.warning("Grade: C (Okay)")
+        else: st.error("Grade: F (Unacceptable)")
+    with col2:
+        st.plotly_chart(fig_tasks, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive into Human Factors Engineering")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Dashboard:**
+        - **System Usability Scale (SUS) Score:** This is a standardized, 10-question survey that provides a quick, reliable, and globally recognized score for a system's perceived usability. A score of **68 is considered average**. A score below 51 indicates serious usability problems.
+        - **Task Failure Analysis:** This plot is the primary diagnostic tool from a formative or summative usability study. It shows the observed failure rate for each critical user task. The highest red bars are the most critical "hot spots" in the user interface that must be redesigned to mitigate the risk of use error.
+
+        **The Strategic Insight:** Try setting the **Design Clarity** to a low value and the **Task Complexity** to a high value. This simulates a classic HFE problem: a poorly designed interface for a difficult task. Notice how the SUS score plummets and the task failure rates skyrocket. This demonstrates that usability is not a matter of opinion; it is an emergent property of the design that can be measured, analyzed, and systematically improved.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The High Cost of a Confusing Device
+
+        #### The Problem: The "Perfectly Engineered, Unusable Device"
+        A team of brilliant engineers develops a new medical device that is a technological marvel. It is more precise, faster, and more feature-rich than any competitor. However, the user interface is an afterthought—a complex maze of confusing menus, ambiguous icons, and an unclear workflow.
+
+        #### The Impact: Market Failure and Patient Harm
+        This failure to design for the human element is a catastrophic, and surprisingly common, business and clinical failure.
+        - **Patient Safety Crises and Recalls:** A nurse, under pressure in a busy hospital, misinterprets a confusing screen and administers the wrong dose of a drug from the infusion pump. A lab technician, confused by a complex workflow, skips a critical cleaning step on a diagnostic analyzer, leading to a false patient result. **Use error is a leading cause of medical device recalls**, resulting in immense reputational damage, legal liability, and direct patient harm.
+        - **Market Rejection:** Even if no safety issues occur, a confusing device will be rejected by the market. Doctors and nurses will refuse to adopt a tool that is frustrating and inefficient to use in their daily workflow. The technologically superior product fails commercially.
+        - **Regulatory Rejection:** The FDA and other global regulators now consider HFE a mandatory part of the design process. An inadequate HFE validation file is a common reason for a regulatory submission to be rejected, delaying the product launch by months or years.
+
+        #### The Solution: A Formal, User-Centered Design Process
+        Human Factors Engineering (HFE) is the formal, scientific discipline for **making technology work for people**. It is not about making a device look pretty; it is a rigorous, data-driven process of **designing safety and usability in from the start**. It involves:
+        1.  **Understanding the User and Environment:** Deeply analyzing the intended users, their capabilities, and the real-world environment where the device will be used.
+        2.  **Task Analysis:** Breaking down every critical user task to identify potential failure points.
+        3.  **Iterative Testing (Formative Studies):** Building prototypes and testing them with real users early and often to identify and fix usability problems when changes are cheap.
+        4.  **Final Validation (Summative Study):** A formal validation study that proves the final device design is safe and effective for its intended use by its intended users.
+
+        #### The Consequences: A Safe, Effective, and Market-Leading Product
+        - **Without This:** The product is a high-risk gamble. It is vulnerable to use-error-related recalls and is likely to be rejected by both regulators and the market.
+        - **With This:** A robust HFE process is the key to creating a product that is not just technologically advanced, but also **safe, intuitive, and desirable**. It is a direct investment in **reducing patient risk, ensuring regulatory approval, and achieving commercial success**.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Terms
+        - **Human Factors Engineering (HFE):** The discipline of applying what is known about human capabilities and limitations to the design of products, processes, systems, and work environments.
+        - **Usability:** The extent to which a system can be used by specified users to achieve specified goals with effectiveness, efficiency, and satisfaction in a specified context of use.
+        - **Use Error:** An action or lack of action by a user that leads to a different result than intended by the manufacturer. It is a failure of the design, not the user.
+        - **Formative Usability Study:** An early-stage, exploratory study performed during the design process to "form" and improve the user interface.
+        - **Summative (or Validation) Usability Study:** A formal, final validation study performed on the finished device to demonstrate that it is safe and effective for its intended use. This is the study submitted to regulators.
+        - **System Usability Scale (SUS):** A widely used, standardized 10-item questionnaire for assessing perceived usability. It is a quick and reliable way to get a quantitative usability score.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Let's Ask the Engineers" Fallacy**
+The user interface is designed by the same engineers who designed the internal hardware and software. They assume that because the logic is clear to them, it will be clear to a nurse in a busy ICU.
+- **The Flaw:** This is the classic "curse of knowledge." The designers are not the users. They have a deep, expert understanding that the end user does not possess. Designing without direct user input is guaranteed to produce a confusing and error-prone interface.""")
+        st.success("""🟢 **THE GOLDEN RULE: The User is Not Like You**
+A robust HFE process is built on a foundation of deep empathy for the user and a rigorous, iterative testing process.
+1.  **Test Early, Test Often:** Conduct multiple, small-scale **formative** usability studies with representative users throughout the entire design process. It is infinitely cheaper to fix a flaw on a cardboard prototype than on a finished product.
+2.  **Simulate Real-World Conditions:** Usability validation studies must be conducted in a high-fidelity simulated environment that replicates the stresses, distractions, and conditions of actual use.
+3.  **The Root Cause of Error is the Design:** When a user makes a mistake, the question is never "What's wrong with the user?" but always **"What's wrong with our design that allowed this error to occur?"**""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From the Cockpit to the Clinic
+        **The Problem:** During World War II, military aircraft were becoming incredibly complex. A shocking number of crashes were not due to enemy fire or mechanical failure, but to **pilot error**. Early investigations revealed that the cockpits were a confusing nightmare of poorly designed and inconsistently placed controls. In one infamous example, the controls for the landing gear and the wing flaps were identical and placed side-by-side, leading to pilots accidentally retracting their landing gear on final approach.
+
+        **The 'Aha!' Moment:** Psychologists and engineers, notably **Alphonse Chapanis**, began to systematically study the "man-machine interface." This was the birth of modern **Human Factors Engineering**. They proved that by designing controls that were shaped differently, logically placed, and aligned with the pilot's mental model, they could dramatically reduce these "use errors" and save lives.
+        
+        **The Impact:** After the war, these principles spread to other high-risk industries, from nuclear power control rooms to industrial process control. The medical device industry, however, was slow to adopt these principles. A series of high-profile recalls and patient deaths in the 1990s and 2000s, caused by confusing user interfaces on devices like infusion pumps, led the FDA to recognize the critical importance of HFE. They made HFE a central and mandatory part of the **Design Controls** process, transforming it from a "nice-to-have" into a non-negotiable requirement for ensuring patient safety.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        HFE and Usability Engineering are a mandatory regulatory requirement for most medical devices in the US and Europe.
+        - **FDA 21 CFR 820.30 (Design Controls):** The FDA considers HFE to be a core part of the design validation process. The regulation requires that devices are validated to meet **"user needs and intended uses."** A summative HFE study is the primary evidence that this requirement has been met.
+        - **FDA Guidance - "Applying Human Factors and Usability Engineering to Medical Devices":** This is the FDA's primary guidance document on the topic. It outlines the agency's expectations for a robust HFE process, including formative studies, risk analysis of use errors, and a summative validation study. The HFE validation report is a required part of a 510(k) or PMA submission.
+        - **IEC 62366-1:2015:** This is the international standard for the application of usability engineering to medical devices. Compliance with this standard is often used to demonstrate conformity with regulatory requirements in the EU and other regions.
+        """)
+
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
 # ==============================================================================
@@ -16748,6 +17610,7 @@ with st.sidebar:
             "Requirements Traceability Matrix (RTM)",
             "Gap Analysis & Change Control",
             "Root Cause Analysis (RCA)",
+            "CAPA Effectiveness Checker" # Placed here as a core QMS component, logically following RCA and Change Control.
         ],
         "ACT I: FOUNDATION & CHARACTERIZATION": [
             "Exploratory Data Analysis (EDA)",
@@ -16761,6 +17624,7 @@ with st.sidebar:
             "Attribute Agreement Analysis",
             "Comprehensive Diagnostic Validation",
             "Component Reliability Testing",
+            "Usability & Human Factors Engineering (HFE)", # Placed here as a user-centric design characterization tool.
             "ROC Curve Analysis",
             "Assay Robustness (DOE)",
             "Mixture Design (Formulations)",
@@ -16775,9 +17639,11 @@ with st.sidebar:
             "Advanced Stability Design",
             "Method Comparison",
             "Equivalence Testing (TOST)",
+            "Non-Parametric Statistics Workbench", # A companion to the primary comparison tools for when assumptions fail.
             "Wasserstein Distance",
             "Two-Process Comparability Suite",
             "Multi-Process Comparability Suite",
+            "Analytical Comparability & Biosimilarity Dashboard", # The most advanced and comprehensive comparability tool.
             "Process Stability (SPC)",
             "Process Capability (Cpk)",
             "Statistical Equivalence for Process Transfer",
@@ -16812,6 +17678,8 @@ with st.sidebar:
             "LSTM Autoencoder + Hybrid Monitoring",
             "PSO + Autoencoder",
             "Digital Twin & Real-Time Simulation",
+            "Model Predictive Control (MPC)", # A direct application of a Digital Twin for real-time control.
+            "Real-Time Release Testing (RTRT) Dashboard", # The ultimate goal of PAT and lifecycle management.
         ]
     }
 
@@ -16836,6 +17704,7 @@ with st.sidebar:
         "Requirements Traceability Matrix (RTM)": render_rtm_builder,
         "Gap Analysis & Change Control": render_gap_analysis_change_control,
         "Root Cause Analysis (RCA)": render_rca_suite,
+        "CAPA Effectiveness Checker": render_capa_effectiveness, # New
         
         # Act I
         "Exploratory Data Analysis (EDA)": render_eda_dashboard,
@@ -16850,6 +17719,7 @@ with st.sidebar:
         "Comprehensive Diagnostic Validation": render_diagnostic_validation_suite,
         "Component Reliability Testing": render_component_reliability,
         "ROC Curve Analysis": render_roc_curve,
+        "Usability & Human Factors Engineering (HFE)": render_hfe, # New
         "Assay Robustness (DOE)": render_assay_robustness_doe,
         "Mixture Design (Formulations)": render_mixture_design,
         "Process Optimization: From DOE to AI": render_process_optimization_suite,
@@ -16863,11 +17733,13 @@ with st.sidebar:
         "Advanced Stability Design": render_stability_design,
         "Method Comparison": render_method_comparison,
         "Equivalence Testing (TOST)": render_tost,
+        "Non-Parametric Statistics Workbench": render_nonparametric_workbench, # New
         "Wasserstein Distance": render_wasserstein_distance,
         "Two-Process Comparability Suite": render_two_process_suite,
         "Multi-Process Comparability Suite": render_multi_process_suite,
         "Process Stability (SPC)": render_spc_charts,
         "Process Capability (Cpk)": render_capability,
+        "Analytical Comparability & Biosimilarity Dashboard": render_biosimilarity, # New
         "Statistical Equivalence for Process Transfer": render_process_equivalence,
         "Production Line Sync (ODE)": render_ode_line_sync,
         "Lean Manufacturing & VSM": render_lean_manufacturing,
@@ -16899,6 +17771,8 @@ with st.sidebar:
         "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
         "PSO + Autoencoder": render_pso_autoencoder,
         "Digital Twin & Real-Time Simulation": render_digital_twin,
+        "Model Predictive Control (MPC)": render_mpc, # New
+        "Real-Time Release Testing (RTRT) Dashboard": render_rtrt, # New
     }
     
 # --- Main Content Area Dispatcher ---

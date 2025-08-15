@@ -11474,29 +11474,18 @@ def render_time_series_suite():
     # The detailed informational tabs remain unchanged and will display correctly.
     tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "💡 Method Selection Map", "📊 Scoring Table", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
     with tabs[0]:
-        st.subheader("How to Interpret the Dashboard: A Guided Tour")
+    with tabs[0]:
         st.markdown("""
-        This interactive dashboard is a virtual laboratory for time series analysis. By manipulating the "ground truth" of the data in the sidebar, you can discover each model's unique strengths and weaknesses.
+        ### Method Selection Map: A Strategic Decision Framework
+        This streamlined suite compares the three dominant philosophies of classical time series forecasting.
 
-        ##### The Main Plot: The Arena of Competition
-        The primary chart shows the models you selected competing to forecast the future (the period after the grey dashed line). The black line is the truth they are all trying to predict. The **Mean Absolute Error (MAE)** on the right is the final scorecard—the model with the lowest score is the winner for that specific scenario.
-
-        ---
-        ##### Challenge 1: The Multi-Seasonality Problem
-        1.  In the sidebar, select only `Prophet` and `TBATS` to run.
-        2.  Set **Seasonality Type** to `Multiple (Yearly + Quarterly)`.
-        3.  Click **"Run Forecast Analysis"**.
-        4.  **Observe:** Notice how the forecasts from **Prophet** and **TBATS** closely track the complex, bumpy seasonal pattern. If you add Holt-Winters or SARIMA, they will produce a much smoother, less accurate forecast.
-        5.  **Conclusion:** The MAE scores will confirm that Prophet and TBATS are the superior models for this type of data. This is their primary superpower.
-
-        ---
-        ##### Challenge 2: The Trend Changepoint Problem
-        1.  Select `Prophet` and `SARIMA`. Set **Seasonality Type** back to `Single (Yearly)`.
-        2.  Increase the **Trend Changepoint Strength** to a significant positive or negative value.
-        3.  Click **"Run Forecast Analysis"**.
-        4.  **Observe:** The classical models like SARIMA struggle to adapt to the sudden change in the trend's slope. **Prophet**, which is specifically designed to detect and adapt to changepoints, will often produce a more accurate forecast.
-        5.  **Conclusion:** For business data where strategies or market conditions can change abruptly, Prophet's flexibility provides a significant advantage.
+        | **Your Primary Goal** | **Recommended Tool** | **Why? (Pros)** | **What to Watch Out For (Cons)** |
+        | :--- | :--- | :--- | :--- |
+        | **Simplicity and Interpretability:** "I need a fast, clear model of level, trend, and season." | **Holt-Winters** | **The Craftsman:** Directly models the three components you can see, making it the easiest to explain to stakeholders. | **Less Flexible:** It's a specialist tool that assumes a simple, repeating seasonal pattern and can be less accurate than other methods. |
+        | **Statistical Rigor & Defensibility:** "I need to model the process's internal 'memory' and prove it in a submission." | **SARIMA** | **The Watchmaker:** The gold standard for statistical formality. Excellent for short-term forecasts on stable processes with strong autocorrelation. | **Requires Expertise & Stationarity:** Difficult to tune the parameters correctly. The need for differencing can make it harder to interpret. |
+        | **Automation & Flexibility:** "I need a robust model that can automatically handle different types of trend and seasonality." | **ETS** | **The Automation Specialist:** It automatically selects the best combination of error, trend, and seasonal components (additive or multiplicative), providing a highly flexible and robust forecast. | **More of a 'Black Box':** While the final components are interpretable, the underlying state-space model is more complex than Holt-Winters. |
         """)
+        st.warning("**Note:** The `Prophet` and `TBATS` models were removed from this interactive demo due to their high computational and memory requirements, which cause instability in web app environments. The core educational comparison remains.")
     with tabs[1]:
         st.subheader("From Reactive Firefighting to Proactive Control")
         st.markdown("""

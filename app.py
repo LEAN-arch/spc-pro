@@ -8250,6 +8250,8 @@ A complex project like a tech transfer should be governed by a single, integrate
         - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing. It is a critical component of the Design History File (DHF).
         """)
 
+# SNIPPET: Replace your entire render_gap_analysis_change_control function with this correct version.
+
 def render_gap_analysis_change_control():
     """Renders the comprehensive module for Gap Analysis & Change Control."""
     st.markdown("""
@@ -8268,11 +8270,9 @@ def render_gap_analysis_change_control():
     4.  Fill out and submit the form to see a mock, official Change Control record generated below.
     """)
 
-    # --- Initialize session state for the change control form ---
     if 'cc_record' not in st.session_state:
         st.session_state.cc_record = None
 
-    # --- Sidebar Controls ---
     with st.sidebar:
         st.subheader("Current State Assessment")
         st.markdown("Score your system's current compliance (0=Non-existent, 10=Fully Compliant).")
@@ -8285,21 +8285,33 @@ def render_gap_analysis_change_control():
             'Electronic<br>Signatures': st.slider("Electronic Signatures", 0, 10, 4)
         }
     
-    # --- Main Dashboard ---
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Gap Analysis Results")
         fig = plot_gap_analysis_radar(current_scores)
         st.plotly_chart(fig, use_container_width=True)
         
+        # --- START OF THE FIX ---
         gaps = {cat: 10 - score for cat, score in current_scores.items()}
-        largest_gap_category = max(gaps, key=gaps.get).replace('<br>', ' ')
-        largest_gap_value = gaps[largest_gap_category]
         
-        if largest_gap_value > 0:
-            st.warning(f"**Largest Gap Identified:** A deficiency of **{largest_gap_value} points** was found in **{largest_gap_category}**.")
+        # First, get the original key with the <br> tag
+        original_key = max(gaps, key=gaps.get) if gaps else None
+        
+        if original_key:
+            # Use the original key to get the value
+            largest_gap_value = gaps[original_key]
+            # NOW, create a clean version for display purposes
+            largest_gap_category_display = original_key.replace('<br>', ' ')
+            
+            if largest_gap_value > 0:
+                st.warning(f"**Largest Gap Identified:** A deficiency of **{largest_gap_value} points** was found in **{largest_gap_category_display}**.")
+            else:
+                st.success("**Fully Compliant:** No gaps were identified in the assessment.")
         else:
+            largest_gap_value = 0
+            largest_gap_category_display = "None"
             st.success("**Fully Compliant:** No gaps were identified in the assessment.")
+        # --- END OF THE FIX ---
 
     with col2:
         st.subheader("Initiate Change Control")
@@ -8307,7 +8319,7 @@ def render_gap_analysis_change_control():
             st.text_input("Change Title", "Upgrade LIMS to Address Data Integrity Gaps")
             st.text_area(
                 "Justification for Change",
-                f"A formal Gap Analysis was performed in preparation for an upcoming audit. A critical gap of {largest_gap_value} points was identified in the area of {largest_gap_category}. This change is required to close this gap and ensure full regulatory compliance.",
+                f"A formal Gap Analysis was performed in preparation for an upcoming audit. A critical gap of {largest_gap_value} points was identified in the area of {largest_gap_category_display}. This change is required to close this gap and ensure full regulatory compliance.",
                 height=150
             )
             st.multiselect(
@@ -8324,7 +8336,7 @@ def render_gap_analysis_change_control():
             if submitted:
                 st.session_state.cc_record = {
                     "Title": "Upgrade LIMS to Address Data Integrity Gaps",
-                    "Justification": f"A formal Gap Analysis was performed in preparation for an upcoming audit. A critical gap of {largest_gap_value} points was identified in the area of {largest_gap_category}. This change is required to close this gap and ensure full regulatory compliance.",
+                    "Justification": f"A formal Gap Analysis was performed... A critical gap of {largest_gap_value} points was identified in the area of {largest_gap_category_display}...",
                     "Impact": ["System Software", "Validation Documents", "SOPs & Training"],
                     "Risk": s * o
                 }

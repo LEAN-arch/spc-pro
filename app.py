@@ -44,6 +44,12 @@ import shap
 import xgboost as xgb
 from scipy.special import logsumexp
 from scipy.stats import mannwhitneyu
+
+import shutil
+from whoosh.index import create_in, open_dir
+from whoosh.fields import Schema, TEXT, ID
+from whoosh.qparser import QueryParser
+from whoosh.highlight import HtmlFormatter
 # ==============================================================================
 # APP CONFIGURATION
 # ==============================================================================
@@ -89,6 +95,54 @@ st.markdown("""
 # ==============================================================================
 # ALL HELPER & PLOTTING FUNCTIONS
 # ==============================================================================
+# SNIPPET 2: Add these two new functions to the "ALL HELPER & PLOTTING FUNCTIONS" section.
+
+def build_search_corpus():
+    """
+    Creates a structured list of all text content in the app to be indexed for search.
+    This is a simplified representation of the app's content.
+    """
+    corpus = [
+        # Introduction
+        {'title': 'Introduction', 'path': 'Project Framework > Introduction', 'content': 'Welcome to V&V Sentinel, your guide through the complex landscape of Verification and Validation. This application is an interactive, educational journey for scientists, engineers, and quality professionals. It covers planning, characterization, qualification, and lifecycle management.'},
+        {'title': 'V-Model', 'path': 'Project Framework > V-Model', 'content': 'The Verification & Validation (V&V) Model provides a structured framework for ensuring a system meets its intended purpose, from initial user requirements (URS) to final validation. Verification asks Are we building the system right? Validation asks Are we building the right system?'},
+        # Act 0
+        {'title': 'TPP & CQA Cascade', 'path': 'TPP & CQA Cascade > Business Case', 'content': 'The TPP/CQA/CPP Cascade is a formal contract between all stakeholders (R&D, Manufacturing, Quality). It translates the high-level business need (Target Product Profile) into specific, measurable, technical targets (Critical Quality Attributes) and the process controls required to hit them (Critical Process Parameters). This prevents late-stage failures and accelerates time-to-market.'},
+        {'title': 'Analytical Target Profile (ATP)', 'path': 'Analytical Target Profile (ATP) Builder > Business Case', 'content': 'The ATP is a formal, negotiated Service Level Agreement (SLA) between the method developer (AD) and the end user (QC). It bridges the chasm between R&D and QC by quantitatively defining the contract for a new methods performance, preventing transfer failures.'},
+        {'title': 'Quality Risk Management (QRM)', 'path': 'Quality Risk Management (QRM) Suite > Business Case', 'content': 'QRM tools like FMEA and FTA are not paperwork exercises; they are a systematic, cross-functional hunt for failure. They transform validation from a generic checklist into a targeted, intelligent, and cost-effective strategy focused on the highest-risk areas.'},
+        # ... Add similar concise summaries for every tool's business case and key insights ...
+        # NOTE: For a real implementation, you would programmatically extract this text.
+        # For this app, we will use representative summaries.
+        {'title': 'Causal ML / Double ML', 'path': 'Causal ML / Double ML > Key Insights', 'content': 'Predictive power is not the same as causal understanding. A standard ML model is a correlation engine. A Causal ML model is a sophisticated causal inference engine. For Root Cause Analysis and process optimization, you must use the right tool for the job. Double Machine Learning DML is the right tool.'},
+        {'title': 'Lean Manufacturing', 'path': 'Lean Manufacturing & VSM > Core Concepts', 'content': 'The 3 Ms of Lean are Muda (waste), Muri (overburden), and Mura (unevenness). Waste is the symptom of deeper problems. Key tools include VSM, 5S for workplace organization, Kaizen for continuous improvement, and Kanban for creating a pull system.'},
+        {'title': 'Digital Twin', 'path': 'Digital Twin & Real-Time Simulation > Business Case', 'content': 'A Digital Twin is a high-fidelity, real-time "flight simulator" for your process. It accelerates process optimization, reduces the risk of change, and provides a powerful platform for operator training. It is the foundational technology for Pharma 4.0.'}
+    ]
+    # In a real-world app, you would have an entry for each tab of each tool.
+    return corpus
+
+@st.cache_resource
+def create_search_index():
+    """
+    Creates a Whoosh search index from the app's text corpus.
+    Uses @st.cache_resource to build the index only once per session.
+    """
+    schema = Schema(title=TEXT(stored=True), path=ID(stored=True), content=TEXT(stored=True))
+    index_dir = "whoosh_index"
+    
+    # Clean up old index directory if it exists
+    if os.path.exists(index_dir):
+        shutil.rmtree(index_dir)
+    os.mkdir(index_dir)
+    
+    ix = create_in(index_dir, schema)
+    writer = ix.writer()
+    
+    corpus = build_search_corpus()
+    for doc in corpus:
+        writer.add_document(title=doc['title'], path=doc['path'], content=doc['content'])
+    writer.commit()
+    return ix
+
 @contextlib.contextmanager
 def suppress_stdout():
     """A context manager to temporarily redirect stdout."""
@@ -7056,7 +7110,52 @@ def render_introduction_content():
 # ==============================================================================
 # UI RENDERING FUNCTIONS (ALL DEFINED BEFORE MAIN APP LOGIC)
 # ==============================================================================
+# SNIPPET 3: Add this new rendering function to the "ALL UI RENDERING FUNCTIONS" section.
 
+def render_search_page():
+    """Renders the search interface and results page."""
+    st.title("🔎 Search the V&V Sentinel Toolkit")
+    
+    # Create the index (will be cached and run only once)
+    ix = create_search_index()
+    
+    search_query = st.text_input("Enter search terms (e.g., 'risk', 'FMEA', 'batch record')", label_visibility="collapsed", placeholder="Search for content...")
+
+    if search_query:
+        with st.spinner("Searching..."):
+            with ix.searcher() as searcher:
+                # Use a QueryParser to search the 'content' field
+                parser = QueryParser("content", ix.schema)
+                query = parser.parse(search_query)
+                
+                # Perform the search and limit results
+                results = searcher.search(query, limit=20)
+                
+                # Configure highlighter to bold the search terms
+                results.formatter = HtmlFormatter(tagname="b", classname="highlight")
+
+                st.subheader(f"Found {len(results)} results for '{search_query}'")
+                
+                if not results:
+                    st.warning("No matches found. Try using broader terms.")
+                
+                for hit in results:
+                    # The path contains "Tool Name > Tab Name"
+                    tool_name, tab_name = hit['path'].split(' > ')
+                    
+                    with st.container(border=True):
+                        st.markdown(f"#### {hit['title']}")
+                        st.caption(f"Found in: **{hit['path']}**")
+                        
+                        # Use hit.highlights to get the text snippet with the search term bolded
+                        highlighted_snippet = hit.highlights("content", top=2)
+                        if highlighted_snippet:
+                            st.markdown("..." + highlighted_snippet + "...", unsafe_allow_html=True)
+                        
+                        # Create a button to navigate to the correct tool
+                        if st.button(f"Go to {tool_name}", key=f"goto_{hit.docnum}"):
+                            st.session_state.current_view = tool_name
+                            st.rerun()
 #===================================================================================================== ACT 0 Render=================================================================================================================
 #===================================================================================================================================================================================================================================
 def render_tpp_cqa_cascade():
@@ -17587,7 +17686,6 @@ A robust HFE process is built on a foundation of deep empathy for the user and a
 if 'current_view' not in st.session_state:
     st.session_state.current_view = 'Introduction'
 
-# --- Sidebar Navigation ---
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")
     
@@ -17595,6 +17693,11 @@ with st.sidebar:
         st.session_state.current_view = 'Introduction'
         st.rerun()
 
+    # --- ADD THIS NEW SEARCH BUTTON ---
+    if st.sidebar.button("🔎 Search Toolkit", use_container_width=True):
+        st.session_state.current_view = 'Search'
+        st.rerun()
+        
     st.divider()
     # --- FIX: all_tools dictionary and the for loop are now correctly indented inside the 'with st.sidebar:' block ---
     all_tools = {
@@ -17690,8 +17793,10 @@ with st.sidebar:
                 st.session_state.current_view = tool
                 st.rerun()
 
-    # --- FIX: Extra indentation at the end of this dictionary is removed ---
-    PAGE_DISPATCHER = {
+PAGE_DISPATCHER = {
+    # --- ADD THIS NEW MAPPING ---
+    "Search": render_search_page,
+    # --- END OF ADDITION ---
         # Act 0
         "TPP & CQA Cascade": render_tpp_cqa_cascade,
         "Analytical Target Profile (ATP) Builder": render_atp_builder,

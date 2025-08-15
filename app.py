@@ -952,6 +952,8 @@ def plot_atp_radar_chart(project_type, atp_values, achieved_values=None):
 
 # SNIPPET 1: Replace the entire plot_ivd_regulatory_pathway function with this enhanced version.
 
+# SNIPPET: Replace the existing plot_ivd_regulatory_pathway function with this new, complete version.
+
 @st.cache_data
 def plot_ivd_regulatory_pathway(highlight_path='510k'):
     """
@@ -960,6 +962,7 @@ def plot_ivd_regulatory_pathway(highlight_path='510k'):
     """
     fig = go.Figure()
 
+    # Define nodes and their properties
     nodes = {
         'Start': {'label': 'Start:<br>Product Concept', 'pos': (0, 5), 'color': DARK_GREY},
         'IntendedUse': {'label': 'Define Intended Use<br>& Indications for Use', 'pos': (2, 5), 'color': DARK_GREY},
@@ -978,10 +981,11 @@ def plot_ivd_regulatory_pathway(highlight_path='510k'):
         'EUA': {'label': '<b>EUA Request</b><br>May Be Effective', 'pos': (4, 1.5), 'color': '#FFBF00'}
     }
 
+    # Define pathways for highlighting
     pathways = {
         'ruo': ['Start', 'IntendedUse', 'Device?', 'RUO'],
         'class_i': ['Start', 'IntendedUse', 'Device?', 'Classify', 'ClassI', 'Market'],
-        '510k': ['Start', 'IntendedUse', 'Device?', 'Classify', 'ClassII', '510k', 'Market'],
+        '510k': ['Start', 'IntendedUse', 'Device?', 'Classify', 'ClassII', 'NoPredicate', '510k', 'Market'],
         'pma': ['Start', 'IntendedUse', 'Device?', 'Classify', 'ClassIII', 'PMA', 'Market'],
         'denovo': ['Start', 'IntendedUse', 'Device?', 'Classify', 'ClassII', 'NoPredicate', 'DeNovo', 'Market'],
         'eua': ['Start', 'Emergency', 'EUA', 'Market']
@@ -990,19 +994,26 @@ def plot_ivd_regulatory_pathway(highlight_path='510k'):
     edges = [
         ('Start', 'IntendedUse'), ('IntendedUse', 'Device?'), ('Device?', 'RUO'), ('Device?', 'Classify'),
         ('Classify', 'ClassI'), ('Classify', 'ClassII'), ('Classify', 'ClassIII'),
+        # Add edges for the De Novo decision point
         ('ClassII', 'NoPredicate'), ('NoPredicate', 'DeNovo'), ('NoPredicate', '510k'),
+        # Edges to Market
         ('ClassI', 'Market'), ('DeNovo', 'Market'), ('510k', 'Market'), ('PMA', 'Market'),
+        # Edges for EUA
         ('Start', 'Emergency'), ('Emergency', 'EUA'), ('EUA', 'Market')
     ]
     
+    # Draw Edges as annotations for better arrow control
     for start, end in edges:
         is_highlighted = start in pathways.get(highlight_path, []) and end in pathways.get(highlight_path, [])
-        fig.add_annotation(ax=nodes[start]['pos'][0], ay=nodes[start]['pos'][1],
-                           x=nodes[end]['pos'][0], y=nodes[end]['pos'][1],
-                           arrowhead=2, arrowwidth=3 if is_highlighted else 1.5,
-                           arrowcolor=PRIMARY_COLOR if is_highlighted else 'lightgrey',
-                           showarrow=True)
+        fig.add_annotation(
+            ax=nodes[start]['pos'][0], ay=nodes[start]['pos'][1],
+            x=nodes[end]['pos'][0], y=nodes[end]['pos'][1],
+            arrowhead=2, arrowwidth=3 if is_highlighted else 1.5,
+            arrowcolor=PRIMARY_COLOR if is_highlighted else 'lightgrey',
+            showarrow=True
+        )
 
+    # Draw Nodes as shapes and text annotations
     for name, props in nodes.items():
         is_highlighted = name in pathways.get(highlight_path, [])
         fig.add_shape(type="rect", x0=props['pos'][0]-1.2, y0=props['pos'][1]-0.5,
@@ -1012,7 +1023,7 @@ def plot_ivd_regulatory_pathway(highlight_path='510k'):
                            showarrow=False, font_color="white", font_size=11)
 
     fig.update_layout(
-        title_text="<b>IVD & Medical Device Regulatory Pathway</b>",
+        title_text="<b>IVD & Medical Device Regulatory Pathway (US FDA)</b>",
         xaxis=dict(visible=False, range=[-2, 14]), yaxis=dict(visible=False, range=[0, 9]),
         height=700, plot_bgcolor='#F0F2F6', margin=dict(l=20, r=20, t=50, b=20)
     )

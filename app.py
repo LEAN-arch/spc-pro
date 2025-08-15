@@ -10620,6 +10620,8 @@ A robust optimization strategy uses the best of both worlds.
         **The Regulatory Advantage:**
         The guideline explicitly states: **"Working within the design space is not considered as a change. Movement out of the design space is considered to be a change and would normally initiate a regulatory post-approval change process."** This provides enormous operational and regulatory flexibility, which is the primary business driver for adopting a QbD approach.
         """)
+# SNIPPET: Replace your entire render_bayesian_optimization function with this final, correct version.
+
 def render_bayesian_optimization():
     """Renders the comprehensive module for Bayesian Optimization."""
     st.markdown("""
@@ -10638,7 +10640,7 @@ def render_bayesian_optimization():
     3.  At each step, observe how the algorithm updates its **Belief (blue curve)** and uses the **Acquisition Function (green curve)** to intelligently choose the next best point to sample.
     """)
 
-    # --- True Function (hidden from the algorithm) ---
+    # --- True Function (hidden from the algorithm) - Defined locally in the render function ---
     def true_process_function(x):
         return (-(x - 15)**2 / 20) + 2 * np.sin(x) + 85
 
@@ -10656,7 +10658,17 @@ def render_bayesian_optimization():
             ["Upper Confidence Bound (UCB)", "Expected Improvement (EI)"],
             horizontal=True
         )
-        fig, next_point = plot_bayesian_optimization_step(st.session_state.bo_history, true_process_function, x_range, acquisition_func_type)
+        
+        # --- START OF THE FIX ---
+        # The call to the plotting function now correctly passes only 3 arguments.
+        # The 'true_process_function' is no longer passed.
+        fig, next_point = plot_bayesian_optimization_step(
+            st.session_state.bo_history, 
+            x_range, 
+            acquisition_func_type
+        )
+        # --- END OF THE FIX ---
+        
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:

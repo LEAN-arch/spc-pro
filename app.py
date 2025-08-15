@@ -950,6 +950,74 @@ def plot_atp_radar_chart(project_type, atp_values, achieved_values=None):
     
     return fig
 
+# SNIPPET 1: Replace the entire plot_ivd_regulatory_pathway function with this enhanced version.
+
+@st.cache_data
+def plot_ivd_regulatory_pathway(highlight_path='510k'):
+    """
+    Generates a professional flowchart of the IVD/Medical Device regulatory pathways,
+    including De Novo and EUA pathways.
+    """
+    fig = go.Figure()
+
+    nodes = {
+        'Start': {'label': 'Start:<br>Product Concept', 'pos': (0, 5), 'color': DARK_GREY},
+        'IntendedUse': {'label': 'Define Intended Use<br>& Indications for Use', 'pos': (2, 5), 'color': DARK_GREY},
+        'RUO': {'label': '<b>RUO</b><br>(Research Use Only)', 'pos': (4, 7.5), 'color': 'purple'},
+        'Device?': {'label': 'Is it a Medical Device?', 'pos': (4, 5), 'color': 'orange'},
+        'Classify': {'label': 'Classify Device Risk<br>(Class I, II, or III)', 'pos': (6, 5), 'color': 'orange'},
+        'NoPredicate': {'label': 'No Valid<br>Predicate?', 'pos': (8, 6.5), 'color': 'orange'},
+        'DeNovo': {'label': '<b>De Novo Request</b><br>Novel Low/Mod Risk', 'pos': (10, 6.5), 'color': 'teal'},
+        'ClassI': {'label': '<b>Class I</b><br>(Low Risk)', 'pos': (8, 5), 'color': SUCCESS_GREEN},
+        'ClassII': {'label': '<b>Class II</b><br>(Moderate Risk)', 'pos': (8, 3.5), 'color': PRIMARY_COLOR},
+        'ClassIII': {'label': '<b>Class III</b><br>(High Risk)', 'pos': (8, 1.5), 'color': 'red'},
+        '510k': {'label': '<b>510(k) Submission</b><br>Substantial Equivalence', 'pos': (10, 3.5), 'color': PRIMARY_COLOR},
+        'PMA': {'label': '<b>PMA Submission</b><br>Safety & Efficacy', 'pos': (10, 1.5), 'color': 'red'},
+        'Market': {'label': '<b>Market Product</b><br>Post-Market Controls', 'pos': (12, 4.5), 'color': '#00BFFF'},
+        'Emergency': {'label': 'Public Health<br>Emergency?', 'pos': (2, 1.5), 'color': '#FFBF00'},
+        'EUA': {'label': '<b>EUA Request</b><br>May Be Effective', 'pos': (4, 1.5), 'color': '#FFBF00'}
+    }
+
+    pathways = {
+        'ruo': ['Start', 'IntendedUse', 'Device?', 'RUO'],
+        'class_i': ['Start', 'IntendedUse', 'Device?', 'Classify', 'ClassI', 'Market'],
+        '510k': ['Start', 'IntendedUse', 'Device?', 'Classify', 'ClassII', '510k', 'Market'],
+        'pma': ['Start', 'IntendedUse', 'Device?', 'Classify', 'ClassIII', 'PMA', 'Market'],
+        'denovo': ['Start', 'IntendedUse', 'Device?', 'Classify', 'ClassII', 'NoPredicate', 'DeNovo', 'Market'],
+        'eua': ['Start', 'Emergency', 'EUA', 'Market']
+    }
+    
+    edges = [
+        ('Start', 'IntendedUse'), ('IntendedUse', 'Device?'), ('Device?', 'RUO'), ('Device?', 'Classify'),
+        ('Classify', 'ClassI'), ('Classify', 'ClassII'), ('Classify', 'ClassIII'),
+        ('ClassII', 'NoPredicate'), ('NoPredicate', 'DeNovo'), ('NoPredicate', '510k'),
+        ('ClassI', 'Market'), ('DeNovo', 'Market'), ('510k', 'Market'), ('PMA', 'Market'),
+        ('Start', 'Emergency'), ('Emergency', 'EUA'), ('EUA', 'Market')
+    ]
+    
+    for start, end in edges:
+        is_highlighted = start in pathways.get(highlight_path, []) and end in pathways.get(highlight_path, [])
+        fig.add_annotation(ax=nodes[start]['pos'][0], ay=nodes[start]['pos'][1],
+                           x=nodes[end]['pos'][0], y=nodes[end]['pos'][1],
+                           arrowhead=2, arrowwidth=3 if is_highlighted else 1.5,
+                           arrowcolor=PRIMARY_COLOR if is_highlighted else 'lightgrey',
+                           showarrow=True)
+
+    for name, props in nodes.items():
+        is_highlighted = name in pathways.get(highlight_path, [])
+        fig.add_shape(type="rect", x0=props['pos'][0]-1.2, y0=props['pos'][1]-0.5,
+                      x1=props['pos'][0]+1.2, y1=props['pos'][1]+0.5,
+                      fillcolor=props['color'], line=dict(color='black', width=3 if is_highlighted else 1))
+        fig.add_annotation(x=props['pos'][0], y=props['pos'][1], text=f"{props['label']}",
+                           showarrow=False, font_color="white", font_size=11)
+
+    fig.update_layout(
+        title_text="<b>IVD & Medical Device Regulatory Pathway</b>",
+        xaxis=dict(visible=False, range=[-2, 14]), yaxis=dict(visible=False, range=[0, 9]),
+        height=700, plot_bgcolor='#F0F2F6', margin=dict(l=20, r=20, t=50, b=20)
+    )
+    return fig
+
 @st.cache_data
 def plot_pha_matrix(pha_data, project_type):
     """Generates a professional-grade Preliminary Hazard Analysis (PHA) risk matrix."""
@@ -7512,6 +7580,206 @@ This ensures alignment from start to finish and guarantees the final deliverable
         - **FDA Process Validation Guidance:** The TPP for a process defines the goals for **Stage 1 (Process Design)**.
         - **GAMP 5:** For instruments and software, the Target Profile is a direct translation of the **User Requirement Specification (URS)** into a set of verifiable performance criteria for OQ and PQ.
         - **USP Chapter <1220> - The Analytical Procedure Lifecycle:** This new chapter champions a holistic, lifecycle approach to method management. The ATP is the foundational element of **Stage 1 (Procedure Design)**, where the requirements for the method are formally defined.
+        """)
+
+
+# SNIPPET 2: Replace the entire render_ivd_regulatory_framework function with this comprehensive new version.
+
+def render_ivd_regulatory_framework():
+    """Renders the comprehensive module for the IVD & Medical Device Regulatory Framework."""
+    st.markdown("""
+    #### Purpose & Application: The Regulatory Roadmap
+    **Purpose:** To provide a clear, high-level overview of the regulatory pathways for In Vitro Diagnostics (IVDs) and Medical Devices in the United States. This module explains the risk-based classification system (Class I, II, III) and the corresponding submission types (510(k), PMA, De Novo, EUA) required to bring a product to market.
+    
+    **Strategic Application:** This is the most critical strategic decision in a product's lifecycle. The choice of regulatory pathway, determined by the device's **Intended Use**, dictates the entire project's timeline, cost, data requirements, and ultimate business model. Understanding this roadmap is non-negotiable for R&D, Quality, Regulatory Affairs, and business leadership.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the Head of Regulatory Affairs for a startup.
+    1.  Select a **Product Concept** from the dropdown menu in the sidebar.
+    2.  The flowchart will instantly **highlight the correct regulatory pathway** for that product type.
+    3.  Review the **"Applicable Regulations"** matrix and **"Key Considerations"** expanders below to understand the specific requirements for your chosen path.
+    """)
+
+    with st.sidebar:
+        st.subheader("Regulatory Pathway Simulator")
+        product_concept = st.selectbox(
+            "Select Your Product Concept:",
+            ["General IVD (510k)", "Novel IVD (PMA)", "Point-of-Care (POC) Device", "Software as a Medical Device (SaMD)", "Emergency Use (EUA) Device", "Novel Low-Risk Device (De Novo)"],
+            help="Your choice determines the device's risk level and corresponding regulatory pathway."
+        )
+
+    path_map = {
+        "General IVD (510k)": "510k",
+        "Novel IVD (PMA)": "pma",
+        "Point-of-Care (POC) Device": "510k",
+        "Software as a Medical Device (SaMD)": "510k",
+        "Emergency Use (EUA) Device": "eua",
+        "Novel Low-Risk Device (De Novo)": "denovo"
+    }
+    highlight_path = path_map[product_concept]
+
+    st.header(f"Regulatory Pathway for: {product_concept}")
+    fig = plot_ivd_regulatory_pathway(highlight_path)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.header("Applicable Regulations & Key Considerations")
+    
+    st.markdown("""
+    <style>
+        .reg-table { width: 100%; border-collapse: collapse; }
+        .reg-table th, .reg-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .reg-table th { background-color: #f2f2f2; }
+        .reg-table tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+    <table class="reg-table">
+        <tr>
+            <th>Regulation / Standard</th>
+            <th>Class I</th>
+            <th>Class II</th>
+            <th>Class III</th>
+        </tr>
+        <tr>
+            <td><b>21 CFR 820 (QSR)</b></td>
+            <td>⚠️ Partially Exempt</td>
+            <td>✅ Fully Applies</td>
+            <td>✅ Fully Applies</td>
+        </tr>
+        <tr>
+            <td><b>Design Controls (§820.30)</b></td>
+            <td>❌ Mostly Exempt</td>
+            <td>✅ Required</td>
+            <td>✅ Required</td>
+        </tr>
+        <tr>
+            <td><b>Premarket Submission</b></td>
+            <td> Exempt </td>
+            <td><b> 510(k) </b> or <b> De Novo </b></td>
+            <td><b> PMA </b></td>
+        </tr>
+        <tr>
+            <td><b>Clinical Data Required</b></td>
+            <td> No </td>
+            <td> Sometimes (for 510(k)/De Novo) </td>
+            <td> ✅ Always (Extensive) </td>
+        </tr>
+        <tr>
+            <td><b>ISO 13485 (QMS)</b></td>
+            <td> Recommended </td>
+            <td> ✅ Required for EU/Canada </td>
+            <td> ✅ Required for EU/Canada </td>
+        </tr>
+    </table>
+    """, unsafe_allow_html=True)
+    st.caption("This is a simplified summary. Always consult with a regulatory professional.")
+
+    with st.expander("Key Considerations for Point-of-Care (POC) Devices"):
+        st.markdown("""
+        POC devices, which are used near the patient outside of a traditional lab, face special scrutiny.
+        - **Human Factors & Usability (IEC 62366):** This is paramount. The device must be safe and effective when used by diverse operators (nurses, technicians, sometimes patients) in challenging environments. Extensive HFE validation is required.
+        - **CLIA Waiver:** To be used in non-lab settings in the US, many POC devices must obtain a **CLIA Waiver** by proving they are simple and have an insignificant risk of erroneous results. This often requires dedicated, large-scale clinical studies.
+        - **Robustness:** The device must be robust to a wide range of environmental conditions (temperature, humidity) and sample types (e.g., fingerstick vs. venous blood).
+        """)
+
+    with st.expander("Key Considerations for Software as a Medical Device (SaMD)"):
+        st.markdown("""
+        SaMD is a device where the software *is* the medical device (e.g., an AI algorithm that analyzes MRI scans).
+        - **Risk Classification:** SaMD has its own risk framework (I-IV) defined by the IMDRF, based on the seriousness of the condition and the information provided.
+        - **IEC 62304 (Software Lifecycle):** This is the international standard for medical device software development, and compliance is a global expectation. It mandates a rigorous, documented software development lifecycle.
+        - **Cybersecurity:** Protecting patient data and ensuring the device cannot be compromised is a critical and heavily scrutinized part of the submission.
+        - **AI/ML Validation:** For AI-based SaMD, the FDA's new guidance requires a robust validation plan, including data transparency, model explainability (XAI), and a plan for managing post-market model changes (GMLP).
+        """)
+
+    with st.expander("Key Considerations for the De Novo Pathway"):
+        st.markdown("""
+        The De Novo pathway is a risk-based classification process for novel devices that have no "predicate."
+        - **Purpose:** It provides a pathway to market for new, low-to-moderate risk devices that would otherwise automatically be classified as high-risk Class III simply because they are first-of-a-kind.
+        - **Requirements:** The submission is more comprehensive than a 510(k) but less burdensome than a PMA. It requires a convincing argument about the device's risk profile and the effectiveness of proposed "special controls" to mitigate those risks. Clinical data is often required.
+        - **Outcome:** A successful De Novo request results in the device being classified as Class I or II, and it can then serve as a **new predicate** for future 510(k) submissions from other companies.
+        """)
+
+    with st.expander("Key Considerations for Emergency Use Authorization (EUA)"):
+        st.markdown("""
+        The EUA pathway is a special, temporary mechanism that is only available during a declared public health emergency (like the COVID-19 pandemic).
+        - **Lower Bar for Evidence:** The standard for an EUA is not "safe and effective," but that the device **"may be effective"** and that the known benefits outweigh the known risks. This allows for much faster market access in a crisis.
+        - **Temporary Authorization:** An EUA is not a full approval or clearance. The authorization is only valid for the duration of the emergency declaration.
+        - **Transition to Full Submission:** Companies that receive an EUA are expected to gather additional data and submit for a full 510(k) or PMA to keep their product on the market after the emergency ends.
+        """)
+
+    st.divider()
+    st.subheader("Deeper Dive into the Regulatory Framework")
+    tabs = st.tabs(["💡 The Golden Rule", "✅ The Business Case", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.success("""
+        🟢 **THE GOLDEN RULE: Your Claims Define Your Device, and the Device Defines the Controls**
+        The entire regulatory framework is built on a clear, logical cascade that you control.
+        1.  **Your words (marketing, labeling, instructions) define the Intended Use.** You cannot hide from the claims you make about what your product does.
+        2.  **The Intended Use defines the Risk Class.** A claim to "diagnose cancer" is inherently higher risk than a claim to "measure glucose."
+        3.  **The Risk Class defines the Regulatory Pathway (510(k) vs. PMA vs. De Novo).**
+        4.  **The Regulatory Pathway defines the required Controls (e.g., Design Controls, Clinical Trials).**
+        This chain is unbreakable. The process must start with a deliberate, documented, and consistently communicated Intended Use.
+        """)
+    
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: Choosing Your Mountain
+    
+        #### The Problem: The "One-Size-Fits-All" Commercialization Plan
+        A startup develops a new biomarker technology. The leadership team, focused on speed to market, assumes they will follow the "standard" 510(k) pathway. They build their entire business plan—fundraising, timelines, and resource allocation—around this assumption, without deeply analyzing the implications of their intended use.
+    
+        #### The Impact: The Mid-Project Pivot and Business Model Failure
+        Halfway through development, during a pre-submission meeting, the FDA informs them that the specific diagnostic claims they want to make classify their product as high-risk Class III, requiring a full PMA.
+        - **Timeline Explodes:** The project timeline instantly balloons from 2 years to 5-7 years to account for the required clinical trials.
+        - **Budget Annihilated:** The cost of development skyrockets from ~$5-10 million for a 510(k) to **$50-100+ million** for a PMA. The company does not have the capital and may fail.
+        - **Strategic Failure:** The entire business model collapses. The company is now on a timeline and budget that makes it uncompetitive and unattractive to investors.
+    
+        #### The Solution: A Deliberate, Front-Loaded Strategic Choice
+        The choice of regulatory pathway is the most important **strategic business decision** a medical device company will make. It is a choice of which "mountain" to climb, and it must be made with eyes wide open at the very beginning of the project.
+        - **The 510(k) Path (The Foothills):** Faster and cheaper, but your claims are limited by your predicate.
+        - **The De Novo Path (The New Trail):** For novel, low-risk devices. More work than a 510(k) but avoids a PMA. You get to be the first.
+        - **The PMA Path (Mount Everest):** Incredibly long and expensive, but if you succeed, you have a powerful, defensible monopoly on a new technology.
+    
+        #### The Consequences: A Predictable Journey and Aligned Investment
+        - **Without This:** The project is a high-risk gamble based on a foundational assumption that may be completely wrong.
+        - **With This:** The company makes a **deliberate, informed, and strategic decision** on its regulatory pathway from Day 1. This aligns the entire organization on a single, realistic plan, dramatically increasing the probability of success.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Key Regulatory Terms
+        - **IVD (In Vitro Diagnostic):** A device used to perform tests on samples taken from the human body.
+        - **510(k) (Premarket Notification):** A submission to the FDA to demonstrate **Substantial Equivalence** to a legally marketed "predicate" device. The pathway for most Class II devices.
+        - **PMA (Premarket Approval):** The most stringent submission, requiring extensive clinical data to prove **Safety and Efficacy**. The pathway for Class III devices.
+        - **De Novo Classification Request:** A pathway for novel, low-to-moderate risk devices that have no predicate. It allows the FDA to classify them as Class I or II instead of defaulting to Class III.
+        - **EUA (Emergency Use Authorization):** A temporary authorization granted by the FDA during a public health emergency to allow the use of unapproved medical products.
+        - **QSR (Quality System Regulation) / 21 CFR 820:** The cGMP requirements for medical devices, which includes mandatory **Design Controls**.
+        - **SaMD (Software as a Medical Device):** Software intended for medical purposes that is not part of a hardware medical device.
+        - **CLIA (Clinical Laboratory Improvement Amendments):** US federal regulations that govern all laboratory testing performed on humans. A **CLIA Waiver** is required for simple, low-risk tests to be performed in point-of-care settings.
+        - **RUO (For Research Use Only):** A product intended for lab research only, not for use in clinical diagnostic procedures.
+        - **IEC 62304:** The international standard for the software development lifecycle of medical device software.
+        """)
+        
+    with tabs[3]:
+        st.markdown("""
+        #### Historical Context: From Elixirs of Death to a Risk-Based Framework
+        The US regulatory framework for medical devices was forged in response to public health crises.
+        - **1938 FD&C Act:** Passed after the Elixir Sulfanilamide tragedy, it gave the FDA authority over drugs but left devices largely unregulated.
+        - **1976 Medical Device Amendments:** The pivotal moment. Passed in response to catastrophic failures like the **Dalkon Shield IUD**, this act created the modern, risk-based framework: the **three-tiered classification system (Class I, II, III)** and the corresponding **510(k)** and **PMA** pathways.
+        - **1990 Safe Medical Devices Act:** Strengthened the FDA's authority, particularly in post-market surveillance, and led to the creation of the mandatory **Design Controls** regulation to prevent failures from happening in the first place.
+        This history shows a clear legislative evolution from a reactive, post-market system to a proactive, pre-market, risk-based framework designed to ensure patient safety.
+        """)
+        
+    with tabs[4]:
+        st.markdown("""
+        This framework is built on a foundation of specific US FDA regulations and is harmonized with international standards.
+        - **The Federal Food, Drug, and Cosmetic (FD&C) Act:** The original law that gives the FDA its authority.
+        - **21 CFR Part 820 - Quality System Regulation (QSR):** The "GMP for medical devices." It mandates a comprehensive quality system, including the critical **Design Controls** process (§820.30) for Class II and III devices.
+        - **21 CFR Part 807 - Establishment Registration and Device Listing:** Contains the regulations governing the **510(k) (Premarket Notification)** process.
+        - **21 CFR Part 814 - Premarket Approval of Medical Devices:** Contains the regulations governing the **PMA** process.
+        - **21 CFR Part 812 - Investigational Device Exemptions (IDE):** Contains the regulations for conducting clinical trials with unapproved medical devices.
+        - **21 CFR Part 809 - In Vitro Diagnostic Products:** Contains specific labeling requirements for IVDs, including the clear distinction for **RUO** and **IUO** products.
+        - **ISO 13485:2016:** The international standard for medical device quality management systems.
+        - **IEC 62304 & IEC 62366:** International standards for medical device software lifecycle and usability engineering, respectively.
         """)
 #============================================================================== 3. QUALITY RISK MANAGEMENT (FMEA) ========================================================
 def render_qrm_suite():
@@ -17724,6 +17992,7 @@ with st.sidebar:
         "ACT 0: PLANNING & STRATEGY": [
             "TPP & CQA Cascade",
             "Analytical Target Profile (ATP) Builder",
+            "IVD & Medical Device Regulatory Framework",
             "Quality Risk Management (QRM) Suite",
             "V&V Strategy & Justification",
             "Design Controls & DHF",    
@@ -17820,6 +18089,7 @@ PAGE_DISPATCHER = {
         # Act 0
         "TPP & CQA Cascade": render_tpp_cqa_cascade,
         "Analytical Target Profile (ATP) Builder": render_atp_builder,
+        "IVD & Medical Device Regulatory Framework": render_ivd_regulatory_framework,
         "Quality Risk Management (QRM) Suite": render_qrm_suite,
         "V&V Strategy & Justification": render_vv_strategy_justification,
         "Design Controls & DHF": render_design_controls_dhf, 

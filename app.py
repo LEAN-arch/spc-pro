@@ -48,7 +48,7 @@ from scipy.stats import mannwhitneyu
 import shutil
 from whoosh.index import create_in, open_dir
 from whoosh.fields import Schema, TEXT, ID
-from whoosh.qparser import QueryParser
+from whoosh.qparser import MultifieldParser, OrGroup, WildcardPlugin, FuzzyTermPlugin
 from whoosh.highlight import HtmlFormatter
 # ==============================================================================
 # APP CONFIGURATION
@@ -7113,19 +7113,35 @@ def render_introduction_content():
 # SNIPPET 3: Add this new rendering function to the "ALL UI RENDERING FUNCTIONS" section.
 
 def render_search_page():
-    """Renders the search interface and results page."""
+    """Renders the search interface and results page with an improved search parser."""
     st.title("🔎 Search the V&V Sentinel Toolkit")
     
     # Create the index (will be cached and run only once)
     ix = create_search_index()
     
-    search_query = st.text_input("Enter search terms (e.g., 'risk', 'FMEA', 'batch record')", label_visibility="collapsed", placeholder="Search for content...")
+    # --- FIX: Updated user instructions for the new features ---
+    st.info("""
+    **Search Tips:**
+    - The search now finds documents with **any** of your terms (OR logic).
+    - Use `*` for wildcards (e.g., `valid*` finds validation, validate, etc.).
+    - Use `~` after a word for fuzzy/typo search (e.g., `procss~`).
+    """)
+
+    search_query = st.text_input("Enter search terms:", label_visibility="collapsed", placeholder="Search for content (e.g., risk, validation, FMEA)")
 
     if search_query:
         with st.spinner("Searching..."):
             with ix.searcher() as searcher:
-                # Use a QueryParser to search the 'content' field
-                parser = QueryParser("content", ix.schema)
+                # --- THIS IS THE UPGRADED SEARCH PARSER ---
+                fields_to_search = ["title", "content"]
+                # Give a boost to matches found in the title
+                field_boosts = {"title": 2.0}
+                # Use MultifieldParser, default to OR logic, and add plugins
+                parser = MultifieldParser(fields_to_search, ix.schema, fieldboosts=field_boosts, group=OrGroup)
+                parser.add_plugin(WildcardPlugin())
+                parser.add_plugin(FuzzyTermPlugin())
+                # --- END OF UPGRADE ---
+                
                 query = parser.parse(search_query)
                 
                 # Perform the search and limit results
@@ -7137,12 +7153,15 @@ def render_search_page():
                 st.subheader(f"Found {len(results)} results for '{search_query}'")
                 
                 if not results:
-                    st.warning("No matches found. Try using broader terms.")
+                    st.warning("No matches found. Try using broader terms or a wildcard (*).")
                 
                 for hit in results:
                     # The path contains "Tool Name > Tab Name"
-                    tool_name, tab_name = hit['path'].split(' > ')
-                    
+                    try:
+                        tool_name, tab_name = hit['path'].split(' > ')
+                    except ValueError:
+                        tool_name, tab_name = hit['path'], "" # Handle cases with no tab
+
                     with st.container(border=True):
                         st.markdown(f"#### {hit['title']}")
                         st.caption(f"Found in: **{hit['path']}**")
@@ -7153,9 +7172,10 @@ def render_search_page():
                             st.markdown("..." + highlighted_snippet + "...", unsafe_allow_html=True)
                         
                         # Create a button to navigate to the correct tool
-                        if st.button(f"Go to {tool_name}", key=f"goto_{hit.docnum}"):
-                            st.session_state.current_view = tool_name
-                            st.rerun()
+                        if tool_name != "Project Framework": # Don't create button for intro page
+                            if st.button(f"Go to {tool_name}", key=f"goto_{hit.docnum}"):
+                                st.session_state.current_view = tool_name
+                                st.rerun()
 #===================================================================================================== ACT 0 Render=================================================================================================================
 #===================================================================================================================================================================================================================================
 def render_tpp_cqa_cascade():

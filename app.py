@@ -17,6 +17,7 @@ from scipy import stats
 from scipy.stats import beta, norm, t, f, f_oneway
 from scipy.optimize import curve_fit
 import statsmodels.api as sm
+from numba import jit
 from statsmodels.formula.api import ols
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from statsmodels.tsa.arima.model import ARIMA
@@ -4104,20 +4105,21 @@ def plot_bayesian(prior_type, n_qc=20, k_qc=18, spec_limit=0.90):
 def plot_line_sync_ode(rates):
     """
     Solves and plots the ODEs for buffer levels in a production line.
+    OPTIMIZED with Numba JIT compilation for real-time performance.
     """
     from scipy.integrate import solve_ivp
     
-    # ODE function: dy/dt = f(t, y)
-    # y[0] = Buffer 1, y[1] = Buffer 2
+    # --- THIS IS THE FIX ---
+    # The @jit decorator compiles this function to machine code, making it extremely fast.
+    @jit
     def buffer_model(t, y, r0, r1, r2, r3):
+        # ODE function: dy/dt = f(t, y)
+        # y[0] = Buffer 1, y[1] = Buffer 2
         in_rate1 = r0
         out_rate1 = r1 if y[0] > 0 else 0 # Can't output from an empty buffer
         
         in_rate2 = r1 if y[0] > 0 else 0
         out_rate2 = r2 if y[1] > 0 else 0
-
-        in_rate3 = r2 if y[1] > 0 else 0
-        out_rate3 = r3
         
         # d(Buffer1)/dt = inflow - outflow
         d_buffer1_dt = in_rate1 - out_rate1
@@ -4127,17 +4129,17 @@ def plot_line_sync_ode(rates):
         return [d_buffer1_dt, d_buffer2_dt]
 
     # Initial conditions: Buffers start empty
-    y0 = [0, 0]
+    y0 = [0.0, 0.0] # Use floats for Numba compatibility
     # Time span: 40 hours
     t_span = [0, 40]
     t_eval = np.linspace(t_span[0], t_span[1], 200)
 
-    # Solve the ODE system
+    # Solve the ODE system (this is now much faster)
     sol = solve_ivp(
         buffer_model, 
         t_span, 
         y0, 
-        args=(rates[0], rates[1], rates[2], rates[3]),
+        args=tuple(rates), # Use a tuple for Numba compatibility
         dense_output=True,
         t_eval=t_eval
     )
@@ -12656,14 +12658,8 @@ def render_ode_line_sync():
     st.info("""
     **Interactive Demo:** You are the Process Engineer designing a new production line.
     1.  Use the **"Production Rates"** sliders in the sidebar to set the speed (units/hour) of each process step.
-    2.  Click the **"Run Simulation"** button to execute the ODE model.
-    3.  The dynamic chart shows how inventory in the buffers evolves. Your goal is a **synchronized line** where buffer levels remain low and stable.
+    2.  The dashboard will update in **real-time**, showing how inventory in the buffers evolves. Your goal is a **synchronized line** where buffer levels remain low and stable.
     """)
-
-    # --- Initialize session state to hold the results ---
-    if 'ode_fig' not in st.session_state:
-        st.session_state.ode_fig = None
-        st.session_state.ode_kpis = None
 
     with st.sidebar:
         st.subheader("Production Rates (units/hr)")
@@ -12672,36 +12668,20 @@ def render_ode_line_sync():
         r2 = st.slider("Step 3: Compression", 50, 150, 110)
         r3 = st.slider("Step 4: Packaging", 50, 150, 100)
         
-        rates = [r0, r1, r2, r3]
-
-        # --- The "Run" button that triggers the computation ---
-        if st.button("🚀 Run Simulation", use_container_width=True):
-            with st.spinner("Solving differential equations..."):
-                fig, max_wip1, max_wip2 = plot_line_sync_ode(rates)
-                bottleneck_rate = min(rates)
-                
-                # Store results in session state
-                st.session_state.ode_fig = fig
-                st.session_state.ode_kpis = {
-                    "throughput": bottleneck_rate,
-                    "wip1": max_wip1,
-                    "wip2": max_wip2
-                }
-            st.rerun()
+    rates = [r0, r1, r2, r3]
 
     st.header("Production Line Dynamics Dashboard")
 
-    # --- Display results from session state ---
-    if st.session_state.ode_fig:
-        kpis = st.session_state.ode_kpis
-        col1, col2, col3 = st.columns(3)
-        col1.metric("System Throughput", f"{kpis['throughput']} units/hr", help="The overall output of the line is always limited by its slowest step (the bottleneck).")
-        col2.metric("Max WIP in Buffer 1", f"{kpis['wip1']:.0f} units", help="The maximum inventory accumulation between Step 1 and 2.")
-        col3.metric("Max WIP in Buffer 2", f"{kpis['wip2']:.0f} units", help="The maximum inventory accumulation between Step 2 and 3.")
+    # --- FIX: Call the plotting function directly for real-time interactivity ---
+    fig, max_wip1, max_wip2 = plot_line_sync_ode(rates)
+    bottleneck_rate = min(rates)
 
-        st.plotly_chart(st.session_state.ode_fig, use_container_width=True)
-    else:
-        st.info("Configure the production line rates in the sidebar and click 'Run Simulation' to see the results.")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("System Throughput", f"{bottleneck_rate} units/hr", help="The overall output of the line is always limited by its slowest step (the bottleneck).")
+    col2.metric("Max WIP in Buffer 1", f"{max_wip1:.0f} units", help="The maximum inventory accumulation between Step 1 and 2.")
+    col3.metric("Max WIP in Buffer 2", f"{max_wip2:.0f} units", help="The maximum inventory accumulation between Step 2 and 3.")
+
+    st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
     st.subheader("Deeper Dive into Line Synchronization")
@@ -12710,10 +12690,10 @@ def render_ode_line_sync():
     with tabs[0]:
         st.markdown("""
         **A Realistic Workflow & Interpretation:**
-        1.  **Create a Bottleneck:** In the sidebar, set the rate for **Step 2: Drying** to be much lower than the others (e.g., 70 units/hr). Click **Run Simulation**. Observe the chart:
+        1.  **Create a Bottleneck:** In the sidebar, set the rate for **Step 2: Drying** to be much lower than the others (e.g., 70 units/hr). Observe the chart:
             - **Buffer 1 (Blue Line):** The inventory level grows linearly and uncontrollably. This is because the upstream process (Step 1) is feeding it faster than the bottleneck (Step 2) can drain it. This is a recipe for disaster in a real factory.
             - **Buffer 2 (Red Line):** Remains empty. The downstream process (Step 3) is "starved" for material because it is waiting on the slow bottleneck step.
-        2.  **Synchronize the Line:** Now, adjust all four sliders to be at or near the same rate (e.g., 100 units/hr). Click **Run Simulation**. Observe the chart:
+        2.  **Synchronize the Line:** Now, adjust all four sliders to be at or near the same rate (e.g., 100 units/hr). Observe the chart:
             - Both buffer levels remain at or near zero. The line is "balanced" or "synchronized." Material flows smoothly from one step to the next without accumulating.
 
         **The Strategic Insight:** A production line is like a chain—it is only as strong as its weakest link. Investing millions to speed up a non-bottleneck step is a complete waste of money; it will not increase the overall system throughput and will likely make the buffer problems worse. All improvement efforts must be focused on the **constraint** or **bottleneck** of the system.
@@ -12787,6 +12767,8 @@ A successful operation is managed as a single, integrated system, not a collecti
         - **Process Analytical Technology (PAT):** For continuous manufacturing processes, a dynamic model of the line is essential. It can be used to predict the impact of disturbances and to design feed-forward and feedback control loops that maintain a state of control across the entire train.
         - **GAMP 5:** If this ODE model is used to make GxP decisions (e.g., setting production targets, justifying equipment purchases), the model and the software it runs on would need to be formally validated as a Computerized System.
         """)
+
+
 def render_lean_manufacturing():
     """Renders the comprehensive module for Lean Manufacturing & Value Stream Mapping."""
     st.markdown("""

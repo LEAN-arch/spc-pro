@@ -12762,6 +12762,8 @@ A successful operation is managed as a single, integrated system, not a collecti
         - **GAMP 5:** If this ODE model is used to make GxP decisions (e.g., setting production targets, justifying equipment purchases), the model and the software it runs on would need to be formally validated as a Computerized System.
         """)
 
+# SNIPPET: Replace the entire render_lean_manufacturing function with this updated version.
+
 def render_lean_manufacturing():
     """Renders the comprehensive module for Lean Manufacturing & Value Stream Mapping."""
     st.markdown("""
@@ -12781,17 +12783,19 @@ def render_lean_manufacturing():
     with st.sidebar:
         st.subheader("Current State VSM Inputs")
         st.markdown("Enter the time (in hours) for each activity.")
-        pt1 = st.slider("Process Time: Receipt", 1, 8, 2)
-        wt1 = st.slider("Wait Time: Quarantine", 24, 168, 72)
-        pt2 = st.slider("Process Time: Dispensing", 1, 8, 4)
-        wt2 = st.slider("Wait Time: Staging", 4, 24, 8)
-        pt3 = st.slider("Process Time: Granulation", 8, 24, 12)
-        wt3 = st.slider("Wait Time: Drying", 12, 48, 24)
-        pt4 = st.slider("Process Time: Compression", 4, 12, 8)
-        wt4 = st.slider("Wait Time: Awaiting QC", 24, 96, 48)
-        pt5 = st.slider("Process Time: QC Testing", 2, 8, 4)
-        wt5 = st.slider("Wait Time: Awaiting Packaging", 8, 48, 24)
-        pt6 = st.slider("Process Time: Packaging", 4, 16, 8)
+        # --- HELP TEXT ADDED TO EACH SLIDER ---
+        pt1 = st.slider("Process Time: Receipt", 1, 8, 2, help="The actual 'hands-on' or machine run time for Material Receipt. This is considered Value-Added Time.")
+        wt1 = st.slider("Wait Time: Quarantine", 24, 168, 72, help="The idle time material spends in quarantine awaiting QC release. This is a primary form of waste (Muda) in a Lean system.")
+        pt2 = st.slider("Process Time: Dispensing", 1, 8, 4, help="The actual 'hands-on' or machine run time for Dispensing. This is considered Value-Added Time.")
+        wt2 = st.slider("Wait Time: Staging", 4, 24, 8, help="The idle time material spends staged before the next process step. This is a primary form of waste (Muda).")
+        pt3 = st.slider("Process Time: Granulation", 8, 24, 12, help="The actual 'hands-on' or machine run time for Granulation. This is considered Value-Added Time.")
+        wt3 = st.slider("Wait Time: Drying", 12, 48, 24, help="The idle time the product spends in the dryer or awaiting the next step. This is a primary form of waste (Muda).")
+        pt4 = st.slider("Process Time: Compression", 4, 12, 8, help="The actual 'hands-on' or machine run time for tableting/compression. This is considered Value-Added Time.")
+        wt4 = st.slider("Wait Time: Awaiting QC", 24, 96, 48, help="The idle time the batch spends waiting for QC lab results before it can move to packaging. This is a primary form of waste (Muda).")
+        pt5 = st.slider("Process Time: QC Testing", 2, 8, 4, help="The actual 'hands-on' or analytical run time for QC Testing. This is considered Value-Added Time.")
+        wt5 = st.slider("Wait Time: Awaiting Packaging", 8, 48, 24, help="The idle time the batch spends waiting for packaging line availability after QC release. This is a primary form of waste (Muda).")
+        pt6 = st.slider("Process Time: Packaging", 4, 16, 8, help="The actual 'hands-on' or machine run time for final packaging. This is considered Value-Added Time.")
+        # --- END OF ADDITIONS ---
 
         process_times = [pt1, pt2, pt3, pt4, pt5, pt6]
         wait_times = [wt1, wt2, wt3, wt4, wt5]
@@ -12884,7 +12888,7 @@ A successful Lean transformation is a strategic, top-down process.
         st.markdown("""
         Lean principles are a key component of a modern, efficient Pharmaceutical Quality System and are strongly supported by regulatory bodies.
         - **ICH Q10 - Pharmaceutical Quality System:** This guideline is heavily focused on **process performance** and **continuous improvement**, which are the core goals of Lean. Section 3.2.1, "Process Performance and Product Quality Monitoring System," requires a system to "identify areas for continual improvement." VSM is a primary tool for this identification.
-        - **FDA Guidance on Process Validation (Stage 3 - CPV):** The goal of Continued Process Verification is not just to maintain control, but also to identify opportunities for improvement. Lean tools provide the framework for turning the data from CPV into actionable, cost-saving projects.
+        - **FDA Process Validation Guidance (Stage 3 - CPV):** The goal of Continued Process Verification is not just to maintain control, but also to identify opportunities for improvement. Lean tools provide the framework for turning the data from CPV into actionable, cost-saving projects.
         - **FDA Report: "Pharmaceutical cGMPs for the 21st Century - A Risk-Based Approach":** This landmark 2004 report, which kicked off the modern era of pharmaceutical quality, explicitly praises the principles of Lean Manufacturing as a way to "enhance product quality and efficiency."
         
         **The Golden Thread:** Lean is not in conflict with compliance; it is a powerful enabler of it. A simple, efficient Lean process with minimal waste is inherently easier to control, validate, and maintain in a compliant state than a complex, wasteful process.

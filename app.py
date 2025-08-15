@@ -11454,20 +11454,25 @@ def render_time_series_suite():
     **Strategic Application:** This dashboard serves as a decision-making and training tool for anyone involved in demand planning, resource forecasting, or process monitoring. It allows you to simulate different real-world data scenarios (e.g., a sudden trend change, multiple seasonalities) and instantly see which forecasting model performs best, providing a clear rationale for your choice of tool.
     """)
     st.info("""
-    **Interactive Demo:** Use the sidebar controls to create different forecasting challenges.
-    - **First, select 1-2 models from the "Models to Run" dropdown to prevent crashes.**
-    - Set **Seasonality** to `Multiple` to see where Prophet and TBATS shine.
-    - Add a **Trend Changepoint** to challenge the more rigid classical models.
+    **Interactive Demo:** This suite is now fully interactive and stable.
+    1.  Use the **sidebar controls** to configure your desired data scenario.
+    2.  Select the specific **Models to Run**.
+    3.  Click the **"Run Forecast Analysis"** button to perform the computation. The sliders will feel instant, and the analysis will only run when you command it.
     """)
+    
+    # --- STEP 1: Initialize session_state to hold results ---
+    if 'ts_fig' not in st.session_state:
+        st.session_state.ts_fig = None
+        st.session_state.ts_mae_scores = {}
+
     with st.sidebar:
         st.subheader("Time Series Controls")
         
-        # --- NEW WIDGET TO CONTROL MODEL EXECUTION ---
         models_to_run = st.multiselect(
             "Select Models to Run:",
             options=['Holt-Winters', 'SARIMA', 'Prophet', 'ETS', 'TBATS'],
             default=['Prophet', 'SARIMA'],
-            help="Select which models to fit. Running fewer models will be faster and more stable on resource-constrained platforms."
+            help="Select which models to fit. Running fewer models will be faster."
         )
         
         trend_type = st.radio("Trend Type", ['Additive', 'Multiplicative'], help="Additive: linear growth. Multiplicative: exponential growth.")
@@ -11475,33 +11480,46 @@ def render_time_series_suite():
         noise_level = st.slider("Noise Level (SD)", 1.0, 20.0, 5.0, 1.0)
         changepoint_strength = st.slider("Trend Changepoint Strength", -5.0, 5.0, 0.0, 0.5, help="Simulates an abrupt change in the trend's slope 2/3 of the way through the data.")
 
-    if not models_to_run:
-        st.warning("Please select at least one model to run from the sidebar.")
-        return
-
-    fig, mae_scores = plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength)
+        # --- STEP 2: The "Run" button that triggers the computation ---
+        if st.button("🚀 Run Forecast Analysis", use_container_width=True):
+            if not models_to_run:
+                st.warning("Please select at least one model to run.")
+                st.session_state.ts_fig = None
+                st.session_state.ts_mae_scores = {}
+            else:
+                with st.spinner("Fitting models and generating forecasts... This may take a moment."):
+                    fig, mae_scores = plot_forecasting_suite(models_to_run, trend_type, seasonality_type, noise_level, changepoint_strength)
+                    # Store the results in session state
+                    st.session_state.ts_fig = fig
+                    st.session_state.ts_mae_scores = mae_scores
+                st.rerun() # Rerun to ensure the UI updates with the new state
 
     st.header("Forecasting Suite Dashboard")
-    col1, col2 = st.columns([0.65, 0.35])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.subheader("Model Performance (MAE)")
-        st.markdown("Lower Mean Absolute Error (MAE) is better.")
-        
-        if mae_scores:
-            best_model = min(mae_scores, key=mae_scores.get)
-            for name, score in sorted(mae_scores.items(), key=lambda item: item[1]):
-                st.markdown(f"**{name}:** `{score:.2f}` {'🥇' if name == best_model else ''}")
-        else:
-            st.warning("No models could be successfully fitted to the data.")
+    
+    # --- STEP 3: Display results from session state, not by re-running the function ---
+    if st.session_state.ts_fig is None:
+        st.info("Configure your scenario in the sidebar and click 'Run Forecast Analysis' to see the results.")
+    else:
+        col1, col2 = st.columns([0.65, 0.35])
+        with col1:
+            st.plotly_chart(st.session_state.ts_fig, use_container_width=True)
+        with col2:
+            st.subheader("Model Performance (MAE)")
+            st.markdown("Lower Mean Absolute Error (MAE) is better.")
+            
+            mae_scores = st.session_state.ts_mae_scores
+            if mae_scores:
+                best_model = min(mae_scores, key=mae_scores.get)
+                for name, score in sorted(mae_scores.items(), key=lambda item: item[1]):
+                    st.markdown(f"**{name}:** `{score:.2f}` {'🥇' if name == best_model else ''}")
+            else:
+                st.warning("No models could be successfully fitted to the data.")
             
     st.divider()
     st.subheader("Deeper Dive: Model Selection & Comparison")
     
+    # The detailed informational tabs remain unchanged.
     tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "💡 Method Selection Map", "📊 Scoring Table", "📋 Glossary", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
-
-    # ... (All the detailed tab content remains here, unchanged) ...
     with tabs[0]:
         st.subheader("How to Interpret the Dashboard: A Guided Tour")
         st.markdown("""
@@ -11514,15 +11532,17 @@ def render_time_series_suite():
         ##### Challenge 1: The Multi-Seasonality Problem
         1.  In the sidebar, select only `Prophet` and `TBATS` to run.
         2.  Set **Seasonality Type** to `Multiple (Yearly + Quarterly)`.
-        3.  **Observe:** Notice how the forecasts from **Prophet** and **TBATS** closely track the complex, bumpy seasonal pattern. If you add Holt-Winters or SARIMA, they will produce a much smoother, less accurate forecast.
-        4.  **Conclusion:** The MAE scores will confirm that Prophet and TBATS are the superior models for this type of data. This is their primary superpower.
+        3.  Click **"Run Forecast Analysis"**.
+        4.  **Observe:** Notice how the forecasts from **Prophet** and **TBATS** closely track the complex, bumpy seasonal pattern. If you add Holt-Winters or SARIMA, they will produce a much smoother, less accurate forecast.
+        5.  **Conclusion:** The MAE scores will confirm that Prophet and TBATS are the superior models for this type of data. This is their primary superpower.
 
         ---
         ##### Challenge 2: The Trend Changepoint Problem
         1.  Select `Prophet` and `SARIMA`. Set **Seasonality Type** back to `Single (Yearly)`.
         2.  Increase the **Trend Changepoint Strength** to a significant positive or negative value.
-        3.  **Observe:** The classical models like SARIMA struggle to adapt to the sudden change in the trend's slope. **Prophet**, which is specifically designed to detect and adapt to changepoints, will often produce a more accurate forecast.
-        4.  **Conclusion:** For business data where strategies or market conditions can change abruptly, Prophet's flexibility provides a significant advantage.
+        3.  Click **"Run Forecast Analysis"**.
+        4.  **Observe:** The classical models like SARIMA struggle to adapt to the sudden change in the trend's slope. **Prophet**, which is specifically designed to detect and adapt to changepoints, will often produce a more accurate forecast.
+        5.  **Conclusion:** For business data where strategies or market conditions can change abruptly, Prophet's flexibility provides a significant advantage.
         """)
     with tabs[1]:
         st.subheader("From Reactive Firefighting to Proactive Control")
@@ -11563,7 +11583,7 @@ def render_time_series_suite():
         | :--- | :--- | :--- | :--- |
         | **Clean, simple trend and single, regular seasonality.** | **Holt-Winters / ETS** | **The Craftsman:** Highly interpretable, fast, and robust for classic time series data. It directly models the components you can see, making it easy to explain. | **Single Seasonality Only:** Cannot handle multiple overlapping cycles (e.g., weekly and yearly). It's a specialist tool for a specific type of data. |
         | **Strong autocorrelation; need for statistical rigor and defensibility.** | **SARIMA** | **The Watchmaker:** The gold standard for statistical formality. Excellent for short-term forecasts on stable processes where the "memory" of the process is important. Unbeatable for regulatory submissions that require deep statistical justification. | **Requires Expertise:** Difficult to tune the 7+ parameters correctly. The mandatory "stationarity" requirement means you're modeling changes, not absolute values, which can complicate interpretation for business stakeholders. |
-        | **Multiple seasonalities, holidays, and trend changes.** | **Prophet** | **The Smartwatch:** Highly automated, robust to messy data, and excels at fitting multiple seasonalities. Its intuitive parameters make it easy to incorporate domain knowledge (e.g., a planned shutdown). | **Less Statistically Formal:** It's a pragmatic engineering tool, not a rigorous statistical model. It can be a "black box" and may not capture complex autocorrelation structures as well as SARIMA. |
+        | **Multiple seasonalities, holidays, trend changes, and messy data.** | **Prophet** | **The Smartwatch:** Highly automated, robust to messy data, and excels at fitting multiple seasonalities. Its intuitive parameters make it easy to incorporate domain knowledge (e.g., a planned shutdown). | **Less Statistically Formal:** It's a pragmatic engineering tool, not a rigorous statistical model. It can be a "black box" and may not capture complex autocorrelation structures as well as SARIMA. |
         | **Multiple, complex, and non-integer seasonalities (e.g., 5.5-day cycles).** | **TBATS** | **The Music Producer:** The specialist for very complex seasonality. It can decompose signals like a sound engineer, isolating multiple overlapping frequencies. Highly automated. | **Computationally Slow:** Can be the slowest model to fit. The complex combination of components (Box-Cox, Fourier terms, ARMA errors) can be very difficult to interpret and explain. |
         | **Complex, non-linear patterns without clear seasonality; multivariate inputs.** | **Deep Learning (LSTM/TCN)** | **The AI Pattern Recognizer:** Can learn any pattern from sufficient data. Excellent for multivariate forecasting (e.g., predicting yield from temperature, pH, and feed rate simultaneously). | **Requires Huge Data:** Needs much more data than statistical models. It's a "black box" with low interpretability and is computationally expensive to train and validate. |
         """)

@@ -19461,8 +19461,7 @@ CASE_STUDIES = {
 # MAIN APP LOGIC AND LAYOUT
 # ==============================================================================
 
-# Define all pages and their corresponding render functions in one place.
-# This makes the app much easier to manage.
+# A single, unified dictionary to drive the entire application's navigation and rendering.
 PAGES = {
     "--- FRAMEWORK ---": {
         "🚀 Project Framework": render_introduction_content,
@@ -19560,57 +19559,64 @@ PAGES = {
     }
 }
 
+# --- FINAL, HIGH-PERFORMANCE SIDEBAR NAVIGATION ---
 with st.sidebar:
-    # A single list of all pages for the menu, excluding the section headers
-    options = [page for section in PAGES.values() for page in section.keys()]
+    # A single list of all pages for the menu, including the section headers
+    options = []
+    for section, tools in PAGES.items():
+        options.append(section)
+        options.extend(tools.keys())
     
-    # Create the corresponding list of icons
-    icons = ['house', 'search', 'journal-richtext', 'magic', 'file-earmark-lock', 'shield-check']
-    # Add a generic 'tools' icon for all the actual tool pages
-    icons.extend(['tools'] * (len(options) - len(icons)))
+    # Create a mapping from page name to its render function
+    page_dispatcher = {page: func for section in PAGES.values() for page, func in section.items()}
+    # Add the top-level pages to the dispatcher
+    page_dispatcher["🚀 Project Framework"] = render_introduction_content
+    page_dispatcher["🔎 Search"] = render_search_page
 
     # Find the index of the current view to set the default selection
     try:
-        default_index = options.index(st.session_state.get('current_view', options[0]))
-    except ValueError:
+        default_index = options.index(st.session_state.current_view)
+    except (ValueError, KeyError):
+        # If 'current_view' doesn't exist or isn't in options, initialize it
+        st.session_state.current_view = "🚀 Project Framework"
         default_index = 0
 
-    # The option_menu widget is now the single source of truth for navigation.
-    # Its return value is the page the user has selected.
-    selected_page = option_menu(
+    # The on_change callback is the most robust way to handle navigation
+    def handle_navigation():
+        selected = st.session_state.nav_menu
+        # Ignore clicks on section headers
+        if "---" not in selected:
+            if selected != st.session_state.current_view:
+                st.session_state.current_view = selected
+                if 'case_study' in st.session_state:
+                    st.session_state.case_study['active_case'] = None
+    
+    selected = option_menu(
         menu_title="V&V Sentinel",
         options=options,
-        icons=icons,
+        # Icons can be managed more dynamically if needed
+        icons=['house'] * len(options), # Placeholder icon
         menu_icon="🔬",
         default_index=default_index,
+        on_change=lambda key: handle_navigation(), # Use a lambda to call the handler
+        key='nav_menu',
+        # Disable selection of header items
+        disabled_options=[opt for opt in options if "---" in opt],
         styles={
             "container": {"padding": "5px !important", "background-color": "#fafafa"},
-            "icon": {"color": PRIMARY_COLOR, "font-size": "20px"},
+            "nav-link-disabled": {"color": "grey", "background-color": "#fafafa", "font-weight": "bold", "cursor": "default"},
             "nav-link": {"font-size": "14px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
             "nav-link-selected": {"background-color": PRIMARY_COLOR},
         }
     )
 
-    # --- SIMPLIFIED NAVIGATION LOGIC ---
-    # If the user's selection is different from the current view, update and reset the case study.
-    # Streamlit will automatically rerun the script after this block.
-    if st.session_state.current_view != selected_page:
-        st.session_state.current_view = selected_page
-        if 'case_study' in st.session_state:
-            st.session_state.case_study['active_case'] = None
-        st.rerun() # Use rerun here to ensure clean page transition
-
-
 # --- MAIN CONTENT AREA DISPATCHER ---
-# A mapping from page name to its render function, built from the PAGES dictionary
-page_dispatcher = {page: func for section in PAGES.values() for page, func in section.items()}
-
-# Get the render function for the currently selected page
+# Use the dispatcher we created earlier
 view_to_render = page_dispatcher.get(st.session_state.current_view)
 
-# Render the selected page
 if view_to_render:
     view_to_render()
 else:
     # Fallback to the introduction if the view is somehow invalid
+    st.session_state.current_view = "🚀 Project Framework"
     render_introduction_content()

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import textwrap
 
 # ==============================================================================
-# IMAGE GENERATION ENGINE (Corrected)
+# IMAGE GENERATION ENGINE
 # ==============================================================================
 def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     """Creates a PNG image from a dictionary of KPIs using Matplotlib."""
@@ -36,11 +36,7 @@ def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     buf = io.BytesIO()
     fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
     plt.close(fig)
-    
-    # --- THIS IS THE FINAL FIX ---
-    buf.seek(0) # Rewind the buffer to the beginning before returning
-    # --- END OF FINAL FIX ---
-    
+    buf.seek(0)
     return buf
 
 # ==============================================================================
@@ -69,7 +65,10 @@ def generate_pdf_report(title, kpis, figures):
 
     if kpis:
         kpi_image_buf = create_kpi_image(kpis)
-        pdf.image(name=kpi_image_buf, w=180)
+        # --- DEFINITIVE FIX FOR PDF ERROR ---
+        # Explicitly tell FPDF that the in-memory buffer is a PNG image.
+        pdf.image(name=kpi_image_buf, type='PNG', w=180)
+        # --- END OF FIX ---
         pdf.ln(5)
 
     if figures:
@@ -86,7 +85,8 @@ def generate_pdf_report(title, kpis, figures):
                 elif isinstance(fig, plt.Figure): fig.savefig(img_bytes, format='png', bbox_inches='tight', dpi=200)
                 else: img_bytes = fig
                 img_bytes.seek(0)
-                pdf.image(name=img_bytes, w=180)
+                # --- APPLYING FIX HERE TOO FOR ROBUSTNESS ---
+                pdf.image(name=img_bytes, type='PNG', w=180)
                 pdf.ln(5)
             except Exception as e:
                 pdf.set_text_color(255, 0, 0)

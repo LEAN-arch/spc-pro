@@ -68,7 +68,7 @@ def generate_pdf_report(title, kpis, figures):
 
     if kpis:
         kpi_image_buf = create_kpi_image(kpis)
-        pdf.image(kpi_image_buf, w=180) # Use name= for BytesIO is optional in newer fpdf2, but explicit is better. Let's stick to the keyword 'name' convention
+        pdf.image(kpi_image_buf, w=180)
         pdf.ln(5)
 
     if figures:
@@ -85,18 +85,17 @@ def generate_pdf_report(title, kpis, figures):
                 elif isinstance(fig, plt.Figure): fig.savefig(img_bytes, format='png', bbox_inches='tight', dpi=200)
                 else: img_bytes = fig
                 img_bytes.seek(0)
-                
-                # --- THIS IS THE FINAL FIX ---
-                # We explicitly name the first argument 'name' to resolve the ambiguity.
                 pdf.image(name=img_bytes, w=180)
-                # --- END OF FINAL FIX ---
-
                 pdf.ln(5)
             except Exception as e:
                 pdf.set_text_color(255, 0, 0)
                 pdf.multi_cell(0, 8, f"Error: Image rendering failed in this cloud environment. Please run locally for full reports. Details: {e}", align='L')
                 pdf.set_text_color(0, 0, 0)
-    return pdf.output(dest='S').encode('latin-1')
+                
+    # --- THIS IS THE FINAL FIX ---
+    # The .encode() call has been removed. .output() already returns bytes.
+    return pdf.output()
+    # --- END OF FINAL FIX ---
 
 # ==============================================================================
 # POWERPOINT REPORTING ENGINE (Final)
@@ -148,7 +147,8 @@ def render_reporting_section(report_title, kpis, figures):
         pdf_col, pptx_col = st.columns(2)
         clean_title = report_title.replace(" ", "_").replace(":", "").replace("/", "_")
         
-        unique_key_base = f"{clean_title}_{hash(str(kpis))}"
+        # Use a more robust unique key based on all inputs
+        unique_key_base = f"{clean_title}_{hash(str(kpis))}_{hash(str(figures))}"
 
         with pdf_col:
             try:

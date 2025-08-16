@@ -3,7 +3,6 @@
 # LIBRARIES & IMPORTS (All imports are here)
 # ==============================================================================
 import streamlit as st
-from streamlit_option_menu import option_menu 
 import numpy as np
 import pandas as pd
 import io
@@ -58,19 +57,6 @@ import base64
 from pptx import Presentation
 from pptx.util import Inches
 from reporting_utils import render_reporting_section
-# ==============================================================================
-# SESSION STATE INITIALIZATION (THIS IS THE DEFINITIVE FIX)
-# ==============================================================================
-# This block runs on the first script execution and ensures that the 'current_view'
-# key exists before any other part of the app tries to access it.
-if 'current_view' not in st.session_state:
-    st.session_state.current_view = "🚀 Project Framework"
-if 'case_study' not in st.session_state:
-    st.session_state.case_study = {"active_case": None, "current_step": 0}
-
-# ==============================================================================
-# APP CONFIGURATION
-# ==============================================================================
 # ==============================================================================
 # APP CONFIGURATION
 # ==============================================================================
@@ -19471,130 +19457,150 @@ CASE_STUDIES = {
 }
 
 # ==============================================================================
-# FINAL NAVIGATION & PAGE DISPATCHER SETUP
+# MAIN APP LOGIC AND LAYOUT
 # ==============================================================================
 
-# A single, unified dictionary to drive the entire application's navigation and rendering.
-PAGES = {
-    "--- FRAMEWORK ---": {
-        "🚀 Project Framework": render_introduction_content,
-        "🔎 Search": render_search_page,
-    },
-    "--- GUIDES & SIMULATORS ---": {
-        "📚 Case Study Library": render_case_study_library,
-        "🧙‍♂️ Validation Plan Wizard": render_validation_wizard,
-        "📑 Document Control & Training Sim": render_doc_control,
-        "🕵️ Audit Readiness Sim": render_audit_readiness,
-    },
-    "--- ACT 0: PLANNING & STRATEGY ---": {
-        "TPP & CQA Cascade": render_tpp_cqa_cascade,
-        "Analytical Target Profile (ATP) Builder": render_atp_builder,
-        "IVD & Medical Device Regulatory Framework": render_ivd_regulatory_framework,
-        "V&V Strategy & Justification": render_vv_strategy_justification,
-        "Validation Master Plan (VMP) Builder": render_vmp_builder,
-        "Design Controls & DHF": render_design_controls_dhf,
-        "Design for Excellence (DfX)": render_dfx_dashboard,
-        "FAT & SAT": render_fat_sat,
-        "Requirements Traceability Matrix (RTM)": render_rtm_builder,
-        "Quality Risk Management (QRM) Suite": render_qrm_suite,
-        "Root Cause Analysis (RCA)": render_rca_suite,
-        "Gap Analysis & Change Control": render_gap_analysis_change_control,
-        "CAPA Effectiveness Checker": render_capa_effectiveness,
-    },
-    "--- ACT I: CHARACTERIZATION ---": {
-        "Exploratory Data Analysis (EDA)": render_eda_dashboard,
-        "Confidence Interval Concept": render_ci_concept,
-        "Confidence Intervals for Proportions": render_proportion_cis,
-        "Bayesian Inference": render_bayesian,
-        "Core Validation Parameters": render_core_validation_params,
-        "LOD & LOQ": render_lod_loq,
-        "Linearity & Range": render_linearity,
-        "Non-Linear Regression (4PL/5PL)": render_4pl_regression,
-        "Gage R&R / VCA": render_gage_rr,
-        "Attribute Agreement Analysis": render_attribute_agreement,
-        "Comprehensive Diagnostic Validation": render_diagnostic_validation_suite,
-        "ROC Curve Analysis": render_roc_curve,
-        "Component Reliability Testing": render_component_reliability,
-        "Usability & Human Factors Engineering (HFE)": render_hfe,
-        "Assay Robustness (DOE)": render_assay_robustness_doe,
-        "Mixture Design (Formulations)": render_mixture_design,
-        "Split-Plot Designs": render_split_plot,
-        "Process Optimization: From DOE to AI": render_process_optimization_suite,
-        "Bayesian Optimization": render_bayesian_optimization,
-        "Causal Inference": render_causal_inference,
-        "Causal ML / Double ML": render_causal_ml,
-    },
-    "--- ACT II: TRANSFER & STABILITY ---": {
-        "Sample Size for Qualification": render_sample_size_calculator,
-        "Process Stability (SPC)": render_spc_charts,
-        "Process Capability (Cpk)": render_capability,
-        "Tolerance Intervals": render_tolerance_intervals,
-        "Method Comparison": render_method_comparison,
-        "Equivalence Testing (TOST)": render_tost,
-        "Non-Parametric Statistics Workbench": render_nonparametric_workbench,
-        "Wasserstein Distance": render_wasserstein_distance,
-        "Two-Process Comparability Suite": render_two_process_suite,
-        "Multi-Process Comparability Suite": render_multi_process_suite,
-        "Analytical Comparability & Biosimilarity Dashboard": render_biosimilarity,
-        "Statistical Equivalence for Process Transfer": render_statistical_equivalence_for_process_transfer,
-        "Advanced Stability Design": render_stability_design,
-        "First Time Yield & Cost of Quality": render_fty_coq,
-        "Lean Manufacturing & VSM": render_lean_manufacturing,
-        "Production Line Sync (ODE)": render_ode_line_sync,
-        "Monte Carlo Simulation for Risk Analysis": render_monte_carlo_simulation,
-    },
-    "--- ACT III: LIFECYCLE & PREDICTIVE MGMT ---": {
-        "Overall Equipment Effectiveness (OEE)": render_oee,
-        "Process Control Plan Builder": render_control_plan_builder,
-        "Run Validation (Westgard)": render_multi_rule,
-        "Small Shift Detection": render_ewma_cusum,
-        "Multivariate SPC": render_multivariate_spc,
-        "Stability Analysis (Shelf-Life)": render_stability_analysis,
-        "Reliability / Survival Analysis": render_survival_analysis,
-        "Time Series Forecasting Suite": render_time_series_suite,
-        "Prophet Forecasting": render_prophet_forecasting,
-        "Multivariate Analysis (MVA)": render_mva_pls,
-        "Predictive Modeling Suite": render_predictive_modeling_suite,
-        "Explainable AI (XAI)": render_xai_shap,
-        "Clustering (Unsupervised)": render_clustering,
-        "Anomaly Detection": render_anomaly_detection,
-        "MEWMA + XGBoost Diagnostics": render_mewma_xgboost,
-        "BOCPD + ML Features": render_bocpd_ml_features,
-        "Kalman Filter + Residual Chart": render_kalman_nn_residual,
-        "TCN + CUSUM": render_tcn_cusum,
-        "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring,
-        "PSO + Autoencoder": render_pso_autoencoder,
-        "RL for Chart Tuning": render_rl_tuning,
-        "Digital Twin & Real-Time Simulation": render_digital_twin,
-        "Model Predictive Control (MPC)": render_mpc,
-        "Real-Time Release Testing (RTRT) Dashboard": render_rtrt,
-        "Advanced AI Concepts": render_advanced_ai_concepts,
-    }
+all_tools = {
+    "ACT 0: PLANNING & STRATEGY": [
+        "TPP & CQA Cascade", "Analytical Target Profile (ATP) Builder", "IVD & Medical Device Regulatory Framework",
+        "V&V Strategy & Justification", "Validation Master Plan (VMP) Builder", "Design Controls & DHF",
+        "Design for Excellence (DfX)", "FAT & SAT", "Requirements Traceability Matrix (RTM)",
+        "Quality Risk Management (QRM) Suite", "Root Cause Analysis (RCA)", "Gap Analysis & Change Control",
+        "CAPA Effectiveness Checker"
+    ],
+    "ACT I: FOUNDATION & CHARACTERIZATION": [
+        "Exploratory Data Analysis (EDA)", "Confidence Interval Concept", "Confidence Intervals for Proportions",
+        "Bayesian Inference", "Core Validation Parameters", "LOD & LOQ", "Linearity & Range",
+        "Non-Linear Regression (4PL/5PL)", "Gage R&R / VCA", "Attribute Agreement Analysis",
+        "Comprehensive Diagnostic Validation", "ROC Curve Analysis", "Component Reliability Testing",
+        "Usability & Human Factors Engineering (HFE)", "Assay Robustness (DOE)", "Mixture Design (Formulations)",
+        "Split-Plot Designs", "Process Optimization: From DOE to AI", "Bayesian Optimization",
+        "Causal Inference", "Causal ML / Double ML"
+    ],
+    "ACT II: TRANSFER & STABILITY": [
+        "Sample Size for Qualification", "Process Stability (SPC)", "Process Capability (Cpk)",
+        "Tolerance Intervals", "Method Comparison", "Equivalence Testing (TOST)",
+        "Non-Parametric Statistics Workbench", "Wasserstein Distance", "Two-Process Comparability Suite",
+        "Multi-Process Comparability Suite", "Analytical Comparability & Biosimilarity Dashboard",
+        "Statistical Equivalence for Process Transfer", "Advanced Stability Design",
+        "First Time Yield & Cost of Quality", "Lean Manufacturing & VSM", "Production Line Sync (ODE)",
+        "Monte Carlo Simulation for Risk Analysis"
+    ],
+    "ACT III: LIFECYCLE & PREDICTIVE MGMT": [
+        "Overall Equipment Effectiveness (OEE)", "Process Control Plan Builder", "Run Validation (Westgard)",
+        "Small Shift Detection", "Multivariate SPC", "Stability Analysis (Shelf-Life)",
+        "Reliability / Survival Analysis", "Time Series Forecasting Suite", "Prophet Forecasting",
+        "Multivariate Analysis (MVA)", "Predictive Modeling Suite", "Explainable AI (XAI)",
+        "Clustering (Unsupervised)", "Anomaly Detection", "MEWMA + XGBoost Diagnostics",
+        "BOCPD + ML Features", "Kalman Filter + Residual Chart", "TCN + CUSUM",
+        "LSTM Autoencoder + Hybrid Monitoring", "PSO + Autoencoder", "RL for Chart Tuning",
+        "Digital Twin & Real-Time Simulation", "Model Predictive Control (MPC)",
+        "Real-Time Release Testing (RTRT) Dashboard", "Advanced AI Concepts"
+    ]
 }
 
-# A mapping from page name to its render function, built from the PAGES dictionary
-page_dispatcher = {page: func for section in PAGES.values() for page, func in section.items()}
+PAGE_DISPATCHER = {
+    # New Top-Level Pages
+    "Validation Plan Wizard": render_validation_wizard, "Case Study Library": render_case_study_library,
+    "Document Control & Training Sim": render_doc_control, "Audit Readiness Sim": render_audit_readiness,
+    "Search": render_search_page,
+    # Act 0
+    "TPP & CQA Cascade": render_tpp_cqa_cascade, "Analytical Target Profile (ATP) Builder": render_atp_builder,
+    "IVD & Medical Device Regulatory Framework": render_ivd_regulatory_framework, "Quality Risk Management (QRM) Suite": render_qrm_suite,
+    "V&V Strategy & Justification": render_vv_strategy_justification, "Design Controls & DHF": render_design_controls_dhf, 
+    "FAT & SAT": render_fat_sat, "Design for Excellence (DfX)": render_dfx_dashboard,
+    "Validation Master Plan (VMP) Builder": render_vmp_builder, "Requirements Traceability Matrix (RTM)": render_rtm_builder,
+    "Gap Analysis & Change Control": render_gap_analysis_change_control, "Root Cause Analysis (RCA)": render_rca_suite,
+    "CAPA Effectiveness Checker": render_capa_effectiveness,
+    # Act I
+    "Exploratory Data Analysis (EDA)": render_eda_dashboard, "Confidence Interval Concept": render_ci_concept,
+    "Confidence Intervals for Proportions": render_proportion_cis, "Core Validation Parameters": render_core_validation_params,
+    "LOD & LOQ": render_lod_loq, "Linearity & Range": render_linearity, "Non-Linear Regression (4PL/5PL)": render_4pl_regression,
+    "Gage R&R / VCA": render_gage_rr, "Attribute Agreement Analysis": render_attribute_agreement,
+    "Comprehensive Diagnostic Validation": render_diagnostic_validation_suite, "Component Reliability Testing": render_component_reliability,
+    "ROC Curve Analysis": render_roc_curve, "Usability & Human Factors Engineering (HFE)": render_hfe,
+    "Assay Robustness (DOE)": render_assay_robustness_doe, "Mixture Design (Formulations)": render_mixture_design,
+    "Process Optimization: From DOE to AI": render_process_optimization_suite, "Bayesian Optimization": render_bayesian_optimization,
+    "Split-Plot Designs": render_split_plot, "Causal Inference": render_causal_inference, "Causal ML / Double ML": render_causal_ml,
+    # Act II
+    "Sample Size for Qualification": render_sample_size_calculator, "Process Stability (SPC)": render_spc_charts,
+    "Process Capability (Cpk)": render_capability, "Tolerance Intervals": render_tolerance_intervals,
+    "Method Comparison": render_method_comparison, "Equivalence Testing (TOST)": render_tost,
+    "Non-Parametric Statistics Workbench": render_nonparametric_workbench, "Wasserstein Distance": render_wasserstein_distance,
+    "Two-Process Comparability Suite": render_two_process_suite, "Multi-Process Comparability Suite": render_multi_process_suite,
+    "Analytical Comparability & Biosimilarity Dashboard": render_biosimilarity, "Statistical Equivalence for Process Transfer": render_statistical_equivalence_for_process_transfer,
+    "Advanced Stability Design": render_stability_design, "First Time Yield & Cost of Quality": render_fty_coq,
+    "Lean Manufacturing & VSM": render_lean_manufacturing, "Production Line Sync (ODE)": render_ode_line_sync,
+    "Monte Carlo Simulation for Risk Analysis": render_monte_carlo_simulation, "Bayesian Inference": render_bayesian,
+    # Act III
+    "Overall Equipment Effectiveness (OEE)": render_oee, "Process Control Plan Builder": render_control_plan_builder,
+    "Run Validation (Westgard)": render_multi_rule, "Small Shift Detection": render_ewma_cusum,
+    "Multivariate SPC": render_multivariate_spc, "Stability Analysis (Shelf-Life)": render_stability_analysis,
+    "Reliability / Survival Analysis": render_survival_analysis, "Time Series Forecasting Suite": render_time_series_suite,
+    "Prophet Forecasting": render_prophet_forecasting, "Multivariate Analysis (MVA)": render_mva_pls,
+    "Predictive Modeling Suite": render_predictive_modeling_suite, "Explainable AI (XAI)": render_xai_shap,
+    "Clustering (Unsupervised)": render_clustering, "Anomaly Detection": render_anomaly_detection,
+    "MEWMA + XGBoost Diagnostics": render_mewma_xgboost, "BOCPD + ML Features": render_bocpd_ml_features,
+    "Kalman Filter + Residual Chart": render_kalman_nn_residual, "TCN + CUSUM": render_tcn_cusum,
+    "LSTM Autoencoder + Hybrid Monitoring": render_lstm_autoencoder_monitoring, "PSO + Autoencoder": render_pso_autoencoder,
+    "RL for Chart Tuning": render_rl_tuning, "Digital Twin & Real-Time Simulation": render_digital_twin,
+    "Model Predictive Control (MPC)": render_mpc, "Real-Time Release Testing (RTRT) Dashboard": render_rtrt,
+    "Advanced AI Concepts": render_advanced_ai_concepts,
+}
 
+# --- Initialize Session State (Must be the first Streamlit command outside any function) ---
+if 'current_view' not in st.session_state:
+    st.session_state.current_view = 'Introduction'
+if 'case_study' not in st.session_state:
+    st.session_state.case_study = {"active_case": None, "current_step": 0}
+
+# --- SIDEBAR NAVIGATION RENDERING ---
 with st.sidebar:
-    st.title("V&V Sentinel")
-    st.markdown("---")
-
-    # The main dispatcher is now driven by the PAGES dictionary.
-    # The session state 'current_view' stores the string name of the tool to display.
+    st.title("🧰 Toolkit Navigation")
     
-    for section, tools in PAGES.items():
-        # Render the section header
-        # The replace().strip() makes it look clean, e.g., "--- FRAMEWORK ---" -> "FRAMEWORK"
-        st.subheader(section.replace("---", "").strip())
-        
-        # Render a button for each tool in the section
-        for tool_name in tools.keys():
-            # When a button is clicked, it returns True for that one script run.
-            if st.button(tool_name, key=f"nav_{tool_name}", use_container_width=True):
-                # Update the session state to the new view.
-                st.session_state.current_view = tool_name
-                # Always reset the case study when a user manually selects a tool.
-                if 'case_study' in st.session_state:
-                    st.session_state.case_study['active_case'] = None
-                # Trigger an immediate rerun to render the new page.
+    if st.button("🚀 Project Framework", use_container_width=True, key="nav_intro"):
+        st.session_state.current_view = 'Introduction'
+        if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
+        st.rerun()
+
+    if st.button("🔎 Search Toolkit", use_container_width=True, key="nav_search"):
+        st.session_state.current_view = 'Search'
+        st.rerun()
+    
+    st.divider()
+    st.subheader("GUIDES & SIMULATORS")
+
+    if st.session_state.get('case_study', {}).get('active_case'):
+        if st.button("📚 Return to Case Study Hub", use_container_width=True, type="primary", key="nav_case_hub_return"):
+            st.session_state.current_view = 'Case Study Library'
+            st.rerun()
+    else:
+        if st.button("📚 Case Study Library", use_container_width=True, key="nav_case_hub_main"):
+            st.session_state.current_view = 'Case Study Library'
+            st.rerun()
+    
+    if st.button("🧙‍♂️ Validation Plan Wizard", use_container_width=True, key="nav_wizard"):
+        st.session_state.current_view = 'Validation Plan Wizard'
+        st.rerun()
+    if st.button("📑 Document Control & Training Sim", use_container_width=True, key="nav_doc_control"):
+        st.session_state.current_view = 'Document Control & Training Sim'
+        st.rerun()
+    if st.button("🕵️ Audit Readiness Sim", use_container_width=True, key="nav_audit"):
+        st.session_state.current_view = 'Audit Readiness Sim'
+        st.rerun()
+            
+    st.divider()
+    st.subheader("ANALYTICS TOOLKIT")
+
+    for act_title, act_tools in all_tools.items():
+        st.subheader(act_title)
+        for tool in act_tools:
+            if st.button(tool, key=tool, use_container_width=True):
+                st.session_state.current_view = tool
+                if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
                 st.rerun()
+    
+# --- MAIN CONTENT AREA DISPATCHER ---
+view = st.session_state.get('current_view', 'Introduction')
+render_function = PAGE_DISPATCHER.get(view, render_introduction_content)
+render_function()

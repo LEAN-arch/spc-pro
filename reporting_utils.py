@@ -8,24 +8,57 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
+import textwrap
 
 # ==============================================================================
-# HELPER FUNCTION FOR PRE-FORMATTING KPIS
+# IMAGE GENERATION ENGINE (NEW)
 # ==============================================================================
-def format_kpis_for_printing(kpis):
-    """Pre-formats complex KPIs (dicts, lists) into clean, multi-line strings."""
-    formatted = {}
+
+def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
+    """
+    Creates a PNG image from a dictionary of KPIs using Matplotlib.
+    This is a robust way to render text for reports, avoiding font/environment issues.
+    """
+    # Pre-format complex KPIs (like dictionaries) into clean, multi-line strings
+    formatted_kpis = {}
     for key, value in kpis.items():
         if isinstance(value, dict):
-            # Format dictionaries into a nice, multi-line string
             json_str = json.dumps(value, indent=2)
-            formatted[key] = f"\n{json_str}"
-        elif isinstance(value, list):
-            # Format lists into a multi-line string
-            formatted[key] = "\n" + "\n".join([f"  - {item}" for item in value])
+            formatted_kpis[key] = f"\n{json_str}"
         else:
-            formatted[key] = value
-    return formatted
+            formatted_kpis[key] = value
+
+    # Create the text block
+    lines = [f"{title}\n" + "="*len(title)]
+    for key, value in formatted_kpis.items():
+        # Wrap long keys and values
+        key_lines = textwrap.wrap(f"{key}:", width=30)
+        value_lines = textwrap.wrap(str(value), width=60)
+        
+        lines.append(key_lines[0])
+        for line in key_lines[1:]:
+            lines.append(f"  {line}")
+            
+        for line in value_lines:
+            lines.append(f"    {line}")
+        lines.append("") # Add a blank line for spacing
+
+    text_to_render = "\n".join(lines)
+    
+    # Estimate figure size based on number of lines
+    num_lines = text_to_render.count('\n')
+    fig_height = max(4, num_lines * 0.3)
+    
+    fig, ax = plt.subplots(figsize=(8, fig_height))
+    ax.text(0.01, 0.99, text_to_render, transform=ax.transAxes,
+            fontsize=12, family='monospace', va='top', ha='left')
+    ax.axis('off')
+    
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+    plt.close(fig)
+    buf.seek(0)
+    return buf
 
 # ==============================================================================
 # PDF REPORTING ENGINE (Final)
@@ -43,35 +76,24 @@ class PDF(FPDF):
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
 def generate_pdf_report(title, kpis, figures):
-    """Generates a multi-page PDF report with robust text handling."""
+    """Generates a multi-page PDF report by embedding pre-rendered images."""
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Helvetica", 'B', 16)
     clean_title = title.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 10, clean_title, align='C')
-    pdf.ln(10)
+    pdf.ln(5)
 
     if kpis:
-        # --- PDF FIX: Pre-format KPIs to handle complex types gracefully ---
-        formatted_kpis = format_kpis_for_printing(kpis)
-        
-        pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(0, 10, "Key Performance Indicators & Summary", ln=1, align='L')
-        pdf.set_font("Helvetica", '', 10)
-        for key, value in formatted_kpis.items():
-            pdf.set_font("Helvetica", 'B', 10)
-            pdf.multi_cell(0, 7, f"{key}:", align='L')
-            pdf.set_font("Helvetica", '', 10)
-            clean_value = str(value).encode('latin-1', 'replace').decode('latin-1')
-            pdf.multi_cell(0, 7, f"  {clean_value}", align='L')
-            pdf.ln(2)
-        pdf.ln(10)
+        kpi_image_buf = create_kpi_image(kpis)
+        pdf.image(kpi_image_buf, name="kpi_summary.png", w=180)
+        pdf.ln(5)
 
     if figures:
         pdf.set_font("Helvetica", 'B', 12)
         pdf.cell(0, 10, "Visual Analysis", ln=1, align='L')
         for fig_title, fig in figures.items():
-            if pdf.get_y() > 190: pdf.add_page()
+            if pdf.get_y() > 200: pdf.add_page()
             clean_fig_title = fig_title.encode('latin-1', 'replace').decode('latin-1')
             pdf.set_font("Helvetica", 'I', 11)
             pdf.cell(0, 8, f"- {clean_fig_title}", ln=1, align='L')
@@ -83,9 +105,9 @@ def generate_pdf_report(title, kpis, figures):
                 img_bytes.seek(0)
                 pdf.image(img_bytes, name=f"figure_{hash(fig_title)}.png", w=180)
                 pdf.ln(5)
-            except Exception as e:
+            except Exception: # Catch the Kaleido/OS error here for PDFs too
                 pdf.set_text_color(255, 0, 0)
-                pdf.multi_cell(0, 8, f"Error rendering '{clean_fig_title}': {e}", align='L')
+                pdf.multi_cell(0, 8, "Error: Image rendering failed in the current cloud environment. Please run locally for full reports.", align='L')
                 pdf.set_text_color(0, 0, 0)
     return pdf.output(dest='S').encode('latin-1')
 
@@ -93,34 +115,35 @@ def generate_pdf_report(title, kpis, figures):
 # POWERPOINT REPORTING ENGINE (Final)
 # ==============================================================================
 def generate_pptx_report(title, kpis, figures):
-    """Generates a multi-slide PowerPoint report."""
+    """Generates a multi-slide PowerPoint report with robust error handling."""
     prs = Presentation()
     slide = prs.slides.add_slide(prs.slide_layouts[0])
     slide.shapes.title.text = title; slide.placeholders[1].text = "Generated by V&V Sentinel Toolkit"
 
     if kpis:
-        slide = prs.slides.add_slide(prs.slide_layouts[1])
-        slide.shapes.title.text = "Key Performance Indicators & Summary"
-        tf = slide.shapes.placeholders[1].text_frame; tf.clear()
-        formatted_kpis = format_kpis_for_printing(kpis)
-        for key, value in formatted_kpis.items():
-            p = tf.add_paragraph(); p.text = f"{key}: "; p.font.bold = True; p.font.size = Pt(14)
-            runner = p.add_run(); runner.text = str(value); runner.font.size = Pt(14)
-        tf.fit_text(font_family='Calibri', max_size=18)
+        slide = prs.slides.add_slide(prs.slide_layouts[5]) # Blank layout
+        slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.5)).text_frame.text = "Key Performance Indicators & Summary"
+        kpi_image_buf = create_kpi_image(kpis)
+        slide.shapes.add_picture(kpi_image_buf, Inches(0.5), Inches(1.0), width=Inches(9.0))
 
     if figures:
         for fig_title, fig in figures.items():
             slide = prs.slides.add_slide(prs.slide_layouts[5])
             title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.5))
             title_box.text_frame.text = fig_title
-            
-            # This will raise an exception in the cloud environment, which will be caught by the UI function.
-            img_bytes = io.BytesIO()
-            if isinstance(fig, go.Figure): fig.write_image(img_bytes, format='png', scale=2, width=800, height=500)
-            elif isinstance(fig, plt.Figure): fig.savefig(img_bytes, format='png', bbox_inches='tight', dpi=200)
-            else: img_bytes = fig
-            img_bytes.seek(0)
-            slide.shapes.add_picture(img_bytes, Inches(0.5), Inches(1.0), width=Inches(9.0))
+            try:
+                img_bytes = io.BytesIO()
+                if isinstance(fig, go.Figure): fig.write_image(img_bytes, format='png', scale=2, width=800, height=500)
+                elif isinstance(fig, plt.Figure): fig.savefig(img_bytes, format='png', bbox_inches='tight', dpi=200)
+                else: img_bytes = fig
+                img_bytes.seek(0)
+                slide.shapes.add_picture(img_bytes, Inches(0.5), Inches(1.0), width=Inches(9.0))
+            except Exception as e:
+                err_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4))
+                tf = err_box.text_frame; tf.clear()
+                p1 = tf.add_paragraph(); p1.text = f"Error Rendering: '{fig_title}'"; p1.font.bold = True; p1.font.size = Pt(24)
+                p2 = tf.add_paragraph(); p2.text = "\nRoot Cause:"; p2.font.bold = True; p2.font.size = Pt(18)
+                p3 = tf.add_paragraph(); p3.text = "The 'Kaleido' image rendering engine is not compatible with the current cloud deployment environment."; p3.font.size = Pt(14)
 
     pptx_buffer = io.BytesIO()
     prs.save(pptx_buffer)
@@ -130,34 +153,36 @@ def generate_pptx_report(title, kpis, figures):
 # MASTER UI RENDERING FUNCTION (Final)
 # ==============================================================================
 def render_reporting_section(report_title, kpis, figures):
-    """Renders the entire reporting UI section with robust error handling for cloud environments."""
+    """Renders the reporting UI with intelligent error handling for cloud environments."""
     st.divider()
     st.subheader("Reporting")
     with st.container(border=True):
         st.markdown("**Generate a formal report of this analysis.**")
         pdf_col, pptx_col = st.columns(2)
         clean_title = report_title.replace(" ", "_").replace(":", "").replace("/", "_")
-        
+
+        # --- PDF Download ---
         with pdf_col:
-            pdf_key = f"pdf_{clean_title}"
+            pdf_key = f"pdf_{clean_title}_{hash(str(kpis))}" # Unique key
             try:
                 pdf_bytes = generate_pdf_report(report_title, kpis, figures)
                 st.download_button("📄 Download PDF Report", pdf_bytes, f"{clean_title}.pdf", "application/pdf", use_container_width=True, key=pdf_key)
             except Exception as e: st.error(f"PDF generation failed: {e}")
 
+        # --- PowerPoint Download ---
         with pptx_col:
-            pptx_key = f"pptx_{clean_title}"
+            pptx_key = f"pptx_{clean_title}_{hash(str(kpis))}" # Unique key
             try:
+                # Attempt to generate the PPTX to see if it fails due to Kaleido
                 pptx_bytes = generate_pptx_report(report_title, kpis, figures)
                 st.download_button("📊 Download PowerPoint Report", pptx_bytes, f"{clean_title}.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", use_container_width=True, key=pptx_key)
             except Exception as e:
-                # --- PPTX FIX: CATCH THE ERROR AND PROVIDE A BETTER UI ---
+                # If Kaleido fails, disable the button and show a helpful message.
                 st.download_button("📊 Download PowerPoint Report", b"", f"{clean_title}.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", use_container_width=True, key=pptx_key, disabled=True)
-                st.warning(
-                    """
-                    **PowerPoint generation with charts is disabled in this cloud environment.** 
-                    This is due to an incompatibility with the image rendering engine (`Kaleido`).
-                    To generate a full report with charts, please run this application on your local machine.
-                    """,
-                    icon="⚙️"
-                )
+                if ' Kaleido ' in str(e) or 'unsupported operating system' in str(e).lower():
+                    st.warning(
+                        "**Chart rendering is disabled in this cloud environment.** To generate a full report with charts, please run this application on your local machine.",
+                        icon="⚙️"
+                    )
+                else:
+                    st.error(f"PPTX Error: {e}")

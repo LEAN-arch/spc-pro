@@ -19557,53 +19557,50 @@ if 'case_study' not in st.session_state:
 
 # --- SIDEBAR NAVIGATION RENDERING ---
 with st.sidebar:
-    # 1. Define all top-level and tool options in a single list
-    top_level_options = [
-        "Project Framework", "Search", "Case Study Library", 
-        "Validation Plan Wizard", "Document Control & Training Sim", "Audit Readiness Sim"
-    ]
-    
-    all_tool_options = [tool for act_tools in all_tools.values() for tool in act_tools]
-    
-    # Combine all navigation options into one master list for the menu
-    master_options_list = top_level_options + all_tool_options
-    
-    # Define corresponding icons
-    top_level_icons = ["house", "search", "journal-richtext", "magic", "file-earmark-lock", "shield-check"]
-    tool_icons = ["tools"] * len(all_tool_options)
-    master_icons_list = top_level_icons + tool_icons
-    
-    # 2. Find the index of the current view to set the default selection
-    try:
-        default_index = master_options_list.index(st.session_state.get('current_view', 'Project Framework'))
-    except ValueError:
-        default_index = 0 # Default to the first item if current_view is not in the list
-
-    # 3. Create the option_menu
-    selected_option = option_menu(
-        menu_title="V&V Sentinel Toolkit",
-        options=master_options_list,
-        icons=master_icons_list,
+    # Use the option_menu for global navigation between top-level pages and Acts
+    selected_act = option_menu(
+        menu_title="V&V Sentinel",
+        options=["Framework", "Act 0", "Act I", "Act II", "Act III", "Simulators"],
+        icons=["house", "clipboard-check", "flask", "truck", "recycle", "joystick"],
         menu_icon="🔬",
-        default_index=default_index,
+        default_index=0,
         styles={
             "container": {"padding": "5px !important", "background-color": "#fafafa"},
-            "icon": {"color": "#0068C9", "font-size": "20px"}, 
+            "icon": {"color": PRIMARY_COLOR, "font-size": "20px"},
             "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
             "nav-link-selected": {"background-color": PRIMARY_COLOR},
         }
     )
 
-    # 4. Handle navigation logic
-    # If the user selects a new option, update the session state and rerun the app.
-    if selected_option and selected_option != st.session_state.current_view:
-        st.session_state.current_view = selected_option
-        # If navigating away from a tool, always end the active case study
-        if 'case_study' in st.session_state:
-            st.session_state.case_study['active_case'] = None
-        st.rerun()
-    
-# --- MAIN CONTENT AREA DISPATCHER ---
-view = st.session_state.get('current_view', 'Introduction')
-render_function = PAGE_DISPATCHER.get(view, render_introduction_content)
-render_function()
+    # Conditionally display the tools for the selected Act
+    if selected_act == "Framework":
+        if st.button("Project Framework Home", use_container_width=True):
+            st.session_state.current_view = 'Introduction'
+            st.rerun()
+        if st.button("Search Toolkit", use_container_width=True):
+            st.session_state.current_view = 'Search'
+            st.rerun()
+            
+    elif selected_act == "Simulators":
+        sim_tools = ["Case Study Library", "Validation Plan Wizard", "Document Control & Training Sim", "Audit Readiness Sim"]
+        for tool in sim_tools:
+            if st.button(tool, use_container_width=True):
+                st.session_state.current_view = tool
+                st.rerun()
+                
+    else: # It's an Act
+        act_key = f"{selected_act}: PLANNING & STRATEGY" if selected_act == "Act 0" else \
+                  f"{selected_act}: FOUNDATION & CHARACTERIZATION" if selected_act == "Act I" else \
+                  f"{selected_act}: TRANSFER & STABILITY" if selected_act == "Act II" else \
+                  f"{selected_act}: LIFECYCLE & PREDICTIVE MGMT"
+        
+        # This is a small hack to find the full key name
+        full_act_key = [k for k in all_tools.keys() if k.startswith(selected_act)][0]
+        
+        for tool in all_tools[full_act_key]:
+            if st.button(tool, use_container_width=True):
+                st.session_state.current_view = tool
+                # Always reset case study when manually selecting a tool
+                if 'case_study' in st.session_state:
+                    st.session_state.case_study['active_case'] = None
+                st.rerun()

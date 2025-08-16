@@ -7208,6 +7208,57 @@ def render_spc_charts():
             except Exception as e:
                 st.error(f"An error occurred while processing your file: {e}")
 
+@st.cache_data
+def plot_doc_control_flow(current_status="Draft"):
+    """Generates a flowchart for a typical GxP document lifecycle."""
+    fig = go.Figure()
+    statuses = ["Draft", "In Review", "Approved", "Effective", "Obsolete"]
+    status_colors = {s: 'lightgrey' for s in statuses}
+    
+    # Highlight the current and past statuses
+    try:
+        current_index = statuses.index(current_status)
+        for i in range(current_index + 1):
+            status_colors[statuses[i]] = SUCCESS_GREEN
+    except ValueError:
+        # Handle cases where status might not be in the list, though it shouldn't happen with the slider
+        pass
+
+    nodes = {s: {'label': s, 'pos': (i*2, 5)} for i, s in enumerate(statuses)}
+    edges = [("Draft", "In Review"), ("In Review", "Approved"), ("Approved", "Effective"), ("Effective", "Obsolete")]
+
+    # Draw arrows
+    for start, end in edges:
+        fig.add_annotation(
+            ax=nodes[start]['pos'][0] + 0.8, ay=nodes[start]['pos'][1],
+            x=nodes[end]['pos'][0] - 0.8, y=nodes[end]['pos'][1],
+            arrowhead=2, arrowwidth=2, showarrow=True
+        )
+
+    # Draw nodes
+    for name, props in nodes.items():
+        fig.add_shape(
+            type="rect", 
+            x0=props['pos'][0]-0.8, y0=props['pos'][1]-0.4, 
+            x1=props['pos'][0]+0.8, y1=props['pos'][1]+0.4, 
+            fillcolor=status_colors[name], 
+            line=dict(color='black')
+        )
+        fig.add_annotation(
+            x=props['pos'][0], y=props['pos'][1], 
+            text=f"<b>{props['label']}</b>", 
+            showarrow=False, 
+            font_color="black" if status_colors[name]=='lightgrey' else "white"
+        )
+
+    fig.update_layout(
+        title_text="<b>Document Control Lifecycle</b>",
+        xaxis=dict(visible=False, range=[-1, 9]),
+        yaxis=dict(visible=False, range=[4, 6]),
+        height=250,
+        margin=dict(l=10, r=10, t=40, b=10)
+    )
+    return fig
 # =================================================================================================================================================================================================
 # ================================================================== ALL UI RENDERING FUNCTIONS =================================================================================================
 # ==================================================================================================================================================================================================

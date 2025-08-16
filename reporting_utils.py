@@ -37,7 +37,9 @@ def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
     plt.close(fig)
     buf.seek(0)
-    return buf
+    # --- THIS IS THE KEY CHANGE ---
+    # Return the raw bytes, not the BytesIO object
+    return buf.getvalue()
 
 # ==============================================================================
 # PDF REPORTING ENGINE (Final)
@@ -48,7 +50,6 @@ class PDF(FPDF):
         self.set_font('Helvetica', 'B', 12)
         self.cell(0, 10, 'V&V Sentinel Toolkit - Generated Report', 0, 0, 'C')
         self.ln(20)
-
     def footer(self):
         self.set_y(-15)
         self.set_font('Helvetica', 'I', 8)
@@ -60,37 +61,32 @@ def generate_pdf_report(title, kpis, figures):
     pdf.add_page()
     pdf.set_font("Helvetica", 'B', 16)
     clean_title = title.encode('latin-1', 'replace').decode('latin-1')
-    pdf.multi_cell(0, 10, clean_title, align='C')
-    pdf.ln(5)
+    pdf.multi_cell(0, 10, clean_title, align='C'); pdf.ln(5)
 
     if kpis:
-        kpi_image_buf = create_kpi_image(kpis)
-        # --- DEFINITIVE FIX FOR PDF ERROR ---
-        # Explicitly tell FPDF that the in-memory buffer is a PNG image.
-        pdf.image(name=kpi_image_buf, type='PNG', w=180)
-        # --- END OF FIX ---
+        kpi_image_bytes = create_kpi_image(kpis)
+        pdf.image(name=kpi_image_bytes, type='PNG', w=180)
         pdf.ln(5)
 
     if figures:
-        pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(0, 10, "Visual Analysis", ln=1, align='L')
+        pdf.set_font("Helvetica", 'B', 12); pdf.cell(0, 10, "Visual Analysis", ln=1, align='L')
         for fig_title, fig in figures.items():
             if pdf.get_y() > 200: pdf.add_page()
             clean_fig_title = fig_title.encode('latin-1', 'replace').decode('latin-1')
-            pdf.set_font("Helvetica", 'I', 11)
-            pdf.cell(0, 8, f"- {clean_fig_title}", ln=1, align='L')
+            pdf.set_font("Helvetica", 'I', 11); pdf.cell(0, 8, f"- {clean_fig_title}", ln=1, align='L')
             try:
-                img_bytes = io.BytesIO()
-                if isinstance(fig, go.Figure): fig.write_image(img_bytes, format='png', scale=2, width=800, height=500)
-                elif isinstance(fig, plt.Figure): fig.savefig(img_bytes, format='png', bbox_inches='tight', dpi=200)
-                else: img_bytes = fig
-                img_bytes.seek(0)
-                # --- APPLYING FIX HERE TOO FOR ROBUSTNESS ---
+                img_buf = io.BytesIO()
+                if isinstance(fig, go.Figure): fig.write_image(img_buf, format='png', scale=2, width=800, height=500)
+                elif isinstance(fig, plt.Figure): fig.savefig(img_buf, format='png', bbox_inches='tight', dpi=200)
+                else: img_buf = fig
+                img_buf.seek(0)
+                # --- APPLYING THE FIX HERE AS WELL ---
+                img_bytes = img_buf.getvalue()
                 pdf.image(name=img_bytes, type='PNG', w=180)
                 pdf.ln(5)
             except Exception as e:
                 pdf.set_text_color(255, 0, 0)
-                pdf.multi_cell(0, 8, f"Error: Image rendering failed. Please run locally for full reports. Details: {e}", align='L')
+                pdf.multi_cell(0, 8, f"Error: Image rendering failed. Please run locally. Details: {e}", align='L')
                 pdf.set_text_color(0, 0, 0)
     return pdf.output()
 
@@ -106,8 +102,8 @@ def generate_pptx_report(title, kpis, figures):
     if kpis:
         slide = prs.slides.add_slide(prs.slide_layouts[5])
         slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.5)).text_frame.text = "Key Performance Indicators & Summary"
-        kpi_image_buf = create_kpi_image(kpis)
-        slide.shapes.add_picture(kpi_image_buf, Inches(0.5), Inches(1.0), width=Inches(9.0))
+        kpi_image_bytes = create_kpi_image(kpis)
+        slide.shapes.add_picture(io.BytesIO(kpi_image_bytes), Inches(0.5), Inches(1.0), width=Inches(9.0))
 
     if figures:
         for fig_title, fig in figures.items():
@@ -115,12 +111,12 @@ def generate_pptx_report(title, kpis, figures):
             title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.5))
             title_box.text_frame.text = fig_title
             try:
-                img_bytes = io.BytesIO()
-                if isinstance(fig, go.Figure): fig.write_image(img_bytes, format='png', scale=2, width=800, height=500)
-                elif isinstance(fig, plt.Figure): fig.savefig(img_bytes, format='png', bbox_inches='tight', dpi=200)
-                else: img_bytes = fig
-                img_bytes.seek(0)
-                slide.shapes.add_picture(img_bytes, Inches(0.5), Inches(1.0), width=Inches(9.0))
+                img_buf = io.BytesIO()
+                if isinstance(fig, go.Figure): fig.write_image(img_buf, format='png', scale=2, width=800, height=500)
+                elif isinstance(fig, plt.Figure): fig.savefig(img_buf, format='png', bbox_inches='tight', dpi=200)
+                else: img_buf = fig
+                img_buf.seek(0)
+                slide.shapes.add_picture(img_buf, Inches(0.5), Inches(1.0), width=Inches(9.0))
             except Exception as e:
                 err_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4))
                 tf = err_box.text_frame; tf.clear()

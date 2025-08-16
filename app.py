@@ -18724,9 +18724,15 @@ def render_audit_readiness():
         st.plotly_chart(plot_audit_readiness_spider(scores), use_container_width=True)
         
     with col2:
-        st.subheader("Mock Audit: The Auditor Asks...")
+        # --- START OF GADGET REPLACEMENT ---
+        st.subheader("Gadget: Mock Audit Simulator")
         
-        # --- NEW, FULLY EXPANDED QUESTION LIBRARY ---
+        # Initialize session state for the gadget
+        if 'audit_question' not in st.session_state:
+            st.session_state.audit_question = None
+            st.session_state.correct_answer = None
+
+        # --- NEW, FULLY EXPANDED QUESTION LIBRARY (same as before) ---
         audit_questions = {
             "Design Controls & QMS (ISO 13485, 21 CFR 820)": {
                 "Show me your Design History File for this device. I want to trace a user need from your URS all the way to its validation test case.": "Design Controls & DHF",
@@ -18776,32 +18782,47 @@ def render_audit_readiness():
             }
         }
         
-        q_category = st.selectbox("Select Audit Category:", list(audit_questions.keys()))
-        auditor_question = st.selectbox("Select a typical auditor question:", list(audit_questions[q_category].keys()))
-        
-        with st.container(border=True):
-            st.write(f"**Auditor:** '{auditor_question}'")
-            st.markdown("---")
-            st.write("**Your Response:** 'The objective evidence for that is generated using the following tool from our V&V toolkit...'")
+        # Flatten all questions into a single list of tuples (question, answer)
+        all_questions_list = []
+        for category, questions in audit_questions.items():
+            for q, a in questions.items():
+                all_questions_list.append((q, a))
 
-            all_tools_flat = [tool for act in all_tools.values() for tool in act]
-            tool_options = sorted(list(set(all_tools_flat)))
-            
-            correct_answer = audit_questions[q_category][auditor_question]
-            
-            # Set a default index safely
-            try:
-                default_index = tool_options.index(correct_answer)
-            except ValueError:
-                default_index = 0
+        if st.button("Get New Auditor Question", use_container_width=True):
+            # Select a new random question
+            q_idx = np.random.randint(0, len(all_questions_list))
+            st.session_state.audit_question, st.session_state.correct_answer = all_questions_list[q_idx]
+            st.rerun()
 
-            user_choice = st.selectbox("Select the correct tool to provide as evidence:", tool_options, index=default_index)
-            
-            if st.button("Submit Response"):
-                if user_choice == correct_answer:
-                    st.success(f"**Correct!** The `{user_choice}` tool provides the direct, objective evidence to answer this question.")
-                else:
-                    st.error(f"**Incorrect.** While related, the best evidence comes from the `{correct_answer}` tool. The `{user_choice}` tool is used for a different purpose.")
+        if st.session_state.audit_question:
+            with st.container(border=True):
+                st.markdown(f"**Auditor Asks:** \n> *{st.session_state.audit_question}*")
+                st.markdown("---")
+                
+                # Create a set of 3 incorrect answers plus the correct one
+                correct_answer = st.session_state.correct_answer
+                all_tools_flat = [tool for act in all_tools.values() for tool in act]
+                
+                incorrect_options = list(set(all_tools_flat) - {correct_answer})
+                options = np.random.choice(incorrect_options, 3, replace=False).tolist() + [correct_answer]
+                np.random.shuffle(options)
+                
+                user_choice = st.radio(
+                    "Select the BEST piece of primary evidence to present:",
+                    options,
+                    index=None
+                )
+                
+                if st.button("Submit Response", use_container_width=True, type="primary"):
+                    if user_choice == correct_answer:
+                        st.success(f"**Correct!** The `{user_choice}` tool is the primary source of objective evidence to directly and completely answer this question.")
+                    elif user_choice is None:
+                        st.warning("Please select an answer.")
+                    else:
+                        st.error(f"**Incorrect.** While the `{user_choice}` tool might provide some related information, the primary, most direct evidence an auditor would expect comes from the `{correct_answer}` tool.")
+        else:
+            st.info("Click the button above to start your mock audit session.")
+        # --- END OF GADGET REPLACEMENT ---
 
 @st.cache_data
 def plot_audit_readiness_spider(scores):

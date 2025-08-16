@@ -18968,7 +18968,6 @@ PAGE_DISPATCHER = {
     "Advanced AI Concepts": render_advanced_ai_concepts,
 }
 
-
 # --- 3. SIDEBAR NAVIGATION RENDERING ---
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")
@@ -19006,7 +19005,6 @@ with st.sidebar:
             
     st.divider()
 
-    # The loop for rendering tool buttons now correctly references the global ALL_TOOLS
     for act_title, act_tools in ALL_TOOLS.items():
         st.subheader(act_title)
         for tool in act_tools:
@@ -19018,6 +19016,5 @@ with st.sidebar:
 # --- 4. MAIN CONTENT AREA DISPATCHER ---
 view = st.session_state.get('current_view', 'Introduction')
 
-# Use .get() for a safe lookup that defaults to the introduction
 render_function = PAGE_DISPATCHER.get(view, render_introduction_content)
 render_function()

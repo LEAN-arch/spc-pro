@@ -98,6 +98,7 @@ st.markdown("""
 # ==============================================================================
 # ALL HELPER & PLOTTING FUNCTIONS
 # ==============================================================================
+# ============================================================================================= CASE STUDIES =====================================================================================================
 CASE_STUDIES = {
     "mab_transfer": {
         "title": "Case Study: Tech Transfer of a Monoclonal Antibody",
@@ -177,7 +178,6 @@ CASE_STUDIES = {
             }
         ]
     },
-    # --- NEW CASE STUDIES START HERE ---
     "facility_qual": {
         "title": "Case Study: New Facility & Clean Room Qualification",
         "description": "Manage the qualification of a new aseptic manufacturing facility. This case study focuses on a common, high-stakes failure: an environmental monitoring excursion in a cleanroom during Performance Qualification (PQ).",
@@ -185,7 +185,7 @@ CASE_STUDIES = {
             {
                 "act": "Act 0", "title": "Establish the Master Plan", "target_tool": "Validation Master Plan (VMP) Builder",
                 "explanation": "The VMP is created, outlining the full scope of the facility qualification, from IQ of the utilities to the final PQ of the cleanroom environment.",
-                "params": {"project_type": "Instrument Qualification"} # Using this as a proxy for facility
+                "params": {"project_type": "Instrument Qualification"} 
             },
             {
                 "act": "Act 0", "title": "HVAC System Risk Assessment", "target_tool": "Quality Risk Management (QRM) Suite",
@@ -226,7 +226,7 @@ CASE_STUDIES = {
             {
                 "act": "Act III", "title": "Diagnosing a Discordant Result (XAI)", "target_tool": "Explainable AI (XAI)",
                 "explanation": "After deployment, the new pipeline (an ML model) flags a sample as 'high-risk' that the old pipeline would have passed. We use XAI to investigate. The SHAP plot reveals the model is heavily weighting a specific genomic feature, providing a clear, scientific reason for the discordant result and building trust in the new system.",
-                "params": {"case_to_explain": "highest_risk", "dependence_feature": "Calibrator Slope"} # Proxy features
+                "params": {"case_to_explain": "highest_risk", "dependence_feature": "Calibrator Slope"} 
             }
         ]
     },
@@ -258,52 +258,6 @@ CASE_STUDIES = {
     }
 }
 
-def render_case_study_library():
-    """Renders the Case Study Library hub page."""
-    st.title("📚 Case Study Library")
-    st.markdown("Explore end-to-end V&V workflows through these realistic case studies. Selecting a case will provide a step-by-step guided tour through the relevant tools in the Sentinel.")
-    st.divider()
-
-    if 'case_study' not in st.session_state:
-        st.session_state.case_study = {"active_case": None, "current_step": 0}
-
-    # --- Case Selection Area ---
-    case_key = st.selectbox(
-        "Select a Case Study to Begin:",
-        options=list(CASE_STUDIES.keys()),
-        format_func=lambda k: CASE_STUDIES[k]['title'],
-        index=None,
-        placeholder="Choose a scenario..."
-    )
-    if st.button("🚀 Start Selected Case Study", disabled=not case_key, type="primary"):
-        st.session_state.case_study['active_case'] = case_key
-        st.session_state.case_study['current_step'] = 0
-        st.rerun()
-
-    # --- Active Case Display Area ---
-    active_case_key = st.session_state.case_study.get('active_case')
-    if active_case_key:
-        case = CASE_STUDIES[active_case_key]
-        st.header(case['title'])
-        st.markdown(f"**Scenario:** {case['description']}")
-        
-        if st.button("↩️ End Case Study & Return to Library"):
-            st.session_state.case_study = {"active_case": None, "current_step": 0}
-            st.rerun()
-            
-        st.subheader("Project Timeline & Toolkit")
-        for i, step in enumerate(case['steps']):
-            with st.container(border=True):
-                col1, col2 = st.columns([0.8, 0.2])
-                with col1:
-                    st.markdown(f"##### {i+1}. {step['title']} `({step['act']})`")
-                    st.markdown(step['explanation'])
-                with col2:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button(f"Go to Step {i+1} →", key=f"goto_{active_case_key}_{i}", use_container_width=True):
-                        st.session_state.case_study['current_step'] = i
-                        st.session_state.current_view = step['target_tool']
-                        st.rerun()
 
 def build_search_corpus():
     """
@@ -19269,89 +19223,7 @@ def plot_audit_readiness_spider(scores):
         margin=dict(l=40, r=40, t=60, b=40)
     )
     return fig
-#============================================================================================= CASE STUDIES =====================================================================================================
-# SNIPPET 1: Add this entire data dictionary to your app.py file, e.g., after the CSS section.
 
-CASE_STUDIES = {
-    "mab_transfer": {
-        "title": "Case Study: Tech Transfer of a Monoclonal Antibody",
-        "description": "Follow the journey of transferring a validated biopharmaceutical process for 'BioMab' from an R&D facility to a new commercial manufacturing site. This case focuses on proving statistical equivalence and ensuring process control.",
-        "steps": [
-            {
-                "act": "Act 0", "title": "Initial Risk Assessment", "target_tool": "Quality Risk Management (QRM) Suite",
-                "explanation": "Before the transfer, we conduct an FMEA to identify the highest-risk failure modes. We've identified that the chromatography step is critical and highly sensitive to operational differences between sites.",
-                "params": {"project_type": "Pharma Process (MAb)", "tool_choice": "FMEA"}
-            },
-            {
-                "act": "Act II", "title": "Baseline Performance at Site A", "target_tool": "Process Capability (Cpk)",
-                "explanation": "We need a baseline of our 'golden' process. We analyze data from the last 30 batches at the R&D site (Site A) to confirm it is stable and highly capable (Cpk > 1.67). This is our benchmark.",
-                "params": {"scenario": "Ideal (High Cpk)"}
-            },
-            {
-                "act": "Act II", "title": "PPQ at the New Site B", "target_tool": "Process Capability (Cpk)",
-                "explanation": "The first three PPQ batches at the new site (Site B) are complete. The process is stable, but the data shows a slight upward shift and increased variability compared to Site A. While still capable (Cpk > 1.33), is it equivalent?",
-                "params": {"scenario": "Shifted (Low Cpk)"}
-            },
-            {
-                "act": "Act II", "title": "Statistical Equivalence Verdict", "target_tool": "Statistical Equivalence for Process Transfer",
-                "explanation": "This is the final exam. We use a formal equivalence test on the Cpk values from both sites. The 90% confidence interval for the difference must fall entirely within our pre-defined margin of ±0.20 Cpk units.",
-                "params": {"cpk_site_a": 1.67, "mean_shift": 1.2, "var_change_factor": 1.3, "n_samples": 100, "margin": 0.20}
-            }
-        ]
-    },
-    "ivd_dev": {
-        "title": "Case Study: Validation of a New Point-of-Care IVD",
-        "description": "Experience the development and validation journey for 'CancerDetect,' a new Class II, software-driven point-of-care diagnostic device for an early-stage cancer biomarker.",
-        "steps": [
-            {
-                "act": "Act 0", "title": "Determine Regulatory Pathway", "target_tool": "IVD & Medical Device Regulatory Framework",
-                "explanation": "Our first step is strategic. As a moderate-risk device with a similar predicate on the market, we determine the 510(k) pathway is the most appropriate for our 'CancerDetect' POC device.",
-                "params": {"product_concept": "Point-of-Care (POC) Device"}
-            },
-            {
-                "act": "Act 0", "title": "Define the 'Contract'", "target_tool": "Analytical Target Profile (ATP) Builder",
-                "explanation": "We create the ATP, our formal 'contract' for the device's performance. The team agrees we need at least 98% clinical sensitivity and 99% specificity to be commercially viable.",
-                "params": {"project_type": "IVD Kit (ELISA)", "atp_values": [98.0, 99.0, 15.0, 7, 18], "show_results": False}
-            },
-            {
-                "act": "Act I", "title": "Assay Characterization (ROC)", "target_tool": "ROC Curve Analysis",
-                "explanation": "Early R&D data is used to generate an ROC curve. The excellent AUC of 0.978 gives us confidence that our chosen reagents can meet the ATP targets. We select an initial cutoff that prioritizes high sensitivity.",
-                "params": {"diseased_mean": 75.0, "population_sd": 10.0, "cutoff": 58}
-            },
-            {
-                "act": "Act I", "title": "Usability Validation (HFE)", "target_tool": "Usability & Human Factors Engineering (HFE)",
-                "explanation": "A summative usability study is conducted with 30 nurses. The results show a high SUS score, but the Task Failure Analysis reveals a critical issue: users are frequently making errors during the 'Run Sample' step. This use error must be mitigated via a design change before the 510(k) submission.",
-                "params": {"design_clarity": 6, "task_complexity": 8}
-            }
-        ]
-    },
-    "ai_lifecycle": {
-        "title": "Case Study: AI Model Lifecycle Management",
-        "description": "Deploy and manage an AI model used for Predictive QC in a commercial manufacturing process. This case study covers model validation, real-time monitoring, and proactive control.",
-        "steps": [
-            {
-                "act": "Act I", "title": "Model Development & Selection", "target_tool": "Predictive Modeling Suite",
-                "explanation": "We need to predict batch failures based on two in-process parameters. The relationship is non-linear, so a simple Logistic Regression fails (low AUC). A well-tuned MLP Neural Network provides the best predictive performance.",
-                "params": {"boundary_radius": 8, "mlp_params": {'layers': (64, 32), 'activation': 'relu', 'learning_rate': 0.001}}
-            },
-            {
-                "act": "Act III", "title": "Model Validation (XAI)", "target_tool": "Explainable AI (XAI)",
-                "explanation": "Before deploying, we use XAI to validate the model's logic. The SHAP plots confirm it's using scientifically valid features (like 'Reagent Age') and not spurious correlations, satisfying a key GMLP requirement.",
-                "params": {"case_to_explain": "highest_risk", "dependence_feature": "Reagent Age (Days)"}
-            },
-            {
-                "act": "Act III", "title": "Real-Time Monitoring (Digital Twin)", "target_tool": "Digital Twin & Real-Time Simulation",
-                "explanation": "The validated AI model is deployed as a Digital Twin. It monitors the live process, and when a fault is injected at Time=50, the twin's forecast diverges, and the Health Score immediately alarms.",
-                "params": {"fault_type": "Shift", "fault_magnitude": 6.0, "fault_time": 50}
-            },
-            {
-                "act": "Act III", "title": "Proactive Control (MPC)", "target_tool": "Model Predictive Control (MPC)",
-                "explanation": "The final evolution. The Digital Twin is now used as the engine for an MPC system. The MPC uses the twin's predictions to act *proactively*, resulting in much tighter control and stability compared to a reactive system.",
-                "params": {"disturbance_size": 5.0, "control_aggressiveness": 0.6}
-            }
-        ]
-    }
-}
 
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT

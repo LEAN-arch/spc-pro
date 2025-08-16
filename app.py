@@ -18701,6 +18701,8 @@ def render_doc_control():
         st.subheader("Live Audit Trail")
         st.code("\n".join(sim['audit_trail'][-5:]), language="markdown")
 #====================================================================================  A U D I T ==================================================================================================
+code
+Python
 def render_audit_readiness():
     """Renders the Audit Readiness & Inspection Management module."""
     st.title("🕵️ Audit Readiness & Inspection Management")
@@ -18710,11 +18712,16 @@ def render_audit_readiness():
     with col1:
         st.subheader("Self-Assessment Score")
         scores = {
-            'QMS & Documentation': st.slider("QMS & Documentation", 0, 10, 8, key="audit_qms"),
-            'Design Controls & DHF': st.slider("Design Controls & DHF", 0, 10, 7, key="audit_dhf"),
-            'Process Validation': st.slider("Process Validation", 0, 10, 9, key="audit_pv"),
-            'Method Validation': st.slider("Method Validation", 0, 10, 6, key="audit_mv"),
-            'Data Integrity': st.slider("Data Integrity", 0, 10, 8, key="audit_di")
+            'QMS & Documentation': st.slider("QMS & Documentation", 0, 10, 8, key="audit_qms", 
+                                             help="How robust and well-maintained is your overall Quality Management System? Are documents controlled, training records up-to-date, and CAPAs effective?"),
+            'Design Controls & DHF': st.slider("Design Controls & DHF", 0, 10, 7, key="audit_dhf", 
+                                                help="Is your Design History File complete and traceable? Can you link every user requirement to its verification and validation test?"),
+            'Process Validation': st.slider("Process Validation", 0, 10, 9, key="audit_pv", 
+                                            help="Is your process validation package complete and scientifically sound? Does it cover all three stages (Design, PPQ, CPV) with robust data?"),
+            'Method Validation': st.slider("Method Validation", 0, 10, 6, key="audit_mv", 
+                                           help="Are all analytical methods used for GxP decisions fully validated per ICH Q2? Is data available for accuracy, precision, specificity, etc.?"),
+            'Data Integrity': st.slider("Data Integrity", 0, 10, 8, key="audit_di", 
+                                        help="How strong are your data integrity controls? Does your system meet ALCOA+ principles and 21 CFR Part 11 requirements for audit trails and e-signatures?")
         }
         st.plotly_chart(plot_audit_readiness_spider(scores), use_container_width=True)
         
@@ -18731,7 +18738,6 @@ def render_audit_readiness():
             st.markdown("---")
             st.write("**Your Response:** 'The objective evidence for that is generated using the following tool from our V&V toolkit...'")
 
-            # The quiz logic
             tool_options = [
                 "Gage R&R / VCA", "Process Capability (Cpk)", 
                 "Sample Size for Qualification", "Equivalence Testing (TOST)"

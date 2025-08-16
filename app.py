@@ -18973,7 +18973,6 @@ PAGE_DISPATCHER = {
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")
     
-    # --- Top-Level Navigation ---
     if st.button("🚀 Project Framework", use_container_width=True, key="nav_intro"):
         st.session_state.current_view = 'Introduction'
         if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
@@ -18983,11 +18982,9 @@ with st.sidebar:
         st.session_state.current_view = 'Search'
         st.rerun()
     
-    # --- Unified "GUIDES & SIMULATORS" Section ---
     st.divider()
     st.subheader("GUIDES & SIMULATORS")
 
-    # Conditional Case Study Button
     if st.session_state.get('case_study', {}).get('active_case'):
         if st.button("📚 Return to Case Study Hub", use_container_width=True, type="primary", key="nav_case_hub_return"):
             st.session_state.current_view = 'Case Study Library'
@@ -18997,7 +18994,6 @@ with st.sidebar:
             st.session_state.current_view = 'Case Study Library'
             st.rerun()
     
-    # Other Guide Buttons
     if st.button("🧙‍♂️ Validation Plan Wizard", use_container_width=True, key="nav_wizard"):
         st.session_state.current_view = 'Validation Plan Wizard'
         st.rerun()
@@ -19010,24 +19006,18 @@ with st.sidebar:
             
     st.divider()
 
-    # --- Main Tool Navigation ---
+    # The loop for rendering tool buttons now correctly references the global ALL_TOOLS
     for act_title, act_tools in ALL_TOOLS.items():
         st.subheader(act_title)
         for tool in act_tools:
             if st.button(tool, key=tool, use_container_width=True):
                 st.session_state.current_view = tool
-                # Deactivate case study when a tool is manually selected
                 if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
                 st.rerun()
     
 # --- 4. MAIN CONTENT AREA DISPATCHER ---
 view = st.session_state.get('current_view', 'Introduction')
 
-render_function = PAGE_DISPATCHER.get(view)
-
-if render_function:
-    render_function()
-else:
-    # Fallback to introduction if the view is not found for any reason
-    st.error(f"Error: View '{view}' not found. Returning to Introduction.")
-    render_introduction_content()
+# Use .get() for a safe lookup that defaults to the introduction
+render_function = PAGE_DISPATCHER.get(view, render_introduction_content)
+render_function()

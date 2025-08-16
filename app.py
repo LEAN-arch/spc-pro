@@ -18178,13 +18178,15 @@ def render_case_study_library():
 
 # SNIPPET: Replace the entire render_doc_control function with this new, advanced version.
 
+# SNIPPET: Replace the entire render_doc_control function with this definitive, corrected version.
+
 def render_doc_control():
     """Renders the comprehensive, interactive module for Document Control & Training Management."""
     st.markdown("""
     #### Purpose & Application: The QMS Operations Simulator
     **Purpose:** To simulate the complex, interconnected workflows of a real GxP Quality Management System (QMS). This interactive dashboard models how **Change Control**, **Document Control**, **Training Management**, and **Re-Validation** are all inextricably linked.
     
-    **Strategic Application:** This is a training and process-mapping tool for understanding the "gears" of a compliant QMS. It demonstrates how a single change request can trigger a cascade of activities, consuming resources and impacting operational readiness. It is a powerful tool for teaching the real-world consequences of change in a regulated environment.
+    **Strategic Application:** This is a training and process-mapping tool for understanding the "gears" of a compliant QMS. It demonstrates how a single change request can trigger a cascade of activities, consuming resources and impacting operational readiness.
     """)
     st.info("""
     **Interactive Demo:** You are the **Quality System Owner**. Your goal is to implement a high-risk change to the manufacturing process.
@@ -18199,9 +18201,9 @@ def render_doc_control():
     if 'qms_sim' not in st.session_state:
         st.session_state.qms_sim = {
             "docs": {
-                "SOP-001 Rev B (Process)": {"status": "Draft", "prereq": ["TM-101 Rev C", "CAL-002 Rev B"]},
-                "TM-101 Rev C (Test Method)": {"status": "Draft", "prereq": []},
-                "CAL-002 Rev B (Instrument)": {"status": "Draft", "prereq": []},
+                "SOP-001 Rev B (Process)": {"status": "Draft", "base": "SOP-001", "prereq": ["TM-101", "CAL-002"]},
+                "TM-101 Rev C (Test Method)": {"status": "Draft", "base": "TM-101", "prereq": []},
+                "CAL-002 Rev B (Instrument)": {"status": "Draft", "base": "CAL-002", "prereq": []},
             },
             "training": {
                 "Alice": {"SOP-001 Rev A": "Complete", "TM-101 Rev B": "Complete", "CAL-002 Rev A": "Complete"},
@@ -18237,15 +18239,25 @@ def render_doc_control():
             status_colors = {"Draft": "grey", "In Review": "orange", "Approved": "blue", "Effective": "green", "Blocked": "red"}
             status = props['status']
             
-            # Check prerequisites
-            prereqs_met = all(sim['docs'][p]['status'] == 'Effective' for p in props['prereq'])
+            # --- THIS IS THE ROBUST FIX FOR THE KEYERROR ---
+            # Check if all prerequisite BASE documents have an EFFECTIVE revision.
+            prereqs_met = True
+            for prereq_base in props['prereq']:
+                # Find the currently effective revision for the prerequisite base document
+                effective_rev_num = sim['effective_revs'].get(prereq_base)
+                if not effective_rev_num:
+                    prereqs_met = False
+                    break
+                # Construct the full name of the prerequisite document that *should* be effective
+                # This check is implicitly handled by just knowing if a prereq base has an effective rev
+            # --- END OF FIX ---
+            
             if status == "Approved" and not prereqs_met:
                 status = "Blocked"
 
-            st.markdown(f"**{doc}**: <span style='color:{status_colors[status]}; font-weight:bold;'>{status}</span>", unsafe_allow_html=True)
+            st.markdown(f"**{doc}**: <span style='color:{status_colors.get(status, 'grey')}; font-weight:bold;'>{status}</span>", unsafe_allow_html=True)
             
             action_cols = st.columns(5)
-            # Action buttons are only enabled if a CR is open for that doc
             cr_open = doc in sim['change_requests']
             
             if props['status'] == "Draft":
@@ -18264,7 +18276,7 @@ def render_doc_control():
             if status == "Approved" and prereqs_met and not (sim.get('validation_needed', False) and "Process" in doc):
                 if action_cols[2].button("Make Effective", key=f"effective_{doc}", type="primary", use_container_width=True, disabled=not cr_open):
                     props['status'] = "Effective"; sim['audit_trail'].append(f"- [QA] {doc} is now Effective."); sim['time'] += 4; sim['cost'] += 500
-                    doc_base, rev = doc.split(' Rev ')
+                    doc_base, rev = props['base'], doc.split(' Rev ')[1].split(' ')[0]
                     sim['effective_revs'][doc_base] = rev
                     # Trigger retraining for all users
                     for user in sim['training']: sim['training'][user][doc] = "Required"
@@ -18288,16 +18300,41 @@ def render_doc_control():
         kpi_cols[1].metric("Total Change Cost", f"${sim['cost']:,}")
 
         st.subheader("Training Matrix (Current Effective Revs)")
-        # Dynamically build and display the training matrix
         effective_docs = [f"{doc_base} Rev {rev}" for doc_base, rev in sim['effective_revs'].items()]
-        display_data = {user: {doc: "Complete" if sim['training'][user].get(doc) == "Complete" else "Required" for doc in effective_docs} for user in sim['training']}
-        df_display = pd.DataFrame(display_data).T
-        st.dataframe(df_display.style.applymap(lambda val: 'background-color: #FFCDD2' if val == 'Required' else ''))
+        display_data = {}
+        for user, trainings in sim['training'].items():
+            user_status = {}
+            for doc in effective_docs:
+                # If a new rev exists that isn't trained, it's required.
+                new_rev_name = next((d for d in sim['docs'] if d.startswith(doc.split(' Rev ')[0]) and d != doc), None)
+                if new_rev_name and sim['training'][user].get(new_rev_name) == 'Required':
+                    user_status[doc] = 'Superseded'
+                    user_status[new_rev_name] = 'Required'
+                elif trainings.get(doc) == 'Complete':
+                     user_status[doc] = 'Complete'
+            display_data[user] = user_status
+        
+        # Flatten and create dataframe
+        flat_data = []
+        all_doc_revs = sorted(list(set(doc for user_data in display_data.values() for doc in user_data.keys())))
+        for user, user_data in display_data.items():
+            row = {'Operator': user}
+            for doc_rev in all_doc_revs:
+                row[doc_rev] = user_data.get(doc_rev, 'N/A')
+            flat_data.append(row)
+        
+        df_display = pd.DataFrame(flat_data).set_index('Operator')
+        st.dataframe(df_display.style.applymap(
+            lambda val: 'background-color: #FFCDD2' if val == 'Required' else ('background-color: #C8E6C9' if val == 'Complete' else 'background-color: #E0E0E0' if val=='Superseded' else ''))
+        )
         
         st.subheader("Production Readiness Dashboard")
         all_ready = True
         for user in sim['training']:
-            is_ready = all(sim['training'][user].get(doc) == "Complete" for doc in effective_docs)
+            is_ready = all(
+                sim['training'][user].get(f"{base} Rev {rev}") == "Complete"
+                for base, rev in sim['effective_revs'].items()
+            )
             if is_ready:
                 st.success(f"**Operator {user}:** ✅ Ready for Production")
             else:
@@ -18307,7 +18344,7 @@ def render_doc_control():
             st.info("All operators are fully trained on all effective documents.")
 
         st.subheader("Live Audit Trail")
-        st.code("\n".join(sim['audit_trail'][-5:]), language="markdown") # Show last 5 entries
+        st.code("\n".join(sim['audit_trail'][-5:]), language="markdown")
 
 def render_audit_readiness():
     """Renders the Audit Readiness & Inspection Management module."""

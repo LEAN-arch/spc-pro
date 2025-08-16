@@ -18701,8 +18701,6 @@ def render_doc_control():
         st.subheader("Live Audit Trail")
         st.code("\n".join(sim['audit_trail'][-5:]), language="markdown")
 #====================================================================================  A U D I T ==================================================================================================
-code
-Python
 def render_audit_readiness():
     """Renders the Audit Readiness & Inspection Management module."""
     st.title("🕵️ Audit Readiness & Inspection Management")

@@ -1,4 +1,4 @@
-# FILE: reporting_utils.py (Final Corrected Version)
+# FILE: reporting_utils.py (Final, Definitive JPEG-based Version)
 
 import streamlit as st
 import io
@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 import textwrap
 
 # ==============================================================================
-# IMAGE GENERATION ENGINE
+# IMAGE GENERATION ENGINE (Now generates JPEGs)
 # ==============================================================================
 def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
-    """Creates a PNG image from a dictionary of KPIs using Matplotlib."""
+    """Creates a JPEG image from a dictionary of KPIs using Matplotlib."""
     formatted_kpis = {}
     for key, value in kpis.items():
         if isinstance(value, dict): json_str = json.dumps(value, indent=2); formatted_kpis[key] = f"\n{json_str}"
@@ -32,13 +32,14 @@ def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     ax.text(0.01, 0.99, text_to_render, transform=ax.transAxes, fontsize=12, family='monospace', va='top', ha='left')
     ax.axis('off')
     buf = io.BytesIO()
-    fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+    # --- DEFINITIVE FIX: Save as JPEG ---
+    fig.savefig(buf, format='jpeg', bbox_inches='tight', dpi=150)
     plt.close(fig)
     buf.seek(0)
     return buf
 
 # ==============================================================================
-# PDF REPORTING ENGINE (Final)
+# PDF REPORTING ENGINE (Now uses JPEGs)
 # ==============================================================================
 class PDF(FPDF):
     """Custom PDF class with a header and footer for professional reports."""
@@ -46,7 +47,7 @@ class PDF(FPDF):
     def footer(self): self.set_y(-15); self.set_font('Helvetica', 'I', 8); self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
 def generate_pdf_report(title, kpis, figures):
-    """Generates a multi-page PDF report by embedding pre-rendered images."""
+    """Generates a multi-page PDF report by embedding pre-rendered JPEG images."""
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Helvetica", 'B', 16)
@@ -55,10 +56,8 @@ def generate_pdf_report(title, kpis, figures):
 
     if kpis:
         kpi_image_buf = create_kpi_image(kpis)
-        # --- DEFINITIVE FIX FOR PDF ERROR ---
-        # Pass the buffer as the first POSITIONAL argument, not with the 'name=' keyword.
-        pdf.image(kpi_image_buf, type='PNG', w=180)
-        # --- END OF FIX ---
+        # --- DEFINITIVE FIX: Tell FPDF it's a JPEG ---
+        pdf.image(name=kpi_image_buf, type='JPEG', w=180)
         pdf.ln(5)
 
     if figures:
@@ -69,21 +68,28 @@ def generate_pdf_report(title, kpis, figures):
             pdf.set_font("Helvetica", 'I', 11); pdf.cell(0, 8, f"- {clean_fig_title}", ln=1, align='L')
             try:
                 img_buf = io.BytesIO()
-                if isinstance(fig, go.Figure): fig.write_image(img_buf, format='png', scale=2, width=800, height=500)
-                elif isinstance(fig, plt.Figure): fig.savefig(img_buf, format='png', bbox_inches='tight', dpi=200)
-                else: img_buf = fig
+                # --- DEFINITIVE FIX: Convert all figures to JPEG for PDF ---
+                if isinstance(fig, go.Figure): fig.write_image(img_buf, format='jpeg', scale=2, width=800, height=500)
+                elif isinstance(fig, plt.Figure): fig.savefig(img_buf, format='jpeg', bbox_inches='tight', dpi=200)
+                else: # Assume it's a PNG buffer from SHAP, try to use it as-is
+                    img_buf = fig
                 img_buf.seek(0)
-                # --- APPLYING FIX HERE AS WELL ---
-                pdf.image(img_buf, type='PNG', w=180)
+                pdf.image(name=img_buf, type='JPEG', w=180) # Explicitly state JPEG
                 pdf.ln(5)
             except Exception as e:
-                pdf.set_text_color(255, 0, 0)
-                pdf.multi_cell(0, 8, f"Error: Image rendering failed. Please run locally. Details: {e}", align='L')
-                pdf.set_text_color(0, 0, 0)
+                # Fallback for SHAP plots which are already PNG
+                try:
+                    img_buf.seek(0)
+                    pdf.image(name=img_buf, type='PNG', w=180)
+                    pdf.ln(5)
+                except Exception as final_e:
+                    pdf.set_text_color(255, 0, 0)
+                    pdf.multi_cell(0, 8, f"Error: Image rendering failed. Please run locally. Details: {final_e}", align='L')
+                    pdf.set_text_color(0, 0, 0)
     return pdf.output()
 
 # ==============================================================================
-# POWERPOINT REPORTING ENGINE (Final)
+# POWERPOINT REPORTING ENGINE (Unchanged - uses PNG which is better for PPTX)
 # ==============================================================================
 def generate_pptx_report(title, kpis, figures):
     """Generates a multi-slide PowerPoint report with robust error handling."""
@@ -94,7 +100,7 @@ def generate_pptx_report(title, kpis, figures):
     if kpis:
         slide = prs.slides.add_slide(prs.slide_layouts[5])
         slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.5)).text_frame.text = "Key Performance Indicators & Summary"
-        kpi_image_buf = create_kpi_image(kpis)
+        kpi_image_buf = create_kpi_image(kpis) # This now returns a JPEG buffer
         slide.shapes.add_picture(kpi_image_buf, Inches(0.5), Inches(1.0), width=Inches(9.0))
 
     if figures:

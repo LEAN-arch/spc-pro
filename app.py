@@ -18968,10 +18968,12 @@ PAGE_DISPATCHER = {
     "Advanced AI Concepts": render_advanced_ai_concepts,
 }
 
-# --- Sidebar Navigation Rendering ---
+
+# --- 3. SIDEBAR NAVIGATION RENDERING ---
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")
     
+    # --- Top-Level Navigation ---
     if st.button("🚀 Project Framework", use_container_width=True, key="nav_intro"):
         st.session_state.current_view = 'Introduction'
         if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
@@ -18981,7 +18983,7 @@ with st.sidebar:
         st.session_state.current_view = 'Search'
         st.rerun()
     
-    # --- THIS IS THE CORRECTED, UNIFIED SECTION ---
+    # --- Unified "GUIDES & SIMULATORS" Section ---
     st.divider()
     st.subheader("GUIDES & SIMULATORS")
 
@@ -19005,12 +19007,11 @@ with st.sidebar:
     if st.button("🕵️ Audit Readiness Sim", use_container_width=True, key="nav_audit"):
         st.session_state.current_view = 'Audit Readiness Sim'
         st.rerun()
-    # --- END OF CORRECTION ---
             
     st.divider()
 
-    # The loop for rendering tool buttons is now lean and clean
-    for act_title, act_tools in all_tools.items():
+    # --- Main Tool Navigation ---
+    for act_title, act_tools in ALL_TOOLS.items():
         st.subheader(act_title)
         for tool in act_tools:
             if st.button(tool, key=tool, use_container_width=True):
@@ -19019,9 +19020,14 @@ with st.sidebar:
                 if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
                 st.rerun()
     
-# --- Main Content Area Dispatcher ---
+# --- 4. MAIN CONTENT AREA DISPATCHER ---
 view = st.session_state.get('current_view', 'Introduction')
 
-# Default to introduction if the view is not found (e.g., on first run)
-render_function = PAGE_DISPATCHER.get(view, render_introduction_content)
-render_function()
+render_function = PAGE_DISPATCHER.get(view)
+
+if render_function:
+    render_function()
+else:
+    # Fallback to introduction if the view is not found for any reason
+    st.error(f"Error: View '{view}' not found. Returning to Introduction.")
+    render_introduction_content()

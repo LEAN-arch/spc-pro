@@ -1,31 +1,35 @@
-# --- Core Streamlit Framework ---
-streamlit~=1.30.0
-streamlit-option-menu~=0.3.6
-graphviz
-whoosh
-fpdf2
-# --- Data Manipulation & Numerical Computing ---
-pandas~=2.0.3
+# requirements.txt
+#
+# This file lists the Python packages required to run the V&V Sentinel Toolkit app.
+# Install all dependencies using pip:
+# pip install -r requirements.txt
+
+# Core Data Science & ML
+econml~=0.14.1
+lifelines~=0.27.8
+numba~=0.58.1
 numpy~=1.24.4
-lifelines==0.28.0
-reliability
-# --- Statistical Modeling & Analysis ---
-scipy~=1.11.0
-statsmodels~=0.14.0
-econml
-
-# --- Machine Learning & AI ---
-scikit-learn~=1.3.0
+pandas~=2.0.3
 prophet~=1.1.5
-shap~=0.45.0
-ipython==8.22.2 
-xgboost==2.0.3
-tbats
+scikit-learn~=1.3.2
+scipy~=1.11.4
+shap~=0.43.0
+statsmodels~=0.14.0
+tbats~=1.1.3
+xgboost~=2.0.2
 
-# --- Visualization ---
+# Streamlit App Framework
+streamlit~=1.31.0
+
+# Plotting & Visualization
+matplotlib~=3.7.4
 plotly~=5.18.0
-# kaleido is required by plotly for static image export (e.g., for the PowerPoint report)
-kaleido~=0.2.1
+kaleido~=0.2.1  # Required for exporting Plotly figures to static images (e.g., for PDF reports)
 
-# --- Reporting ---
-python-pptx~=0.6.21
+# Reporting & File Handling
+fpdf2~=2.7.6
+openpyxl~=3.1.2 # Required by pandas for reading .xlsx files
+Pillow~=10.2.0
+
+# Search Functionality
+whoosh~=2.7.4

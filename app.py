@@ -18980,10 +18980,10 @@ with st.sidebar:
     if st.button("🔎 Search Toolkit", use_container_width=True, key="nav_search"):
         st.session_state.current_view = 'Search'
         st.rerun()
-
+    
     # --- THIS IS THE CORRECTED, UNIFIED SECTION ---
-    st.sidebar.divider()
-    st.sidebar.subheader("GUIDES & SIMULATORS")
+    st.divider()
+    st.subheader("GUIDES & SIMULATORS")
 
     # Conditional Case Study Button
     if st.session_state.get('case_study', {}).get('active_case'):
@@ -19007,7 +19007,7 @@ with st.sidebar:
         st.rerun()
     # --- END OF CORRECTION ---
             
-    st.sidebar.divider()
+    st.divider()
 
     # The loop for rendering tool buttons is now lean and clean
     for act_title, act_tools in all_tools.items():
@@ -19015,18 +19015,13 @@ with st.sidebar:
         for tool in act_tools:
             if st.button(tool, key=tool, use_container_width=True):
                 st.session_state.current_view = tool
+                # Deactivate case study when a tool is manually selected
                 if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
                 st.rerun()
     
 # --- Main Content Area Dispatcher ---
-view = st.session_state.current_view
+view = st.session_state.get('current_view', 'Introduction')
 
-if view == 'Introduction':
-    render_introduction_content()
-elif view in PAGE_DISPATCHER:
-    render_function = PAGE_DISPATCHER[view]
-    render_function()
-else:
-    # Fallback to introduction if the view is not found for any reason
-    st.error(f"Error: View '{view}' not found. Returning to Introduction.")
-    render_introduction_content()
+# Default to introduction if the view is not found (e.g., on first run)
+render_function = PAGE_DISPATCHER.get(view, render_introduction_content)
+render_function()

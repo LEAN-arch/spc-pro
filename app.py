@@ -15876,6 +15876,118 @@ def render_prophet_forecasting():
         > **Bottom Line:** An auditor does not need to understand the complex math inside Prophet. They need to see a robust, pre-defined, and documented validation process that proves the model is accurate, reliable, and under control for its specific, intended GxP task.
         """)
 
+# SNIPPET: Add this complete, missing function to the "ALL UI RENDERING FUNCTIONS" section.
+
+def render_mva_pls():
+    """Renders the comprehensive, interactive module for Multivariate Analysis (MVA/PLS)."""
+    st.markdown("""
+    #### Purpose & Application: The "Digital Chemist"
+    **Purpose:** To build a **"Digital Chemist"**—a predictive model that can infer a difficult-to-measure property (like concentration) from an easy-to-measure, high-dimensional signal (like an NIR spectrum). **Partial Least Squares (PLS)** is the workhorse algorithm for this task, as it excels at building robust models from data that has many, highly correlated variables.
+    
+    **Strategic Application:** This is a cornerstone of **Process Analytical Technology (PAT)**. It is used to move quality control from slow, offline lab tests to fast, in-line, real-time measurements. This is critical for process understanding, real-time release, and advanced process control.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the PAT Scientist.
+    1.  Use the sliders in the sidebar to control the properties of the simulated spectral data.
+    2.  The dashboard will automatically build and validate a PLS model.
+    3.  **Key Plots:** The **Cross-Validation plot** is used to select the optimal model complexity. The **VIP Scores plot** is the primary diagnostic tool for understanding which parts of the spectrum (which wavelengths) the model is using to make its predictions.
+    """)
+
+    with st.sidebar:
+        st.subheader("MVA/PLS Simulation Controls")
+        signal_strength = st.slider("Signal Strength", 1.0, 5.0, 2.0, 0.5, help="Controls how strongly the spectral peaks are correlated with the Y-variable (concentration). Higher strength makes for an easier modeling problem.")
+        noise_sd = st.slider("Measurement Noise (SD)", 0.1, 1.0, 0.2, 0.1, help="Controls the amount of random noise in the spectral measurements. Higher noise makes it harder to build an accurate model.")
+
+    st.header("Multivariate Analysis (PLS) Dashboard")
+    
+    fig, r2, q2, n_comp, rmsecv = plot_mva_pls(signal_strength=signal_strength, noise_sd=noise_sd)
+    
+    kpi_cols = st.columns(4)
+    kpi_cols[0].metric("Model Fit (R²)", f"{r2:.3f}", help="How well the model fits the training data. A high R² can be misleading if the model is overfit.")
+    kpi_cols[1].metric("Predictive Power (Q²)", f"{q2:.3f}", help="The cross-validated R². This is a much more honest measure of the model's true predictive ability on new data.")
+    kpi_cols[2].metric("Optimal Complexity", f"{n_comp} LVs", help="The number of latent variables (LVs) selected by cross-validation to maximize Q² without overfitting.")
+    kpi_cols[3].metric("Prediction Error (RMSECV)", f"{rmsecv:.2f}", help="The Root Mean Squared Error of Cross-Validation. The typical prediction error in the original units of Y.")
+
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    st.subheader("Deeper Dive into Multivariate Analysis")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **A Realistic Workflow & Interpretation:**
+        1.  **Visualize the Data (Plot 1):** The raw data shows a complex, high-dimensional signal where the subtle differences are hard to see.
+        2.  **Determine Model Complexity (Plot 2):** This is the most critical step. We want to choose the number of latent variables (LVs) that maximizes the **predictive power (Q², green line)**, not just the **fit (R², blue line)**. The point where the green line peaks or plateaus is the optimal complexity. Adding more LVs beyond this point is "overfitting"—the model starts memorizing noise instead of learning the true signal.
+        3.  **Evaluate Performance (Plot 3):** The Predicted vs. Actual plot is the final report card for the chosen model. For a good model, the points should fall tightly along the 45-degree line.
+        4.  **Interpret the Model (Plot 4):** The VIP Scores plot is our XAI tool. It tells us *which* original variables (wavelengths) are most important to the model's prediction. The peaks in the VIP plot should correspond to the real chemical signals in the spectral data (highlighted in green), which gives us confidence that the model is scientifically valid.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The "Digital Chemist" for Real-Time Control
+
+        #### The Problem: The Slow, Expensive Lab Test
+        A critical quality attribute (CQA) for a multi-million dollar batch, such as protein concentration or blend uniformity, can only be measured by a slow, destructive, and expensive laboratory test (e.g., HPLC, wet chemistry). The manufacturing team must take a sample, send it to the QC lab, and wait for hours or even days for the result.
+
+        #### The Impact: The High Cost of Flying Blind
+        This time lag creates massive inefficiency and risk.
+        - **No Real-Time Control:** The process is essentially "flying blind." By the time the lab result comes back, the batch is already finished. If there was a problem, it's too late to fix it, and the entire batch may have to be scrapped.
+        - **Bottlenecks and Long Cycle Times:** The slow lab test is a major bottleneck in the production process, extending cycle times and tying up capital in work-in-progress inventory.
+        - **Limited Process Understanding:** Because testing is slow and expensive, only a few samples are taken per batch. This provides a very limited, low-resolution picture of the process, making it difficult to troubleshoot or optimize.
+
+        #### The Solution: A "Digital Chemist" on the Production Line
+        Multivariate Analysis (MVA), using tools like Partial Least Squares (PLS), is the engine behind **Process Analytical Technology (PAT)**. It creates a **"Digital Chemist"**—a validated mathematical model that can infer the slow, expensive CQA from a fast, easy, and non-destructive measurement (like a Near-Infrared (NIR) spectrum). Instead of waiting days for an HPLC result, you can get a highly accurate prediction in seconds, directly on the production line.
+
+        #### The Consequences: A Faster, Smarter, and More Controlled Process
+        - **Without This:** The company is stuck in a slow, reactive "make and test" paradigm.
+        - **With This:** MVA and PAT enable a revolutionary shift to a "measure and control" paradigm.
+            - **Real-Time Process Control:** With a prediction every second, the process can be controlled in real-time, preventing deviations before they happen.
+            - **Real-Time Release Testing (RTRT):** A highly accurate MVA model can be used to release the batch directly, eliminating the QC lab bottleneck and slashing cycle times from weeks to days.
+            - **100% Inspection:** Instead of a few grab samples, the company can effectively achieve 100% inspection of the process, providing an unprecedented level of quality assurance and process understanding.
+        This is a transformative technology that is a cornerstone of the modern "Pharma 4.0" factory.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of MVA Terms
+        - **MVA (Multivariate Analysis):** A set of statistical techniques used to analyze data that contains more than one variable.
+        - **PLS (Partial Least Squares Regression):** A powerful multivariate regression technique that is a "gold standard" for chemometrics. It is highly effective for datasets with many, highly correlated predictor variables (like a spectrum) and a relatively small number of samples.
+        - **Latent Variable (LV):** An underlying, unobserved variable that is constructed from the original, measured variables. PLS works by finding the LVs in the predictor data (X) that are most relevant to predicting the outcome data (Y).
+        - **R² (R-squared):** A measure of how well the model **fits** the data it was trained on.
+        - **Q² (Q-squared):** The cross-validated R². It is a measure of how well the model **predicts** new, unseen data. It is the most important metric for evaluating a PLS model.
+        - **RMSECV (Root Mean Squared Error of Cross-Validation):** The typical prediction error of the model, in the original units of the Y-variable.
+        - **VIP (Variable Importance in Projection):** A score that summarizes the importance of each individual variable (e.g., wavelength) to the overall PLS model. Variables with a VIP score > 1 are generally considered important.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Overfitting" Trap**
+An analyst keeps adding more latent variables (LVs) to their PLS model because it makes the R² value (the blue line in Plot 2) get closer and closer to 1.0.
+- **The Flaw:** They are overfitting the model. The R² is a measure of how well the model "memorized" the training data. The Q² (the green line) shows the true story: after a certain point, adding more LVs actually makes the model *worse* at predicting new data, because it has started to model the random noise.""")
+        st.success("""🟢 **THE GOLDEN RULE: Maximize Prediction (Q²), Not Just Fit (R²)**
+A robust and defensible MVA model is built for prediction, not just for fitting.
+1.  **Use Cross-Validation:** Always use a rigorous cross-validation technique to estimate the model's true predictive power (Q²).
+2.  **Choose Complexity Wisely:** Select the number of latent variables that gives the highest Q², or where Q² begins to plateau. This is the "sweet spot" that balances model power with robustness.
+3.  **Validate with VIP:** Use the VIP scores to ensure that the model is scientifically sound. The most important variables identified by the model should make chemical or physical sense to a subject matter expert.""")
+
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: The Chemist's Data Dilemma
+        **The Problem:** In the 1960s and 70s, new analytical instruments like Near-Infrared (NIR) spectrometers were becoming available. These instruments were amazing—they could generate a spectrum with hundreds of data points in seconds. But this created a massive statistical problem: **"p >> n"** (many more variables `p` than samples `n`). A standard multiple linear regression model completely fails in this situation. How could you build a predictive model from this firehose of correlated data?
+
+        **The 'Aha!' Moment:** The solution was developed by the Swedish statistician **Herman Wold** in the 1970s. He developed the algorithm for **Partial Least Squares (PLS)**. The genius of PLS is that it doesn't try to use all the original variables at once. Instead, it first squashes the hundreds of X-variables (the spectrum) down into a small number of new, artificial variables called **latent variables**. The key insight is that these latent variables are constructed to be maximally correlated with the Y-variable (e.g., concentration).
+        
+        **The Impact:** PLS was a revolutionary breakthrough for the field of **chemometrics** (the application of statistics to chemical data). It provided a robust and powerful tool to turn complex, high-dimensional instrument data into actionable, predictive models. It became the foundational algorithm for **Process Analytical Technology (PAT)**, enabling the shift from slow, offline testing to fast, real-time process monitoring and control.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        MVA and PLS are the core statistical engines for **Process Analytical Technology (PAT)**, which is a major regulatory initiative.
+        - **FDA Guidance for Industry - PAT — A Framework for Innovative Pharmaceutical Development, Manufacturing, and Quality Assurance:** This is the primary guidance document. It encourages the use of online or in-line measurements (like NIR spectroscopy) combined with multivariate models (like PLS) to achieve real-time process understanding and control.
+        - **ICH Q8(R2) - Pharmaceutical Development:** A validated MVA model is a key component of a robust **Control Strategy** and a powerful tool for building the deep **Process Understanding** required for a QbD submission.
+        - **GAMP 5 & 21 CFR Part 11:** An MVA model used for real-time release or in-process control is considered a high-risk (GAMP Category 5) **Computerized System**. The model itself—its development, validation, and lifecycle management—must be rigorously documented and controlled to ensure data integrity and reliability. The VIP plot is a key piece of evidence in the validation package, demonstrating that the model's logic is scientifically sound.
+        """)
+
 #========================================================================== 9. PREDICTIVE QC (CLASSIFICATION) ACT III============================================================================
 def render_predictive_modeling_suite():
     """Renders the comprehensive, interactive module for Predictive Modeling."""

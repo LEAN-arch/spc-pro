@@ -1,4 +1,4 @@
-# FILE: reporting_utils.py (Final, Definitive JPEG-based Version)
+# FILE: reporting_utils.py (Final, File-Based Robust Version)
 
 import streamlit as st
 import io
@@ -9,12 +9,14 @@ from pptx.util import Inches, Pt
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import textwrap
+import tempfile
+import os
 
 # ==============================================================================
-# IMAGE GENERATION ENGINE (Now generates JPEGs)
+# IMAGE GENERATION ENGINE
 # ==============================================================================
 def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
-    """Creates a JPEG image from a dictionary of KPIs using Matplotlib."""
+    """Creates a PNG image from a dictionary of KPIs using Matplotlib."""
     formatted_kpis = {}
     for key, value in kpis.items():
         if isinstance(value, dict): json_str = json.dumps(value, indent=2); formatted_kpis[key] = f"\n{json_str}"
@@ -32,14 +34,13 @@ def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     ax.text(0.01, 0.99, text_to_render, transform=ax.transAxes, fontsize=12, family='monospace', va='top', ha='left')
     ax.axis('off')
     buf = io.BytesIO()
-    # --- DEFINITIVE FIX: Save as JPEG ---
-    fig.savefig(buf, format='jpeg', bbox_inches='tight', dpi=150)
+    fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
     plt.close(fig)
     buf.seek(0)
     return buf
 
 # ==============================================================================
-# PDF REPORTING ENGINE (Now uses JPEGs)
+# PDF REPORTING ENGINE (Final)
 # ==============================================================================
 class PDF(FPDF):
     """Custom PDF class with a header and footer for professional reports."""
@@ -47,7 +48,7 @@ class PDF(FPDF):
     def footer(self): self.set_y(-15); self.set_font('Helvetica', 'I', 8); self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
 def generate_pdf_report(title, kpis, figures):
-    """Generates a multi-page PDF report by embedding pre-rendered JPEG images."""
+    """Generates a multi-page PDF report by temporarily saving images to disk."""
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Helvetica", 'B', 16)
@@ -56,8 +57,13 @@ def generate_pdf_report(title, kpis, figures):
 
     if kpis:
         kpi_image_buf = create_kpi_image(kpis)
-        # --- DEFINITIVE FIX: Tell FPDF it's a JPEG ---
-        pdf.image(name=kpi_image_buf, type='JPEG', w=180)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+            tmpfile.write(kpi_image_buf.getvalue())
+            tmp_path = tmpfile.name
+        try:
+            pdf.image(tmp_path, w=180)
+        finally:
+            os.remove(tmp_path)
         pdf.ln(5)
 
     if figures:
@@ -66,30 +72,28 @@ def generate_pdf_report(title, kpis, figures):
             if pdf.get_y() > 200: pdf.add_page()
             clean_fig_title = fig_title.encode('latin-1', 'replace').decode('latin-1')
             pdf.set_font("Helvetica", 'I', 11); pdf.cell(0, 8, f"- {clean_fig_title}", ln=1, align='L')
+            
+            tmp_path = None
             try:
-                img_buf = io.BytesIO()
-                # --- DEFINITIVE FIX: Convert all figures to JPEG for PDF ---
-                if isinstance(fig, go.Figure): fig.write_image(img_buf, format='jpeg', scale=2, width=800, height=500)
-                elif isinstance(fig, plt.Figure): fig.savefig(img_buf, format='jpeg', bbox_inches='tight', dpi=200)
-                else: # Assume it's a PNG buffer from SHAP, try to use it as-is
-                    img_buf = fig
-                img_buf.seek(0)
-                pdf.image(name=img_buf, type='JPEG', w=180) # Explicitly state JPEG
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+                    tmp_path = tmpfile.name
+                    if isinstance(fig, go.Figure): fig.write_image(tmp_path, format='png', scale=2, width=800, height=500)
+                    elif isinstance(fig, plt.Figure): fig.savefig(tmp_path, format='png', bbox_inches='tight', dpi=200)
+                    else: # Assumes it's already an image buffer
+                        fig.seek(0); tmpfile.write(fig.read())
+                pdf.image(tmp_path, w=180)
                 pdf.ln(5)
             except Exception as e:
-                # Fallback for SHAP plots which are already PNG
-                try:
-                    img_buf.seek(0)
-                    pdf.image(name=img_buf, type='PNG', w=180)
-                    pdf.ln(5)
-                except Exception as final_e:
-                    pdf.set_text_color(255, 0, 0)
-                    pdf.multi_cell(0, 8, f"Error: Image rendering failed. Please run locally. Details: {final_e}", align='L')
-                    pdf.set_text_color(0, 0, 0)
+                pdf.set_text_color(255, 0, 0)
+                pdf.multi_cell(0, 8, f"Error: Image rendering failed. Please run locally. Details: {e}", align='L')
+                pdf.set_text_color(0, 0, 0)
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
     return pdf.output()
 
 # ==============================================================================
-# POWERPOINT REPORTING ENGINE (Unchanged - uses PNG which is better for PPTX)
+# POWERPOINT REPORTING ENGINE (Final)
 # ==============================================================================
 def generate_pptx_report(title, kpis, figures):
     """Generates a multi-slide PowerPoint report with robust error handling."""
@@ -100,7 +104,7 @@ def generate_pptx_report(title, kpis, figures):
     if kpis:
         slide = prs.slides.add_slide(prs.slide_layouts[5])
         slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.5)).text_frame.text = "Key Performance Indicators & Summary"
-        kpi_image_buf = create_kpi_image(kpis) # This now returns a JPEG buffer
+        kpi_image_buf = create_kpi_image(kpis)
         slide.shapes.add_picture(kpi_image_buf, Inches(0.5), Inches(1.0), width=Inches(9.0))
 
     if figures:

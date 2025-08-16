@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import textwrap
 
 # ==============================================================================
-# IMAGE GENERATION ENGINE (Corrected)
+# IMAGE GENERATION ENGINE
 # ==============================================================================
 def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     """Creates a PNG image from a dictionary of KPIs using Matplotlib."""
@@ -35,11 +35,7 @@ def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
     plt.close(fig)
     buf.seek(0)
-    
-    # --- THIS IS THE DEFINITIVE FIX ---
-    # We must return the entire file-like buffer object, not the raw bytes.
     return buf
-    # --- END OF DEFINITIVE FIX ---
 
 # ==============================================================================
 # PDF REPORTING ENGINE (Final)
@@ -59,8 +55,10 @@ def generate_pdf_report(title, kpis, figures):
 
     if kpis:
         kpi_image_buf = create_kpi_image(kpis)
-        # Pass the buffer object directly, and specify the type
-        pdf.image(name=kpi_image_buf, type='PNG', w=180)
+        # --- DEFINITIVE FIX FOR PDF ERROR ---
+        # Pass the buffer as the first POSITIONAL argument, not with the 'name=' keyword.
+        pdf.image(kpi_image_buf, type='PNG', w=180)
+        # --- END OF FIX ---
         pdf.ln(5)
 
     if figures:
@@ -75,8 +73,8 @@ def generate_pdf_report(title, kpis, figures):
                 elif isinstance(fig, plt.Figure): fig.savefig(img_buf, format='png', bbox_inches='tight', dpi=200)
                 else: img_buf = fig
                 img_buf.seek(0)
-                # Pass the buffer object directly, and specify the type
-                pdf.image(name=img_buf, type='PNG', w=180)
+                # --- APPLYING FIX HERE AS WELL ---
+                pdf.image(img_buf, type='PNG', w=180)
                 pdf.ln(5)
             except Exception as e:
                 pdf.set_text_color(255, 0, 0)

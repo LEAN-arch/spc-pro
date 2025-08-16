@@ -59,6 +59,19 @@ from pptx import Presentation
 from pptx.util import Inches
 from reporting_utils import render_reporting_section
 # ==============================================================================
+# SESSION STATE INITIALIZATION (THIS IS THE DEFINITIVE FIX)
+# ==============================================================================
+# This block runs on the first script execution and ensures that the 'current_view'
+# key exists before any other part of the app tries to access it.
+if 'current_view' not in st.session_state:
+    st.session_state.current_view = "🚀 Project Framework"
+if 'case_study' not in st.session_state:
+    st.session_state.case_study = {"active_case": None, "current_step": 0}
+
+# ==============================================================================
+# APP CONFIGURATION
+# ==============================================================================
+# ==============================================================================
 # APP CONFIGURATION
 # ==============================================================================
 st.set_page_config(
@@ -19458,7 +19471,7 @@ CASE_STUDIES = {
 }
 
 # ==============================================================================
-# MAIN APP LOGIC AND LAYOUT
+# FINAL NAVIGATION & PAGE DISPATCHER SETUP
 # ==============================================================================
 
 # A single, unified dictionary to drive the entire application's navigation and rendering.
@@ -19559,59 +19572,44 @@ PAGES = {
     }
 }
 
+# A mapping from page name to its render function, built from the PAGES dictionary
+page_dispatcher = {page: func for section in PAGES.values() for page, func in section.items()}
+
 # --- FINAL, HIGH-PERFORMANCE SIDEBAR NAVIGATION ---
 with st.sidebar:
-    # A single list of all pages for the menu, including the section headers
-    options = []
-    for section, tools in PAGES.items():
-        options.append(section)
-        options.extend(tools.keys())
+    # Create a flat list of all options for the menu
+    options = [page for section in PAGES.values() for page in section.keys()]
     
-    # Create a mapping from page name to its render function
-    page_dispatcher = {page: func for section in PAGES.values() for page, func in section.items()}
-    # Add the top-level pages to the dispatcher
-    page_dispatcher["🚀 Project Framework"] = render_introduction_content
-    page_dispatcher["🔎 Search"] = render_search_page
+    # Because 'current_view' is guaranteed to exist now, we can safely find its index.
+    default_index = options.index(st.session_state.current_view)
 
-    # Find the index of the current view to set the default selection
-    try:
-        default_index = options.index(st.session_state.current_view)
-    except (ValueError, KeyError):
-        # If 'current_view' doesn't exist or isn't in options, initialize it
-        st.session_state.current_view = "🚀 Project Framework"
-        default_index = 0
-
-    # The on_change callback is the most robust way to handle navigation
-    def handle_navigation():
-        selected = st.session_state.nav_menu
-        # Ignore clicks on section headers
-        if "---" not in selected:
-            if selected != st.session_state.current_view:
-                st.session_state.current_view = selected
-                if 'case_study' in st.session_state:
-                    st.session_state.case_study['active_case'] = None
-    
-    selected = option_menu(
+    # The option_menu widget directly updates a session state variable on its own.
+    # This is the simplest and most robust pattern.
+    selected_page = option_menu(
         menu_title="V&V Sentinel",
         options=options,
         # Icons can be managed more dynamically if needed
-        icons=['house'] * len(options), # Placeholder icon
+        icons=['tools'] * len(options), # Placeholder icon
         menu_icon="🔬",
         default_index=default_index,
-        on_change=lambda key: handle_navigation(), # Use a lambda to call the handler
-        key='nav_menu',
-        # Disable selection of header items
-        disabled_options=[opt for opt in options if "---" in opt],
+        # Use a new key and let the widget manage its state.
+        key="navigation_selection",
         styles={
             "container": {"padding": "5px !important", "background-color": "#fafafa"},
-            "nav-link-disabled": {"color": "grey", "background-color": "#fafafa", "font-weight": "bold", "cursor": "default"},
             "nav-link": {"font-size": "14px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
             "nav-link-selected": {"background-color": PRIMARY_COLOR},
         }
     )
+    
+    # If the user's selection has changed, update our main view controller.
+    if selected_page and selected_page != st.session_state.current_view:
+        st.session_state.current_view = selected_page
+        if 'case_study' in st.session_state:
+            st.session_state.case_study['active_case'] = None
+        st.rerun()
 
 # --- MAIN CONTENT AREA DISPATCHER ---
-# Use the dispatcher we created earlier
+# This part is now clean and directly uses the session state which is reliably managed by the sidebar.
 view_to_render = page_dispatcher.get(st.session_state.current_view)
 
 if view_to_render:
@@ -19620,3 +19618,4 @@ else:
     # Fallback to the introduction if the view is somehow invalid
     st.session_state.current_view = "🚀 Project Framework"
     render_introduction_content()
+    st.rerun()

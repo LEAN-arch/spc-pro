@@ -10766,6 +10766,7 @@ A robust analysis separates two key questions that must be answered.
         - **ICH Q9 (Quality Risk Management):** A poorly performing inspection system is a major quality risk. This analysis quantifies that risk (e.g., the Miss Rate is a direct measure of patient/consumer risk) and provides the data to justify mitigation, such as retraining or implementing automated inspection.
         - **Regulatory Audits:** A lack of qualification for visual inspection processes is a common finding during regulatory audits. Having a robust Attribute Agreement study in your validation package demonstrates a mature and compliant quality system.
         """)
+        
 #=============================================================== 10. COMPREHENSIVE DIAGNOSTIC VALIDATION ===================================================
 def render_diagnostic_validation_suite():
     """Renders the comprehensive, interactive module for diagnostic test validation."""

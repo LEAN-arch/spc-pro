@@ -19575,47 +19575,26 @@ PAGES = {
 # A mapping from page name to its render function, built from the PAGES dictionary
 page_dispatcher = {page: func for section in PAGES.values() for page, func in section.items()}
 
-# --- FINAL, HIGH-PERFORMANCE SIDEBAR NAVIGATION ---
 with st.sidebar:
-    # Create a flat list of all options for the menu
-    options = [page for section in PAGES.values() for page in section.keys()]
+    st.title("V&V Sentinel")
+    st.markdown("---")
+
+    # The main dispatcher is now driven by the PAGES dictionary.
+    # The session state 'current_view' stores the string name of the tool to display.
     
-    # Because 'current_view' is guaranteed to exist now, we can safely find its index.
-    default_index = options.index(st.session_state.current_view)
-
-    # The option_menu widget directly updates a session state variable on its own.
-    # This is the simplest and most robust pattern.
-    selected_page = option_menu(
-        menu_title="V&V Sentinel",
-        options=options,
-        # Icons can be managed more dynamically if needed
-        icons=['tools'] * len(options), # Placeholder icon
-        menu_icon="🔬",
-        default_index=default_index,
-        # Use a new key and let the widget manage its state.
-        key="navigation_selection",
-        styles={
-            "container": {"padding": "5px !important", "background-color": "#fafafa"},
-            "nav-link": {"font-size": "14px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
-            "nav-link-selected": {"background-color": PRIMARY_COLOR},
-        }
-    )
-    
-    # If the user's selection has changed, update our main view controller.
-    if selected_page and selected_page != st.session_state.current_view:
-        st.session_state.current_view = selected_page
-        if 'case_study' in st.session_state:
-            st.session_state.case_study['active_case'] = None
-        st.rerun()
-
-# --- MAIN CONTENT AREA DISPATCHER ---
-# This part is now clean and directly uses the session state which is reliably managed by the sidebar.
-view_to_render = page_dispatcher.get(st.session_state.current_view)
-
-if view_to_render:
-    view_to_render()
-else:
-    # Fallback to the introduction if the view is somehow invalid
-    st.session_state.current_view = "🚀 Project Framework"
-    render_introduction_content()
-    st.rerun()
+    for section, tools in PAGES.items():
+        # Render the section header
+        # The replace().strip() makes it look clean, e.g., "--- FRAMEWORK ---" -> "FRAMEWORK"
+        st.subheader(section.replace("---", "").strip())
+        
+        # Render a button for each tool in the section
+        for tool_name in tools.keys():
+            # When a button is clicked, it returns True for that one script run.
+            if st.button(tool_name, key=f"nav_{tool_name}", use_container_width=True):
+                # Update the session state to the new view.
+                st.session_state.current_view = tool_name
+                # Always reset the case study when a user manually selects a tool.
+                if 'case_study' in st.session_state:
+                    st.session_state.case_study['active_case'] = None
+                # Trigger an immediate rerun to render the new page.
+                st.rerun()

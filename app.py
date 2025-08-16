@@ -13494,6 +13494,140 @@ def render_capability():
             """)
 
 #===============================================================  5. STATISTICAL EQUIVALENCE FOR PROCESS TRANSFER ================================================
+def render_statistical_equivalence_for_process_transfer():
+    """Renders the comprehensive, interactive module for Process Transfer Equivalence."""
+    
+    # --- CASE STUDY INTEGRATION BLOCK ---
+    case_study_params = {}
+    is_case_study_mode = False
+    active_case_key = st.session_state.get('case_study', {}).get('active_case')
+    
+    if active_case_key:
+        current_step_index = st.session_state['case_study']['current_step']
+        current_step = CASE_STUDIES[active_case_key]['steps'][current_step_index]
+        
+        if current_step['target_tool'] == "Statistical Equivalence for Process Transfer":
+            is_case_study_mode = True
+            case_study_params = current_step.get('params', {})
+            with st.expander("📖 **Case Study Context**", expanded=True):
+                st.info(f"**{CASE_STUDIES[active_case_key]['title']} | Step {current_step_index + 1}: {current_step['title']}**")
+                st.markdown(current_step['explanation'])
+    # --- END OF INTEGRATION BLOCK ---
+
+    st.markdown("""
+    #### Purpose & Application: Statistical Proof of Transfer Success
+    **Purpose:** To provide **objective, statistical proof** that a manufacturing process transferred to a new site, scale, or equipment set performs equivalently to the original, validated process.
+        
+    **Strategic Application:** This is a high-level validation activity that goes beyond simply showing the new site is "in control." It formally proves that the new process is **statistically indistinguishable** from the original, providing powerful evidence for regulatory filings and ensuring consistent product quality across a global network. It is the final exam of a technology transfer.
+    """)
+        
+    if not is_case_study_mode:
+        st.info("""
+        **Interactive Demo:** You are the Head of Tech Transfer. Use the sidebar controls to simulate the performance of the new manufacturing site (Site B).
+        - The dashboard tells a 3-part story: the **raw process comparison** (top), the **statistical evidence** about the difference (middle), and the **final verdict** (bottom).
+        - **The Goal:** Achieve a "PASS" verdict by ensuring the entire evidence distribution in Plot 2 falls within the red equivalence margins.
+        """)
+        
+    with st.sidebar:
+        st.subheader("Process Equivalence Controls")
+        # Use case study params to set widget values, and disable if in case study mode
+        cpk_a_slider = st.slider("Original Site A Performance (Cpk)", 1.33, 2.5, case_study_params.get("cpk_site_a", 1.67), 0.01, help="The historical, validated process capability of the sending site. This is your benchmark.", disabled=is_case_study_mode)
+        mean_shift_slider = st.slider("Mean Shift at Site B", -2.0, 2.0, case_study_params.get("mean_shift", 0.5), 0.1, help="Simulates a systematic bias or shift in the process average at the new site. A key risk in tech transfer.", disabled=is_case_study_mode)
+        var_change_slider = st.slider("Variability Change Factor at Site B", 0.8, 1.5, case_study_params.get("var_change_factor", 1.1), 0.05, help="Simulates a change in process precision. >1.0 means the new site is more variable (worse); <1.0 means it is less variable (better).", disabled=is_case_study_mode)
+        n_samples_slider = st.slider("Samples per Site (n)", 30, 200, case_study_params.get("n_samples", 50), 10, help="The number of samples taken during the PPQ runs at each site. More samples increase statistical power.", disabled=is_case_study_mode)
+        margin_slider = st.slider("Equivalence Margin for Cpk (±)", 0.1, 0.5, case_study_params.get("margin", 0.2), 0.05, help="The 'goalposts'. How much can the new site's Cpk differ from the original and still be considered equivalent? This is a risk-based decision.", disabled=is_case_study_mode)
+    
+    fig, is_equivalent, diff_cpk, cpk_a_sample, cpk_b_sample, ci_lower, ci_upper = plot_process_equivalence(
+        cpk_site_a=cpk_a_slider, mean_shift=mean_shift_slider,
+        var_change_factor=var_change_slider, n_samples=n_samples_slider,
+        margin=margin_slider
+    )
+        
+    st.header("Results Dashboard")
+    col1, col2 = st.columns([0.65, 0.35])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Analysis & Interpretation")
+        if is_equivalent:
+            st.success("### Verdict: ✅ PASS - Processes are Equivalent")
+        else:
+            st.error("### Verdict: ❌ FAIL - Processes are NOT Equivalent")
+        
+        c1, c2 = st.columns(2)
+        c1.metric("Site A Sample Cpk", f"{cpk_a_sample:.2f}")
+        c2.metric("Site B Sample Cpk", f"{cpk_b_sample:.2f}", delta=f"{(diff_cpk):.2f} vs Site A")
+        
+        st.metric("90% CI for Cpk Difference", f"[{ci_lower:.2f}, {ci_upper:.2f}]", help="The range of plausible true differences between the sites' Cpk values, based on the sample data.")
+        st.metric("Equivalence Margin", f"± {margin_slider}", help="The pre-defined goalposts for success.")
+        
+    st.divider()
+    st.subheader("Deeper Dive")
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+        
+    with tabs[0]:
+        st.markdown("""
+        **The 3-Plot Story: From Data to Decision**
+        1.  **Plot 1 (Process Comparison):** This shows what you see in the raw data from the validation runs. The smooth curves represent the "Voice of the Process" for each site relative to the specification limits (the "Voice of the Customer").
+        2.  **Plot 2 (Statistical Evidence):** This is the crucial bridge. It shows the result of a bootstrap simulation—a histogram of all the likely "true" differences in Cpk between the sites. The shaded area is the 90% confidence interval, representing our statistical evidence.
+        3.  **Plot 3 (The Verdict):** This is a simple summary of Plot 2. The colored bar is the same 90% confidence interval. **The test passes only if this entire bar is inside the equivalence zone defined by the red dashed lines.**
+        
+        **Core Insight:** A tech transfer doesn't just need to produce good product (high Cpk); it needs to produce product that is **statistically consistent** with the original site. This analysis provides the formal proof.
+        """)
+        
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: De-Risking Multi-Million Dollar Changes
+    
+        #### The Problem: The "Looks Good Enough" Fallacy
+        A company executes a major manufacturing change. They perform validation runs and the new process meets the minimum quality requirement (e.g., Cpk > 1.33). Management declares the project a success.
+    
+        #### The Impact: The Slow Creep of Process Degradation
+        This "good enough" mindset is a major strategic blunder. The new process, while technically "capable," might be significantly less robust than the original. Its Cpk might have dropped from a world-class 2.0 to a marginal 1.4. This means the process now has a much smaller buffer against normal operational variations, leading to a future of chronic, low-level deviations and higher scrap rates.
+    
+        #### The Solution: A Formal Proof of "Sameness"
+        Statistical Equivalence analysis is the tool that moves beyond "good enough" to provide **positive, objective proof that the new process is statistically indistinguishable from the old one**. It forces the business to answer the right question: "Did we successfully replicate our gold-standard process, or did we unknowingly degrade it?"
+    
+        #### The Consequences: A Consistent Global Standard of Excellence
+        Statistical Equivalence becomes the **gatekeeper for all major process changes**. It provides the unshakeable, data-driven evidence that a tech transfer, scale-up, or supplier change has been successful without compromising the process's validated state of control.
+        """)
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of Transfer Terms
+        - **Technology Transfer:** The process of transferring skills, knowledge, technologies, and methods of manufacturing among organizations.
+        - **PPQ (Process Performance Qualification):** Stage 2 of the FDA Process Validation lifecycle, to demonstrate reproducible commercial manufacturing.
+        - **Cpk (Process Capability Index):** A key performance indicator for a manufacturing process.
+        - **Equivalence Testing:** A statistical procedure used to demonstrate that the difference in performance between two processes is smaller than a pre-specified, practically meaningless amount.
+        - **Bootstrap Simulation:** A computer-intensive statistical method that uses resampling of the original data to estimate the sampling distribution and confidence intervals of a statistic.
+        """)
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Cpk is Cpk" Fallacy**
+        A manager reviews the Site B PPQ data, sees a Cpk of 1.40 (which is > 1.33), and declares the transfer a success, even though the original site's Cpk was 1.80.
+        - **The Flaw:** This significant drop in performance is ignored, introducing a new, hidden level of risk. They have proven capability, but not comparability.""")
+        st.success("""🟢 **THE GOLDEN RULE: Pre-Define Equivalence, Then Prove It**
+        A robust tech transfer plan treats equivalence as a formal acceptance criterion.
+        1.  **Define the Margin:** Before the transfer, stakeholders must agree on the equivalence margin for a key performance metric (like Cpk).
+        2.  **Prove You're Inside:** Conduct the PPQ runs and perform the equivalence test. The burden of proof is on the receiving site to demonstrate that their process performance is statistically indistinguishable from the sending site, within the pre-defined margin.""")
+        
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: A Modern Synthesis
+        This tool represents a modern synthesis of two powerful statistical ideas from the 1980s: **Process Capability (Cpk)** from the Six Sigma movement and **Equivalence Testing (TOST)** from the FDA's generic drug approvals. By applying the rigorous logic of equivalence testing to a key performance indicator like Cpk, we create a powerful, modern tool for validating process transfers, scale-up, and other post-approval changes.
+            """)
+                
+    with tabs[5]:
+        st.markdown("""
+        This analysis is a best-practice implementation for several key regulatory activities that require demonstrating comparability.
+        - **FDA Process Validation Guidance:** This tool is ideal for **Stage 2 (Process Qualification)** when transferring a process.
+        - **ICH Q5E - Comparability of Biotechnological/Biological Products:** This statistical approach provides a quantitative framework for demonstrating comparability after a manufacturing process change.
+        - **Technology Transfer (ICH Q10):** A robust tech transfer protocol should have pre-defined acceptance criteria, and proving statistical equivalence of process capability is a state-of-the-art criterion.
+        """)
+
+
+
+
+
+
 def render_process_equivalence():
     """Renders the comprehensive, interactive module for Process Transfer Equivalence."""
     st.markdown("""

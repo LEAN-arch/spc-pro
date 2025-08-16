@@ -18724,104 +18724,152 @@ def render_audit_readiness():
         st.plotly_chart(plot_audit_readiness_spider(scores), use_container_width=True)
         
     with col2:
-        # --- START OF GADGET REPLACEMENT ---
-        st.subheader("Gadget: Mock Audit Simulator")
-        
-        # Initialize session state for the gadget
-        if 'audit_question' not in st.session_state:
-            st.session_state.audit_question = None
-            st.session_state.correct_answer = None
+        st.subheader("Mock Audit Simulators")
 
-        # --- NEW, FULLY EXPANDED QUESTION LIBRARY (same as before) ---
-        audit_questions = {
-            "Design Controls & QMS (ISO 13485, 21 CFR 820)": {
-                "Show me your Design History File for this device. I want to trace a user need from your URS all the way to its validation test case.": "Design Controls & DHF",
-                "A deviation occurred 6 months ago. Show me the CAPA, the root cause investigation, and the data proving the corrective action was effective.": "CAPA Effectiveness Checker",
-                "How can you prove that every user requirement was tested? Show me the traceability matrix.": "Requirements Traceability Matrix (RTM)",
-                "Walk me through your change control process for a critical software patch, including your impact assessment and regression testing strategy.": "Gap Analysis & Change Control",
-                "This device is for point-of-care use. How did you validate the design against potential use errors by the intended user population? Show me the HFE report.": "Usability & Human Factors Engineering (HFE)",
-            },
-            "Risk Management (ISO 14971)": {
-                "Your validation plan focuses heavily on certain parameters. Show me the formal risk assessment (FMEA) that justifies this focus and shows how you prioritized risks.": "Quality Risk Management (QRM) Suite",
-                "How did you assess the reliability of this critical electronic component and its impact on the overall system risk profile?": "Component Reliability Testing",
-                "A contamination event was traced to a cleanroom pressure failure. Show me the top-down fault tree analysis you performed to find the system-level vulnerabilities.": "Root Cause Analysis (RCA)",
-                "You are using a novel AI model. How have you assessed the risks associated with model drift or incorrect predictions from this non-deterministic system?": "Explainable AI (XAI)",
-            },
-            "Process Validation & Control (Pharma, Production Line)": {
-                "Show me the evidence that your process consistently meets quality targets.": "Process Capability (Cpk)",
-                "How do you demonstrate comparability after a site transfer?": "Equivalence Testing (TOST)",
-                "Show me the evidence that your process was in a state of statistical control *before* you performed the capability analysis for your PPQ.": "Process Stability (SPC)",
-                "Your PPQ report claims a Cpk of 1.8. Show me the data and calculations supporting this claim of high capability.": "Process Capability (Cpk)",
-                "You claim the process at Site B is equivalent to Site A. Show me the formal statistical equivalence test and the pre-defined margin for that claim, not just a t-test.": "Equivalence Testing (TOST)",
-                "This process has been running for two years. How do you monitor for small, gradual drifts that a standard Shewhart chart would miss?": "Small Shift Detection",
-                "You have multiple correlated parameters on this bioreactor. How do you monitor the holistic health of the process, not just individual variables?": "Multivariate SPC",
-                "You scaled up from a 200L to a 2000L bioreactor. Show me the comparability protocol and the statistical evidence proving the process performance is equivalent.": "Statistical Equivalence for Process Transfer",
-                "How did you establish the Design Space for this process? Show me the DOE and the statistical model supporting it.": "Process Optimization: From DOE to AI",
-                "You've identified temperature as a CPP. Show me the Control Plan for this parameter and the Out-of-Control Action Plan for an operator.": "Process Control Plan Builder",
-                "How did you leverage your Factory Acceptance Test (FAT) to reduce the scope of your on-site Operational Qualification (OQ)?": "FAT & SAT",
-            },
-            "Method & Assay Validation (IVD, GAMP)": {
-                "How do you know your measurement system is reliable?": "Gage R&R / VCA",
-                "How did you determine the clinical cutoff for this diagnostic? Show me the ROC curve analysis and the justification for balancing sensitivity and specificity.": "ROC Curve Analysis",
-                "What is the validated sensitivity of your impurity assay? Show me the data supporting your claimed Limit of Quantitation.": "LOD & LOQ",
-                "How did you prove this method is accurate across its full range, not just at a single control point? I want to see the residual analysis.": "Linearity & Range",
-                "Your new analytical method was transferred from R&D. Show me the formal study that proves it agrees with the original reference method.": "Method Comparison",
-                "You have a non-linear bioassay. How did you validate the 4PL curve-fitting model and its weighting scheme?": "Non-Linear Regression (4PL/5PL)",
-                "Your stability protocol pools data from three batches. Show me the ANCOVA results that justify this pooling decision as per ICH Q1E.": "Stability Analysis (Shelf-Life)",
-            },
-            "Planning & Justification": {
-                "How did you justify the sampling plan for your PPQ?": "Sample Size for Qualification",
-                "Walk me through the 'golden thread' from your Target Product Profile down to the specific process parameters you control on the line.": "TPP & CQA Cascade",
-                "Your PPQ protocol specifies 59 samples. Show me the statistical justification for this number, including your assumptions for confidence and reliability.": "Sample Size for Qualification",
-            },
-            "Lifecycle & Advanced Topics": {
-                "A deviation occurred 6 months ago on this process. Show me the data proving your CAPA was effective and resulted in a sustained improvement.": "CAPA Effectiveness Checker",
-                "How did you establish the expiration date for this product? Show me the statistical analysis, including the test for data poolability across batches.": "Stability Analysis (Shelf-Life)",
-                "Your new component supplier was qualified based on reliability testing. Show me the survival analysis and the predicted B10 life.": "Reliability / Survival Analysis",
-                "You're using an AI model for batch release. How do you know it's not a 'black box'? Show me how you validated its reasoning.": "Explainable AI (XAI)",
+        # --- NEW TABBED GADGET STRUCTURE ---
+        tab1, tab2 = st.tabs(["Auditor Q&A Drill", "Evidence Package Builder"])
+
+        with tab1:
+            st.info("Practice responding to specific, challenging auditor questions one by one.")
+            # --- THIS IS THE ORIGINAL Q&A GADGET, RESTORED AS REQUESTED ---
+            audit_questions = {
+                "Design Controls & QMS (ISO 13485, 21 CFR 820)": {
+                    "Show me your Design History File for this device. I want to trace a user need from your URS all the way to its validation test case.": "Design Controls & DHF",
+                    "A deviation occurred 6 months ago. Show me the CAPA, the root cause investigation, and the data proving the corrective action was effective.": "CAPA Effectiveness Checker",
+                    "How can you prove that every user requirement was tested? Show me the traceability matrix.": "Requirements Traceability Matrix (RTM)",
+                    "Walk me through your change control process for a critical software patch, including your impact assessment and regression testing strategy.": "Gap Analysis & Change Control",
+                    "This device is for point-of-care use. How did you validate the design against potential use errors by the intended user population? Show me the HFE report.": "Usability & Human Factors Engineering (HFE)",
+                },
+                "Risk Management (ISO 14971)": {
+                    "Your validation plan focuses heavily on certain parameters. Show me the formal risk assessment (FMEA) that justifies this focus and shows how you prioritized risks.": "Quality Risk Management (QRM) Suite",
+                    "How did you assess the reliability of this critical electronic component and its impact on the overall system risk profile?": "Component Reliability Testing",
+                    "A contamination event was traced to a cleanroom pressure failure. Show me the top-down fault tree analysis you performed to find the system-level vulnerabilities.": "Root Cause Analysis (RCA)",
+                    "You are using a novel AI model. How have you assessed the risks associated with model drift or incorrect predictions from this non-deterministic system?": "Explainable AI (XAI)",
+                },
+                "Process Validation & Control (Pharma, Production Line)": {
+                    "Show me the evidence that your process consistently meets quality targets.": "Process Capability (Cpk)",
+                    "How do you demonstrate comparability after a site transfer?": "Equivalence Testing (TOST)",
+                    "Show me the evidence that your process was in a state of statistical control *before* you performed the capability analysis for your PPQ.": "Process Stability (SPC)",
+                    "Your PPQ report claims a Cpk of 1.8. Show me the data and calculations supporting this claim of high capability.": "Process Capability (Cpk)",
+                    "You claim the process at Site B is equivalent to Site A. Show me the formal statistical equivalence test and the pre-defined margin for that claim, not just a t-test.": "Equivalence Testing (TOST)",
+                    "This process has been running for two years. How do you monitor for small, gradual drifts that a standard Shewhart chart would miss?": "Small Shift Detection",
+                    "You have multiple correlated parameters on this bioreactor. How do you monitor the holistic health of the process, not just individual variables?": "Multivariate SPC",
+                    "You scaled up from a 200L to a 2000L bioreactor. Show me the comparability protocol and the statistical evidence proving the process performance is equivalent.": "Statistical Equivalence for Process Transfer",
+                    "How did you establish the Design Space for this process? Show me the DOE and the statistical model supporting it.": "Process Optimization: From DOE to AI",
+                    "You've identified temperature as a CPP. Show me the Control Plan for this parameter and the Out-of-Control Action Plan for an operator.": "Process Control Plan Builder",
+                    "How did you leverage your Factory Acceptance Test (FAT) to reduce the scope of your on-site Operational Qualification (OQ)?": "FAT & SAT",
+                },
+                "Method & Assay Validation (IVD, GAMP)": {
+                    "How do you know your measurement system is reliable?": "Gage R&R / VCA",
+                    "How did you determine the clinical cutoff for this diagnostic? Show me the ROC curve analysis and the justification for balancing sensitivity and specificity.": "ROC Curve Analysis",
+                    "What is the validated sensitivity of your impurity assay? Show me the data supporting your claimed Limit of Quantitation.": "LOD & LOQ",
+                    "How did you prove this method is accurate across its full range, not just at a single control point? I want to see the residual analysis.": "Linearity & Range",
+                    "Your new analytical method was transferred from R&D. Show me the formal study that proves it agrees with the original reference method.": "Method Comparison",
+                    "You have a non-linear bioassay. How did you validate the 4PL curve-fitting model and its weighting scheme?": "Non-Linear Regression (4PL/5PL)",
+                    "Your stability protocol pools data from three batches. Show me the ANCOVA results that justify this pooling decision as per ICH Q1E.": "Stability Analysis (Shelf-Life)",
+                },
+                "Planning & Justification": {
+                    "How did you justify the sampling plan for your PPQ?": "Sample Size for Qualification",
+                    "Walk me through the 'golden thread' from your Target Product Profile down to the specific process parameters you control on the line.": "TPP & CQA Cascade",
+                    "Your PPQ protocol specifies 59 samples. Show me the statistical justification for this number, including your assumptions for confidence and reliability.": "Sample Size for Qualification",
+                },
+                "Lifecycle & Advanced Topics": {
+                    "A deviation occurred 6 months ago on this process. Show me the data proving your CAPA was effective and resulted in a sustained improvement.": "CAPA Effectiveness Checker",
+                    "How did you establish the expiration date for this product? Show me the statistical analysis, including the test for data poolability across batches.": "Stability Analysis (Shelf-Life)",
+                    "Your new component supplier was qualified based on reliability testing. Show me the survival analysis and the predicted B10 life.": "Reliability / Survival Analysis",
+                    "You're using an AI model for batch release. How do you know it's not a 'black box'? Show me how you validated its reasoning.": "Explainable AI (XAI)",
+                }
             }
-        }
         
-        # Flatten all questions into a single list of tuples (question, answer)
-        all_questions_list = []
-        for category, questions in audit_questions.items():
-            for q, a in questions.items():
-                all_questions_list.append((q, a))
-
-        if st.button("Get New Auditor Question", use_container_width=True):
-            # Select a new random question
-            q_idx = np.random.randint(0, len(all_questions_list))
-            st.session_state.audit_question, st.session_state.correct_answer = all_questions_list[q_idx]
-            st.rerun()
-
-        if st.session_state.audit_question:
+            q_category = st.selectbox("Select Audit Category:", list(audit_questions.keys()), key="q_cat")
+            auditor_question = st.selectbox("Select a Question:", list(audit_questions[q_category].keys()), key="q_select")
+        
             with st.container(border=True):
-                st.markdown(f"**Auditor Asks:** \n> *{st.session_state.audit_question}*")
+                st.write(f"**Auditor:** '{auditor_question}'")
                 st.markdown("---")
-                
-                # Create a set of 3 incorrect answers plus the correct one
-                correct_answer = st.session_state.correct_answer
+                st.write("**Your Response:** 'The objective evidence for that is generated using the following tool from our V&V toolkit...'")
+
                 all_tools_flat = [tool for act in all_tools.values() for tool in act]
+                tool_options = sorted(list(set(all_tools_flat)))
                 
-                incorrect_options = list(set(all_tools_flat) - {correct_answer})
-                options = np.random.choice(incorrect_options, 3, replace=False).tolist() + [correct_answer]
-                np.random.shuffle(options)
+                correct_answer = audit_questions[q_category][auditor_question]
                 
-                user_choice = st.radio(
-                    "Select the BEST piece of primary evidence to present:",
-                    options,
-                    index=None
-                )
+                try:
+                    default_index = tool_options.index(correct_answer)
+                except ValueError:
+                    default_index = 0
+
+                user_choice = st.selectbox("Select the correct tool to provide as evidence:", tool_options, index=default_index, key="q_choice")
                 
-                if st.button("Submit Response", use_container_width=True, type="primary"):
+                if st.button("Submit Response", key="q_submit"):
                     if user_choice == correct_answer:
-                        st.success(f"**Correct!** The `{user_choice}` tool is the primary source of objective evidence to directly and completely answer this question.")
-                    elif user_choice is None:
-                        st.warning("Please select an answer.")
+                        st.success(f"**Correct!** The `{user_choice}` tool provides the direct, objective evidence to answer this question.")
                     else:
-                        st.error(f"**Incorrect.** While the `{user_choice}` tool might provide some related information, the primary, most direct evidence an auditor would expect comes from the `{correct_answer}` tool.")
-        else:
-            st.info("Click the button above to start your mock audit session.")
+                        st.error(f"**Incorrect.** While related, the best evidence comes from the `{correct_answer}` tool. The `{user_choice}` tool is used for a different purpose.")
+
+        with tab2:
+            st.info("""
+            **Scenario:** An auditor has requested the complete validation package for the recent technology transfer of 'Product X' to a new manufacturing site.
+            
+            **Your Task:** Select all the necessary documents and analyses from the list below to create a complete and defensible evidence package.
+            """)
+            
+            EVIDENCE_LIBRARY = {
+                "Validation Master Plan (VMP) Builder": "The high-level strategy and plan for the entire transfer validation.",
+                "Quality Risk Management (QRM) Suite": "The FMEA identifying risks specific to the new site and process.",
+                "Process Stability (SPC)": "Proof that the process was in a state of statistical control at the new site.",
+                "Process Capability (Cpk)": "Proof that the new process is capable of meeting specifications.",
+                "Statistical Equivalence for Process Transfer": "The formal statistical proof that the new process is equivalent to the original.",
+                "Gage R&R / VCA": "Qualification of the key measurement systems at the new site.",
+                "CAPA Effectiveness Checker": "Evidence that any deviations during the transfer were effectively resolved.",
+                "Component Reliability Testing": "Reliability data for any new components introduced at the new site.",
+                "Linearity & Range": "Linearity study for an assay; not typically a primary tech transfer document.",
+                "Exploratory Data Analysis (EDA)": "Exploratory data; not a formal validation document for an audit."
+            }
+            
+            REQUIRED_EVIDENCE_SCENARIO = [
+                "Validation Master Plan (VMP) Builder",
+                "Quality Risk Management (QRM) Suite",
+                "Process Stability (SPC)",
+                "Process Capability (Cpk)",
+                "Statistical Equivalence for Process Transfer",
+                "Gage R&R / VCA"
+            ]
+
+            user_selection = st.multiselect(
+                "Select the documents and analyses to include in your submission package:",
+                options=list(EVIDENCE_LIBRARY.keys()),
+                format_func=lambda x: f"{x}: {EVIDENCE_LIBRARY[x]}"
+            )
+            
+            if st.button("Submit Package for Review", type="primary", use_container_width=True, key="pkg_submit"):
+                st.subheader("Auditor's Feedback on Your Package")
+                
+                required_set = set(REQUIRED_EVIDENCE_SCENARIO)
+                selected_set = set(user_selection)
+                
+                correctly_included = required_set.intersection(selected_set)
+                missing_docs = required_set - selected_set
+                unnecessary_docs = selected_set - required_set
+                
+                score = len(correctly_included) / (len(required_set) + len(unnecessary_docs)) if (len(required_set) + len(unnecessary_docs)) > 0 else 0
+
+                st.metric("Package Completeness Score", f"{score:.0%}", help="Calculated as: Correctly Included / (Total Required + Unnecessarily Included). Penalizes both missing and extraneous documents.")
+
+                if missing_docs:
+                    st.error("**Critical Gaps Found!** The following required evidence is missing:")
+                    for doc in sorted(list(missing_docs)):
+                        st.markdown(f"- **{doc}:** {EVIDENCE_LIBRARY[doc]}")
+                
+                if unnecessary_docs:
+                    st.warning("**Unnecessary Documents Included:** While not a critical failure, providing irrelevant documents can confuse the narrative and invite unnecessary questions. The following are not required for this specific request:")
+                    for doc in sorted(list(unnecessary_docs)):
+                        st.markdown(f"- **{doc}**")
+
+                if not missing_docs and not unnecessary_docs:
+                    st.success("**Excellent!** Your evidence package is complete, concise, and fully addresses the auditor's request. This demonstrates a mature and well-organized quality system.")
+                elif not missing_docs and unnecessary_docs:
+                    st.info("**Package is Compliant but Not Lean:** You've included all required evidence, but also extra documents. Aim for a more focused submission next time.")
         # --- END OF GADGET REPLACEMENT ---
 
 @st.cache_data

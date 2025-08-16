@@ -1,60 +1,60 @@
-# FILE: reporting_utils.py (Final Robust Version)
+# FILE: reporting_utils.py (Final, Environment-Proof Version)
 
 import streamlit as st
 import io
 from fpdf import FPDF
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 
 # ==============================================================================
-# PDF REPORTING ENGINE (Corrected for Text Overflow)
+# PDF REPORTING ENGINE (Final)
 # ==============================================================================
 class PDF(FPDF):
     """Custom PDF class with a header and footer for professional reports."""
     def header(self):
-        self.set_font('Arial', 'B', 12)
+        # --- PDF FONT FIX: Use a core, built-in font ---
+        self.set_font('Helvetica', 'B', 12)
         self.cell(0, 10, 'V&V Sentinel Toolkit - Generated Report', 0, 0, 'C')
         self.ln(20)
 
     def footer(self):
         self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
+        self.set_font('Helvetica', 'I', 8)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
 def generate_pdf_report(title, kpis, figures):
     """Generates a multi-page PDF report with robust text handling."""
     pdf = PDF()
     pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
+    # --- PDF FONT FIX: Use a core, built-in font ---
+    pdf.set_font("Helvetica", 'B', 16)
     clean_title = title.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 10, clean_title, align='C')
     pdf.ln(10)
 
     if kpis:
-        pdf.set_font("Arial", 'B', 12)
+        pdf.set_font("Helvetica", 'B', 12)
         pdf.cell(0, 10, "Key Performance Indicators & Summary", ln=1, align='L')
-        pdf.set_font("Arial", '', 10)
+        pdf.set_font("Helvetica", '', 10)
         for key, value in kpis.items():
-            # --- THIS IS THE FIX FOR THE PDF ERROR ---
-            # Use a flexible layout that cannot overflow.
-            pdf.set_font("Arial", 'B', 10)
-            pdf.multi_cell(0, 8, f"{key}:", align='L')
-            pdf.set_font("Arial", '', 10)
+            # --- PDF OVERFLOW FIX: Use flexible multi-cell for both key and value ---
+            pdf.set_font("Helvetica", 'B', 10)
+            pdf.multi_cell(0, 7, f"{key}:", align='L')
+            pdf.set_font("Helvetica", '', 10)
             clean_value = str(value).encode('latin-1', 'replace').decode('latin-1')
-            pdf.multi_cell(0, 8, f"  {clean_value}", align='L') # Indent value for clarity
+            pdf.multi_cell(0, 7, f"  {clean_value}", align='L')
             pdf.ln(2)
         pdf.ln(10)
 
     if figures:
-        pdf.set_font("Arial", 'B', 12)
+        pdf.set_font("Helvetica", 'B', 12)
         pdf.cell(0, 10, "Visual Analysis", ln=1, align='L')
         for fig_title, fig in figures.items():
             if pdf.get_y() > 190: pdf.add_page()
             clean_fig_title = fig_title.encode('latin-1', 'replace').decode('latin-1')
-            pdf.set_font("Arial", 'I', 11)
+            pdf.set_font("Helvetica", 'I', 11)
             pdf.cell(0, 8, f"- {clean_fig_title}", ln=1, align='L')
             try:
                 img_bytes = io.BytesIO()
@@ -71,10 +71,10 @@ def generate_pdf_report(title, kpis, figures):
     return pdf.output(dest='S').encode('latin-1')
 
 # ==============================================================================
-# POWERPOINT REPORTING ENGINE (Corrected for Environment Errors)
+# POWERPOINT REPORTING ENGINE (Final)
 # ==============================================================================
 def generate_pptx_report(title, kpis, figures):
-    """Generates a multi-slide PowerPoint report with robust error handling."""
+    """Generates a multi-slide PowerPoint report with enhanced error handling."""
     prs = Presentation()
     slide = prs.slides.add_slide(prs.slide_layouts[0])
     slide.shapes.title.text = title
@@ -83,16 +83,11 @@ def generate_pptx_report(title, kpis, figures):
     if kpis:
         slide = prs.slides.add_slide(prs.slide_layouts[1])
         slide.shapes.title.text = "Key Performance Indicators & Summary"
-        tf = slide.shapes.placeholders[1].text_frame
-        tf.clear()
+        tf = slide.shapes.placeholders[1].text_frame; tf.clear()
         for key, value in kpis.items():
-            p = tf.add_paragraph()
-            p.text = f"{key}: "
-            p.font.bold = True; p.font.size = Pt(14)
-            runner = p.add_run()
-            runner.text = str(value)
-            runner.font.bold = False; runner.font.size = Pt(14)
-        tf.fit_text(font_family='Arial', max_size=18)
+            p = tf.add_paragraph(); p.text = f"{key}: "; p.font.bold = True; p.font.size = Pt(14)
+            runner = p.add_run(); runner.text = str(value); runner.font.size = Pt(14)
+        tf.fit_text(font_family='Calibri', max_size=18)
 
     if figures:
         for fig_title, fig in figures.items():
@@ -107,24 +102,21 @@ def generate_pptx_report(title, kpis, figures):
                 img_bytes.seek(0)
                 slide.shapes.add_picture(img_bytes, Inches(0.5), Inches(1.0), width=Inches(9.0))
             except Exception as e:
-                # --- THIS IS THE FIX FOR THE PPTX ERROR ---
-                # Provide a clear, user-friendly error message on the slide itself.
+                # --- ROBUST PPTX ERROR HANDLING ---
                 err_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4))
-                tf = err_box.text_frame
-                tf.clear()
+                tf = err_box.text_frame; tf.clear()
                 p1 = tf.add_paragraph(); p1.text = f"Error Rendering: '{fig_title}'"; p1.font.bold = True; p1.font.size = Pt(24)
                 p2 = tf.add_paragraph(); p2.text = "\nRoot Cause:"; p2.font.bold = True; p2.font.size = Pt(18)
-                p3 = tf.add_paragraph(); p3.text = "The 'Kaleido' image rendering engine is not compatible with the current operating system environment (e.g., Streamlit Community Cloud)."; p3.font.size = Pt(14)
+                p3 = tf.add_paragraph(); p3.text = "The 'Kaleido' image rendering engine is incompatible with the cloud deployment environment."; p3.font.size = Pt(14)
                 p4 = tf.add_paragraph(); p4.text = "\nAction:"; p4.font.bold = True; p4.font.size = Pt(18)
                 p5 = tf.add_paragraph(); p5.text = "Please run this application on a local machine (Windows/macOS) to generate reports containing Plotly charts."; p5.font.size = Pt(14)
-                p6 = tf.add_paragraph(); p6.text = f"\nDetails: {e}"; p6.font.size = Pt(8)
 
     pptx_buffer = io.BytesIO()
     prs.save(pptx_buffer)
     return pptx_buffer.getvalue()
 
 # ==============================================================================
-# MASTER UI RENDERING FUNCTION (Unchanged)
+# MASTER UI RENDERING FUNCTION (Final)
 # ==============================================================================
 def render_reporting_section(report_title, kpis, figures):
     """Renders the entire reporting UI section with download buttons."""
@@ -136,14 +128,12 @@ def render_reporting_section(report_title, kpis, figures):
         clean_title = report_title.replace(" ", "_").replace(":", "").replace("/", "_")
         
         with pdf_col:
-            # Use a unique key for each button to prevent state conflicts
             pdf_key = f"pdf_{clean_title}"
             try:
                 pdf_bytes = generate_pdf_report(report_title, kpis, figures)
                 st.download_button("📄 Download PDF Report", pdf_bytes, f"{clean_title}.pdf", "application/pdf", use_container_width=True, key=pdf_key)
             except Exception as e: st.error(f"PDF Error: {e}")
         with pptx_col:
-            # Use a unique key for each button
             pptx_key = f"pptx_{clean_title}"
             try:
                 pptx_bytes = generate_pptx_report(report_title, kpis, figures)

@@ -18972,42 +18972,41 @@ PAGE_DISPATCHER = {
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")
     
-    # Use unique keys for all main navigation buttons
     if st.button("🚀 Project Framework", use_container_width=True, key="nav_intro"):
         st.session_state.current_view = 'Introduction'
         if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
         st.rerun()
 
-    # --- THIS IS THE CORRECTED LOGIC BLOCK ---
-    # It contains the "GUIDES & SIMULATORS" section with all four buttons,
-    # and handles the conditional display of the "Case Study" button correctly.
+    if st.button("🔎 Search Toolkit", use_container_width=True, key="nav_search"):
+        st.session_state.current_view = 'Search'
+        st.rerun()
+
+    # --- THIS IS THE CORRECTED, UNIFIED SECTION ---
+    st.sidebar.divider()
+    st.sidebar.subheader("GUIDES & SIMULATORS")
+
+    # Conditional Case Study Button
     if st.session_state.get('case_study', {}).get('active_case'):
         if st.button("📚 Return to Case Study Hub", use_container_width=True, type="primary", key="nav_case_hub_return"):
             st.session_state.current_view = 'Case Study Library'
             st.rerun()
     else:
-        st.sidebar.divider()
-        st.sidebar.subheader("GUIDES & SIMULATORS")
-        if st.sidebar.button("📚 Case Study Library", use_container_width=True, key="nav_case_hub_main"):
+        if st.button("📚 Case Study Library", use_container_width=True, key="nav_case_hub_main"):
             st.session_state.current_view = 'Case Study Library'
             st.rerun()
     
-    # These buttons are now part of the single "GUIDES & SIMULATORS" section logic
-    if st.sidebar.button("🧙‍♂️ Validation Plan Wizard", use_container_width=True, key="nav_wizard"):
+    # Other Guide Buttons
+    if st.button("🧙‍♂️ Validation Plan Wizard", use_container_width=True, key="nav_wizard"):
         st.session_state.current_view = 'Validation Plan Wizard'
         st.rerun()
-    if st.sidebar.button("📑 Document Control & Training Sim", use_container_width=True, key="nav_doc_control"):
+    if st.button("📑 Document Control & Training Sim", use_container_width=True, key="nav_doc_control"):
         st.session_state.current_view = 'Document Control & Training Sim'
         st.rerun()
-    if st.sidebar.button("🕵️ Audit Readiness Sim", use_container_width=True, key="nav_audit"):
+    if st.button("🕵️ Audit Readiness Sim", use_container_width=True, key="nav_audit"):
         st.session_state.current_view = 'Audit Readiness Sim'
         st.rerun()
     # --- END OF CORRECTION ---
             
-    if st.sidebar.button("🔎 Search Toolkit", use_container_width=True, key="nav_search"):
-        st.session_state.current_view = 'Search'
-        st.rerun()
-    
     st.sidebar.divider()
 
     # The loop for rendering tool buttons is now lean and clean

@@ -20,15 +20,17 @@ xgboost~=2.0.2
 
 # Streamlit App Framework
 streamlit~=1.31.0
+rich~=13.7.0  # <-- THIS LINE IS THE FIX. It pins rich to a compatible version.
 
 # Plotting & Visualization
 matplotlib~=3.7.4
 plotly~=5.18.0
-kaleido~=0.2.1  # Required for exporting Plotly figures to static images (e.g., for PDF reports)
-python-pptx~=0.6.23 
+kaleido~=0.2.1
+
 # Reporting & File Handling
 fpdf2~=2.7.6
-openpyxl~=3.1.2 # Required by pandas for reading .xlsx files
+python-pptx~=0.6.23
+openpyxl~=3.1.2
 Pillow~=10.2.0
 
 # Search Functionality

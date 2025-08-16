@@ -18955,209 +18955,85 @@ def render_audit_readiness():
                     st.success("**Excellent!** Your evidence package is complete, concise, and fully addresses the auditor's request. This demonstrates a mature and well-organized quality system.")
                 elif not missing_docs and unnecessary_docs:
                     st.info("**Package is Compliant but Not Lean:** You've included all required evidence, but also extra documents. Aim for a more focused submission next time.")
-
-def render_audit_readiness():
-    """Renders the Audit Readiness & Inspection Management module."""
-    st.title("🕵️ Audit Readiness & Inspection Management")
-    st.markdown("This module helps prepare for a regulatory inspection by simulating common audit questions and mapping them to the evidence provided by the V&V Sentinel Toolkit.")
     
-    col1, col2 = st.columns([0.4, 0.6])
-    with col1:
-        st.subheader("Self-Assessment Score")
-        # --- NEW INSTRUCTIONS ADDED HERE ---
+    st.divider()
+    st.subheader("Deeper Dive into Audit Readiness")
+    # --- NEW TAB ADDED TO THE LIST ---
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "🏆 Best Practices", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Regulatory & Compliance"])
+
+    with tabs[0]:
         st.markdown("""
-        Perform a high-level self-assessment of your project's readiness. Score your perceived maturity in five key areas from 0 (non-existent) to 10 (fully compliant and robust). The spider chart will update in real-time to visualize your strengths and weaknesses against the 'Target State' of ideal readiness.
+        **The Mindset Shift: From Adversary to Partner**
+        The single most important key to a successful audit is a mindset shift. An audit is not a battle to be won; it is a collaborative process to demonstrate a state of control.
+        - **The Auditor's Goal:** The auditor's primary goal is not to find fault, but to verify that your Quality Management System (QMS) is functioning as designed and is compliant with regulations. They are a surrogate for the patient.
+        - **Your Goal:** Your goal is to make it as easy as possible for the auditor to find the objective evidence they need to reach a positive conclusion. A well-prepared team can guide the auditor through their evidence, telling a clear, logical, and data-driven story of compliance.
         """)
-        # --- END OF ADDITION ---
-        scores = {
-            'QMS & Documentation': st.slider("QMS & Documentation", 0, 10, 8, key="audit_qms", 
-                                             help="How robust and well-maintained is your overall Quality Management System? Are documents controlled, training records up-to-date, and CAPAs effective?"),
-            'Design Controls & DHF': st.slider("Design Controls & DHF", 0, 10, 7, key="audit_dhf", 
-                                                help="Is your Design History File complete and traceable? Can you link every user requirement to its verification and validation test?"),
-            'Process Validation': st.slider("Process Validation", 0, 10, 9, key="audit_pv", 
-                                            help="Is your process validation package complete and scientifically sound? Does it cover all three stages (Design, PPQ, CPV) with robust data?"),
-            'Method Validation': st.slider("Method Validation", 0, 10, 6, key="audit_mv", 
-                                           help="Are all analytical methods used for GxP decisions fully validated per ICH Q2? Is data available for accuracy, precision, specificity, etc.?"),
-            'Data Integrity': st.slider("Data Integrity", 0, 10, 8, key="audit_di", 
-                                        help="How strong are your data integrity controls? Does your system meet ALCOA+ principles and 21 CFR Part 11 requirements for audit trails and e-signatures?")
-        }
-        st.plotly_chart(plot_audit_readiness_spider(scores), use_container_width=True)
         
-    with col2:
-        st.subheader("Mock Audit Simulators")
-
-        tab1, tab2 = st.tabs(["Auditor Q&A Drill", "Evidence Package Builder"])
-
-        with tab1:
-            st.info("Practice responding to specific, challenging auditor questions one by one.")
-            audit_questions = {
-                "Design Controls & QMS (ISO 13485, 21 CFR 820)": {
-                    "Show me your Design History File for this device. I want to trace a user need from your URS all the way to its validation test case.": "Design Controls & DHF",
-                    "A deviation occurred 6 months ago. Show me the CAPA, the root cause investigation, and the data proving the corrective action was effective.": "CAPA Effectiveness Checker",
-                    "How can you prove that every user requirement was tested? Show me the traceability matrix.": "Requirements Traceability Matrix (RTM)",
-                    "Walk me through your change control process for a critical software patch, including your impact assessment and regression testing strategy.": "Gap Analysis & Change Control",
-                    "This device is for point-of-care use. How did you validate the design against potential use errors by the intended user population? Show me the HFE report.": "Usability & Human Factors Engineering (HFE)",
-                },
-                "Risk Management (ISO 14971)": {
-                    "Your validation plan focuses heavily on certain parameters. Show me the formal risk assessment (FMEA) that justifies this focus and shows how you prioritized risks.": "Quality Risk Management (QRM) Suite",
-                    "How did you assess the reliability of this critical electronic component and its impact on the overall system risk profile?": "Component Reliability Testing",
-                    "A contamination event was traced to a cleanroom pressure failure. Show me the top-down fault tree analysis you performed to find the system-level vulnerabilities.": "Root Cause Analysis (RCA)",
-                    "You are using a novel AI model. How have you assessed the risks associated with model drift or incorrect predictions from this non-deterministic system?": "Explainable AI (XAI)",
-                },
-                "Process Validation & Control (Pharma, Production Line)": {
-                    "Show me the evidence that your process consistently meets quality targets.": "Process Capability (Cpk)",
-                    "How do you demonstrate comparability after a site transfer?": "Equivalence Testing (TOST)",
-                    "Show me the evidence that your process was in a state of statistical control *before* you performed the capability analysis for your PPQ.": "Process Stability (SPC)",
-                    "Your PPQ report claims a Cpk of 1.8. Show me the data and calculations supporting this claim of high capability.": "Process Capability (Cpk)",
-                    "You claim the process at Site B is equivalent to Site A. Show me the formal statistical equivalence test and the pre-defined margin for that claim, not just a t-test.": "Equivalence Testing (TOST)",
-                    "This process has been running for two years. How do you monitor for small, gradual drifts that a standard Shewhart chart would miss?": "Small Shift Detection",
-                    "You have multiple correlated parameters on this bioreactor. How do you monitor the holistic health of the process, not just individual variables?": "Multivariate SPC",
-                    "You scaled up from a 200L to a 2000L bioreactor. Show me the comparability protocol and the statistical evidence proving the process performance is equivalent.": "Statistical Equivalence for Process Transfer",
-                    "How did you establish the Design Space for this process? Show me the DOE and the statistical model supporting it.": "Process Optimization: From DOE to AI",
-                    "You've identified temperature as a CPP. Show me the Control Plan for this parameter and the Out-of-Control Action Plan for an operator.": "Process Control Plan Builder",
-                    "How did you leverage your Factory Acceptance Test (FAT) to reduce the scope of your on-site Operational Qualification (OQ)?": "FAT & SAT",
-                },
-                "Method & Assay Validation (IVD, GAMP)": {
-                    "How do you know your measurement system is reliable?": "Gage R&R / VCA",
-                    "How did you determine the clinical cutoff for this diagnostic? Show me the ROC curve analysis and the justification for balancing sensitivity and specificity.": "ROC Curve Analysis",
-                    "What is the validated sensitivity of your impurity assay? Show me the data supporting your claimed Limit of Quantitation.": "LOD & LOQ",
-                    "How did you prove this method is accurate across its full range, not just at a single control point? I want to see the residual analysis.": "Linearity & Range",
-                    "Your new analytical method was transferred from R&D. Show me the formal study that proves it agrees with the original reference method.": "Method Comparison",
-                    "You have a non-linear bioassay. How did you validate the 4PL curve-fitting model and its weighting scheme?": "Non-Linear Regression (4PL/5PL)",
-                    "Your stability protocol pools data from three batches. Show me the ANCOVA results that justify this pooling decision as per ICH Q1E.": "Stability Analysis (Shelf-Life)",
-                },
-                "Planning & Justification": {
-                    "How did you justify the sampling plan for your PPQ?": "Sample Size for Qualification",
-                    "Walk me through the 'golden thread' from your Target Product Profile down to the specific process parameters you control on the line.": "TPP & CQA Cascade",
-                    "Your PPQ protocol specifies 59 samples. Show me the statistical justification for this number, including your assumptions for confidence and reliability.": "Sample Size for Qualification",
-                },
-                "Lifecycle & Advanced Topics": {
-                    "A deviation occurred 6 months ago on this process. Show me the data proving your CAPA was effective and resulted in a sustained improvement.": "CAPA Effectiveness Checker",
-                    "How did you establish the expiration date for this product? Show me the statistical analysis, including the test for data poolability across batches.": "Stability Analysis (Shelf-Life)",
-                    "Your new component supplier was qualified based on reliability testing. Show me the survival analysis and the predicted B10 life.": "Reliability / Survival Analysis",
-                    "You're using an AI model for batch release. How do you know it's not a 'black box'? Show me how you validated its reasoning.": "Explainable AI (XAI)",
-                }
-            }
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The Multi-Million Dollar "Final Exam"
+        A failed inspection is one of the most severe and costly events a regulated company can face, potentially leading to a public **Warning Letter**, millions in remediation costs, or even a **Consent Decree** that halts production. The business case for **perpetual inspection readiness** is simple: it is an investment in protecting the company's reputation, profitability, and fundamental license to operate. The tools in this simulator are designed to build a culture of proactive self-assessment to ensure the real audit is a smooth, predictable, and successful event.
+        """)
         
-            q_category = st.selectbox("Select Audit Category:", list(audit_questions.keys()), key="q_cat")
-            auditor_question = st.selectbox("Select a Question:", list(audit_questions[q_category].keys()), key="q_select")
+    # --- NEW BEST PRACTICES TAB CONTENT ---
+    with tabs[2]:
+        st.markdown("""
+        ### Before the Audit: The "Perpetual Readiness" Playbook
+        Success is determined long before the auditor arrives.
+        - **Internal Audits:** The single most important best practice. "Audit yourself before they audit you." A robust internal audit program identifies and fixes gaps proactively.
+        - **SME Training:** Train your Subject Matter Experts not just on their technical area, but on *how to behave in an audit*. This includes a "Front Room" (for the audit) and "Back Room" (for evidence retrieval) strategy.
+        - **Logistics & Hospitality:** Have a dedicated, comfortable conference room for the auditors. Ensure rapid, seamless access to requested documents via your eQMS or a well-organized back room.
+        - **Review History:** Review findings from all previous regulatory and internal audits. Be prepared to show evidence that those CAPAs were effective.
+        - **Mock Audits:** Conduct a full "dress rehearsal" with an external consultant to simulate the pressure and flow of a real inspection.
+
+        ### During the Audit: The "Front Room" Rules of Engagement
+        - **Answer Only the Question Asked:** Do not volunteer information, speculate, or guess. If you don't know the answer, say "I don't have that information, but I can find the right person who does."
+        - **Be Honest and Transparent:** Never lie, hide, or obscure information. This is the fastest way to destroy trust and turn a routine inspection into a major investigation.
+        - **The Back Room is Your Command Center:** All document requests should be funneled through the back room. This ensures that only the specific, final, approved document requested is provided, preventing accidental "data dumps."
+        - **Daily Debriefs:** End each day with a debrief with the auditors to understand their focus, and a separate internal debrief to prepare for the next day's topics.
+
+        ### After the Audit: The Response is Critical
+        - **The 483 Response:** If you receive a Form 483, your written response is your first and best chance to prevent it from escalating to a Warning Letter. It must be timely (typically within 15 business days).
+        - **Acknowledge, Correct, Systematize:** A strong response does not argue with the finding. It **1) Acknowledges** the observation, **2) Describes** the immediate correction, and **3) Details** the systemic Corrective and Preventive Action (CAPA) that will be implemented to prevent recurrence.
+        - **Follow Through:** The biggest mistake is failing to implement the promised CAPAs. The first thing an auditor will do on their next visit is check the status of the previous findings.
+        """)
         
-            with st.container(border=True):
-                st.write(f"**Auditor:** '{auditor_question}'")
-                st.markdown("---")
-                st.write("**Your Response:** 'The objective evidence for that is generated using the following tool from our V&V toolkit...'")
+    with tabs[3]:
+        st.markdown("""
+        ##### Glossary of Audit & Inspection Terms
+        - **Audit:** A systematic, independent, and documented process for obtaining evidence and evaluating it objectively to determine the extent to which audit criteria are fulfilled.
+        - **Inspection:** The term typically used for an audit conducted by a regulatory authority (e.g., an FDA inspection).
+        - **FDA Form 483:** A form issued by the FDA at the conclusion of an inspection to notify the company of objectionable conditions or "inspectional observations."
+        - **Warning Letter:** A formal, serious notification from the FDA that a company has significantly violated regulations. It requires immediate and comprehensive corrective action.
+        - **SME (Subject Matter Expert):** The person with the most knowledge about a specific process or system who is designated to speak to the auditor on that topic.
+        - **ALCOA+:** An acronym for the principles of data integrity (Attributable, Legible, Contemporaneous, Original, Accurate, +, Complete, Consistent, Enduring, Available).
+        """)
+        
+    with tabs[4]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Data Dump"**
+An auditor asks for the validation report for a specific instrument. The team, in a panic, provides the auditor with the entire, unorganized folder containing every draft, email, and raw data file associated with the project.
+- **The Flaw:** This is a catastrophic error. You have invited the auditor to go on a "fishing expedition" through your messy, uncontrolled documents, where they are guaranteed to find inconsistencies, incomplete data, and other problems.""")
+        st.success("""🟢 **THE GOLDEN RULE: Answer Only the Question That Was Asked**
+A well-managed audit is a game of precision.
+1.  **Listen Carefully:** Listen to the auditor's request with extreme care.
+2.  **Retrieve Only What Was Requested:** The "back room" should retrieve only the specific, final, approved document that directly answers the question.
+3.  **Provide a Clean, Direct Answer:** The SME in the "front room" presents the document and answers the question concisely. Do not volunteer extra information or speculate.
+This disciplined process demonstrates control and keeps the audit focused and efficient.""")
 
-                all_tools_flat = [tool for act in all_tools.values() for tool in act]
-                tool_options = sorted(list(set(all_tools_flat)))
-                
-                correct_answer = audit_questions[q_category][auditor_question]
-                
-                try:
-                    default_index = tool_options.index(correct_answer)
-                except ValueError:
-                    default_index = 0
-
-                user_choice = st.selectbox("Select the correct tool to provide as evidence:", tool_options, index=default_index, key="q_choice")
-                
-                if st.button("Submit Response", key="q_submit"):
-                    if user_choice == correct_answer:
-                        st.success(f"**Correct!** The `{user_choice}` tool provides the direct, objective evidence to answer this question.")
-                    else:
-                        st.error(f"**Incorrect.** While related, the best evidence comes from the `{correct_answer}` tool. The `{user_choice}` tool is used for a different purpose.")
-
-        with tab2:
-            st.info("""
-            **Scenario:** An auditor has requested the complete validation package for the recent technology transfer of 'Product X' to a new manufacturing site.
-            
-            **Your Task:** Select all the necessary documents and analyses from the list below to create a complete and defensible evidence package.
-            """)
-            
-            EVIDENCE_LIBRARY = {
-                "Validation Master Plan (VMP) Builder": "The high-level strategy and plan for the entire transfer validation.",
-                "Quality Risk Management (QRM) Suite": "The FMEA identifying risks specific to the new site and process.",
-                "Process Stability (SPC)": "Proof that the process was in a state of statistical control at the new site.",
-                "Process Capability (Cpk)": "Proof that the new process is capable of meeting specifications.",
-                "Statistical Equivalence for Process Transfer": "The formal statistical proof that the new process is equivalent to the original.",
-                "Gage R&R / VCA": "Qualification of the key measurement systems at the new site.",
-                "CAPA Effectiveness Checker": "Evidence that any deviations during the transfer were effectively resolved.",
-                "Component Reliability Testing": "Reliability data for any new components introduced at the new site.",
-                "Linearity & Range": "Linearity study for an assay; not typically a primary tech transfer document.",
-                "Exploratory Data Analysis (EDA)": "Exploratory data; not a formal validation document for an audit."
-            }
-            
-            REQUIRED_EVIDENCE_SCENARIO = [
-                "Validation Master Plan (VMP) Builder",
-                "Quality Risk Management (QRM) Suite",
-                "Process Stability (SPC)",
-                "Process Capability (Cpk)",
-                "Statistical Equivalence for Process Transfer",
-                "Gage R&R / VCA"
-            ]
-
-            user_selection = st.multiselect(
-                "Select the documents and analyses to include in your submission package:",
-                options=list(EVIDENCE_LIBRARY.keys()),
-                format_func=lambda x: f"{x}: {EVIDENCE_LIBRARY[x]}"
-            )
-            
-            if st.button("Submit Package for Review", type="primary", use_container_width=True, key="pkg_submit"):
-                st.subheader("Auditor's Feedback on Your Package")
-                
-                required_set = set(REQUIRED_EVIDENCE_SCENARIO)
-                selected_set = set(user_selection)
-                
-                correctly_included = required_set.intersection(selected_set)
-                missing_docs = required_set - selected_set
-                unnecessary_docs = selected_set - required_set
-                
-                score = len(correctly_included) / (len(required_set) + len(unnecessary_docs)) if (len(required_set) + len(unnecessary_docs)) > 0 else 0
-
-                st.metric("Package Completeness Score", f"{score:.0%}", help="Calculated as: Correctly Included / (Total Required + Unnecessarily Included). Penalizes both missing and extraneous documents.")
-
-                if missing_docs:
-                    st.error("**Critical Gaps Found!** The following required evidence is missing:")
-                    for doc in sorted(list(missing_docs)):
-                        st.markdown(f"- **{doc}:** {EVIDENCE_LIBRARY[doc]}")
-                
-                if unnecessary_docs:
-                    st.warning("**Unnecessary Documents Included:** While not a critical failure, providing irrelevant documents can confuse the narrative and invite unnecessary questions. The following are not required for this specific request:")
-                    for doc in sorted(list(unnecessary_docs)):
-                        st.markdown(f"- **{doc}**")
-
-                if not missing_docs and not unnecessary_docs:
-                    st.success("**Excellent!** Your evidence package is complete, concise, and fully addresses the auditor's request. This demonstrates a mature and well-organized quality system.")
-                elif not missing_docs and unnecessary_docs:
-                    st.info("**Package is Compliant but Not Lean:** You've included all required evidence, but also extra documents. Aim for a more focused submission next time.")
-@st.cache_data
-def plot_audit_readiness_spider(scores):
-    """Generates a spider chart for audit readiness scores."""
-    categories = list(scores.keys())
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=list(scores.values()), 
-        theta=categories, 
-        fill='toself', 
-        name='Current Readiness', 
-        line=dict(color=PRIMARY_COLOR)
-    ))
-    fig.add_trace(go.Scatterpolar(
-        r=[10]*len(categories), 
-        theta=categories, 
-        name='Target State', 
-        line=dict(color='grey', dash='dot')
-    ))
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True, 
-                range=[0, 10]
-            )
-        ), 
-        showlegend=False, 
-        title="<b>Audit Readiness Score</b>",
-        margin=dict(l=40, r=40, t=60, b=40)
-    )
-    return fig
+    with tabs[5]:
+        st.markdown("""
+        #### Historical Context: The Birth of GMP Enforcement
+        The modern regulatory inspection framework was forged in response to public health crises. In 1937, a US company marketed a drug, "Elixir Sulfanilamide," using a toxic solvent that killed over 100 people. This tragedy led to the **1938 Food, Drug, and Cosmetic (FD&C) Act**, which gave the FDA its modern authority. A key provision, **Section 704 ("Factory Inspection")**, granted the FDA the legal right to inspect facilities. The subsequent development of **Good Manufacturing Practice (GMP)** regulations provided the specific criteria against which these inspections would be conducted, creating the audit framework we know today.
+        """)
+        
+    with tabs[6]:
+        st.markdown("""
+        Audit readiness is about ensuring your QMS is compliant with a web of interconnected regulations and standards.
+        - **21 CFR (All Parts):** For companies marketing in the US, the entire Code of Federal Regulations is the primary standard. Key parts include **Part 211** (Pharma GMPs), **Part 820** (Device QSR), and **Part 11** (Electronic Records).
+        - **FD&C Act, Section 704:** This is the US law that gives the FDA the legal right to conduct inspections.
+        - **ISO 13485:2016:** The international QMS standard for medical devices. Audits by Notified Bodies or under the **MDSAP (Medical Device Single Audit Program)** are conducted against this standard.
+        - **ICH Q10 (Pharmaceutical Quality System):** This guideline provides the framework for a modern PQS, and its elements (CAPA, Change Management) are a major focus of regulatory inspections.
+        """)
 
 #============================================================================================= CASE STUDIES =====================================================================================================
 # SNIPPET 1: Add this entire data dictionary to your app.py file, e.g., after the CSS section.

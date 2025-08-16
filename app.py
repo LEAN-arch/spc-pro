@@ -18580,18 +18580,17 @@ def render_doc_control():
             status_colors = {"Draft": "grey", "In Review": "orange", "Approved": "blue", "Effective": "green", "Blocked": "red"}
             status = props['status']
             
-            # --- THIS IS THE ROBUST FIX FOR THE KEYERROR ---
-            # Check if all prerequisite BASE documents have an EFFECTIVE revision.
+            # More robust prerequisite check
             prereqs_met = True
-            for prereq_base in props['prereq']:
-                # Find the currently effective revision for the prerequisite base document
+            for prereq_base in props.get('prereq', []):
                 effective_rev_num = sim['effective_revs'].get(prereq_base)
                 if not effective_rev_num:
                     prereqs_met = False
                     break
-                # Construct the full name of the prerequisite document that *should* be effective
-                # This check is implicitly handled by just knowing if a prereq base has an effective rev
-            # --- END OF FIX ---
+                prereq_doc_full_name = next((d for d in sim['docs'] if d.startswith(f"{prereq_base} Rev {effective_rev_num}")), None)
+                if not prereq_doc_full_name or sim['docs'].get(prereq_doc_full_name, {}).get('status') != "Effective":
+                    prereqs_met = False
+                    break
             
             if status == "Approved" and not prereqs_met:
                 status = "Blocked"
@@ -18616,14 +18615,29 @@ def render_doc_control():
 
             if status == "Approved" and prereqs_met and not (sim.get('validation_needed', False) and "Process" in doc):
                 if action_cols[2].button("Make Effective", key=f"effective_{doc}", type="primary", use_container_width=True, disabled=not cr_open):
-                    props['status'] = "Effective"; sim['audit_trail'].append(f"- [QA] {doc} is now Effective."); sim['time'] += 4; sim['cost'] += 500
-                    doc_base, rev = props['base'], doc.split(' Rev ')[1].split(' ')[0]
-                    sim['effective_revs'][doc_base] = rev
-                    # Trigger retraining for all users
-                    for user in sim['training']: sim['training'][user][doc] = "Required"
-                    sim['change_requests'][doc]['status'] = "Closed"
+                    props['status'] = "Effective"
+                    sim['audit_trail'].append(f"- [QA] {doc} is now Effective.")
+                    sim['time'] += 4
+                    sim['cost'] += 500
+                    
+                    # --- THIS IS THE ROBUST FIX FOR THE KEYERROR ---
+                    doc_base = props.get('base')
+                    if doc_base and ' Rev ' in doc:
+                        try:
+                            rev = doc.split(' Rev ')[1].split(' ')[0]
+                            sim['effective_revs'][doc_base] = rev
+                            # Trigger retraining for all users
+                            for user in sim['training']:
+                                sim['training'][user][doc] = "Required"
+                            sim['change_requests'][doc]['status'] = "Closed"
+                        except IndexError:
+                            st.error(f"Could not parse revision from document name: {doc}")
+                    else:
+                        st.error(f"Error: Document '{doc}' is missing its 'base' key or ' Rev ' naming. Cannot make effective.")
+                    # --- END OF FIX ---
                     st.rerun()
-            st.caption(f"Prerequisites: {props['prereq'] if props['prereq'] else 'None'}")
+
+            st.caption(f"Prerequisites: {props.get('prereq', []) if props.get('prereq') else 'None'}")
             st.markdown("---")
 
         if sim.get('validation_needed'):
@@ -18655,7 +18669,6 @@ def render_doc_control():
                      user_status[doc] = 'Complete'
             display_data[user] = user_status
         
-        # Flatten and create dataframe
         flat_data = []
         all_doc_revs = sorted(list(set(doc for user_data in display_data.values() for doc in user_data.keys())))
         for user, user_data in display_data.items():
@@ -18664,10 +18677,11 @@ def render_doc_control():
                 row[doc_rev] = user_data.get(doc_rev, 'N/A')
             flat_data.append(row)
         
-        df_display = pd.DataFrame(flat_data).set_index('Operator')
-        st.dataframe(df_display.style.applymap(
-            lambda val: 'background-color: #FFCDD2' if val == 'Required' else ('background-color: #C8E6C9' if val == 'Complete' else 'background-color: #E0E0E0' if val=='Superseded' else ''))
-        )
+        if flat_data:
+            df_display = pd.DataFrame(flat_data).set_index('Operator')
+            st.dataframe(df_display.style.applymap(
+                lambda val: 'background-color: #FFCDD2' if val == 'Required' else ('background-color: #C8E6C9' if val == 'Complete' else 'background-color: #E0E0E0' if val=='Superseded' else ''))
+            )
         
         st.subheader("Production Readiness Dashboard")
         all_ready = True
@@ -18767,23 +18781,6 @@ def plot_audit_readiness_spider(scores):
         margin=dict(l=40, r=40, t=60, b=40)
     )
     return fig
-
-#=============================================================================== SIDEBAR CONTROLS ===================================================================================================
-st.sidebar.divider()
-st.sidebar.subheader("GUIDES & SIMULATORS")
-if st.sidebar.button("🧙‍♂️ Validation Plan Wizard", use_container_width=True):
-    st.session_state.current_view = 'Validation Plan Wizard'
-    st.rerun()
-if st.sidebar.button("📚 Case Study Library", use_container_width=True):
-    st.session_state.current_view = 'Case Study Library'
-    st.rerun()
-if st.sidebar.button("📑 Document Control & Training Sim", use_container_width=True):
-    st.session_state.current_view = 'Document Control & Training Sim'
-    st.rerun()
-if st.sidebar.button("🕵️ Audit Readiness Sim", use_container_width=True):
-    st.session_state.current_view = 'Audit Readiness Sim'
-    st.rerun()
-st.sidebar.divider()
 
 #============================================================================================= CASE STUDIES =====================================================================================================
 # SNIPPET 1: Add this entire data dictionary to your app.py file, e.g., after the CSS section.

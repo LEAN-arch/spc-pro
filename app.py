@@ -18537,7 +18537,6 @@ def render_doc_control():
     4.  Track your progress and resource consumption in the dashboards on the right.
     """)
 
-    # --- NEW, MORE COMPLEX SCENARIO DEFINITIONS ---
     SCENARIOS = {
         "new_press": {
             "title": "Implement New High-Speed Tablet Press",
@@ -18556,10 +18555,30 @@ def render_doc_control():
                 "TM-QC-102 Rev D": {"status": "Draft", "base": "TM-QC-102", "prereq": [], "roles": ["QC Analyst"]},
             },
             "risk": "Medium"
+        },
+        "ngs_software_update": {
+            "title": "Upgrade NGS Analysis Pipeline Software (GAMP 5)",
+            "docs": {
+                "VAL-SW-500 Rev B": {"status": "Draft", "base": "VAL-SW-500", "prereq": ["URS-SW-500"], "roles": ["QA Validation"]},
+                "URS-SW-500 Rev B": {"status": "Draft", "base": "URS-SW-500", "prereq": [], "roles": ["Bioinformatician", "QA Validation"]},
+                "VSR-SW-500 Rev B": {"status": "Draft", "base": "VSR-SW-500", "prereq": ["VAL-SW-500"], "roles": ["QA Validation"]},
+                "MAN-SW-500 Rev B": {"status": "Draft", "base": "MAN-SW-500", "prereq": [], "roles": ["Bioinformatician"]},
+            },
+            "risk": "High"
+        },
+        "poc_firmware_update": {
+            "title": "Deploy Firmware Update for POC Glucose Meter",
+            "docs": {
+                "ECR-042 (Change Request)": {"status": "Draft", "base": "ECR-042", "prereq": [], "roles": ["Software Engineer", "QA"]},
+                "SRS-FW-002 Rev C (Software Req)": {"status": "Draft", "base": "SRS-FW-002", "prereq": ["ECR-042"], "roles": ["Software Engineer"]},
+                "VER-FW-002 Rev C (V&V Protocol)": {"status": "Draft", "base": "VER-FW-002", "prereq": ["SRS-FW-002"], "roles": ["Test Engineer"]},
+                "RA-FW-002 Rev B (Risk Analysis)": {"status": "Draft", "base": "RA-FW-002", "prereq": ["SRS-FW-002"], "roles": ["Quality Engineer"]},
+                "IFU-002 Rev D (Instructions)": {"status": "Draft", "base": "IFU-002", "prereq": ["VER-FW-002"], "roles": ["Regulatory Affairs"]},
+            },
+            "risk": "High"
         }
     }
 
-    # --- Session State Initialization ---
     def initialize_simulation(scenario_key):
         scenario = SCENARIOS[scenario_key]
         st.session_state.qms_sim = {
@@ -18567,22 +18586,28 @@ def render_doc_control():
             "docs": scenario['docs'],
             "training": {
                 "Operator": {"SOP-MFG-001 Rev A": "Complete"},
-                "QC Analyst": {"TM-QC-101 Rev B": "Complete", "SOP-INST-203 Rev A": "Complete"},
+                "QC Analyst": {"TM-QC-101 Rev B": "Complete", "SOP-INST-203 Rev A": "Complete", "TM-QC-102 Rev C": "Complete"},
                 "Metrology": {"CAL-INST-203 Rev A": "Complete"},
-                "QA Specialist": {"SPEC-005 Rev B": "Complete"}
+                "QA Specialist": {"SPEC-005 Rev B": "Complete"},
+                "Bioinformatician": {"URS-SW-500 Rev A": "Complete", "MAN-SW-500 Rev A": "Complete"},
+                "QA Validation": {"VAL-SW-500 Rev A": "Complete", "VSR-SW-500 Rev A": "Complete"},
+                "Software Engineer": {"ECR-041": "Complete", "SRS-FW-002 Rev B": "Complete"},
+                "Test Engineer": {"VER-FW-002 Rev B": "Complete"},
+                "Quality Engineer": {"RA-FW-002 Rev A": "Complete"},
+                "Regulatory Affairs": {"IFU-002 Rev C": "Complete"},
             },
             "audit_trail": [f"- [INIT] Scenario '{scenario['title']}' loaded."],
             "effective_revs": {
-                "SOP-MFG-001": "A", "TM-QC-101": "B", "SOP-INST-203": "A",
-                "CAL-INST-203": "A", "SPEC-005": "B", "TM-QC-102": "C"
+                "SOP-MFG-001": "A", "TM-QC-101": "B", "SOP-INST-203": "A", "CAL-INST-203": "A",
+                "SPEC-005": "B", "TM-QC-102": "C", "VAL-SW-500": "A", "URS-SW-500": "A", "VSR-SW-500": "A",
+                "MAN-SW-500": "A", "ECR-042": "A", "SRS-FW-002": "B", "VER-FW-002": "B", "RA-FW-002": "A", "IFU-002": "C"
             },
             "cost": 0, "time": 0,
             "validation_needed": scenario['risk'] == "High"
         }
 
-    # --- Main App Logic ---
     if 'qms_sim' not in st.session_state:
-        initialize_simulation("new_press")
+        initialize_simulation(list(SCENARIOS.keys())[0])
     
     scenario_choice = st.selectbox("Select a Change Scenario:", options=list(SCENARIOS.keys()), format_func=lambda k: SCENARIOS[k]['title'])
     if st.session_state.qms_sim.get("scenario") != scenario_choice:
@@ -18595,12 +18620,17 @@ def render_doc_control():
 
     with col1:
         st.subheader("Document Control Workflow")
+        if st.button("🔄 Reset Current Scenario", use_container_width=True, type="secondary"):
+            initialize_simulation(st.session_state.qms_sim.get("scenario"))
+            st.toast("Simulation has been reset.", icon="🔄")
+            st.rerun()
+        st.markdown("---")
+
         for doc, props in sim['docs'].items():
             status = props['status']
-            prereqs_met = all(sim['docs'].get(f"{prereq_base} Rev {sim['effective_revs'].get(prereq_base)}", {}).get('status') == "Effective" for prereq_base in props.get('prereq', []))
-
-            if status == "Approved" and not prereqs_met:
-                status = "Blocked"
+            prereqs_met = all(sim['docs'].get(next((d for d in sim['docs'] if d.startswith(f"{prereq_base} Rev")), None), {}).get('status') == "Effective" for prereq_base in props.get('prereq', []))
+            
+            if status == "Approved" and not prereqs_met: status = "Blocked"
             
             st.markdown(f"**{doc}**: <span style='color: {'green' if status=='Effective' else 'red' if status=='Blocked' else 'orange' if status=='In Review' else 'blue' if status=='Approved' else 'grey'}; font-weight:bold;'>{status}</span>", unsafe_allow_html=True)
             if status == "Blocked":
@@ -18616,7 +18646,7 @@ def render_doc_control():
                 if action_cols[1].button("Reject", key=f"reject_{doc}", use_container_width=True):
                     props['status'] = "Draft"; sim['time'] += 8; sim['cost'] += 1000; st.rerun()
 
-            if status == "Approved" and prereqs_met and not (sim.get('validation_needed', False) and "SOP-MFG" in doc):
+            if status == "Approved" and prereqs_met and not (sim.get('validation_needed', False) and sim['scenario'] in ["new_press", "ngs_software_update", "poc_firmware_update"]):
                 if action_cols[2].button("Make Effective", key=f"effective_{doc}", type="primary", use_container_width=True):
                     props['status'] = "Effective"; sim['time'] += 4; sim['cost'] += 500
                     doc_base, rev = props['base'], doc.split(' Rev ')[1].split(' ')[0]
@@ -18628,7 +18658,7 @@ def render_doc_control():
 
         if sim.get('validation_needed'):
             st.warning("**Re-Validation Required for High-Risk Change!**")
-            if st.button("Execute Re-Validation (IQ/OQ/PQ)"):
+            if st.button("Execute Re-Validation (IQ/OQ/PQ or V&V)"):
                 sim['validation_needed'] = False; sim['time'] += 240; sim['cost'] += 50000; st.rerun()
 
     with col2:
@@ -18637,30 +18667,124 @@ def render_doc_control():
         kpi_cols[0].metric("Man-Hours Consumed", f"{sim['time']} hrs")
         kpi_cols[1].metric("Total Change Cost", f"${sim['cost']:,}")
 
-        st.subheader("Training Matrix")
+        st.subheader("Training Matrix by Role")
         all_docs_in_scenario = list(sim['docs'].keys())
         training_data = []
-        for role, trained_docs in sim['training'].items():
+        roles_in_scenario = sorted(list(set(role for doc_props in sim['docs'].values() for role in doc_props['roles'])))
+        for role in roles_in_scenario:
             row = {'Role': role}
             for doc in all_docs_in_scenario:
                 if role in sim['docs'][doc]['roles']:
-                    row[doc] = trained_docs.get(doc, "Pending")
+                    base = sim['docs'][doc]['base']
+                    eff_rev_num = sim['effective_revs'].get(base)
+                    
+                    new_rev_is_trained = sim['training'].get(role, {}).get(doc) == "Complete"
+                    
+                    if sim['docs'][doc]['status'] == 'Effective' and not new_rev_is_trained:
+                        row[doc.split(' ')[0]] = 'Required'
+                    elif new_rev_is_trained:
+                        row[doc.split(' ')[0]] = 'Complete'
+                    else:
+                        row[doc.split(' ')[0]] = 'Pending'
                 else:
-                    row[doc] = "N/A"
+                    row[doc.split(' ')[0]] = "N/A"
             training_data.append(row)
-        df_training = pd.DataFrame(training_data).set_index("Role")
-        st.dataframe(df_training.style.applymap(lambda val: 'background-color: #FFCDD2' if val == 'Required' else ('background-color: #C8E6C9' if val == 'Complete' else '')))
+        
+        if training_data:
+            df_training = pd.DataFrame(training_data).set_index("Role")
+            st.dataframe(df_training.style.applymap(lambda val: 'background-color: #FFCDD2' if val == 'Required' else ('background-color: #C8E6C9' if val == 'Complete' else '')))
         
         st.subheader("Production Readiness Dashboard")
         overall_ready = True
-        for role in sim['training'].keys():
-            is_ready = all(status != "Required" for status in df_training.loc[role].values)
+        for role in roles_in_scenario:
+            is_ready = 'Required' not in df_training.loc[role].values
             if is_ready: st.success(f"**{role} Team:** ✅ Ready")
             else: st.error(f"**{role} Team:** ❌ BLOCKED (Training Overdue)"); overall_ready = False
+    
+    st.divider()
+    st.subheader("Deeper Dive")
+    # --- RESTORED 6-TAB STRUCTURE WITH NEW COMPLIANCE TAB ---
+    tabs = st.tabs(["💡 Key Insights", "✅ The Business Case", "📋 Glossary", "✅ The Golden Rule", "📖 Theory & History", "🏛️ Best Practices & Compliance"])
+    
+    with tabs[0]:
+        st.markdown("""
+        **Interpreting the Simulation:**
+        - **Dependencies are King:** Notice that a high-level document like `SOP-MFG-001` can be fully approved but will remain **Blocked** until its prerequisite documents (like the Test Method) are also fully approved and made `Effective`. This simulates the critical importance of managing dependencies in a complex GxP change.
+        - **Risk Dictates Work:** A high-risk scenario automatically triggers a **Re-Validation Requirement**. This is a non-negotiable step that adds significant time and cost to the project, demonstrating how risk assessment directly impacts project scope.
+        - **Training is the Final Gate:** A document can be fully `Effective`, but production is **BLOCKED** until every required role is trained on that new revision. This visualizes the final, critical step of ensuring procedural changes are actually implemented on the floor.
+        """)
         
-        st.subheader("Live Audit Trail")
-        st.code("\n".join(sim['audit_trail'][-5:]), language="markdown")
+    with tabs[1]:
+        st.markdown("""
+        ### The Business Case: The High Cost of a Broken QMS
+        A Quality Management System is not just a regulatory burden; it is the **central nervous system of a GxP operation**. An inefficient, disconnected QMS creates massive hidden costs and risks. This simulation demonstrates how a single, necessary change can get bogged down in a web of dependencies, consuming hundreds of hours and tens of thousands of dollars. The business case for an **integrated, efficient, and electronic QMS (eQMS)** is clear: it directly reduces the time and cost associated with every change, validation, and training cycle, leading to faster product releases, improved compliance, and greater operational agility.
+        """)
+        
+    with tabs[2]:
+        st.markdown("""
+        ##### Glossary of QMS Terms
+        - **QMS (Quality Management System):** A formalized system that documents processes, procedures, and responsibilities for achieving quality policies and objectives.
+        - **Change Control:** A formal process for managing how changes are introduced to a GxP system.
+        - **Document Control:** The function of ensuring the integrity, accuracy, and availability of all controlled documents like SOPs, specs, and test methods.
+        - **SOP (Standard Operating Procedure):** A document that provides step-by-step instructions for performing a routine operational task.
+        - **Prerequisite:** A document or activity that must be completed and effective before a subsequent document can be made effective.
+        - **Effective Date:** The date on which a new or revised document becomes the official, in-use version. All relevant personnel must be trained by this date.
+        - **Role-Based Training:** Assigning training requirements based on an individual's job function or role rather than assigning all training to everyone.
+        """)
+        
+    with tabs[3]:
+        st.error("""🔴 **THE INCORRECT APPROACH: The "Siloed Systems" Fallacy**
+A company has a Document Management System, a separate Training Management System (LMS), and a separate Change Control system. These systems do not talk to each other.
+- **The Flaw:** This creates massive compliance gaps. A change is approved, but the SOP is not updated. An SOP is updated, but the training is not assigned in the LMS. An auditor will find these gaps in minutes.""")
+        st.success("""🟢 **THE GOLDEN RULE: Integrate Your Quality Systems**
+The core principle of a modern, effective QMS is integration.
+1.  **Change drives Documents:** A change control record should be the parent that initiates and tracks all associated document revisions.
+2.  **Documents drive Training:** An SOP becoming effective must automatically trigger a training requirement for all affected roles in the LMS.
+3.  **Training drives Readiness:** An operator should be procedurally or electronically prevented from performing a task for which their training is not current.
+This closed-loop integration is the key to a robust and compliant system.""")
 
+    with tabs[4]:
+        st.markdown("""
+        #### Historical Context: From Paper Binders to Digital Workflows
+        The QMS was once a physical system of paper binders and manual routing slips. This was slow and prone to error. The rise of enterprise software and the **21 CFR Part 11** regulation in 1997, which allowed for electronic records and signatures, was a landmark event. It paved the way for modern **electronic QMS (eQMS)** platforms that could automate the complex workflows and enforce the dependencies simulated in this module, transforming a slow paper chase into an efficient, compliant, and auditable digital process.
+        """)
+        
+    with tabs[5]:
+        st.markdown("""
+        ### GxP Document Control Best Practices
+        A robust document control system is the backbone of any compliant QMS. It ensures that all personnel are working from the correct, approved procedures at all times.
+        - **Unique Identification:** Every controlled document must have a unique identifier and revision number (e.g., `SOP-MFG-001 Rev B`).
+        - **Formal Review & Approval:** All new documents and any changes to existing documents must go through a formal, documented review and approval process, typically involving the author, the process owner, and a QA representative.
+        - **Controlled Distribution & Access:** Only the current, effective versions of documents should be available at the point of use. All obsolete versions must be immediately removed and archived.
+        - **Periodic Review:** Documents should have a defined periodic review cycle (e.g., every 2 years) to ensure they remain current and accurate, even if no changes have occurred.
+        - **Training Integration:** The QMS must have a closed-loop system to ensure that personnel are trained on new or revised documents *before* they perform the associated tasks.
+
+        ### ALCOA+ Principles for Data Integrity
+        ALCOA+ is a regulatory framework for ensuring data integrity, which is critical for all GxP records, including the electronic records in a document management system.
+        - **A**ttributable: Who performed an action and when? (e.g., e-signatures on document approvals).
+        - **L**egible: Can you read and understand the entry?
+        - **C**ontemporaneous: Recorded at the time the work was done.
+        - **O**riginal: The first record or a certified true copy.
+        - **A**ccurate: The data is correct and reflects the true event.
+        - **+ Complete:** All data, including any re-tests or deviations, is present.
+        - **+ Consistent:** Data is chronological and free from contradictions.
+        - **+ Enduring:** Data is maintained and protected for its entire required retention period.
+        - **+ Available:** Data can be readily accessed for review or audit throughout its lifecycle.
+
+        ### LIMS & GxP Software Lifecycle (GAMP 5)
+        A Laboratory Information Management System (LIMS) or any other GxP software is typically a GAMP Category 4 (Configured) or 5 (Custom) system, requiring rigorous validation.
+        - **Risk-Based Approach:** The extent of validation should be based on a formal risk assessment that considers the system's impact on patient safety, product quality, and data integrity.
+        - **Validation Lifecycle:** The validation follows the V-Model, starting with a **User Requirement Specification (URS)** and flowing through **Functional/Design Specs**, and finally to **IQ/OQ/PQ** testing.
+        - **The Validation Package:** An auditor will expect a complete package, including the Validation Master Plan (VMP), the URS, the Requirements Traceability Matrix (RTM), executed test protocols, and a final Validation Summary Report (VSR).
+
+        ### The Regulatory Landscape
+        - **21 CFR Part 11:** Governs electronic records and electronic signatures. It mandates secure, computer-generated, time-stamped audit trails for all GxP actions, access controls, and validation of the system.
+        - **ICH Q10 (Pharmaceutical Quality System):** Section 3.2.3 requires a system for managing process and product knowledge, and Section 3.2.4 requires a formal Change Management system.
+        - **21 CFR 211.100 (Pharma GMPs) & 820.40 (Device QSR):** These are the core GMP/QSR regulations that mandate written, approved procedures and formal document control systems.
+        """)
+
+
+#====================================================================================  A U D I T ==================================================================================================
 def render_audit_readiness():
     """Renders the Audit Readiness & Inspection Management module."""
     st.title("🕵️ Audit Readiness & Inspection Management")
@@ -18831,7 +18955,7 @@ def render_audit_readiness():
                     st.success("**Excellent!** Your evidence package is complete, concise, and fully addresses the auditor's request. This demonstrates a mature and well-organized quality system.")
                 elif not missing_docs and unnecessary_docs:
                     st.info("**Package is Compliant but Not Lean:** You've included all required evidence, but also extra documents. Aim for a more focused submission next time.")
-#====================================================================================  A U D I T ==================================================================================================
+
 def render_audit_readiness():
     """Renders the Audit Readiness & Inspection Management module."""
     st.title("🕵️ Audit Readiness & Inspection Management")

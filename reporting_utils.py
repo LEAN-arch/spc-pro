@@ -11,17 +11,14 @@ import matplotlib.pyplot as plt
 import textwrap
 
 # ==============================================================================
-# IMAGE GENERATION ENGINE
+# IMAGE GENERATION ENGINE (Corrected)
 # ==============================================================================
 def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     """Creates a PNG image from a dictionary of KPIs using Matplotlib."""
     formatted_kpis = {}
     for key, value in kpis.items():
-        if isinstance(value, dict):
-            json_str = json.dumps(value, indent=2)
-            formatted_kpis[key] = f"\n{json_str}"
-        else:
-            formatted_kpis[key] = value
+        if isinstance(value, dict): json_str = json.dumps(value, indent=2); formatted_kpis[key] = f"\n{json_str}"
+        else: formatted_kpis[key] = value
     lines = [f"{title}\n" + "="*len(title)]
     for key, value in formatted_kpis.items():
         key_lines = textwrap.wrap(f"{key}:", width=30)
@@ -39,7 +36,11 @@ def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     buf = io.BytesIO()
     fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
     plt.close(fig)
-    buf.seek(0)
+    
+    # --- THIS IS THE FINAL FIX ---
+    buf.seek(0) # Rewind the buffer to the beginning before returning
+    # --- END OF FINAL FIX ---
+    
     return buf
 
 # ==============================================================================
@@ -68,7 +69,7 @@ def generate_pdf_report(title, kpis, figures):
 
     if kpis:
         kpi_image_buf = create_kpi_image(kpis)
-        pdf.image(kpi_image_buf, w=180)
+        pdf.image(name=kpi_image_buf, w=180)
         pdf.ln(5)
 
     if figures:
@@ -89,13 +90,9 @@ def generate_pdf_report(title, kpis, figures):
                 pdf.ln(5)
             except Exception as e:
                 pdf.set_text_color(255, 0, 0)
-                pdf.multi_cell(0, 8, f"Error: Image rendering failed in this cloud environment. Please run locally for full reports. Details: {e}", align='L')
+                pdf.multi_cell(0, 8, f"Error: Image rendering failed. Please run locally for full reports. Details: {e}", align='L')
                 pdf.set_text_color(0, 0, 0)
-                
-    # --- THIS IS THE FINAL FIX ---
-    # The .encode() call has been removed. .output() already returns bytes.
     return pdf.output()
-    # --- END OF FINAL FIX ---
 
 # ==============================================================================
 # POWERPOINT REPORTING ENGINE (Final)
@@ -147,7 +144,6 @@ def render_reporting_section(report_title, kpis, figures):
         pdf_col, pptx_col = st.columns(2)
         clean_title = report_title.replace(" ", "_").replace(":", "").replace("/", "_")
         
-        # Use a more robust unique key based on all inputs
         unique_key_base = f"{clean_title}_{hash(str(kpis))}_{hash(str(figures))}"
 
         with pdf_col:

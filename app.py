@@ -7638,7 +7638,6 @@ A compliant and robust QbD approach is a disciplined, multi-stage process.
         kpis=report_kpis,
         figures=report_figures
     )
-        
 #=====================================================================2. ANALYTICAL TARGET PROFILE (ATP) BUILDER ====================================================
 def render_atp_builder():
     """Renders the comprehensive, interactive module for building a Target Profile."""
@@ -7825,8 +7824,33 @@ This ensures alignment from start to finish and guarantees the final deliverable
         - **USP Chapter <1220> - The Analytical Procedure Lifecycle:** This new chapter champions a holistic, lifecycle approach to method management. The ATP is the foundational element of **Stage 1 (Procedure Design)**, where the requirements for the method are formally defined.
         """)
 
-
-# SNIPPET: Replace the entire render_ivd_regulatory_framework function with this corrected version.
+    # --- ELEGANT REPORTING SECTION ---
+    # Re-create the profile categories to add them to the report
+    profiles = {
+        "Pharma Assay (HPLC)": ['Accuracy (%Rec)', 'Precision (%CV)', 'Linearity (R²)', 'Range (Turn-down)', 'Sensitivity (LOD)'],
+        "IVD Kit (ELISA)": ['Clinical Sensitivity', 'Clinical Specificity', 'Precision (%CV)', 'Robustness', 'Shelf-Life (Months)'],
+        "Instrument Qualification": ['Accuracy (Bias %)', 'Precision (%CV)', 'Throughput (Samples/hr)', 'Uptime (%)', 'Footprint (m²)'],
+        "Software System (LIMS)": ['Reliability (Uptime %)', 'Performance (Query Time)', 'Security (Compliance)', 'Usability (User Score)', 'Scalability (Users)'],
+        "Pharma Process (MAb)": ['Yield (g/L)', 'Purity (%)', 'Process Consistency', 'Robustness (PAR Size)', 'Cycle Time (Days)']
+    }
+    # Clean up the keys for the report
+    categories = [cat.replace('<br>', ' ') for cat in profiles.get(project_type, [])]
+    
+    report_kpis = { "Project Type": project_type, "--- Target Profile Criteria ---": "" }
+    for i, category in enumerate(categories):
+        report_kpis[f"Target: {category}"] = atp_values[i]
+    
+    if show_results and achieved_values:
+        report_kpis["--- Simulated Results ---"] = ""
+        for i, category in enumerate(categories):
+            report_kpis[f"Achieved: {category}"] = achieved_values[i]
+            
+    report_figures = { f"Target Profile for {project_type}": fig }
+    render_reporting_section(
+        report_title=f"Analytical Target Profile Report - {project_type}",
+        kpis=report_kpis,
+        figures=report_figures
+    )
 
 def render_ivd_regulatory_framework():
     """Renders the comprehensive module for the IVD & Medical Device Regulatory Framework."""
@@ -7846,8 +7870,7 @@ def render_ivd_regulatory_framework():
             with st.expander("📖 **Case Study Context**", expanded=True):
                 st.info(f"**{CASE_STUDIES[active_case_key]['title']} | Step {current_step_index + 1}: {current_step['title']}**")
                 st.markdown(current_step['explanation'])
-    # --- END OF INTEGRATION BLOCK ---
-
+                
     st.markdown("""
     #### Purpose & Application: The Global Regulatory Roadmap
     **Purpose:** To provide a clear, high-level overview of the major global regulatory pathways for In Vitro Diagnostics (IVDs) and Medical Devices. This module explains the internationally harmonized risk-based classification system and the corresponding submission types (510(k), PMA, CE Marking) required to bring a product to market in key regions.
@@ -8006,6 +8029,38 @@ This chain is unbreakable and must be managed from the start.""")
         - **Japan:** The **PMD Act** is the primary law, administered by the Ministry of Health, Labour and Welfare (MHLW).
         - **International Standards:** **ISO 13485** (QMS), **ISO 14971** (Risk Management), and **IEC 62304** (Software) are key for global compliance.
         """)
+
+    # Generate all figures first to include them in the report
+    fig_fda = plot_fda_pathway(path_map_fda.get(product_concept, '510k'))
+    fig_eu = plot_eu_pathway(path_map_eu.get(product_concept, 'class_iia'))
+    fig_jpn = plot_jpn_pathway(path_map_jpn.get(product_concept, 'class_ii'))
+
+    # Display the figures in the UI
+    st.header("The Regulatory Theater: A Global Comparison")
+    tab_usa, tab_eu, tab_jpn, tab_comp = st.tabs(["🇺🇸 USA (FDA)", "🇪🇺 European Union (MDR/IVDR)", "🇯🇵 Japan (PMDA)", "🌐 Global Comparison & Harmonization"])
+    with tab_usa: st.plotly_chart(fig_fda, use_container_width=True)
+    with tab_eu: st.plotly_chart(fig_eu, use_container_width=True)
+    with tab_jpn: st.plotly_chart(fig_jpn, use_container_width=True)
+    with tab_comp:
+        # ... (rest of tab content) ...
+
+    # --- ELEGANT REPORTING SECTION ---
+    report_kpis = {
+        "Selected Product Concept": product_concept,
+        "US (FDA) Highlighted Pathway": path_map_fda.get(product_concept, '510k').upper(),
+        "EU (MDR/IVDR) Highlighted Pathway": path_map_eu.get(product_concept, 'class_iia').upper(),
+        "Japan (PMDA) Highlighted Pathway": path_map_jpn.get(product_concept, 'class_ii').upper(),
+    }
+    report_figures = {
+        "USA (FDA) Pathway": fig_fda,
+        "European Union (MDR/IVDR) Pathway": fig_eu,
+        "Japan (PMDA) Pathway": fig_jpn
+    }
+    render_reporting_section(
+        report_title=f"Regulatory Pathway Report - {product_concept.replace(' ', '_')}",
+        kpis=report_kpis,
+        figures=report_figures
+    )
 #============================================================================== 3. QUALITY RISK MANAGEMENT (FMEA) ========================================================
 def render_qrm_suite():
     """Renders the comprehensive, interactive module for the Quality Risk Management (QRM) Suite."""
@@ -8307,6 +8362,44 @@ def render_qrm_suite():
         - **ISO 14971 (Application of risk management to medical devices):** This is the international standard for risk management for medical devices, and it requires the use of a systematic process like FMEA or PHA.
         """)
 
+def render_qrm_suite():
+    """Renders the comprehensive, interactive module for the Quality Risk Management (QRM) Suite."""
+    # ... (all existing UI and logic for selecting project_type and tool_choice is here) ...
+    
+    # Conditional Reporting Logic
+    report_kpis, report_figures, report_title = {}, {}, "QRM_Report"
+    
+    if tool_choice == "Preliminary Hazard Analysis (PHA)":
+        # ... (existing logic for PHA) ...
+        report_kpis = {"Project": project_type, "Analysis Type": "PHA"}
+        report_figures = {"PHA Risk Matrix": fig}
+        report_title = f"PHA Report - {project_type}"
+
+    elif tool_choice == "Failure Mode and Effects Analysis (FMEA)":
+        # ... (existing logic for FMEA, including interactive sidebar and plot generation) ...
+        report_kpis = {
+            "Project": project_type, "Analysis Type": "FMEA",
+            "Initial RPNs": (fmea_data['S'] * fmea_data['O_Initial'] * fmea_data['D_Initial']).to_dict(),
+            "Final RPNs": (fmea_data['S'] * fmea_data['O_Final'] * fmea_data['D_Final']).to_dict()
+        }
+        report_figures = {"FMEA Risk Matrix": fig_matrix, "FMEA RPN Pareto": fig_pareto}
+        report_title = f"FMEA Report - {project_type}"
+
+    elif tool_choice == "Fault Tree Analysis (FTA)":
+        # ... (existing logic for FTA) ...
+        report_kpis = {"Project": project_type, "Analysis Type": "FTA", "Top Event": fta_data['title'], "Calculated Probability": f"{fta_data['nodes']['Top']['prob']:.5f}"}
+        report_figures = {"Fault Tree Diagram": fig}
+        report_title = f"FTA Report - {project_type}"
+
+    elif tool_choice == "Event Tree Analysis (ETA)":
+        # ... (existing logic for ETA) ...
+        outcomes_summary = {name: f"{attrs['prob']:.4f}" for name, attrs in eta_data['outcomes'].items()}
+        report_kpis = {"Project": project_type, "Analysis Type": "ETA", "Initiating Event": eta_data['title'], "Outcome Probabilities": outcomes_summary}
+        report_figures = {"Event Tree Diagram": fig}
+        report_title = f"ETA Report - {project_type}"
+        
+    # --- ELEGANT REPORTING SECTION (Called once at the end) ---
+    render_reporting_section(report_title, report_kpis, report_figures)
 # ==============================================================================
 # UI RENDERING FUNCTION (V&V Strategy & Justification)
 # ==============================================================================
@@ -8729,7 +8822,37 @@ The DHF is not a document you *write* at the end of a project; it is the *result
         - **ICH Q8, Q9, Q10 (QbD Trilogy):** While originating in pharma, the principles are identical. The DHF is the documented evidence of a **Quality by Design** approach, proving that product and process understanding were systematically developed and that risks were managed.
         - **GAMP 5:** While not a regulation, the GAMP 5 framework for validating computerized systems is built on the same principles of linking user requirements (Inputs) to specifications (Outputs) and testing (V&V). The collection of all these documents is functionally equivalent to a DHF for a software system.
         """)
-        
+
+# --- ELEGANT REPORTING SECTION ---
+    # Format the DHF for the report
+    dhf_summary = ""
+    dhf_sections = {
+        "1. Design & Development Planning": ['UserNeeds'], "2. Design Inputs": ['Inputs'],
+        "3. Design Outputs & Reviews": ['Outputs', 'Review'], "4. Design Verification": ['Verification'],
+        "5. Design Validation": ['Validation'], "6. Design Transfer": ['Transfer'], "7. Design Changes": ['Changes']
+    }
+    for section_title, stage_keys in dhf_sections.items():
+        dhf_summary += f"\n{section_title}:\n"
+        docs_in_section = []
+        for key in stage_keys:
+            if key in st.session_state.dc_dhf_docs:
+                docs_in_section.extend(st.session_state.dc_dhf_docs[key])
+        if docs_in_section: dhf_summary += "\n".join([f"  - {doc}" for doc in docs_in_section])
+        else: dhf_summary += "  (No records yet)"
+
+    report_kpis = {
+        "Project Context": project_context, "Team Experience": team_experience, "Technical Novelty": tech_novelty,
+        "Timeline Impact": f"+ {st.session_state.dc_timeline_impact} Days",
+        "Cost Impact": f"+ ${st.session_state.dc_cost_impact:,.0f}",
+        "Change Controls Issued": st.session_state.dc_change_controls,
+        "--- DHF Summary ---": dhf_summary
+    }
+    report_figures = { "Design Controls Process Flow": fig }
+    render_reporting_section(
+        report_title="Design Controls Status Report",
+        kpis=report_kpis,
+        figures=report_figures
+    )
 # ==============================================================================
 # UI RENDERING FUNCTION (FAT/SAT)
 # ==============================================================================
@@ -8928,6 +9051,19 @@ A robust acceptance testing plan treats the FAT as a critical, non-negotiable ri
         - **FDA Process Validation Guidance & 21 CFR 211:** While not explicitly mentioning FAT/SAT, these regulations require that equipment be suitable for its intended use and that processes are in a state of control. A robust FAT/SAT program is the industry-standard method for ensuring equipment suitability, which is a prerequisite for a successful process validation.
         - **EU Annex 15: Qualification and Validation:** Emphasizes a risk-based approach and the need for URS to be in place for equipment. FAT and SAT are the activities where the equipment is formally tested against the URS and functional specifications.
         """)
+    # --- ELEGANT REPORTING SECTION ---
+    report_kpis = {
+        "System Complexity": complexity, "Vendor Maturity & Trust": vendor_maturity,
+        "Project Schedule Pressure": schedule_pressure, "SME Recommended Strategy": recommended_strategy,
+        "Final Executed Strategy": pm_decision, "--- Predicted Outcomes ---": "",
+        "Project Timeline Impact": f"{timeline_impact} Days", "On-Site Cost Overrun Risk": cost_risk
+    }
+    report_figures = { "Commissioning & Qualification Workflow": fig }
+    render_reporting_section(
+        report_title=f"FAT SAT Strategy Report - {pm_decision}",
+        kpis=report_kpis,
+        figures=report_figures
+    )
 #=============================================================== DfX MODULE ===========================================================================================================
 
 def render_dfx_dashboard():
@@ -9096,6 +9232,22 @@ The core principle of DfX is **concurrent engineering**, where design, manufactu
         - **ICH Q8(R2) - Pharmaceutical Development:** The principles of QbD—understanding how product design and process parameters affect quality—are perfectly aligned with DfX.
         - **ISO 13485 (Medical Devices):** This international standard for quality management systems requires a structured design and development process, which is effectively implemented through DfX principles.
         """)
+    # --- ELEGANT REPORTING SECTION ---
+    report_kpis = {
+        "Project Type": project_type,
+        "--- DfX Effort Allocation ---": "",
+        "Manufacturing & Assembly Effort": mfg_effort, "Quality & Reliability Effort": quality_effort,
+        "Sustainability & Supply Chain Effort": sustainability_effort, "Service & User Experience Effort": ux_effort,
+        "--- Key Outcomes ---": "",
+        "Total Cost (RCU)": f"{opt_total_cost:,.0f}", "Risk-Adjusted Total Cost (RCU)": f"{opt_risk_adjusted_cost:,.0f}"
+    }
+    report_figures = { "Project Performance Profile": fig_radar, "Lifecycle Cost Breakdown": fig_cost }
+    render_reporting_section(
+        report_title=f"DfX Analysis Report - {project_type}",
+        kpis=report_kpis,
+        figures=report_figures
+    )
+
 #========================================================================================= 5. VALIDATION MASTER PLAN (VMP) BUILDER =====================================================================
 def render_vmp_builder():
     """Renders the comprehensive, interactive module for the Validation Master Plan Builder."""
@@ -9196,6 +9348,19 @@ A project team begins executing test scripts for a new instrument without a pre-
         - **GAMP 5:** The VMP is a foundational document in the GAMP 5 framework, outlining the plan for validating all GxP computerized systems.
         - **PIC/S Guide to GMP (PE 009-16):** This influential international guideline, adopted by dozens of regulatory agencies worldwide, also describes the expectation for a VMP to manage the overall validation effort.
         """)
+    # --- ELEGANT REPORTING SECTION ---
+    report_kpis = {
+        "Selected Project Type": project_type,
+        "Summary": "This diagram outlines the high-level validation workflow and identifies key analytical tools from the V&V Sentinel Toolkit to be used at each stage."
+    }
+    report_figures = {
+        f"Validation Workflow for {project_type}": fig
+    }
+    render_reporting_section(
+        report_title=f"Validation Plan Outline - {project_type}",
+        kpis=report_kpis,
+        figures=report_figures
+    )
 
 def render_rtm_builder():
     """Renders the comprehensive, interactive module for the Requirements Traceability Matrix."""
@@ -9299,7 +9464,18 @@ A complex project like a tech transfer should be governed by a single, integrate
         - **FDA 21 CFR 820.30 (Design Controls):** For medical device software, the RTM is the key to demonstrating that all design inputs (user needs) have been met by the design outputs (the software) and that this has been verified through testing. It is a critical component of the Design History File (DHF).
         """)
 
-# SNIPPET: Replace your entire render_gap_analysis_change_control function with this correct version.
+    # --- ELEGANT REPORTING SECTION ---
+    report_kpis = {
+        "Project": "Technology Transfer",
+        "Completed Validation Streams": ", ".join(completed_streams) if completed_streams else "None",
+        "Remaining Streams": ", ".join(list(set(['Process', 'Assay', 'Instrument', 'Software']) - set(completed_streams)))
+    }
+    report_figures = { "Integrated RTM for Tech Transfer": fig_sankey }
+    render_reporting_section(
+        report_title="RTM Status Report",
+        kpis=report_kpis,
+        figures=report_figures
+    )
 
 def render_gap_analysis_change_control():
     """Renders the comprehensive module for Gap Analysis & Change Control."""
@@ -9481,6 +9657,21 @@ This is the only way to ensure that a system remains in a validated state throug
         - **21 CFR Part 11 (Electronic Records):** Requires that changes to electronic records must not obscure previously recorded information and must be documented in a secure, computer-generated, time-stamped **audit trail**. This is a specific, technical form of change control for data.
         - **GAMP 5:** Emphasizes that a validated system must be maintained in its validated state throughout its operational life, which is achieved through a robust Change Control process.
         """)
+    # --- ELEGANT REPORTING SECTION ---
+    report_kpis = { "Summary": "Assessment of the current system state against the required state to identify compliance gaps." }
+    report_kpis["--- Current State Scores ---"] = ""
+    report_kpis.update({k.replace('<br>', ' '): v for k, v in current_scores.items()})
+    
+    if st.session_state.cc_record:
+        report_kpis["--- Change Control Record ---"] = ""
+        report_kpis.update({f"CC: {k}": v for k, v in st.session_state.cc_record.items()})
+
+    report_figures = { "Gap Analysis Radar Chart": fig }
+    render_reporting_section(
+        report_title="Gap Analysis and Change Control Report",
+        kpis=report_kpis,
+        figures=report_figures
+    )
 
 def render_rca_suite():
     """Renders the comprehensive module for Root Cause Analysis."""
@@ -9611,6 +9802,26 @@ The goal is to find the cause that can be fixed with a **systemic improvement**,
         - **FDA 21 CFR 820.100 (for Medical Devices):** Requires procedures for implementing corrective and preventive action, which includes "investigating the cause of nonconformities relating to product, processes, and the quality system."
         - **FDA Guidance: "Investigating Out-of-Specification (OOS) Test Results for Pharmaceutical Production":** This guidance outlines the expectation for a timely, thorough, and scientifically sound investigation, which must include a conclusion and determination of the root cause.
         """)
+
+    # Capture the 5 Whys from the UI for the report
+    why1 = st.text_input("1. Why?", "The sterile filter used during filling was compromised.")
+    why2 = st.text_input("2. Why?", "The filter was damaged by a pressure spike during startup.")
+    why3 = st.text_input("3. Why?", "The startup SOP does not specify a gradual pressure ramp.")
+    why4 = st.text_input("4. Why?", "The SOP was written based on the old pump, which could not ramp quickly.")
+    why5 = st.text_input("5. Why? (The Process Root Cause)", "The Management of Change (MOC) process failed to trigger an SOP update when the new pump was installed.")
+
+    # --- ELEGANT REPORTING SECTION ---
+    report_kpis = {
+        "Problem Scenario": scenario, "--- 5 Whys Analysis ---": "",
+        "1. Symptom": why1, "2. Contributing Cause": why2, "3. Contributing Cause": why3,
+        "4. Contributing Cause": why4, "5. Root Cause": why5
+    }
+    report_figures = { "Ishikawa (Fishbone) Diagram": fig }
+    render_reporting_section(
+        report_title=f"RCA Report - {scenario}",
+        kpis=report_kpis,
+        figures=report_figures
+    )
 #====================================================================================================================================================================================================================================
 #=====================================================================================================ACT 0 RENDER END ==============================================================================================================
 #====================================================================================================================================================================================================================================

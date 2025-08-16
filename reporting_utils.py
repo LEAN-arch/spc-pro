@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import textwrap
 
 # ==============================================================================
-# IMAGE GENERATION ENGINE
+# IMAGE GENERATION ENGINE (Corrected)
 # ==============================================================================
 def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     """Creates a PNG image from a dictionary of KPIs using Matplotlib."""
@@ -21,15 +21,13 @@ def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
         else: formatted_kpis[key] = value
     lines = [f"{title}\n" + "="*len(title)]
     for key, value in formatted_kpis.items():
-        key_lines = textwrap.wrap(f"{key}:", width=30)
-        value_lines = textwrap.wrap(str(value), width=60)
+        key_lines = textwrap.wrap(f"{key}:", width=30); value_lines = textwrap.wrap(str(value), width=60)
         lines.append(key_lines[0])
         for line in key_lines[1:]: lines.append(f"  {line}")
         for line in value_lines: lines.append(f"    {line}")
         lines.append("")
     text_to_render = "\n".join(lines)
-    num_lines = text_to_render.count('\n')
-    fig_height = max(4, num_lines * 0.3)
+    num_lines = text_to_render.count('\n'); fig_height = max(4, num_lines * 0.3)
     fig, ax = plt.subplots(figsize=(8, fig_height))
     ax.text(0.01, 0.99, text_to_render, transform=ax.transAxes, fontsize=12, family='monospace', va='top', ha='left')
     ax.axis('off')
@@ -37,23 +35,19 @@ def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
     plt.close(fig)
     buf.seek(0)
-    # --- THIS IS THE KEY CHANGE ---
-    # Return the raw bytes, not the BytesIO object
-    return buf.getvalue()
+    
+    # --- THIS IS THE CRITICAL FIX ---
+    # Return the entire buffer object (the "tape player"), not just the raw bytes.
+    return buf
+    # --- END OF CRITICAL FIX ---
 
 # ==============================================================================
 # PDF REPORTING ENGINE (Final)
 # ==============================================================================
 class PDF(FPDF):
     """Custom PDF class with a header and footer for professional reports."""
-    def header(self):
-        self.set_font('Helvetica', 'B', 12)
-        self.cell(0, 10, 'V&V Sentinel Toolkit - Generated Report', 0, 0, 'C')
-        self.ln(20)
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('Helvetica', 'I', 8)
-        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+    def header(self): self.set_font('Helvetica', 'B', 12); self.cell(0, 10, 'V&V Sentinel Toolkit - Generated Report', 0, 0, 'C'); self.ln(20)
+    def footer(self): self.set_y(-15); self.set_font('Helvetica', 'I', 8); self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
 def generate_pdf_report(title, kpis, figures):
     """Generates a multi-page PDF report by embedding pre-rendered images."""
@@ -64,8 +58,9 @@ def generate_pdf_report(title, kpis, figures):
     pdf.multi_cell(0, 10, clean_title, align='C'); pdf.ln(5)
 
     if kpis:
-        kpi_image_bytes = create_kpi_image(kpis)
-        pdf.image(name=kpi_image_bytes, type='PNG', w=180)
+        kpi_image_buf = create_kpi_image(kpis)
+        # Pass the buffer object directly
+        pdf.image(name=kpi_image_buf, type='PNG', w=180)
         pdf.ln(5)
 
     if figures:
@@ -80,9 +75,8 @@ def generate_pdf_report(title, kpis, figures):
                 elif isinstance(fig, plt.Figure): fig.savefig(img_buf, format='png', bbox_inches='tight', dpi=200)
                 else: img_buf = fig
                 img_buf.seek(0)
-                # --- APPLYING THE FIX HERE AS WELL ---
-                img_bytes = img_buf.getvalue()
-                pdf.image(name=img_bytes, type='PNG', w=180)
+                # Pass the buffer object directly
+                pdf.image(name=img_buf, type='PNG', w=180)
                 pdf.ln(5)
             except Exception as e:
                 pdf.set_text_color(255, 0, 0)
@@ -102,8 +96,8 @@ def generate_pptx_report(title, kpis, figures):
     if kpis:
         slide = prs.slides.add_slide(prs.slide_layouts[5])
         slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.5)).text_frame.text = "Key Performance Indicators & Summary"
-        kpi_image_bytes = create_kpi_image(kpis)
-        slide.shapes.add_picture(io.BytesIO(kpi_image_bytes), Inches(0.5), Inches(1.0), width=Inches(9.0))
+        kpi_image_buf = create_kpi_image(kpis)
+        slide.shapes.add_picture(kpi_image_buf, Inches(0.5), Inches(1.0), width=Inches(9.0))
 
     if figures:
         for fig_title, fig in figures.items():

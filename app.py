@@ -7437,6 +7437,23 @@ def render_search_page():
 #===================================================================================================================================================================================================================================
 def render_tpp_cqa_cascade():
     """Renders the comprehensive, interactive module for TPP & CQA Cascade, including a full QbD introduction."""
+    
+    # --- CASE STUDY INTEGRATION BLOCK ---
+    case_study_params = {}
+    is_case_study_mode = False
+    active_case_key = st.session_state.get('case_study', {}).get('active_case')
+    
+    if active_case_key:
+        current_step_index = st.session_state['case_study']['current_step']
+        current_step = CASE_STUDIES[active_case_key]['steps'][current_step_index]
+        
+        if current_step['target_tool'] == "TPP & CQA Cascade":
+            is_case_study_mode = True
+            case_study_params = current_step.get('params', {})
+            with st.expander("📖 **Case Study Context**", expanded=True):
+                st.info(f"**{CASE_STUDIES[active_case_key]['title']} | Step {current_step_index + 1}: {current_step['title']}**")
+                st.markdown(current_step['explanation'])
+    # --- END OF INTEGRATION BLOCK ---
     st.markdown("""
     #### Purpose & Application: The "Golden Thread" of QbD
     **Purpose:** To be the **"North Star" of the entire project.** This tool visualizes the "golden thread" of Quality by Design (QbD). It starts with the high-level patient or business needs (the **Target Product Profile**), translates them into measurable product requirements (the **Critical Quality Attributes**), and finally links those to the specific process parameters and material attributes that must be controlled.
@@ -7605,6 +7622,23 @@ A compliant and robust QbD approach is a disciplined, multi-stage process.
 #=====================================================================2. ANALYTICAL TARGET PROFILE (ATP) BUILDER ====================================================
 def render_atp_builder():
     """Renders the comprehensive, interactive module for building a Target Profile."""
+    
+    # --- CASE STUDY INTEGRATION BLOCK ---
+    case_study_params = {}
+    is_case_study_mode = False
+    active_case_key = st.session_state.get('case_study', {}).get('active_case')
+    
+    if active_case_key:
+        current_step_index = st.session_state['case_study']['current_step']
+        current_step = CASE_STUDIES[active_case_key]['steps'][current_step_index]
+        
+        if current_step['target_tool'] == "Analytical Target Profile (ATP) Builder":
+            is_case_study_mode = True
+            case_study_params = current_step.get('params', {})
+            with st.expander("📖 **Case Study Context**", expanded=True):
+                st.info(f"**{CASE_STUDIES[active_case_key]['title']} | Step {current_step_index + 1}: {current_step['title']}**")
+                st.markdown(current_step['explanation'])
+    # --- END OF INTEGRATION BLOCK ---
     st.markdown("""
     #### Purpose & Application: The Project's "Contract"
     **Purpose:** To serve as the **"Design Specification" or "Contract" for a new product, process, or system.** Before significant work begins, the Target Profile formally documents the performance characteristics that *must* be achieved for the project to be considered a success.
@@ -7776,31 +7810,61 @@ This ensures alignment from start to finish and guarantees the final deliverable
 
 def render_ivd_regulatory_framework():
     """Renders the comprehensive module for the IVD & Medical Device Regulatory Framework."""
+
+    # --- CASE STUDY INTEGRATION BLOCK ---
+    case_study_params = {}
+    is_case_study_mode = False
+    active_case_key = st.session_state.get('case_study', {}).get('active_case')
+    
+    if active_case_key:
+        current_step_index = st.session_state['case_study']['current_step']
+        current_step = CASE_STUDIES[active_case_key]['steps'][current_step_index]
+        
+        if current_step['target_tool'] == "IVD & Medical Device Regulatory Framework":
+            is_case_study_mode = True
+            case_study_params = current_step.get('params', {})
+            with st.expander("📖 **Case Study Context**", expanded=True):
+                st.info(f"**{CASE_STUDIES[active_case_key]['title']} | Step {current_step_index + 1}: {current_step['title']}**")
+                st.markdown(current_step['explanation'])
+    # --- END OF INTEGRATION BLOCK ---
+
     st.markdown("""
     #### Purpose & Application: The Global Regulatory Roadmap
     **Purpose:** To provide a clear, high-level overview of the major global regulatory pathways for In Vitro Diagnostics (IVDs) and Medical Devices. This module explains the internationally harmonized risk-based classification system and the corresponding submission types (510(k), PMA, CE Marking) required to bring a product to market in key regions.
     
     **Strategic Application:** This is the most critical strategic decision in a product's lifecycle. The choice of regulatory pathway, determined by the device's **Intended Use**, dictates the entire project's timeline, cost, data requirements, and ultimate business model. Understanding this global roadmap is non-negotiable for R&D, Quality, Regulatory Affairs, and business leadership.
     """)
-    st.info("""
-    **Interactive Demo:** You are the Head of Regulatory Affairs.
-    1.  Use the **"Regulatory Theater"** tabs below to select a major global market (USA, EU, Japan).
-    2.  Use the **sidebar controls** to select your product concept.
-    3.  The active flowchart will instantly **highlight the correct regulatory pathway** for your product in that specific region.
-    """)
+    
+    if not is_case_study_mode:
+        st.info("""
+        **Interactive Demo:** You are the Head of Regulatory Affairs.
+        1.  Use the **"Regulatory Theater"** tabs below to select a major global market (USA, EU, Japan).
+        2.  Use the **sidebar controls** to select your product concept.
+        3.  The active flowchart will instantly **highlight the correct regulatory pathway** for your product in that specific region.
+        """)
 
     with st.sidebar:
         st.subheader("Regulatory Pathway Simulator")
+        product_concept_options = ["General Low-Risk Device", "Moderate-Risk Device with Predicate", "Novel Moderate-Risk Device", "High-Risk/Novel Device", "Emergency Use Device", "Point-of-Care (POC) Device", "Software as a Medical Device (SaMD)"]
+        default_product_concept = case_study_params.get("product_concept", "Moderate-Risk Device with Predicate")
+        product_concept_index = product_concept_options.index(default_product_concept) if default_product_concept in product_concept_options else 1
+        
         product_concept = st.selectbox(
-            "Select Your Product Concept:",
-            ["General Low-Risk Device", "Moderate-Risk Device with Predicate", "Novel Moderate-Risk Device", "High-Risk/Novel Device", "Emergency Use Device"],
-            index=1,
-            help="Your choice determines the device's risk level and corresponding regulatory pathway in the selected region."
+            "Select Your Product Concept (US FDA Example):",
+            product_concept_options,
+            index=product_concept_index,
+            help="Your choice determines the device's risk level and corresponding US FDA regulatory pathway.",
+            disabled=is_case_study_mode
         )
 
-    path_map_fda = {"General Low-Risk Device": "class_i", "Moderate-Risk Device with Predicate": "510k", "Novel Moderate-Risk Device": "denovo", "High-Risk/Novel Device": "pma", "Emergency Use Device": "eua"}
-    path_map_eu = {"General Low-Risk Device": "class_i", "Moderate-Risk Device with Predicate": "class_iia", "Novel Moderate-Risk Device": "class_iib", "High-Risk/Novel Device": "class_iii"}
-    path_map_jpn = {"General Low-Risk Device": "class_i", "Moderate-Risk Device with Predicate": "class_ii", "Novel Moderate-Risk Device": "class_iii", "High-Risk/Novel Device": "class_iv"}
+    path_map_fda = {
+        "General Low-Risk Device": "class_i", "Moderate-Risk Device with Predicate": "510k", 
+        "Novel Moderate-Risk Device": "denovo", "High-Risk/Novel Device": "pma", 
+        "Emergency Use Device": "eua", "Point-of-Care (POC) Device": "510k", 
+        "Software as a Medical Device (SaMD)": "510k"
+    }
+    path_map_eu = {"General Low-Risk Device": "class_i", "Moderate-Risk Device with Predicate": "class_iia", "Novel Moderate-Risk Device": "class_iib", "High-Risk/Novel Device": "class_iii", "Point-of-Care (POC) Device": "class_iia", "Software as a Medical Device (SaMD)": "class_iia"}
+    path_map_jpn = {"General Low-Risk Device": "class_i", "Moderate-Risk Device with Predicate": "class_ii", "Novel Moderate-Risk Device": "class_iii", "High-Risk/Novel Device": "class_iv", "Point-of-Care (POC) Device": "class_ii", "Software as a Medical Device (SaMD)": "class_ii"}
     
     st.header("The Regulatory Theater: A Global Comparison")
     
@@ -7829,8 +7893,6 @@ def render_ivd_regulatory_framework():
         - **European Union (The Auditor Model):** The EU sets the laws (MDR/IVDR), but the "gatekeeper" role for most devices is delegated to independent, third-party organizations called **Notified Bodies**. You pay a Notified Body to audit your Quality System and review your Technical File. If they agree you are compliant, they grant you a **CE Mark** certificate, which allows you to sell your product anywhere in the EU.
         """)
         
-        # --- THIS IS THE FIX ---
-        # The `unsafe_allow_html=True` parameter is added to the markdown call containing the table.
         st.markdown("""
         **Comparison of Major Regulatory Systems**
         <style>
@@ -7846,15 +7908,14 @@ def render_ivd_regulatory_framework():
             <tr> <td><b>Key Approval Mark</b></td> <td>510(k) Clearance / PMA Approval</td> <td><b>CE Mark</b></td> <td>Shonin Approval</td> <td>Medical Device License</td> </tr>
         </table>
         """, unsafe_allow_html=True)
-        # --- END OF FIX ---
         
         st.markdown("""
         ---
         ### The Pillars of Global Compliance: Harmonized Standards
         The key to an efficient global strategy is to build your QMS on internationally recognized standards. Compliance with these standards provides a "presumption of conformity" with the specific regulations in many regions.
-        - **ISO 13485: Medical devices — Quality management systems.** This is the foundational standard for a QMS. It is the basis for the US FDA's QSR, the EU's MDR/IVDR, and Canada's requirements. If you comply with ISO 13485, you have met the core QMS requirements for most of the world.
-        - **ISO 14971: Medical devices — Application of risk management.** This is the global gold standard for risk management. All major regulatory bodies expect a risk management process that aligns with this standard.
-        - **IEC 62304: Medical device software — Software life cycle processes.** If your device includes software, this standard is non-negotiable. It defines the rigorous process for software development, verification, and validation that is expected by both the FDA and EU authorities.
+        - **ISO 13485: Medical devices — Quality management systems.** This is the foundational standard for a QMS.
+        - **ISO 14971: Medical devices — Application of risk management.** This is the global gold standard for risk management.
+        - **IEC 62304: Medical device software — Software life cycle processes.** If your device includes software, this standard is non-negotiable.
         """)
     
     st.divider()
@@ -7869,20 +7930,16 @@ def render_ivd_regulatory_framework():
         A startup develops a new biomarker technology. The leadership team, focused on speed to market, assumes they will follow the "standard" 510(k) pathway. They build their entire business plan—fundraising, timelines, and resource allocation—around this assumption, without deeply analyzing the implications of their intended use.
     
         #### The Impact: The Mid-Project Pivot and Business Model Failure
-        Halfway through development, during a pre-submission meeting, the FDA informs them that the specific diagnostic claims they want to make classify their product as high-risk Class III, requiring a full PMA.
-        - **Timeline Explodes:** The project timeline instantly balloons from 2 years to 5-7 years to account for the required clinical trials.
-        - **Budget Annihilated:** The cost of development skyrockets from ~$5-10 million for a 510(k) to **$50-100+ million** for a PMA. The company does not have the capital and may fail.
-        - **Strategic Failure:** The entire business model collapses. The company is now on a timeline and budget that makes it uncompetitive and unattractive to investors.
+        Halfway through development, during a pre-submission meeting, the FDA informs them that the specific diagnostic claims they want to make classify their product as high-risk Class III, requiring a full PMA. This leads to exploding timelines and budgets, and potential business failure.
     
         #### The Solution: A Deliberate, Front-Loaded Strategic Choice
-        The choice of regulatory pathway is the most important **strategic business decision** a medical device company will make. It is a choice of which "mountain" to climb, and it must be made with eyes wide open at the very beginning of the project.
-        - **The 510(k) Path (The Foothills):** Faster and cheaper, but your claims are limited by your predicate.
-        - **The De Novo Path (The New Trail):** For novel, low-risk devices. More work than a 510(k) but avoids a PMA. You get to be the first.
-        - **The PMA Path (Mount Everest):** Incredibly long and expensive, but if you succeed, you have a powerful, defensible monopoly on a new technology.
+        The choice of regulatory pathway is the most important **strategic business decision** a medical device company will make. It must be made with eyes wide open at the very beginning of the project.
+        - **The 510(k) Path:** Faster and cheaper, but your claims are limited by your predicate.
+        - **The De Novo Path:** For novel, low-risk devices. More work than a 510(k) but avoids a PMA. You get to be the first.
+        - **The PMA Path:** Incredibly long and expensive, but if you succeed, you have a powerful, defensible monopoly.
     
         #### The Consequences: A Predictable Journey and Aligned Investment
-        - **Without This:** The project is a high-risk gamble based on a foundational assumption that may be completely wrong.
-        - **With This:** The company makes a **deliberate, informed, and strategic decision** on its regulatory pathway from Day 1. This aligns the entire organization on a single, realistic plan, dramatically increasing the probability of success.
+        A company that makes a **deliberate, informed, and strategic decision** on its regulatory pathway from Day 1 aligns the entire organization on a single, realistic plan, dramatically increasing the probability of success.
         """)
         
     with tabs_deep[1]:
@@ -7893,27 +7950,24 @@ def render_ivd_regulatory_framework():
         - **De Novo:** US pathway for novel, low-risk devices with no predicate.
         - **EUA:** US temporary authorization during a public health emergency.
         - **QSR (21 CFR 820):** The US FDA's cGMP requirements for medical devices.
-        - **CE Mark:** The mandatory conformity mark for products sold in the European Economic Area. It signifies that the manufacturer has verified the product complies with all applicable EU regulations.
-        - **Notified Body:** A third-party organization designated by an EU country to assess the conformity of certain products before being placed on the market. They perform the audit and grant the CE Mark for most devices (Class IIa, IIb, III).
-        - **MDR (Medical Device Regulation):** The new, more stringent regulation for medical devices in the EU (Regulation (EU) 2017/745).
-        - **IVDR (In Vitro Diagnostic Regulation):** The new, more stringent regulation for IVDs in the EU (Regulation (EU) 2017/746).
-        - **IMDRF (International Medical Device Regulators Forum):** The current global harmonization body, a successor to the GHTF, that develops standardized guidance for medical device regulation.
-        - **PMDA (Pharmaceuticals and Medical Devices Agency):** The primary regulatory agency in Japan, analogous to the FDA.
-        - **Shonin:** The term for pre-market approval in Japan.
-        - **MDSAP (Medical Device Single Audit Program):** A program that allows a single audit of a medical device manufacturer's QMS to satisfy the requirements of multiple regulatory jurisdictions (USA, Canada, Brazil, Australia, Japan).
+        - **CE Mark:** The mandatory conformity mark for products sold in the European Economic Area.
+        - **Notified Body:** A third-party organization designated by an EU country to audit a manufacturer's QMS and technical documentation and grant the CE Mark for most devices.
+        - **MDR/IVDR:** The new, more stringent regulations for medical devices and IVDs in the EU.
+        - **IMDRF:** The current global harmonization body that develops standardized guidance.
+        - **PMDA & MHLW:** The primary regulatory agency and ministry in Japan.
         """)
         
     with tabs_deep[2]:
         st.error("""🔴 **THE INCORRECT APPROACH: "RUO Creep"**
-A company sells a reagent kit labeled "For Research Use Only" (RUO). Their marketing materials and sales team, however, strongly imply or even directly state that the kit can be used by clinical labs to help in the diagnosis of a disease.
-- **The Flaw:** This is a major regulatory violation. They are illegally marketing an unapproved medical device. This "intended use creep" can lead to severe FDA enforcement action, including warning letters and product seizures.""")
+A company sells a reagent kit labeled "For Research Use Only" (RUO). Their marketing, however, strongly implies that the kit can be used by clinical labs to help in diagnosis.
+- **The Flaw:** This is a major regulatory violation. They are illegally marketing an unapproved medical device.""")
         st.success("""🟢 **THE GOLDEN RULE: Your Claims Define Your Device, and the Device Defines the Controls**
-The entire regulatory framework is built on a clear, logical cascade that you control.
-1.  **Your words (marketing, labeling, instructions) define the Intended Use.** You cannot hide from the claims you make about what your product does.
-2.  **The Intended Use defines the Risk Class.** A claim to diagnose a critical disease will always be higher risk than a claim to measure a routine health marker.
-3.  **The Risk Class defines the Regulatory Pathway (510(k) vs. PMA vs. CE Class).**
-4.  **The Regulatory Pathway defines the required Controls (e.g., Design Controls, Clinical Trials).**
-This chain is unbreakable. The process must start with a deliberate, documented, and consistently communicated Intended Use.""")
+The entire regulatory framework is built on a clear, logical cascade.
+1.  **Your words (marketing, labeling) define the Intended Use.**
+2.  **The Intended Use defines the Risk Class.**
+3.  **The Risk Class defines the Regulatory Pathway.**
+4.  **The Regulatory Pathway defines the required Controls.**
+This chain is unbreakable and must be managed from the start.""")
 
     with tabs_deep[3]:
         st.markdown("""
@@ -7921,21 +7975,16 @@ This chain is unbreakable. The process must start with a deliberate, documented,
         The US regulatory framework for medical devices was forged in response to public health crises.
         - **1938 FD&C Act:** Passed after the Elixir Sulfanilamide tragedy, it gave the FDA authority over drugs but left devices largely unregulated.
         - **1976 Medical Device Amendments:** The pivotal moment. Passed in response to catastrophic failures like the **Dalkon Shield IUD**, this act created the modern, risk-based framework: the **three-tiered classification system (Class I, II, III)** and the corresponding **510(k)** and **PMA** pathways.
-        - **1990 Safe Medical Devices Act:** Strengthened the FDA's authority and led to the creation of the mandatory **Design Controls** regulation to prevent failures from happening in the first place.
-        This history shows a clear legislative evolution from a reactive, post-market system to a proactive, pre-market, risk-based framework designed to ensure patient safety.
+        - **1990 Safe Medical Devices Act:** Strengthened the FDA's authority and led to the creation of the mandatory **Design Controls** regulation.
         """)
         
     with tabs_deep[4]:
         st.markdown("""
         This framework is built on a foundation of specific regulations in major global markets, which are harmonized by international standards.
         - **USA:** The **FD&C Act** and **21 CFR Parts 800-1299** (especially **Part 820**, the Quality System Regulation).
-        - **Europe:** The **MDR (EU 2017/745)** and **IVDR (EU 2017/746)** are the primary laws. Compliance is often demonstrated via adherence to harmonized standards.
-        - **Japan:** The **PMD Act** is the primary law, administered by the Ministry of Health, Labour and Welfare (MHLW) and the Pharmaceuticals and Medical Devices Agency (PMDA).
-        - **International Standards (The "How-To" Guides):**
-            - **ISO 13485:** The global standard for a Quality Management System.
-            - **ISO 14971:** The global standard for Risk Management.
-            - **IEC 62304:** The global standard for Software Lifecycle Processes.
-            - **IEC 62366:** The global standard for Usability / Human Factors Engineering.
+        - **Europe:** The **MDR (EU 2017/745)** and **IVDR (EU 2017/746)** are the primary laws.
+        - **Japan:** The **PMD Act** is the primary law, administered by the Ministry of Health, Labour and Welfare (MHLW).
+        - **International Standards:** **ISO 13485** (QMS), **ISO 14971** (Risk Management), and **IEC 62304** (Software) are key for global compliance.
         """)
 #============================================================================== 3. QUALITY RISK MANAGEMENT (FMEA) ========================================================
 def render_qrm_suite():
@@ -18121,10 +18170,12 @@ A robust HFE process is built on a foundation of deep empathy for the user and a
         - **IEC 62366-1:2015:** This is the international standard for the application of usability engineering to medical devices. Compliance with this standard is often used to demonstrate conformity with regulatory requirements in the EU and other regions.
         """)
 #========================================================================================== ENHACEMENTS ==========================================================================================
+# SNIPPET 1: This is the complete and correct rendering function for the Validation Plan Wizard.
+
 def render_validation_wizard():
     """Renders the interactive Validation Plan Wizard."""
     st.title("🧙‍♂️ Validation Plan Wizard")
-    st.markdown("Answer a few simple questions to get a recommended set of validation activities and tools from the Sentinel Toolkit.")
+    st.markdown("Answer a few simple questions to get a recommended set of validation activities and tools from the Sentinel Toolkit. Click a tool name in the recommendation to navigate directly to it.")
     
     q1 = st.selectbox("1. What is the primary object of your validation?", 
                       ["A new manufacturing process", "A new piece of lab equipment or an instrument", "A new analytical assay or method", "A new software system"])
@@ -18135,51 +18186,94 @@ def render_validation_wizard():
     st.divider()
     st.subheader("Recommended Validation Plan & Toolkit")
     
+    # --- Helper function for creating navigation buttons ---
+    def create_nav_button(tool_name):
+        if st.button(f"➔ {tool_name}"):
+            st.session_state.current_view = tool_name
+            st.rerun()
+
     with st.container(border=True):
         if "process" in q1 and "characterization" in q2:
-            st.markdown("""
-            **Focus:** Process Design & Characterization (FDA PV Stage 1)
-            - **Act 0 (Planning):** Start with a `TPP & CQA Cascade` and a `Quality Risk Management (FMEA)` study.
-            - **Act I (Characterization):** Use `Assay Robustness (DOE)` and `Process Optimization: From DOE to AI` to build a deep understanding and define a Design Space.
-            - **Act II (Early Capability):** Perform initial runs and assess stability with `Process Stability (SPC)` and `Process Capability (Cpk)`.
-            """)
+            st.markdown("**Focus:** Process Design & Characterization (FDA PV Stage 1)")
+            st.markdown("- **Act 0 (Planning):** Start with a `TPP & CQA Cascade` and a `Quality Risk Management (FMEA)` study.")
+            create_nav_button("TPP & CQA Cascade")
+            create_nav_button("Quality Risk Management (QRM) Suite")
+            st.markdown("- **Act I (Characterization):** Use `Assay Robustness (DOE)` and `Process Optimization: From DOE to AI` to build a deep understanding and define a Design Space.")
+            create_nav_button("Process Optimization: From DOE to AI")
+            st.markdown("- **Act II (Early Capability):** Perform initial runs and assess stability with `Process Stability (SPC)` and `Process Capability (Cpk)`.")
+            create_nav_button("Process Capability (Cpk)")
+
         elif "process" in q1 and "qualification" in q2:
-            st.markdown("""
-            **Focus:** Process Performance Qualification (PPQ) (FDA PV Stage 2)
-            - **Act 0 (Planning):** Finalize the `Validation Master Plan (VMP)` for the PPQ. Use `Sample Size for Qualification` to justify your sampling plan.
-            - **Act II (Execution & Analysis):** Execute the PPQ runs. Analyze the results for `Process Stability (SPC)` and `Process Capability (Cpk)`. Use `Tolerance Intervals` to set release specifications.
-            """)
+            st.markdown("**Focus:** Process Performance Qualification (PPQ) (FDA PV Stage 2)")
+            st.markdown("- **Act 0 (Planning):** Finalize the `Validation Master Plan (VMP)`. Use `Sample Size for Qualification` to justify your sampling plan.")
+            create_nav_button("Validation Master Plan (VMP) Builder")
+            create_nav_button("Sample Size for Qualification")
+            st.markdown("- **Act II (Execution & Analysis):** Execute the PPQ runs. Analyze the results for `Process Stability (SPC)` and `Process Capability (Cpk)`. Use `Tolerance Intervals` to set release specifications.")
+            create_nav_button("Process Stability (SPC)")
+            create_nav_button("Process Capability (Cpk)")
+            create_nav_button("Tolerance Intervals")
+
         elif "instrument" in q1 and "qualification" in q2:
-            st.markdown("""
-            **Focus:** Instrument IQ/OQ/PQ
-            - **Act 0 (Planning):** Define the `Analytical Target Profile (ATP)` (serves as URS). Perform a `Quality Risk Management (FMEA)` on the instrument. Execute `FAT & SAT`.
-            - **Act I (Characterization):** Assess the instrument's measurement system with `Gage R&R / VCA`.
-            - **Act II (Qualification):** Execute the formal IQ/OQ/PQ protocols. Analyze PQ data using `Process Stability (SPC)`.
-            """)
+            st.markdown("**Focus:** Instrument IQ/OQ/PQ")
+            st.markdown("- **Act 0 (Planning):** Define the `Analytical Target Profile (ATP)` (serves as URS). Perform a `Quality Risk Management (FMEA)` on the instrument. Execute `FAT & SAT`.")
+            create_nav_button("Analytical Target Profile (ATP) Builder")
+            create_nav_button("FAT & SAT")
+            st.markdown("- **Act I (Characterization):** Assess the instrument's measurement system with `Gage R&R / VCA`.")
+            create_nav_button("Gage R&R / VCA")
+            st.markdown("- **Act II (Qualification):** Execute the formal IQ/OQ/PQ protocols. Analyze PQ data using `Process Stability (SPC)`.")
+            create_nav_button("Process Stability (SPC)")
         else:
             st.markdown("Select a combination to see a recommended plan.")
-
+#================================================================================ CASE STUDY LIBRARY ========================================================================================================
 def render_case_study_library():
-    """Renders the Case Study Library page."""
+    """Renders the Case Study Library hub page."""
     st.title("📚 Case Study Library")
-    st.markdown("Explore end-to-end V&V workflows through these realistic case studies. Selecting a case will pre-populate the relevant tools with a consistent dataset, guiding you through the narrative.")
-    
-    st.subheader("Case Study 1: Tech Transfer of a Monoclonal Antibody")
-    st.markdown("Follow the journey of transferring a validated biopharmaceutical process from an R&D facility to a new commercial manufacturing site. This case focuses on proving statistical equivalence.")
-    if st.button("Start Case Study: MAb Tech Transfer"):
-        st.session_state['active_case'] = 'mab_transfer'
-        st.success("MAb Tech Transfer case study is now active! Navigate to tools like 'Equivalence Testing' or 'Statistical Equivalence for Process Transfer' to see the case data.")
+    st.markdown("Explore end-to-end V&V workflows through these realistic case studies. Selecting a case will provide a step-by-step guided tour through the relevant tools in the Sentinel.")
+    st.divider()
+
+    if 'case_study' not in st.session_state:
+        st.session_state.case_study = {"active_case": None, "current_step": 0}
+
+    # --- Case Selection Area ---
+    case_key = st.selectbox(
+        "Select a Case Study to Begin:",
+        options=list(CASE_STUDIES.keys()),
+        format_func=lambda k: CASE_STUDIES[k]['title'],
+        index=None,
+        placeholder="Choose a scenario..."
+    )
+    if st.button("🚀 Start Selected Case Study", disabled=not case_key, type="primary"):
+        st.session_state.case_study['active_case'] = case_key
+        st.session_state.case_study['current_step'] = 0
+        st.rerun()
+
+    # --- Active Case Display Area ---
+    active_case_key = st.session_state.case_study.get('active_case')
+    if active_case_key:
+        case = CASE_STUDIES[active_case_key]
+        st.header(case['title'])
+        st.markdown(f"**Scenario:** {case['description']}")
         
-    st.subheader("Case Study 2: Validation of a New Point-of-Care IVD")
-    st.markdown("Experience the challenges of validating a new Class II diagnostic device. This case focuses on analytical validation, human factors, and the 510(k) pathway.")
-    if st.button("Start Case Study: IVD Validation"):
-        st.session_state['active_case'] = 'ivd_validation'
-        st.success("IVD Validation case study is now active! Navigate to tools like 'Comprehensive Diagnostic Validation' or 'Usability & HFE' to see the case data.")
+        if st.button("↩️ End Case Study & Return to Library"):
+            st.session_state.case_study = {"active_case": None, "current_step": 0}
+            st.rerun()
+            
+        st.subheader("Project Timeline & Toolkit")
+        for i, step in enumerate(case['steps']):
+            with st.container(border=True):
+                col1, col2 = st.columns([0.8, 0.2])
+                with col1:
+                    st.markdown(f"##### {i+1}. {step['title']} `({step['act']})`")
+                    st.markdown(step['explanation'])
+                with col2:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.button(f"Go to Step {i+1} →", key=f"goto_{active_case_key}_{i}", use_container_width=True):
+                        st.session_state.case_study['current_step'] = i
+                        st.session_state.current_view = step['target_tool']
+                        st.rerun()
 
-# SNIPPET: Replace the entire render_doc_control function with this new, advanced version.
 
-# SNIPPET: Replace the entire render_doc_control function with this definitive, corrected version.
-
+#=========================================================================================== DOC CONTROL =======================================================================================================
 def render_doc_control():
     """Renders the comprehensive, interactive module for Document Control & Training Management."""
     st.markdown("""
@@ -18345,7 +18439,7 @@ def render_doc_control():
 
         st.subheader("Live Audit Trail")
         st.code("\n".join(sim['audit_trail'][-5:]), language="markdown")
-
+#====================================================================================  A U D I T ==================================================================================================
 def render_audit_readiness():
     """Renders the Audit Readiness & Inspection Management module."""
     st.title("🕵️ Audit Readiness & Inspection Management")
@@ -18355,11 +18449,11 @@ def render_audit_readiness():
     with col1:
         st.subheader("Self-Assessment Score")
         scores = {
-            'QMS & Documentation': st.slider("QMS & Documentation", 0, 10, 8),
-            'Design Controls & DHF': st.slider("Design Controls & DHF", 0, 10, 7),
-            'Process Validation': st.slider("Process Validation", 0, 10, 9),
-            'Method Validation': st.slider("Method Validation", 0, 10, 6),
-            'Data Integrity': st.slider("Data Integrity", 0, 10, 8)
+            'QMS & Documentation': st.slider("QMS & Documentation", 0, 10, 8, key="audit_qms"),
+            'Design Controls & DHF': st.slider("Design Controls & DHF", 0, 10, 7, key="audit_dhf"),
+            'Process Validation': st.slider("Process Validation", 0, 10, 9, key="audit_pv"),
+            'Method Validation': st.slider("Method Validation", 0, 10, 6, key="audit_mv"),
+            'Data Integrity': st.slider("Data Integrity", 0, 10, 8, key="audit_di")
         }
         st.plotly_chart(plot_audit_readiness_spider(scores), use_container_width=True)
         
@@ -18368,17 +18462,37 @@ def render_audit_readiness():
         auditor_question = st.selectbox("Select a typical auditor question:",
             ["How do you know your measurement system is reliable?",
              "Show me the evidence that your process consistently meets quality targets.",
-             "How did you justify the sampling plan for your PPQ?"])
+             "How did you justify the sampling plan for your PPQ?",
+             "How do you demonstrate comparability after a site transfer?"])
         
         with st.container(border=True):
             st.write(f"**Auditor:** '{auditor_question}'")
-            if "measurement system" in auditor_question:
-                st.success("**Your Answer:** 'We perform a **Gage R&R / VCA** study as part of our method validation. This provides objective evidence that our measurement system's variability is acceptable for its intended use.'")
-            elif "consistently meets quality" in auditor_question:
-                st.success("**Your Answer:** 'During our PPQ, we demonstrated that the process is stable using **Process Stability (SPC)** charts and capable of meeting specifications with a Cpk well above 1.33, as shown in our **Process Capability (Cpk)** analysis.'")
-            elif "sampling plan" in auditor_question:
-                st.success("**Your Answer:** 'The sampling plan was statistically derived using the **Sample Size for Qualification** tool, based on a pre-defined confidence and reliability requirement of 95%/99%.'")
+            st.markdown("---")
+            st.write("**Your Response:** 'The objective evidence for that is generated using the following tool from our V&V toolkit...'")
 
+            # The quiz logic
+            tool_options = [
+                "Gage R&R / VCA", "Process Capability (Cpk)", 
+                "Sample Size for Qualification", "Equivalence Testing (TOST)"
+            ]
+            correct_answers = {
+                "How do you know your measurement system is reliable?": "Gage R&R / VCA",
+                "Show me the evidence that your process consistently meets quality targets.": "Process Capability (Cpk)",
+                "How did you justify the sampling plan for your PPQ?": "Sample Size for Qualification",
+                "How do you demonstrate comparability after a site transfer?": "Equivalence Testing (TOST)"
+            }
+            
+            user_choice = st.selectbox("Select the correct tool to provide as evidence:", tool_options)
+            
+            if st.button("Submit Response"):
+                if user_choice == correct_answers[auditor_question]:
+                    st.success(f"**Correct!** The `{user_choice}` tool provides the direct, objective evidence to answer this question.")
+                else:
+                    st.error(f"**Incorrect.** While related, the best evidence comes from the `{correct_answers[auditor_question]}` tool. The `{user_choice}` tool is used for a different purpose.")
+
+
+
+#=============================================================================== SIDEBAR CONTROLS ===================================================================================================
 st.sidebar.divider()
 st.sidebar.subheader("GUIDES & SIMULATORS")
 if st.sidebar.button("🧙‍♂️ Validation Plan Wizard", use_container_width=True):
@@ -18394,6 +18508,91 @@ if st.sidebar.button("🕵️ Audit Readiness Sim", use_container_width=True):
     st.session_state.current_view = 'Audit Readiness Sim'
     st.rerun()
 st.sidebar.divider()
+
+#============================================================================================= CASE STUDIES =====================================================================================================
+# SNIPPET 1: Add this entire data dictionary to your app.py file, e.g., after the CSS section.
+
+CASE_STUDIES = {
+    "mab_transfer": {
+        "title": "Case Study: Tech Transfer of a Monoclonal Antibody",
+        "description": "Follow the journey of transferring a validated biopharmaceutical process for 'BioMab' from an R&D facility to a new commercial manufacturing site. This case focuses on proving statistical equivalence and ensuring process control.",
+        "steps": [
+            {
+                "act": "Act 0", "title": "Initial Risk Assessment", "target_tool": "Quality Risk Management (QRM) Suite",
+                "explanation": "Before the transfer, we conduct an FMEA to identify the highest-risk failure modes. We've identified that the chromatography step is critical and highly sensitive to operational differences between sites.",
+                "params": {"project_type": "Pharma Process (MAb)", "tool_choice": "FMEA"}
+            },
+            {
+                "act": "Act II", "title": "Baseline Performance at Site A", "target_tool": "Process Capability (Cpk)",
+                "explanation": "We need a baseline of our 'golden' process. We analyze data from the last 30 batches at the R&D site (Site A) to confirm it is stable and highly capable (Cpk > 1.67). This is our benchmark.",
+                "params": {"scenario": "Ideal (High Cpk)"}
+            },
+            {
+                "act": "Act II", "title": "PPQ at the New Site B", "target_tool": "Process Capability (Cpk)",
+                "explanation": "The first three PPQ batches at the new site (Site B) are complete. The process is stable, but the data shows a slight upward shift and increased variability compared to Site A. While still capable (Cpk > 1.33), is it equivalent?",
+                "params": {"scenario": "Shifted (Low Cpk)"}
+            },
+            {
+                "act": "Act II", "title": "Statistical Equivalence Verdict", "target_tool": "Statistical Equivalence for Process Transfer",
+                "explanation": "This is the final exam. We use a formal equivalence test on the Cpk values from both sites. The 90% confidence interval for the difference must fall entirely within our pre-defined margin of ±0.20 Cpk units.",
+                "params": {"cpk_site_a": 1.67, "mean_shift": 1.2, "var_change_factor": 1.3, "n_samples": 100, "margin": 0.20}
+            }
+        ]
+    },
+    "ivd_dev": {
+        "title": "Case Study: Validation of a New Point-of-Care IVD",
+        "description": "Experience the development and validation journey for 'CancerDetect,' a new Class II, software-driven point-of-care diagnostic device for an early-stage cancer biomarker.",
+        "steps": [
+            {
+                "act": "Act 0", "title": "Determine Regulatory Pathway", "target_tool": "IVD & Medical Device Regulatory Framework",
+                "explanation": "Our first step is strategic. As a moderate-risk device with a similar predicate on the market, we determine the 510(k) pathway is the most appropriate for our 'CancerDetect' POC device.",
+                "params": {"product_concept": "Point-of-Care (POC) Device"}
+            },
+            {
+                "act": "Act 0", "title": "Define the 'Contract'", "target_tool": "Analytical Target Profile (ATP) Builder",
+                "explanation": "We create the ATP, our formal 'contract' for the device's performance. The team agrees we need at least 98% clinical sensitivity and 99% specificity to be commercially viable.",
+                "params": {"project_type": "IVD Kit (ELISA)", "atp_values": [98.0, 99.0, 15.0, 7, 18], "show_results": False}
+            },
+            {
+                "act": "Act I", "title": "Assay Characterization (ROC)", "target_tool": "ROC Curve Analysis",
+                "explanation": "Early R&D data is used to generate an ROC curve. The excellent AUC of 0.978 gives us confidence that our chosen reagents can meet the ATP targets. We select an initial cutoff that prioritizes high sensitivity.",
+                "params": {"diseased_mean": 75.0, "population_sd": 10.0, "cutoff": 58}
+            },
+            {
+                "act": "Act I", "title": "Usability Validation (HFE)", "target_tool": "Usability & Human Factors Engineering (HFE)",
+                "explanation": "A summative usability study is conducted with 30 nurses. The results show a high SUS score, but the Task Failure Analysis reveals a critical issue: users are frequently making errors during the 'Run Sample' step. This use error must be mitigated via a design change before the 510(k) submission.",
+                "params": {"design_clarity": 6, "task_complexity": 8}
+            }
+        ]
+    },
+    "ai_lifecycle": {
+        "title": "Case Study: AI Model Lifecycle Management",
+        "description": "Deploy and manage an AI model used for Predictive QC in a commercial manufacturing process. This case study covers model validation, real-time monitoring, and proactive control.",
+        "steps": [
+            {
+                "act": "Act I", "title": "Model Development & Selection", "target_tool": "Predictive Modeling Suite",
+                "explanation": "We need to predict batch failures based on two in-process parameters. The relationship is non-linear, so a simple Logistic Regression fails (low AUC). A well-tuned MLP Neural Network provides the best predictive performance.",
+                "params": {"boundary_radius": 8, "mlp_params": {'layers': (64, 32), 'activation': 'relu', 'learning_rate': 0.001}}
+            },
+            {
+                "act": "Act III", "title": "Model Validation (XAI)", "target_tool": "Explainable AI (XAI)",
+                "explanation": "Before deploying, we use XAI to validate the model's logic. The SHAP plots confirm it's using scientifically valid features (like 'Reagent Age') and not spurious correlations, satisfying a key GMLP requirement.",
+                "params": {"case_to_explain": "highest_risk", "dependence_feature": "Reagent Age (Days)"}
+            },
+            {
+                "act": "Act III", "title": "Real-Time Monitoring (Digital Twin)", "target_tool": "Digital Twin & Real-Time Simulation",
+                "explanation": "The validated AI model is deployed as a Digital Twin. It monitors the live process, and when a fault is injected at Time=50, the twin's forecast diverges, and the Health Score immediately alarms.",
+                "params": {"fault_type": "Shift", "fault_magnitude": 6.0, "fault_time": 50}
+            },
+            {
+                "act": "Act III", "title": "Proactive Control (MPC)", "target_tool": "Model Predictive Control (MPC)",
+                "explanation": "The final evolution. The Digital Twin is now used as the engine for an MPC system. The MPC uses the twin's predictions to act *proactively*, resulting in much tighter control and stability compared to a reactive system.",
+                "params": {"disturbance_size": 5.0, "control_aggressiveness": 0.6}
+            }
+        ]
+    }
+}
+
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
 # ==============================================================================
@@ -18408,9 +18607,23 @@ with st.sidebar:
     
     if st.sidebar.button("🚀 Project Framework", use_container_width=True):
         st.session_state.current_view = 'Introduction'
+        if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
         st.rerun()
 
-    # --- ADD THIS NEW SEARCH BUTTON ---
+    # --- NEW: Conditional "Return to Hub" button ---
+    if st.session_state.get('case_study', {}).get('active_case'):
+        if st.sidebar.button("📚 Return to Case Study Hub", use_container_width=True, type="primary"):
+            st.session_state.current_view = 'Case Study Library'
+            st.rerun()
+    else:
+        # Show the normal library button if no case is active
+        if st.sidebar.button("📚 Case Study Library", use_container_width=True):
+            st.session_state.current_view = 'Case Study Library'
+            st.rerun()
+
+    
+
+    # --- SEARCH BUTTON ---
     if st.sidebar.button("🔎 Search Toolkit", use_container_width=True):
         st.session_state.current_view = 'Search'
         st.rerun()

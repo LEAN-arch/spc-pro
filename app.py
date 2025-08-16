@@ -19589,18 +19589,17 @@ with st.sidebar:
                 st.rerun()
                 
     else: # It's an Act
-        act_key = f"{selected_act}: PLANNING & STRATEGY" if selected_act == "Act 0" else \
-                  f"{selected_act}: FOUNDATION & CHARACTERIZATION" if selected_act == "Act I" else \
-                  f"{selected_act}: TRANSFER & STABILITY" if selected_act == "Act II" else \
-                  f"{selected_act}: LIFECYCLE & PREDICTIVE MGMT"
+        # --- THIS IS THE DEFINITIVE FIX ---
+        # 1. Make the search case-insensitive by converting both strings to uppercase.
+        # 2. Add a safety check in case the list is empty (it shouldn't be, but this is robust).
+        matching_keys = [k for k in all_tools.keys() if k.upper().startswith(selected_act.upper())]
         
-        # This is a small hack to find the full key name
-        full_act_key = [k for k in all_tools.keys() if k.startswith(selected_act)][0]
-        
-        for tool in all_tools[full_act_key]:
-            if st.button(tool, use_container_width=True):
-                st.session_state.current_view = tool
-                # Always reset case study when manually selecting a tool
-                if 'case_study' in st.session_state:
-                    st.session_state.case_study['active_case'] = None
-                st.rerun()
+        if matching_keys:
+            full_act_key = matching_keys[0]
+            for tool in all_tools[full_act_key]:
+                if st.button(tool, use_container_width=True, key=f"nav_{tool}"):
+                    st.session_state.current_view = tool
+                    # Always reset case study when manually selecting a tool
+                    if 'case_study' in st.session_state:
+                        st.session_state.case_study['active_case'] = None
+                    st.rerun()

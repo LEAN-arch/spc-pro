@@ -1,15 +1,16 @@
-# FILE: reporting_utils.py (Corrected and Robust Version)
+# FILE: reporting_utils.py (Final Robust Version)
 
 import streamlit as st
 import io
 from fpdf import FPDF
 from pptx import Presentation
-from pptx.util import Inches
+from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 
 # ==============================================================================
-# PDF REPORTING ENGINE (Corrected)
+# PDF REPORTING ENGINE (Corrected for Text Overflow)
 # ==============================================================================
 class PDF(FPDF):
     """Custom PDF class with a header and footer for professional reports."""
@@ -24,12 +25,12 @@ class PDF(FPDF):
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
 def generate_pdf_report(title, kpis, figures):
-    """Generates a multi-page PDF report from KPIs and figures."""
+    """Generates a multi-page PDF report with robust text handling."""
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
     clean_title = title.encode('latin-1', 'replace').decode('latin-1')
-    pdf.cell(0, 10, clean_title, ln=1, align='C')
+    pdf.multi_cell(0, 10, clean_title, align='C')
     pdf.ln(10)
 
     if kpis:
@@ -37,11 +38,14 @@ def generate_pdf_report(title, kpis, figures):
         pdf.cell(0, 10, "Key Performance Indicators & Summary", ln=1, align='L')
         pdf.set_font("Arial", '', 10)
         for key, value in kpis.items():
+            # --- THIS IS THE FIX FOR THE PDF ERROR ---
+            # Use a flexible layout that cannot overflow.
             pdf.set_font("Arial", 'B', 10)
-            pdf.cell(60, 8, f"{key}:", align='L')
+            pdf.multi_cell(0, 8, f"{key}:", align='L')
             pdf.set_font("Arial", '', 10)
             clean_value = str(value).encode('latin-1', 'replace').decode('latin-1')
-            pdf.multi_cell(0, 8, clean_value, align='L')
+            pdf.multi_cell(0, 8, f"  {clean_value}", align='L') # Indent value for clarity
+            pdf.ln(2)
         pdf.ln(10)
 
     if figures:
@@ -62,12 +66,12 @@ def generate_pdf_report(title, kpis, figures):
                 pdf.ln(5)
             except Exception as e:
                 pdf.set_text_color(255, 0, 0)
-                pdf.cell(0, 8, f"Error rendering '{clean_fig_title}': {e}", ln=1, align='L')
+                pdf.multi_cell(0, 8, f"Error rendering '{clean_fig_title}': {e}", align='L')
                 pdf.set_text_color(0, 0, 0)
     return pdf.output(dest='S').encode('latin-1')
 
 # ==============================================================================
-# POWERPOINT REPORTING ENGINE (Corrected)
+# POWERPOINT REPORTING ENGINE (Corrected for Environment Errors)
 # ==============================================================================
 def generate_pptx_report(title, kpis, figures):
     """Generates a multi-slide PowerPoint report with robust error handling."""
@@ -84,15 +88,16 @@ def generate_pptx_report(title, kpis, figures):
         for key, value in kpis.items():
             p = tf.add_paragraph()
             p.text = f"{key}: "
-            p.font.bold = True
+            p.font.bold = True; p.font.size = Pt(14)
             runner = p.add_run()
             runner.text = str(value)
-        tf.fit_text(font_family='Arial', max_size=16)
+            runner.font.bold = False; runner.font.size = Pt(14)
+        tf.fit_text(font_family='Arial', max_size=18)
 
     if figures:
         for fig_title, fig in figures.items():
             slide = prs.slides.add_slide(prs.slide_layouts[5])
-            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.8))
+            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.5))
             title_box.text_frame.text = fig_title
             try:
                 img_bytes = io.BytesIO()
@@ -100,24 +105,26 @@ def generate_pptx_report(title, kpis, figures):
                 elif isinstance(fig, plt.Figure): fig.savefig(img_bytes, format='png', bbox_inches='tight', dpi=200)
                 else: img_bytes = fig
                 img_bytes.seek(0)
-                slide.shapes.add_picture(img_bytes, Inches(0.5), Inches(1.2), width=Inches(9.0))
+                slide.shapes.add_picture(img_bytes, Inches(0.5), Inches(1.0), width=Inches(9.0))
             except Exception as e:
-                # THIS IS THE ROBUST FALLBACK FOR THE PPTX ERROR
-                err_box = slide.shapes.add_textbox(Inches(1), Inches(3), Inches(8), Inches(2))
+                # --- THIS IS THE FIX FOR THE PPTX ERROR ---
+                # Provide a clear, user-friendly error message on the slide itself.
+                err_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4))
                 tf = err_box.text_frame
-                p1 = tf.add_paragraph()
-                p1.text = f"Error rendering '{fig_title}'"; p1.font.bold = True
-                p2 = tf.add_paragraph()
-                p2.text = "This is likely due to an incompatibility with the 'Kaleido' image rendering engine in the deployment environment."
-                p3 = tf.add_paragraph()
-                p3.text = f"Details: {e}"
+                tf.clear()
+                p1 = tf.add_paragraph(); p1.text = f"Error Rendering: '{fig_title}'"; p1.font.bold = True; p1.font.size = Pt(24)
+                p2 = tf.add_paragraph(); p2.text = "\nRoot Cause:"; p2.font.bold = True; p2.font.size = Pt(18)
+                p3 = tf.add_paragraph(); p3.text = "The 'Kaleido' image rendering engine is not compatible with the current operating system environment (e.g., Streamlit Community Cloud)."; p3.font.size = Pt(14)
+                p4 = tf.add_paragraph(); p4.text = "\nAction:"; p4.font.bold = True; p4.font.size = Pt(18)
+                p5 = tf.add_paragraph(); p5.text = "Please run this application on a local machine (Windows/macOS) to generate reports containing Plotly charts."; p5.font.size = Pt(14)
+                p6 = tf.add_paragraph(); p6.text = f"\nDetails: {e}"; p6.font.size = Pt(8)
 
     pptx_buffer = io.BytesIO()
     prs.save(pptx_buffer)
     return pptx_buffer.getvalue()
 
 # ==============================================================================
-# MASTER UI RENDERING FUNCTION (Unchanged but relies on fixes above)
+# MASTER UI RENDERING FUNCTION (Unchanged)
 # ==============================================================================
 def render_reporting_section(report_title, kpis, figures):
     """Renders the entire reporting UI section with download buttons."""
@@ -129,12 +136,16 @@ def render_reporting_section(report_title, kpis, figures):
         clean_title = report_title.replace(" ", "_").replace(":", "").replace("/", "_")
         
         with pdf_col:
+            # Use a unique key for each button to prevent state conflicts
+            pdf_key = f"pdf_{clean_title}"
             try:
                 pdf_bytes = generate_pdf_report(report_title, kpis, figures)
-                st.download_button("📄 Download PDF Report", pdf_bytes, f"{clean_title}.pdf", "application/pdf", use_container_width=True, key=f"pdf_{clean_title}")
+                st.download_button("📄 Download PDF Report", pdf_bytes, f"{clean_title}.pdf", "application/pdf", use_container_width=True, key=pdf_key)
             except Exception as e: st.error(f"PDF Error: {e}")
         with pptx_col:
+            # Use a unique key for each button
+            pptx_key = f"pptx_{clean_title}"
             try:
                 pptx_bytes = generate_pptx_report(report_title, kpis, figures)
-                st.download_button("📊 Download PowerPoint Report", pptx_bytes, f"{clean_title}.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", use_container_width=True, key=f"pptx_{clean_title}")
+                st.download_button("📊 Download PowerPoint Report", pptx_bytes, f"{clean_title}.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", use_container_width=True, key=pptx_key)
             except Exception as e: st.error(f"PPTX Error: {e}")

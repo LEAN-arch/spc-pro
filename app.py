@@ -18530,123 +18530,106 @@ def render_doc_control():
     **Strategic Application:** This is a training and process-mapping tool for understanding the "gears" of a compliant QMS. It demonstrates how a single change request can trigger a cascade of activities, consuming resources and impacting operational readiness.
     """)
     st.info("""
-    **Interactive Demo:** You are the **Quality System Owner**. Your goal is to implement a high-risk change to the manufacturing process.
-    1.  Start at the **Change Control Board** and `Create` a new Change Request (CR) for the Process SOP.
-    2.  Use the **User Actions** to move the prerequisite documents (`CAL-002`, `TM-101`) through their approval lifecycle first.
-    3.  Once the prerequisites are `Effective`, approve the high-risk Process SOP (`SOP-001`). Notice that this triggers a **Re-Validation Requirement**.
-    4.  "Execute" the validation and then make the SOP `Effective`. This will trigger new **Training Requirements**.
-    5.  "Train" the operators and watch the **Production Readiness Dashboard** and **Time & Cost Tracker** update in real-time.
+    **Interactive Demo:** You are the **Quality System Owner**.
+    1.  Select a **Change Scenario** to load a realistic set of interconnected documents and requirements.
+    2.  Use the **User Actions** to move documents through their approval lifecycle. Note the dependencies—you cannot make a process SOP effective until its supporting test methods and instrument procedures are also effective.
+    3.  Observe how high-risk changes trigger re-validation, and how making a document effective assigns training to the relevant roles.
+    4.  Track your progress and resource consumption in the dashboards on the right.
     """)
 
-    # --- Session State Initialization for the Advanced Simulation ---
-    if 'qms_sim' not in st.session_state:
-        st.session_state.qms_sim = {
+    # --- NEW, MORE COMPLEX SCENARIO DEFINITIONS ---
+    SCENARIOS = {
+        "new_press": {
+            "title": "Implement New High-Speed Tablet Press",
             "docs": {
-                "SOP-001 Rev B (Process)": {"status": "Draft", "base": "SOP-001", "prereq": ["TM-101", "CAL-002"]},
-                "TM-101 Rev C (Test Method)": {"status": "Draft", "base": "TM-101", "prereq": []},
-                "CAL-002 Rev B (Instrument)": {"status": "Draft", "base": "CAL-002", "prereq": []},
+                "SOP-MFG-001 Rev B": {"status": "Draft", "base": "SOP-MFG-001", "prereq": ["TM-QC-101"], "roles": ["Operator"]},
+                "TM-QC-101 Rev C": {"status": "Draft", "base": "TM-QC-101", "prereq": ["SOP-INST-203"], "roles": ["QC Analyst"]},
+                "SOP-INST-203 Rev B": {"status": "Draft", "base": "SOP-INST-203", "prereq": ["CAL-INST-203"], "roles": ["QC Analyst"]},
+                "CAL-INST-203 Rev B": {"status": "Draft", "base": "CAL-INST-203", "prereq": [], "roles": ["Metrology"]},
             },
-            "training": {
-                "Alice": {"SOP-001 Rev A": "Complete", "TM-101 Rev B": "Complete", "CAL-002 Rev A": "Complete"},
-                "Bob": {"SOP-001 Rev A": "Complete", "TM-101 Rev B": "Complete", "CAL-002 Rev A": "Complete"},
-                "Charlie": {"SOP-001 Rev A": "Complete", "TM-101 Rev B": "Complete", "CAL-002 Rev A": "Complete"},
+            "risk": "High"
+        },
+        "tighten_spec": {
+            "title": "Tighten Release Specification for Impurity X",
+            "docs": {
+                "SPEC-005 Rev C": {"status": "Draft", "base": "SPEC-005", "prereq": ["TM-QC-102"], "roles": ["QA Specialist", "QC Analyst"]},
+                "TM-QC-102 Rev D": {"status": "Draft", "base": "TM-QC-102", "prereq": [], "roles": ["QC Analyst"]},
             },
-            "change_requests": {},
-            "audit_trail": ["- [INIT] QMS Simulation Initialized."],
-            "effective_revs": {"SOP-001": "A", "TM-101": "B", "CAL-002": "A"},
-            "cost": 0,
-            "time": 0,
-            "validation_needed": False
+            "risk": "Medium"
         }
-    sim = st.session_state.qms_sim
+    }
 
-    # --- Main Layout ---
+    # --- Session State Initialization ---
+    def initialize_simulation(scenario_key):
+        scenario = SCENARIOS[scenario_key]
+        st.session_state.qms_sim = {
+            "scenario": scenario_key,
+            "docs": scenario['docs'],
+            "training": {
+                "Operator": {"SOP-MFG-001 Rev A": "Complete"},
+                "QC Analyst": {"TM-QC-101 Rev B": "Complete", "SOP-INST-203 Rev A": "Complete"},
+                "Metrology": {"CAL-INST-203 Rev A": "Complete"},
+                "QA Specialist": {"SPEC-005 Rev B": "Complete"}
+            },
+            "audit_trail": [f"- [INIT] Scenario '{scenario['title']}' loaded."],
+            "effective_revs": {
+                "SOP-MFG-001": "A", "TM-QC-101": "B", "SOP-INST-203": "A",
+                "CAL-INST-203": "A", "SPEC-005": "B", "TM-QC-102": "C"
+            },
+            "cost": 0, "time": 0,
+            "validation_needed": scenario['risk'] == "High"
+        }
+
+    # --- Main App Logic ---
+    if 'qms_sim' not in st.session_state:
+        initialize_simulation("new_press")
+    
+    scenario_choice = st.selectbox("Select a Change Scenario:", options=list(SCENARIOS.keys()), format_func=lambda k: SCENARIOS[k]['title'])
+    if st.session_state.qms_sim.get("scenario") != scenario_choice:
+        initialize_simulation(scenario_choice)
+        st.toast(f"Loaded scenario: {SCENARIOS[scenario_choice]['title']}", icon="🔄")
+        st.rerun()
+
+    sim = st.session_state.qms_sim
     col1, col2 = st.columns([0.6, 0.4])
 
     with col1:
-        st.subheader("Change Control Board")
-        cr_doc = st.selectbox("Select Document for New Change Request (CR)", list(sim['docs'].keys()))
-        cr_risk = st.radio("Change Risk Level", ["Low (Typo, Clarification)", "Medium (Parameter Change)", "High (New Equipment/Process)"], horizontal=True, index=2)
-        
-        if st.button("📝 Create Change Request", disabled=(cr_doc in sim['change_requests'])):
-            sim['change_requests'][cr_doc] = {'risk': cr_risk, 'status': 'Open'}
-            sim['audit_trail'].append(f"- [CHANGE] CR opened for {cr_doc} (Risk: {cr_risk.split(' ')[0]}).")
-            sim['time'] += 4
-            sim['cost'] += 500
-            st.rerun()
-
         st.subheader("Document Control Workflow")
         for doc, props in sim['docs'].items():
-            status_colors = {"Draft": "grey", "In Review": "orange", "Approved": "blue", "Effective": "green", "Blocked": "red"}
             status = props['status']
-            
-            # More robust prerequisite check
-            prereqs_met = True
-            for prereq_base in props.get('prereq', []):
-                effective_rev_num = sim['effective_revs'].get(prereq_base)
-                if not effective_rev_num:
-                    prereqs_met = False
-                    break
-                prereq_doc_full_name = next((d for d in sim['docs'] if d.startswith(f"{prereq_base} Rev {effective_rev_num}")), None)
-                if not prereq_doc_full_name or sim['docs'].get(prereq_doc_full_name, {}).get('status') != "Effective":
-                    prereqs_met = False
-                    break
-            
+            prereqs_met = all(sim['docs'].get(f"{prereq_base} Rev {sim['effective_revs'].get(prereq_base)}", {}).get('status') == "Effective" for prereq_base in props.get('prereq', []))
+
             if status == "Approved" and not prereqs_met:
                 status = "Blocked"
-
-            st.markdown(f"**{doc}**: <span style='color:{status_colors.get(status, 'grey')}; font-weight:bold;'>{status}</span>", unsafe_allow_html=True)
+            
+            st.markdown(f"**{doc}**: <span style='color: {'green' if status=='Effective' else 'red' if status=='Blocked' else 'orange' if status=='In Review' else 'blue' if status=='Approved' else 'grey'}; font-weight:bold;'>{status}</span>", unsafe_allow_html=True)
+            if status == "Blocked":
+                st.caption(f"Reason: Prerequisite document(s) are not yet effective.")
             
             action_cols = st.columns(5)
-            cr_open = doc in sim['change_requests']
-            
             if props['status'] == "Draft":
-                if action_cols[0].button("Submit for Review", key=f"submit_{doc}", use_container_width=True, disabled=not cr_open):
-                    props['status'] = "In Review"; sim['audit_trail'].append(f"- [AUTHOR] {doc} submitted."); sim['time'] += 8; sim['cost'] += 1000; st.rerun()
+                if action_cols[0].button("Submit for Review", key=f"submit_{doc}", use_container_width=True):
+                    props['status'] = "In Review"; sim['time'] += 8; sim['cost'] += 1000; st.rerun()
             elif props['status'] == "In Review":
-                if action_cols[0].button("Approve (QA)", key=f"approve_{doc}", use_container_width=True, disabled=not cr_open):
-                    props['status'] = "Approved"; sim['audit_trail'].append(f"- [QA] {doc} approved."); sim['time'] += 16; sim['cost'] += 2000
-                    if sim['change_requests'][doc]['risk'] == "High (New Equipment/Process)":
-                        sim['validation_needed'] = True
-                        sim['audit_trail'].append(f"- [SYSTEM] High-risk change on {doc} triggers re-validation requirement.")
-                    st.rerun()
-                if action_cols[1].button("Reject", key=f"reject_{doc}", use_container_width=True, disabled=not cr_open):
-                    props['status'] = "Draft"; sim['audit_trail'].append(f"- [REVIEWER] {doc} rejected."); sim['time'] += 8; sim['cost'] += 1000; st.rerun()
+                if action_cols[0].button("Approve (QA)", key=f"approve_{doc}", use_container_width=True):
+                    props['status'] = "Approved"; sim['time'] += 16; sim['cost'] += 2000; st.rerun()
+                if action_cols[1].button("Reject", key=f"reject_{doc}", use_container_width=True):
+                    props['status'] = "Draft"; sim['time'] += 8; sim['cost'] += 1000; st.rerun()
 
-            if status == "Approved" and prereqs_met and not (sim.get('validation_needed', False) and "Process" in doc):
-                if action_cols[2].button("Make Effective", key=f"effective_{doc}", type="primary", use_container_width=True, disabled=not cr_open):
-                    props['status'] = "Effective"
-                    sim['audit_trail'].append(f"- [QA] {doc} is now Effective.")
-                    sim['time'] += 4
-                    sim['cost'] += 500
-                    
-                    # --- THIS IS THE ROBUST FIX FOR THE KEYERROR ---
-                    doc_base = props.get('base')
-                    if doc_base and ' Rev ' in doc:
-                        try:
-                            rev = doc.split(' Rev ')[1].split(' ')[0]
-                            sim['effective_revs'][doc_base] = rev
-                            # Trigger retraining for all users
-                            for user in sim['training']:
-                                sim['training'][user][doc] = "Required"
-                            sim['change_requests'][doc]['status'] = "Closed"
-                        except IndexError:
-                            st.error(f"Could not parse revision from document name: {doc}")
-                    else:
-                        st.error(f"Error: Document '{doc}' is missing its 'base' key or ' Rev ' naming. Cannot make effective.")
-                    # --- END OF FIX ---
+            if status == "Approved" and prereqs_met and not (sim.get('validation_needed', False) and "SOP-MFG" in doc):
+                if action_cols[2].button("Make Effective", key=f"effective_{doc}", type="primary", use_container_width=True):
+                    props['status'] = "Effective"; sim['time'] += 4; sim['cost'] += 500
+                    doc_base, rev = props['base'], doc.split(' Rev ')[1].split(' ')[0]
+                    sim['effective_revs'][doc_base] = rev
+                    for role in props['roles']:
+                        if role in sim['training']: sim['training'][role][doc] = "Required"
                     st.rerun()
-
-            st.caption(f"Prerequisites: {props.get('prereq', []) if props.get('prereq') else 'None'}")
             st.markdown("---")
 
         if sim.get('validation_needed'):
             st.warning("**Re-Validation Required for High-Risk Change!**")
-            if st.button("Execute Re-Validation Protocol (PQ)"):
-                sim['validation_needed'] = False
-                sim['audit_trail'].append("- [VALIDATION] PQ protocol executed successfully.")
-                sim['time'] += 160; sim['cost'] += 25000
-                st.rerun()
+            if st.button("Execute Re-Validation (IQ/OQ/PQ)"):
+                sim['validation_needed'] = False; sim['time'] += 240; sim['cost'] += 50000; st.rerun()
 
     with col2:
         st.subheader("Time & Cost Tracker")
@@ -18654,52 +18637,200 @@ def render_doc_control():
         kpi_cols[0].metric("Man-Hours Consumed", f"{sim['time']} hrs")
         kpi_cols[1].metric("Total Change Cost", f"${sim['cost']:,}")
 
-        st.subheader("Training Matrix (Current Effective Revs)")
-        effective_docs = [f"{doc_base} Rev {rev}" for doc_base, rev in sim['effective_revs'].items()]
-        display_data = {}
-        for user, trainings in sim['training'].items():
-            user_status = {}
-            for doc in effective_docs:
-                # If a new rev exists that isn't trained, it's required.
-                new_rev_name = next((d for d in sim['docs'] if d.startswith(doc.split(' Rev ')[0]) and d != doc), None)
-                if new_rev_name and sim['training'][user].get(new_rev_name) == 'Required':
-                    user_status[doc] = 'Superseded'
-                    user_status[new_rev_name] = 'Required'
-                elif trainings.get(doc) == 'Complete':
-                     user_status[doc] = 'Complete'
-            display_data[user] = user_status
-        
-        flat_data = []
-        all_doc_revs = sorted(list(set(doc for user_data in display_data.values() for doc in user_data.keys())))
-        for user, user_data in display_data.items():
-            row = {'Operator': user}
-            for doc_rev in all_doc_revs:
-                row[doc_rev] = user_data.get(doc_rev, 'N/A')
-            flat_data.append(row)
-        
-        if flat_data:
-            df_display = pd.DataFrame(flat_data).set_index('Operator')
-            st.dataframe(df_display.style.applymap(
-                lambda val: 'background-color: #FFCDD2' if val == 'Required' else ('background-color: #C8E6C9' if val == 'Complete' else 'background-color: #E0E0E0' if val=='Superseded' else ''))
-            )
+        st.subheader("Training Matrix")
+        all_docs_in_scenario = list(sim['docs'].keys())
+        training_data = []
+        for role, trained_docs in sim['training'].items():
+            row = {'Role': role}
+            for doc in all_docs_in_scenario:
+                if role in sim['docs'][doc]['roles']:
+                    row[doc] = trained_docs.get(doc, "Pending")
+                else:
+                    row[doc] = "N/A"
+            training_data.append(row)
+        df_training = pd.DataFrame(training_data).set_index("Role")
+        st.dataframe(df_training.style.applymap(lambda val: 'background-color: #FFCDD2' if val == 'Required' else ('background-color: #C8E6C9' if val == 'Complete' else '')))
         
         st.subheader("Production Readiness Dashboard")
-        all_ready = True
-        for user in sim['training']:
-            is_ready = all(
-                sim['training'][user].get(f"{base} Rev {rev}") == "Complete"
-                for base, rev in sim['effective_revs'].items()
-            )
-            if is_ready:
-                st.success(f"**Operator {user}:** ✅ Ready for Production")
-            else:
-                st.error(f"**Operator {user}:** ❌ BLOCKED (Training Overdue)")
-                all_ready = False
-        if all_ready:
-            st.info("All operators are fully trained on all effective documents.")
-
+        overall_ready = True
+        for role in sim['training'].keys():
+            is_ready = all(status != "Required" for status in df_training.loc[role].values)
+            if is_ready: st.success(f"**{role} Team:** ✅ Ready")
+            else: st.error(f"**{role} Team:** ❌ BLOCKED (Training Overdue)"); overall_ready = False
+        
         st.subheader("Live Audit Trail")
         st.code("\n".join(sim['audit_trail'][-5:]), language="markdown")
+
+def render_audit_readiness():
+    """Renders the Audit Readiness & Inspection Management module."""
+    st.title("🕵️ Audit Readiness & Inspection Management")
+    st.markdown("This module helps prepare for a regulatory inspection by simulating common audit questions and mapping them to the evidence provided by the V&V Sentinel Toolkit.")
+    
+    col1, col2 = st.columns([0.4, 0.6])
+    with col1:
+        st.subheader("Self-Assessment Score")
+        st.markdown("""
+        Perform a high-level self-assessment of your project's readiness. Score your perceived maturity in five key areas from 0 (non-existent) to 10 (fully compliant and robust). The spider chart will update in real-time to visualize your strengths and weaknesses against the 'Target State' of ideal readiness.
+        """)
+        scores = {
+            'QMS & Documentation': st.slider("QMS & Documentation", 0, 10, 8, key="audit_qms", 
+                                             help="How robust and well-maintained is your overall Quality Management System? Are documents controlled, training records up-to-date, and CAPAs effective?"),
+            'Design Controls & DHF': st.slider("Design Controls & DHF", 0, 10, 7, key="audit_dhf", 
+                                                help="Is your Design History File complete and traceable? Can you link every user requirement to its verification and validation test?"),
+            'Process Validation': st.slider("Process Validation", 0, 10, 9, key="audit_pv", 
+                                            help="Is your process validation package complete and scientifically sound? Does it cover all three stages (Design, PPQ, CPV) with robust data?"),
+            'Method Validation': st.slider("Method Validation", 0, 10, 6, key="audit_mv", 
+                                           help="Are all analytical methods used for GxP decisions fully validated per ICH Q2? Is data available for accuracy, precision, specificity, etc.?"),
+            'Data Integrity': st.slider("Data Integrity", 0, 10, 8, key="audit_di", 
+                                        help="How strong are your data integrity controls? Does your system meet ALCOA+ principles and 21 CFR Part 11 requirements for audit trails and e-signatures?")
+        }
+        st.plotly_chart(plot_audit_readiness_spider(scores), use_container_width=True)
+        
+    with col2:
+        st.subheader("Mock Audit Simulators")
+
+        tab1, tab2 = st.tabs(["Auditor Q&A Drill", "Evidence Package Builder"])
+
+        with tab1:
+            st.info("Practice responding to specific, challenging auditor questions one by one.")
+            audit_questions = {
+                "Design Controls & QMS (ISO 13485, 21 CFR 820)": {
+                    "Show me your Design History File for this device. I want to trace a user need from your URS all the way to its validation test case.": "Design Controls & DHF",
+                    "A deviation occurred 6 months ago. Show me the CAPA, the root cause investigation, and the data proving the corrective action was effective.": "CAPA Effectiveness Checker",
+                    "How can you prove that every user requirement was tested? Show me the traceability matrix.": "Requirements Traceability Matrix (RTM)",
+                    "Walk me through your change control process for a critical software patch, including your impact assessment and regression testing strategy.": "Gap Analysis & Change Control",
+                    "This device is for point-of-care use. How did you validate the design against potential use errors by the intended user population? Show me the HFE report.": "Usability & Human Factors Engineering (HFE)",
+                },
+                "Risk Management (ISO 14971)": {
+                    "Your validation plan focuses heavily on certain parameters. Show me the formal risk assessment (FMEA) that justifies this focus and shows how you prioritized risks.": "Quality Risk Management (QRM) Suite",
+                    "How did you assess the reliability of this critical electronic component and its impact on the overall system risk profile?": "Component Reliability Testing",
+                    "A contamination event was traced to a cleanroom pressure failure. Show me the top-down fault tree analysis you performed to find the system-level vulnerabilities.": "Root Cause Analysis (RCA)",
+                    "You are using a novel AI model. How have you assessed the risks associated with model drift or incorrect predictions from this non-deterministic system?": "Explainable AI (XAI)",
+                },
+                "Process Validation & Control (Pharma, Production Line)": {
+                    "Show me the evidence that your process consistently meets quality targets.": "Process Capability (Cpk)",
+                    "How do you demonstrate comparability after a site transfer?": "Equivalence Testing (TOST)",
+                    "Show me the evidence that your process was in a state of statistical control *before* you performed the capability analysis for your PPQ.": "Process Stability (SPC)",
+                    "Your PPQ report claims a Cpk of 1.8. Show me the data and calculations supporting this claim of high capability.": "Process Capability (Cpk)",
+                    "You claim the process at Site B is equivalent to Site A. Show me the formal statistical equivalence test and the pre-defined margin for that claim, not just a t-test.": "Equivalence Testing (TOST)",
+                    "This process has been running for two years. How do you monitor for small, gradual drifts that a standard Shewhart chart would miss?": "Small Shift Detection",
+                    "You have multiple correlated parameters on this bioreactor. How do you monitor the holistic health of the process, not just individual variables?": "Multivariate SPC",
+                    "You scaled up from a 200L to a 2000L bioreactor. Show me the comparability protocol and the statistical evidence proving the process performance is equivalent.": "Statistical Equivalence for Process Transfer",
+                    "How did you establish the Design Space for this process? Show me the DOE and the statistical model supporting it.": "Process Optimization: From DOE to AI",
+                    "You've identified temperature as a CPP. Show me the Control Plan for this parameter and the Out-of-Control Action Plan for an operator.": "Process Control Plan Builder",
+                    "How did you leverage your Factory Acceptance Test (FAT) to reduce the scope of your on-site Operational Qualification (OQ)?": "FAT & SAT",
+                },
+                "Method & Assay Validation (IVD, GAMP)": {
+                    "How do you know your measurement system is reliable?": "Gage R&R / VCA",
+                    "How did you determine the clinical cutoff for this diagnostic? Show me the ROC curve analysis and the justification for balancing sensitivity and specificity.": "ROC Curve Analysis",
+                    "What is the validated sensitivity of your impurity assay? Show me the data supporting your claimed Limit of Quantitation.": "LOD & LOQ",
+                    "How did you prove this method is accurate across its full range, not just at a single control point? I want to see the residual analysis.": "Linearity & Range",
+                    "Your new analytical method was transferred from R&D. Show me the formal study that proves it agrees with the original reference method.": "Method Comparison",
+                    "You have a non-linear bioassay. How did you validate the 4PL curve-fitting model and its weighting scheme?": "Non-Linear Regression (4PL/5PL)",
+                    "Your stability protocol pools data from three batches. Show me the ANCOVA results that justify this pooling decision as per ICH Q1E.": "Stability Analysis (Shelf-Life)",
+                },
+                "Planning & Justification": {
+                    "How did you justify the sampling plan for your PPQ?": "Sample Size for Qualification",
+                    "Walk me through the 'golden thread' from your Target Product Profile down to the specific process parameters you control on the line.": "TPP & CQA Cascade",
+                    "Your PPQ protocol specifies 59 samples. Show me the statistical justification for this number, including your assumptions for confidence and reliability.": "Sample Size for Qualification",
+                },
+                "Lifecycle & Advanced Topics": {
+                    "A deviation occurred 6 months ago on this process. Show me the data proving your CAPA was effective and resulted in a sustained improvement.": "CAPA Effectiveness Checker",
+                    "How did you establish the expiration date for this product? Show me the statistical analysis, including the test for data poolability across batches.": "Stability Analysis (Shelf-Life)",
+                    "Your new component supplier was qualified based on reliability testing. Show me the survival analysis and the predicted B10 life.": "Reliability / Survival Analysis",
+                    "You're using an AI model for batch release. How do you know it's not a 'black box'? Show me how you validated its reasoning.": "Explainable AI (XAI)",
+                }
+            }
+        
+            q_category = st.selectbox("Select Audit Category:", list(audit_questions.keys()), key="q_cat")
+            auditor_question = st.selectbox("Select a Question:", list(audit_questions[q_category].keys()), key="q_select")
+        
+            with st.container(border=True):
+                st.write(f"**Auditor:** '{auditor_question}'")
+                st.markdown("---")
+                st.write("**Your Response:** 'The objective evidence for that is generated using the following tool from our V&V toolkit...'")
+
+                all_tools_flat = [tool for act in all_tools.values() for tool in act]
+                tool_options = sorted(list(set(all_tools_flat)))
+                
+                correct_answer = audit_questions[q_category][auditor_question]
+                
+                try:
+                    default_index = tool_options.index(correct_answer)
+                except ValueError:
+                    default_index = 0
+
+                user_choice = st.selectbox("Select the correct tool to provide as evidence:", tool_options, index=default_index, key="q_choice")
+                
+                if st.button("Submit Response", key="q_submit"):
+                    if user_choice == correct_answer:
+                        st.success(f"**Correct!** The `{user_choice}` tool provides the direct, objective evidence to answer this question.")
+                    else:
+                        st.error(f"**Incorrect.** While related, the best evidence comes from the `{correct_answer}` tool. The `{user_choice}` tool is used for a different purpose.")
+
+        with tab2:
+            st.info("""
+            **Scenario:** An auditor has requested the complete validation package for the recent technology transfer of 'Product X' to a new manufacturing site.
+            
+            **Your Task:** Select all the necessary documents and analyses from the list below to create a complete and defensible evidence package.
+            """)
+            
+            EVIDENCE_LIBRARY = {
+                "Validation Master Plan (VMP) Builder": "The high-level strategy and plan for the entire transfer validation.",
+                "Quality Risk Management (QRM) Suite": "The FMEA identifying risks specific to the new site and process.",
+                "Process Stability (SPC)": "Proof that the process was in a state of statistical control at the new site.",
+                "Process Capability (Cpk)": "Proof that the new process is capable of meeting specifications.",
+                "Statistical Equivalence for Process Transfer": "The formal statistical proof that the new process is equivalent to the original.",
+                "Gage R&R / VCA": "Qualification of the key measurement systems at the new site.",
+                "CAPA Effectiveness Checker": "Evidence that any deviations during the transfer were effectively resolved.",
+                "Component Reliability Testing": "Reliability data for any new components introduced at the new site.",
+                "Linearity & Range": "Linearity study for an assay; not typically a primary tech transfer document.",
+                "Exploratory Data Analysis (EDA)": "Exploratory data; not a formal validation document for an audit."
+            }
+            
+            REQUIRED_EVIDENCE_SCENARIO = [
+                "Validation Master Plan (VMP) Builder",
+                "Quality Risk Management (QRM) Suite",
+                "Process Stability (SPC)",
+                "Process Capability (Cpk)",
+                "Statistical Equivalence for Process Transfer",
+                "Gage R&R / VCA"
+            ]
+
+            user_selection = st.multiselect(
+                "Select the documents and analyses to include in your submission package:",
+                options=list(EVIDENCE_LIBRARY.keys()),
+                format_func=lambda x: f"{x}: {EVIDENCE_LIBRARY[x]}"
+            )
+            
+            if st.button("Submit Package for Review", type="primary", use_container_width=True, key="pkg_submit"):
+                st.subheader("Auditor's Feedback on Your Package")
+                
+                required_set = set(REQUIRED_EVIDENCE_SCENARIO)
+                selected_set = set(user_selection)
+                
+                correctly_included = required_set.intersection(selected_set)
+                missing_docs = required_set - selected_set
+                unnecessary_docs = selected_set - required_set
+                
+                score = len(correctly_included) / (len(required_set) + len(unnecessary_docs)) if (len(required_set) + len(unnecessary_docs)) > 0 else 0
+
+                st.metric("Package Completeness Score", f"{score:.0%}", help="Calculated as: Correctly Included / (Total Required + Unnecessarily Included). Penalizes both missing and extraneous documents.")
+
+                if missing_docs:
+                    st.error("**Critical Gaps Found!** The following required evidence is missing:")
+                    for doc in sorted(list(missing_docs)):
+                        st.markdown(f"- **{doc}:** {EVIDENCE_LIBRARY[doc]}")
+                
+                if unnecessary_docs:
+                    st.warning("**Unnecessary Documents Included:** While not a critical failure, providing irrelevant documents can confuse the narrative and invite unnecessary questions. The following are not required for this specific request:")
+                    for doc in sorted(list(unnecessary_docs)):
+                        st.markdown(f"- **{doc}**")
+
+                if not missing_docs and not unnecessary_docs:
+                    st.success("**Excellent!** Your evidence package is complete, concise, and fully addresses the auditor's request. This demonstrates a mature and well-organized quality system.")
+                elif not missing_docs and unnecessary_docs:
+                    st.info("**Package is Compliant but Not Lean:** You've included all required evidence, but also extra documents. Aim for a more focused submission next time.")
 #====================================================================================  A U D I T ==================================================================================================
 def render_audit_readiness():
     """Renders the Audit Readiness & Inspection Management module."""

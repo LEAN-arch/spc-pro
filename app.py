@@ -19034,7 +19034,36 @@ This disciplined process demonstrates control and keeps the audit focused and ef
         - **ISO 13485:2016:** The international QMS standard for medical devices. Audits by Notified Bodies or under the **MDSAP (Medical Device Single Audit Program)** are conducted against this standard.
         - **ICH Q10 (Pharmaceutical Quality System):** This guideline provides the framework for a modern PQS, and its elements (CAPA, Change Management) are a major focus of regulatory inspections.
         """)
-
+@st.cache_data
+def plot_audit_readiness_spider(scores):
+    """Generates a spider chart for audit readiness scores."""
+    categories = list(scores.keys())
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=list(scores.values()), 
+        theta=categories, 
+        fill='toself', 
+        name='Current Readiness', 
+        line=dict(color=PRIMARY_COLOR)
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=[10]*len(categories), 
+        theta=categories, 
+        name='Target State', 
+        line=dict(color='grey', dash='dot')
+    ))
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True, 
+                range=[0, 10]
+            )
+        ), 
+        showlegend=False, 
+        title="<b>Audit Readiness Score</b>",
+        margin=dict(l=40, r=40, t=60, b=40)
+    )
+    return fig
 #============================================================================================= CASE STUDIES =====================================================================================================
 # SNIPPET 1: Add this entire data dictionary to your app.py file, e.g., after the CSS section.
 

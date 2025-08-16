@@ -18709,6 +18709,11 @@ def render_audit_readiness():
     col1, col2 = st.columns([0.4, 0.6])
     with col1:
         st.subheader("Self-Assessment Score")
+        # --- NEW INSTRUCTIONS ADDED HERE ---
+        st.markdown("""
+        Perform a high-level self-assessment of your project's readiness. Score your perceived maturity in five key areas from 0 (non-existent) to 10 (fully compliant and robust). The spider chart will update in real-time to visualize your strengths and weaknesses against the 'Target State' of ideal readiness.
+        """)
+        # --- END OF ADDITION ---
         scores = {
             'QMS & Documentation': st.slider("QMS & Documentation", 0, 10, 8, key="audit_qms", 
                                              help="How robust and well-maintained is your overall Quality Management System? Are documents controlled, training records up-to-date, and CAPAs effective?"),
@@ -18726,12 +18731,10 @@ def render_audit_readiness():
     with col2:
         st.subheader("Mock Audit Simulators")
 
-        # --- NEW TABBED GADGET STRUCTURE ---
         tab1, tab2 = st.tabs(["Auditor Q&A Drill", "Evidence Package Builder"])
 
         with tab1:
             st.info("Practice responding to specific, challenging auditor questions one by one.")
-            # --- THIS IS THE ORIGINAL Q&A GADGET, RESTORED AS REQUESTED ---
             audit_questions = {
                 "Design Controls & QMS (ISO 13485, 21 CFR 820)": {
                     "Show me your Design History File for this device. I want to trace a user need from your URS all the way to its validation test case.": "Design Controls & DHF",
@@ -18870,8 +18873,6 @@ def render_audit_readiness():
                     st.success("**Excellent!** Your evidence package is complete, concise, and fully addresses the auditor's request. This demonstrates a mature and well-organized quality system.")
                 elif not missing_docs and unnecessary_docs:
                     st.info("**Package is Compliant but Not Lean:** You've included all required evidence, but also extra documents. Aim for a more focused submission next time.")
-        # --- END OF GADGET REPLACEMENT ---
-
 @st.cache_data
 def plot_audit_readiness_spider(scores):
     """Generates a spider chart for audit readiness scores."""

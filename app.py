@@ -8045,22 +8045,22 @@ This chain is unbreakable and must be managed from the start.""")
         # ... (rest of tab content) ...
 
     # --- ELEGANT REPORTING SECTION ---
-    report_kpis = {
-        "Selected Product Concept": product_concept,
-        "US (FDA) Highlighted Pathway": path_map_fda.get(product_concept, '510k').upper(),
-        "EU (MDR/IVDR) Highlighted Pathway": path_map_eu.get(product_concept, 'class_iia').upper(),
-        "Japan (PMDA) Highlighted Pathway": path_map_jpn.get(product_concept, 'class_ii').upper(),
-    }
-    report_figures = {
-        "USA (FDA) Pathway": fig_fda,
-        "European Union (MDR/IVDR) Pathway": fig_eu,
-        "Japan (PMDA) Pathway": fig_jpn
-    }
-    render_reporting_section(
-        report_title=f"Regulatory Pathway Report - {product_concept.replace(' ', '_')}",
-        kpis=report_kpis,
-        figures=report_figures
-    )
+        report_kpis = {
+            "Selected Product Concept": product_concept,
+            "US (FDA) Highlighted Pathway": path_map_fda.get(product_concept, '510k').upper(),
+            "EU (MDR/IVDR) Highlighted Pathway": path_map_eu.get(product_concept, 'class_iia').upper(),
+            "Japan (PMDA) Highlighted Pathway": path_map_jpn.get(product_concept, 'class_ii').upper(),
+        }
+        report_figures = {
+            "USA (FDA) Pathway": fig_fda,
+            "European Union (MDR/IVDR) Pathway": fig_eu,
+            "Japan (PMDA) Pathway": fig_jpn
+        }
+        render_reporting_section(
+            report_title=f"Regulatory Pathway Report - {product_concept.replace(' ', '_')}",
+            kpis=report_kpis,
+            figures=report_figures
+        )
 #============================================================================== 3. QUALITY RISK MANAGEMENT (FMEA) ========================================================
 def render_qrm_suite():
     """Renders the comprehensive, interactive module for the Quality Risk Management (QRM) Suite."""

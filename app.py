@@ -19361,6 +19361,10 @@ with st.sidebar:
             
     st.divider()
 
+    # --- NEW SUBHEADER ADDED HERE ---
+    st.subheader("ANALYTICS TOOLKIT")
+    # --- END OF ADDITION ---
+
     for act_title, act_tools in all_tools.items():
         st.subheader(act_title)
         for tool in act_tools:
@@ -19368,8 +19372,3 @@ with st.sidebar:
                 st.session_state.current_view = tool
                 if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
                 st.rerun()
-    
-# --- MAIN CONTENT AREA DISPATCHER ---
-view = st.session_state.get('current_view', 'Introduction')
-render_function = PAGE_DISPATCHER.get(view, render_introduction_content)
-render_function()

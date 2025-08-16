@@ -21,6 +21,7 @@ xgboost==2.0.2
 streamlit==1.35.0
 rich==13.7.0
 streamlit-option-menu~=0.3.6
+ipython==8.12.2
 
 # Plotting & Visualization
 matplotlib==3.7.4

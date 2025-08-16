@@ -19015,6 +19015,5 @@ with st.sidebar:
     
 # --- 4. MAIN CONTENT AREA DISPATCHER ---
 view = st.session_state.get('current_view', 'Introduction')
-
 render_function = PAGE_DISPATCHER.get(view, render_introduction_content)
 render_function()

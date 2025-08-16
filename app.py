@@ -19005,15 +19005,12 @@ with st.sidebar:
             
     st.divider()
 
-    for act_title, act_tools in ALL_TOOLS.items():
+    # --- THIS IS THE CORRECTED LINE ---
+    for act_title, act_tools in all_tools.items():
+    # --- END OF CORRECTION ---
         st.subheader(act_title)
         for tool in act_tools:
             if st.button(tool, key=tool, use_container_width=True):
                 st.session_state.current_view = tool
                 if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
                 st.rerun()
-    
-# --- 4. MAIN CONTENT AREA DISPATCHER ---
-view = st.session_state.get('current_view', 'Introduction')
-render_function = PAGE_DISPATCHER.get(view, render_introduction_content)
-render_function()

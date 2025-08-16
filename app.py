@@ -18176,27 +18176,138 @@ def render_case_study_library():
         st.session_state['active_case'] = 'ivd_validation'
         st.success("IVD Validation case study is now active! Navigate to tools like 'Comprehensive Diagnostic Validation' or 'Usability & HFE' to see the case data.")
 
-def render_doc_control():
-    """Renders the Document Control & Training Management Simulator."""
-    st.title("📑 Document Control & Training Simulator")
-    st.markdown("This module simulates the core QMS functions that govern a validated state: Document Control and Training. These systems ensure that procedures are approved, effective, and that personnel are qualified.")
-    
-    st.subheader("Document Lifecycle Management")
-    doc_status = st.select_slider("Simulate Document Status", 
-                                  options=["Draft", "In Review", "Approved", "Effective", "Obsolete"], 
-                                  value="Approved")
-    st.plotly_chart(plot_doc_control_flow(doc_status), use_container_width=True)
+# SNIPPET: Replace the entire render_doc_control function with this new, advanced version.
 
-    st.subheader("Training Compliance Dashboard")
-    df_training = pd.DataFrame({
-        "Operator": ["Alice", "Bob", "Charlie", "David"],
-        "SOP-101 (Dispensing)": ["Complete", "Complete", "Overdue", "Complete"],
-        "SOP-203 (Assay)": ["Complete", "In-Progress", "Complete", "Complete"],
-        "WI-05 (Instrument Cal)": ["Complete", "Complete", "Complete", "N/A"]
-    })
-    st.dataframe(df_training.style.applymap(
-        lambda val: 'background-color: #FFCDD2' if val == 'Overdue' else ('background-color: #FFF9C4' if val == 'In-Progress' else '')
-    ), use_container_width=True)
+def render_doc_control():
+    """Renders the comprehensive, interactive module for Document Control & Training Management."""
+    st.markdown("""
+    #### Purpose & Application: The QMS Operations Simulator
+    **Purpose:** To simulate the complex, interconnected workflows of a real GxP Quality Management System (QMS). This interactive dashboard models how **Change Control**, **Document Control**, **Training Management**, and **Re-Validation** are all inextricably linked.
+    
+    **Strategic Application:** This is a training and process-mapping tool for understanding the "gears" of a compliant QMS. It demonstrates how a single change request can trigger a cascade of activities, consuming resources and impacting operational readiness. It is a powerful tool for teaching the real-world consequences of change in a regulated environment.
+    """)
+    st.info("""
+    **Interactive Demo:** You are the **Quality System Owner**. Your goal is to implement a high-risk change to the manufacturing process.
+    1.  Start at the **Change Control Board** and `Create` a new Change Request (CR) for the Process SOP.
+    2.  Use the **User Actions** to move the prerequisite documents (`CAL-002`, `TM-101`) through their approval lifecycle first.
+    3.  Once the prerequisites are `Effective`, approve the high-risk Process SOP (`SOP-001`). Notice that this triggers a **Re-Validation Requirement**.
+    4.  "Execute" the validation and then make the SOP `Effective`. This will trigger new **Training Requirements**.
+    5.  "Train" the operators and watch the **Production Readiness Dashboard** and **Time & Cost Tracker** update in real-time.
+    """)
+
+    # --- Session State Initialization for the Advanced Simulation ---
+    if 'qms_sim' not in st.session_state:
+        st.session_state.qms_sim = {
+            "docs": {
+                "SOP-001 Rev B (Process)": {"status": "Draft", "prereq": ["TM-101 Rev C", "CAL-002 Rev B"]},
+                "TM-101 Rev C (Test Method)": {"status": "Draft", "prereq": []},
+                "CAL-002 Rev B (Instrument)": {"status": "Draft", "prereq": []},
+            },
+            "training": {
+                "Alice": {"SOP-001 Rev A": "Complete", "TM-101 Rev B": "Complete", "CAL-002 Rev A": "Complete"},
+                "Bob": {"SOP-001 Rev A": "Complete", "TM-101 Rev B": "Complete", "CAL-002 Rev A": "Complete"},
+                "Charlie": {"SOP-001 Rev A": "Complete", "TM-101 Rev B": "Complete", "CAL-002 Rev A": "Complete"},
+            },
+            "change_requests": {},
+            "audit_trail": ["- [INIT] QMS Simulation Initialized."],
+            "effective_revs": {"SOP-001": "A", "TM-101": "B", "CAL-002": "A"},
+            "cost": 0,
+            "time": 0,
+            "validation_needed": False
+        }
+    sim = st.session_state.qms_sim
+
+    # --- Main Layout ---
+    col1, col2 = st.columns([0.6, 0.4])
+
+    with col1:
+        st.subheader("Change Control Board")
+        cr_doc = st.selectbox("Select Document for New Change Request (CR)", list(sim['docs'].keys()))
+        cr_risk = st.radio("Change Risk Level", ["Low (Typo, Clarification)", "Medium (Parameter Change)", "High (New Equipment/Process)"], horizontal=True, index=2)
+        
+        if st.button("📝 Create Change Request", disabled=(cr_doc in sim['change_requests'])):
+            sim['change_requests'][cr_doc] = {'risk': cr_risk, 'status': 'Open'}
+            sim['audit_trail'].append(f"- [CHANGE] CR opened for {cr_doc} (Risk: {cr_risk.split(' ')[0]}).")
+            sim['time'] += 4
+            sim['cost'] += 500
+            st.rerun()
+
+        st.subheader("Document Control Workflow")
+        for doc, props in sim['docs'].items():
+            status_colors = {"Draft": "grey", "In Review": "orange", "Approved": "blue", "Effective": "green", "Blocked": "red"}
+            status = props['status']
+            
+            # Check prerequisites
+            prereqs_met = all(sim['docs'][p]['status'] == 'Effective' for p in props['prereq'])
+            if status == "Approved" and not prereqs_met:
+                status = "Blocked"
+
+            st.markdown(f"**{doc}**: <span style='color:{status_colors[status]}; font-weight:bold;'>{status}</span>", unsafe_allow_html=True)
+            
+            action_cols = st.columns(5)
+            # Action buttons are only enabled if a CR is open for that doc
+            cr_open = doc in sim['change_requests']
+            
+            if props['status'] == "Draft":
+                if action_cols[0].button("Submit for Review", key=f"submit_{doc}", use_container_width=True, disabled=not cr_open):
+                    props['status'] = "In Review"; sim['audit_trail'].append(f"- [AUTHOR] {doc} submitted."); sim['time'] += 8; sim['cost'] += 1000; st.rerun()
+            elif props['status'] == "In Review":
+                if action_cols[0].button("Approve (QA)", key=f"approve_{doc}", use_container_width=True, disabled=not cr_open):
+                    props['status'] = "Approved"; sim['audit_trail'].append(f"- [QA] {doc} approved."); sim['time'] += 16; sim['cost'] += 2000
+                    if sim['change_requests'][doc]['risk'] == "High (New Equipment/Process)":
+                        sim['validation_needed'] = True
+                        sim['audit_trail'].append(f"- [SYSTEM] High-risk change on {doc} triggers re-validation requirement.")
+                    st.rerun()
+                if action_cols[1].button("Reject", key=f"reject_{doc}", use_container_width=True, disabled=not cr_open):
+                    props['status'] = "Draft"; sim['audit_trail'].append(f"- [REVIEWER] {doc} rejected."); sim['time'] += 8; sim['cost'] += 1000; st.rerun()
+
+            if status == "Approved" and prereqs_met and not (sim.get('validation_needed', False) and "Process" in doc):
+                if action_cols[2].button("Make Effective", key=f"effective_{doc}", type="primary", use_container_width=True, disabled=not cr_open):
+                    props['status'] = "Effective"; sim['audit_trail'].append(f"- [QA] {doc} is now Effective."); sim['time'] += 4; sim['cost'] += 500
+                    doc_base, rev = doc.split(' Rev ')
+                    sim['effective_revs'][doc_base] = rev
+                    # Trigger retraining for all users
+                    for user in sim['training']: sim['training'][user][doc] = "Required"
+                    sim['change_requests'][doc]['status'] = "Closed"
+                    st.rerun()
+            st.caption(f"Prerequisites: {props['prereq'] if props['prereq'] else 'None'}")
+            st.markdown("---")
+
+        if sim.get('validation_needed'):
+            st.warning("**Re-Validation Required for High-Risk Change!**")
+            if st.button("Execute Re-Validation Protocol (PQ)"):
+                sim['validation_needed'] = False
+                sim['audit_trail'].append("- [VALIDATION] PQ protocol executed successfully.")
+                sim['time'] += 160; sim['cost'] += 25000
+                st.rerun()
+
+    with col2:
+        st.subheader("Time & Cost Tracker")
+        kpi_cols = st.columns(2)
+        kpi_cols[0].metric("Man-Hours Consumed", f"{sim['time']} hrs")
+        kpi_cols[1].metric("Total Change Cost", f"${sim['cost']:,}")
+
+        st.subheader("Training Matrix (Current Effective Revs)")
+        # Dynamically build and display the training matrix
+        effective_docs = [f"{doc_base} Rev {rev}" for doc_base, rev in sim['effective_revs'].items()]
+        display_data = {user: {doc: "Complete" if sim['training'][user].get(doc) == "Complete" else "Required" for doc in effective_docs} for user in sim['training']}
+        df_display = pd.DataFrame(display_data).T
+        st.dataframe(df_display.style.applymap(lambda val: 'background-color: #FFCDD2' if val == 'Required' else ''))
+        
+        st.subheader("Production Readiness Dashboard")
+        all_ready = True
+        for user in sim['training']:
+            is_ready = all(sim['training'][user].get(doc) == "Complete" for doc in effective_docs)
+            if is_ready:
+                st.success(f"**Operator {user}:** ✅ Ready for Production")
+            else:
+                st.error(f"**Operator {user}:** ❌ BLOCKED (Training Overdue)")
+                all_ready = False
+        if all_ready:
+            st.info("All operators are fully trained on all effective documents.")
+
+        st.subheader("Live Audit Trail")
+        st.code("\n".join(sim['audit_trail'][-5:]), language="markdown") # Show last 5 entries
 
 def render_audit_readiness():
     """Renders the Audit Readiness & Inspection Management module."""

@@ -19558,12 +19558,17 @@ if 'case_study' not in st.session_state:
 # --- SIDEBAR NAVIGATION RENDERING ---
 with st.sidebar:
     # Use the option_menu for global navigation between top-level pages and Acts
+    # Initialize a session state key for the menu's default selection
+    if 'selected_act' not in st.session_state:
+        st.session_state.selected_act = "Framework"
+
     selected_act = option_menu(
         menu_title="V&V Sentinel",
         options=["Framework", "Act 0", "Act I", "Act II", "Act III", "Simulators"],
         icons=["house", "clipboard-check", "flask", "truck", "recycle", "joystick"],
         menu_icon="🔬",
-        default_index=0,
+        # Use the session state to control the default index
+        default_index=["Framework", "Act 0", "Act I", "Act II", "Act III", "Simulators"].index(st.session_state.selected_act),
         styles={
             "container": {"padding": "5px !important", "background-color": "#fafafa"},
             "icon": {"color": PRIMARY_COLOR, "font-size": "20px"},
@@ -19571,28 +19576,28 @@ with st.sidebar:
             "nav-link-selected": {"background-color": PRIMARY_COLOR},
         }
     )
+    
+    # Update the session state when the menu selection changes
+    if selected_act:
+        st.session_state.selected_act = selected_act
 
     # Conditionally display the tools for the selected Act
-    if selected_act == "Framework":
+    if st.session_state.selected_act == "Framework":
         if st.button("Project Framework Home", use_container_width=True):
             st.session_state.current_view = 'Introduction'
-            st.rerun()
         if st.button("Search Toolkit", use_container_width=True):
             st.session_state.current_view = 'Search'
-            st.rerun()
             
-    elif selected_act == "Simulators":
+    elif st.session_state.selected_act == "Simulators":
         sim_tools = ["Case Study Library", "Validation Plan Wizard", "Document Control & Training Sim", "Audit Readiness Sim"]
         for tool in sim_tools:
             if st.button(tool, use_container_width=True):
                 st.session_state.current_view = tool
-                st.rerun()
                 
     else: # It's an Act
-        # --- THIS IS THE DEFINITIVE FIX ---
-        # 1. Make the search case-insensitive by converting both strings to uppercase.
-        # 2. Add a safety check in case the list is empty (it shouldn't be, but this is robust).
-        matching_keys = [k for k in all_tools.keys() if k.upper().startswith(selected_act.upper())]
+        # Find the full key name for the selected Act in a case-insensitive way
+        act_prefix = st.session_state.selected_act
+        matching_keys = [k for k in all_tools.keys() if k.upper().startswith(act_prefix.upper())]
         
         if matching_keys:
             full_act_key = matching_keys[0]
@@ -19602,4 +19607,3 @@ with st.sidebar:
                     # Always reset case study when manually selecting a tool
                     if 'case_study' in st.session_state:
                         st.session_state.case_study['active_case'] = None
-                    st.rerun()

@@ -20,6 +20,7 @@ xgboost==2.0.2
 # Streamlit App Framework & Dependencies
 streamlit==1.35.0
 rich==13.7.0
+streamlit-option-menu
 
 # Plotting & Visualization
 matplotlib==3.7.4

@@ -19557,49 +19557,51 @@ if 'case_study' not in st.session_state:
 
 # --- SIDEBAR NAVIGATION RENDERING ---
 with st.sidebar:
-    st.title("🧰 Toolkit Navigation")
+    # 1. Define all top-level and tool options in a single list
+    top_level_options = [
+        "Project Framework", "Search", "Case Study Library", 
+        "Validation Plan Wizard", "Document Control & Training Sim", "Audit Readiness Sim"
+    ]
     
-    if st.button("🚀 Project Framework", use_container_width=True, key="nav_intro"):
-        st.session_state.current_view = 'Introduction'
-        if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
-        st.rerun()
-
-    if st.button("🔎 Search Toolkit", use_container_width=True, key="nav_search"):
-        st.session_state.current_view = 'Search'
-        st.rerun()
+    all_tool_options = [tool for act_tools in all_tools.values() for tool in act_tools]
     
-    st.divider()
-    st.subheader("GUIDES & SIMULATORS")
-
-    if st.session_state.get('case_study', {}).get('active_case'):
-        if st.button("📚 Return to Case Study Hub", use_container_width=True, type="primary", key="nav_case_hub_return"):
-            st.session_state.current_view = 'Case Study Library'
-            st.rerun()
-    else:
-        if st.button("📚 Case Study Library", use_container_width=True, key="nav_case_hub_main"):
-            st.session_state.current_view = 'Case Study Library'
-            st.rerun()
+    # Combine all navigation options into one master list for the menu
+    master_options_list = top_level_options + all_tool_options
     
-    if st.button("🧙‍♂️ Validation Plan Wizard", use_container_width=True, key="nav_wizard"):
-        st.session_state.current_view = 'Validation Plan Wizard'
-        st.rerun()
-    if st.button("📑 Document Control & Training Sim", use_container_width=True, key="nav_doc_control"):
-        st.session_state.current_view = 'Document Control & Training Sim'
-        st.rerun()
-    if st.button("🕵️ Audit Readiness Sim", use_container_width=True, key="nav_audit"):
-        st.session_state.current_view = 'Audit Readiness Sim'
-        st.rerun()
-            
-    st.divider()
-    st.subheader("ANALYTICS TOOLKIT")
+    # Define corresponding icons
+    top_level_icons = ["house", "search", "journal-richtext", "magic", "file-earmark-lock", "shield-check"]
+    tool_icons = ["tools"] * len(all_tool_options)
+    master_icons_list = top_level_icons + tool_icons
+    
+    # 2. Find the index of the current view to set the default selection
+    try:
+        default_index = master_options_list.index(st.session_state.get('current_view', 'Project Framework'))
+    except ValueError:
+        default_index = 0 # Default to the first item if current_view is not in the list
 
-    for act_title, act_tools in all_tools.items():
-        st.subheader(act_title)
-        for tool in act_tools:
-            if st.button(tool, key=tool, use_container_width=True):
-                st.session_state.current_view = tool
-                if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
-                st.rerun()
+    # 3. Create the option_menu
+    selected_option = option_menu(
+        menu_title="V&V Sentinel Toolkit",
+        options=master_options_list,
+        icons=master_icons_list,
+        menu_icon="🔬",
+        default_index=default_index,
+        styles={
+            "container": {"padding": "5px !important", "background-color": "#fafafa"},
+            "icon": {"color": "#0068C9", "font-size": "20px"}, 
+            "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
+            "nav-link-selected": {"background-color": PRIMARY_COLOR},
+        }
+    )
+
+    # 4. Handle navigation logic
+    # If the user selects a new option, update the session state and rerun the app.
+    if selected_option and selected_option != st.session_state.current_view:
+        st.session_state.current_view = selected_option
+        # If navigating away from a tool, always end the active case study
+        if 'case_study' in st.session_state:
+            st.session_state.case_study['active_case'] = None
+        st.rerun()
     
 # --- MAIN CONTENT AREA DISPATCHER ---
 view = st.session_state.get('current_view', 'Introduction')

@@ -18737,7 +18737,36 @@ def render_audit_readiness():
                 else:
                     st.error(f"**Incorrect.** While related, the best evidence comes from the `{correct_answers[auditor_question]}` tool. The `{user_choice}` tool is used for a different purpose.")
 
-
+@st.cache_data
+def plot_audit_readiness_spider(scores):
+    """Generates a spider chart for audit readiness scores."""
+    categories = list(scores.keys())
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=list(scores.values()), 
+        theta=categories, 
+        fill='toself', 
+        name='Current Readiness', 
+        line=dict(color=PRIMARY_COLOR)
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=[10]*len(categories), 
+        theta=categories, 
+        name='Target State', 
+        line=dict(color='grey', dash='dot')
+    ))
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True, 
+                range=[0, 10]
+            )
+        ), 
+        showlegend=False, 
+        title="<b>Audit Readiness Score</b>",
+        margin=dict(l=40, r=40, t=60, b=40)
+    )
+    return fig
 
 #=============================================================================== SIDEBAR CONTROLS ===================================================================================================
 st.sidebar.divider()

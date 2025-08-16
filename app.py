@@ -19560,53 +19560,57 @@ PAGES = {
     }
 }
 
-# --- FINAL, HIGH-PERFORMANCE SIDEBAR NAVIGATION ---
 with st.sidebar:
-    # A single, unified list of all available pages for the menu
-    options = [item for sublist in PAGES.values() for item in sublist.keys()]
+    # A single list of all pages for the menu, excluding the section headers
+    options = [page for section in PAGES.values() for page in section.keys()]
     
-    # A mapping from page name to its render function
-    page_dispatcher = {page: func for section in PAGES.values() for page, func in section.items()}
-    
-    # Find the index of the currently selected view to set the default
+    # Create the corresponding list of icons
+    icons = ['house', 'search', 'journal-richtext', 'magic', 'file-earmark-lock', 'shield-check']
+    # Add a generic 'tools' icon for all the actual tool pages
+    icons.extend(['tools'] * (len(options) - len(icons)))
+
+    # Find the index of the current view to set the default selection
     try:
         default_index = options.index(st.session_state.get('current_view', options[0]))
     except ValueError:
         default_index = 0
 
-    # The on_change callback is the most robust way to handle navigation
-    def handle_navigation():
-        # Get the selected option from the menu's session state key
-        selected = st.session_state.nav_menu
-        if selected != st.session_state.current_view:
-            st.session_state.current_view = selected
-            # Always reset case study when manually navigating
-            if 'case_study' in st.session_state:
-                st.session_state.case_study['active_case'] = None
-    
-    # Use st.expander to group tools by Act, creating a clean, collapsible menu
-    with st.expander("TOOLKIT NAVIGATION", expanded=True):
-        selected = option_menu(
-            menu_title=None,
-            options=options,
-            # Assign icons based on category
-            icons=['house', 'search', 'journal-richtext', 'magic', 'file-earmark-lock', 'shield-check'] + ['tools'] * (len(options) - 6),
-            default_index=default_index,
-            # Use on_change for state management
-            key='nav_menu',
-            on_change=handle_navigation,
-            styles={
-                "container": {"padding": "0 !important", "background-color": "#fafafa"},
-                "nav-link": {"font-size": "14px", "text-align": "left", "margin":"0px"},
-            }
-        )
+    # The option_menu widget is now the single source of truth for navigation.
+    # Its return value is the page the user has selected.
+    selected_page = option_menu(
+        menu_title="V&V Sentinel",
+        options=options,
+        icons=icons,
+        menu_icon="🔬",
+        default_index=default_index,
+        styles={
+            "container": {"padding": "5px !important", "background-color": "#fafafa"},
+            "icon": {"color": PRIMARY_COLOR, "font-size": "20px"},
+            "nav-link": {"font-size": "14px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
+            "nav-link-selected": {"background-color": PRIMARY_COLOR},
+        }
+    )
+
+    # --- SIMPLIFIED NAVIGATION LOGIC ---
+    # If the user's selection is different from the current view, update and reset the case study.
+    # Streamlit will automatically rerun the script after this block.
+    if st.session_state.current_view != selected_page:
+        st.session_state.current_view = selected_page
+        if 'case_study' in st.session_state:
+            st.session_state.case_study['active_case'] = None
+        st.rerun() # Use rerun here to ensure clean page transition
+
 
 # --- MAIN CONTENT AREA DISPATCHER ---
-# This part is now simpler and more robust
-view = st.session_state.get('current_view', list(PAGES["--- FRAMEWORK ---"].keys())[0])
-render_function = page_dispatcher.get(view)
+# A mapping from page name to its render function, built from the PAGES dictionary
+page_dispatcher = {page: func for section in PAGES.values() for page, func in section.items()}
 
-if render_function:
-    render_function()
+# Get the render function for the currently selected page
+view_to_render = page_dispatcher.get(st.session_state.current_view)
+
+# Render the selected page
+if view_to_render:
+    view_to_render()
 else:
-    st.error("Page not found. Please select a tool from the sidebar.")
+    # Fallback to the introduction if the view is somehow invalid
+    render_introduction_content()

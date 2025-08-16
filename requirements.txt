@@ -10,9 +10,9 @@ numba==0.58.1
 numpy==1.24.4
 pandas==2.0.3
 prophet==1.1.5
-scikit-learn==1.2.2  # <-- THE CRITICAL FIX: Downgraded from 1.3.2 to satisfy econml
+scikit-learn==1.2.2  # Downgraded to be compatible with econml
 scipy==1.11.4
-shap==0.43.0
+shap==0.41.0         # <-- THE CRITICAL FIX: Downgraded from 0.43.0 to satisfy econml
 statsmodels==0.14.0
 tbats==1.1.3
 xgboost==2.0.2

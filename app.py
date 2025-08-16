@@ -18880,8 +18880,6 @@ if 'case_study' not in st.session_state:
     st.session_state.case_study = {"active_case": None, "current_step": 0}
 
 # --- DEFINE THE APP'S STRUCTURE (Global Constants) ---
-# FIX 1: The all_tools dictionary is moved out of the sidebar and into the main
-# script scope. This is a critical performance and architectural correction.
 all_tools = {
     "ACT 0: PLANNING & STRATEGY": [
         "TPP & CQA Cascade", "Analytical Target Profile (ATP) Builder", "IVD & Medical Device Regulatory Framework",
@@ -18923,10 +18921,8 @@ all_tools = {
 
 PAGE_DISPATCHER = {
     # New Top-Level Pages
-    "Validation Plan Wizard": render_validation_wizard,
-    "Case Study Library": render_case_study_library,
-    "Document Control & Training Sim": render_doc_control,
-    "Audit Readiness Sim": render_audit_readiness,
+    "Validation Plan Wizard": render_validation_wizard, "Case Study Library": render_case_study_library,
+    "Document Control & Training Sim": render_doc_control, "Audit Readiness Sim": render_audit_readiness,
     "Search": render_search_page,
     # Act 0
     "TPP & CQA Cascade": render_tpp_cqa_cascade, "Analytical Target Profile (ATP) Builder": render_atp_builder,
@@ -18976,28 +18972,27 @@ PAGE_DISPATCHER = {
 with st.sidebar:
     st.title("🧰 Toolkit Navigation")
     
-    # FIX 2: Add unique keys to all main navigation buttons to prevent DuplicateWidgetID errors
+    # Use unique keys for all main navigation buttons
     if st.button("🚀 Project Framework", use_container_width=True, key="nav_intro"):
         st.session_state.current_view = 'Introduction'
         if 'case_study' in st.session_state: st.session_state.case_study['active_case'] = None
         st.rerun()
 
+    # --- THIS IS THE CORRECTED LOGIC BLOCK ---
+    # It contains the "GUIDES & SIMULATORS" section with all four buttons,
+    # and handles the conditional display of the "Case Study" button correctly.
     if st.session_state.get('case_study', {}).get('active_case'):
         if st.button("📚 Return to Case Study Hub", use_container_width=True, type="primary", key="nav_case_hub_return"):
             st.session_state.current_view = 'Case Study Library'
             st.rerun()
     else:
-        if st.button("📚 Case Study Library", use_container_width=True, key="nav_case_hub_main"):
+        st.sidebar.divider()
+        st.sidebar.subheader("GUIDES & SIMULATORS")
+        if st.sidebar.button("📚 Case Study Library", use_container_width=True, key="nav_case_hub_main"):
             st.session_state.current_view = 'Case Study Library'
             st.rerun()
-            
-    if st.button("🔎 Search Toolkit", use_container_width=True, key="nav_search"):
-        st.session_state.current_view = 'Search'
-        st.rerun()
-
-    # FIX 3: Restore the missing "GUIDES & SIMULATORS" section with unique keys
-    st.sidebar.divider()
-    st.sidebar.subheader("GUIDES & SIMULATORS")
+    
+    # These buttons are now part of the single "GUIDES & SIMULATORS" section logic
     if st.sidebar.button("🧙‍♂️ Validation Plan Wizard", use_container_width=True, key="nav_wizard"):
         st.session_state.current_view = 'Validation Plan Wizard'
         st.rerun()
@@ -19007,6 +19002,12 @@ with st.sidebar:
     if st.sidebar.button("🕵️ Audit Readiness Sim", use_container_width=True, key="nav_audit"):
         st.session_state.current_view = 'Audit Readiness Sim'
         st.rerun()
+    # --- END OF CORRECTION ---
+            
+    if st.sidebar.button("🔎 Search Toolkit", use_container_width=True, key="nav_search"):
+        st.session_state.current_view = 'Search'
+        st.rerun()
+    
     st.sidebar.divider()
 
     # The loop for rendering tool buttons is now lean and clean

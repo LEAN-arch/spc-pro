@@ -50,6 +50,9 @@ from whoosh.index import create_in, open_dir
 from whoosh.fields import Schema, TEXT, ID
 from whoosh.qparser import MultifieldParser, OrGroup, WildcardPlugin, FuzzyTermPlugin
 from whoosh.highlight import HtmlFormatter
+
+from fpdf import FPDF
+import base64
 # ==============================================================================
 # APP CONFIGURATION
 # ==============================================================================
@@ -6905,7 +6908,7 @@ def plot_digital_twin_dashboard(fault_type, fault_magnitude, fault_time):
     return fig
 
 #=========================================================================================================================================================================================================================
-#========================================================================================== LAS TOOLS ====================================================================================================================
+#========================================================================================== LAST TOOLS ====================================================================================================================
 
 # SNIPPET: Add these six new plotting functions to the end of the "ALL HELPER & PLOTTING FUNCTIONS" section of your app.py file.
 
@@ -7120,8 +7123,93 @@ def plot_hfe_dashboard(design_clarity, task_complexity):
     
     return fig_tasks, final_sus
 
+#==============================================================================================================================================================================================
+#====================================================================================== ENHACEMENTS =============================================================================================
+# SNIPPET 3: Replace the existing render_spc_charts function with this enhanced version.
+
+def render_spc_charts():
+    """Renders the INTERACTIVE module for Statistical Process Control (SPC) charts."""
+    st.markdown("""
+    #### Purpose & Application: The Voice of the Process
+    **Purpose:** To serve as an **EKG for your process**—a real-time heartbeat monitor that visualizes its stability. It distinguishes between common cause (normal noise) and special cause (a real problem) variation.
+    """)
+    
+    sim_tab, byod_tab = st.tabs(["📊 Interactive Simulation", "📁 Analyze Your Data"])
+
+    with sim_tab:
+        st.info("""
+        **Interactive Demo:** Use the controls to inject different types of "special cause" events into a simulated stable process. Observe how the I-MR, Xbar-R, and P-Charts each respond, helping you learn to recognize the visual signatures of common process problems.
+        """)
+        scenario = st.radio(
+            "Select a Process Scenario to Simulate:",
+            ('Stable', 'Sudden Shift', 'Gradual Trend', 'Increased Variability'),
+            captions=[
+                "Process is behaving normally.",
+                "e.g., A new raw material lot is introduced.",
+                "e.g., An instrument is slowly drifting out of calibration.",
+                "e.g., An operator becomes less consistent."
+            ]
+        )
+        fig_imr, fig_xbar, fig_p = plot_spc_charts(scenario=scenario)
+        
+        st.plotly_chart(fig_imr, use_container_width=True)
+        st.plotly_chart(fig_xbar, use_container_width=True)
+        st.plotly_chart(fig_p, use_container_width=True)
+        
+        # --- REPORT GENERATION ---
+        if st.button("📄 Generate Report from Simulation"):
+            report_html = generate_html_report(
+                title=f"SPC Simulation Report: {scenario}",
+                figures={"I-MR Chart": fig_imr, "Xbar-R Chart": fig_xbar, "P-Chart": fig_p},
+                kpis={"Scenario": scenario, "Status": "Simulated"}
+            )
+            st.download_button(label="Download HTML Report", data=report_html, file_name=f"spc_report_{scenario}.html", mime="text/html")
+
+    with byod_tab:
+        st.info("Upload a CSV or Excel file with your process data. The data should be in a single column.")
+        uploaded_file = st.file_uploader("Choose a file", type=['csv', 'xlsx'])
+
+        if uploaded_file:
+            try:
+                if uploaded_file.name.endswith('.csv'):
+                    df = pd.read_csv(uploaded_file)
+                else:
+                    df = pd.read_excel(uploaded_file)
+                
+                st.dataframe(df.head())
+                data_col = st.selectbox("Select the data column for analysis:", df.columns)
+                
+                if data_col and pd.api.types.is_numeric_dtype(df[data_col]):
+                    # Simulate a stable scenario with the user's data
+                    # In a real app, you might add more options for subgrouping etc.
+                    user_data = df[data_col].dropna().values
+                    fig_imr_user, _, _ = plot_spc_charts(scenario='Stable') # Re-purpose the function
+                    
+                    # Update I-MR chart with user data
+                    mean_i = np.mean(user_data)
+                    mr = np.abs(np.diff(user_data))
+                    mr_mean = np.mean(mr)
+                    sigma_est_i = mr_mean / 1.128
+                    UCL_I, LCL_I = mean_i + 3 * sigma_est_i, mean_i - 3 * sigma_est_i
+                    
+                    fig_imr_user.data[0].y = user_data
+                    fig_imr_user.data[1].y = mr
+                    fig_imr_user.update_layout(
+                        shapes=[
+                            dict(type='line', y0=mean_i, y1=mean_i, line=dict(dash='dash', color='black')),
+                            dict(type='line', y0=UCL_I, y1=UCL_I, line=dict(color='red')),
+                            dict(type='line', y0=LCL_I, y1=LCL_I, line=dict(color='red')),
+                        ]
+                    )
+                    st.plotly_chart(fig_imr_user, use_container_width=True)
+                    st.success("Successfully generated I-MR chart from your data.")
+                else:
+                    st.warning("Please select a numeric column for analysis.")
+            except Exception as e:
+                st.error(f"An error occurred while processing your file: {e}")
+
 # =================================================================================================================================================================================================
-# ALL UI RENDERING FUNCTIONS
+# ================================================================== ALL UI RENDERING FUNCTIONS =================================================================================================
 # ==================================================================================================================================================================================================
 
 def render_introduction_content():
@@ -17981,7 +18069,132 @@ A robust HFE process is built on a foundation of deep empathy for the user and a
         - **FDA Guidance - "Applying Human Factors and Usability Engineering to Medical Devices":** This is the FDA's primary guidance document on the topic. It outlines the agency's expectations for a robust HFE process, including formative studies, risk analysis of use errors, and a summative validation study. The HFE validation report is a required part of a 510(k) or PMA submission.
         - **IEC 62366-1:2015:** This is the international standard for the application of usability engineering to medical devices. Compliance with this standard is often used to demonstrate conformity with regulatory requirements in the EU and other regions.
         """)
+#========================================================================================== ENHACEMENTS ==========================================================================================
+def render_validation_wizard():
+    """Renders the interactive Validation Plan Wizard."""
+    st.title("🧙‍♂️ Validation Plan Wizard")
+    st.markdown("Answer a few simple questions to get a recommended set of validation activities and tools from the Sentinel Toolkit.")
+    
+    q1 = st.selectbox("1. What is the primary object of your validation?", 
+                      ["A new manufacturing process", "A new piece of lab equipment or an instrument", "A new analytical assay or method", "A new software system"])
+    
+    q2 = st.selectbox("2. What is the primary goal of this activity?",
+                      ["Initial characterization and understanding (R&D)", "Formal qualification and validation for GxP use", "Transferring a process/method to a new site/lab", "Routine monitoring of a commercial process"])
+    
+    st.divider()
+    st.subheader("Recommended Validation Plan & Toolkit")
+    
+    with st.container(border=True):
+        if "process" in q1 and "characterization" in q2:
+            st.markdown("""
+            **Focus:** Process Design & Characterization (FDA PV Stage 1)
+            - **Act 0 (Planning):** Start with a `TPP & CQA Cascade` and a `Quality Risk Management (FMEA)` study.
+            - **Act I (Characterization):** Use `Assay Robustness (DOE)` and `Process Optimization: From DOE to AI` to build a deep understanding and define a Design Space.
+            - **Act II (Early Capability):** Perform initial runs and assess stability with `Process Stability (SPC)` and `Process Capability (Cpk)`.
+            """)
+        elif "process" in q1 and "qualification" in q2:
+            st.markdown("""
+            **Focus:** Process Performance Qualification (PPQ) (FDA PV Stage 2)
+            - **Act 0 (Planning):** Finalize the `Validation Master Plan (VMP)` for the PPQ. Use `Sample Size for Qualification` to justify your sampling plan.
+            - **Act II (Execution & Analysis):** Execute the PPQ runs. Analyze the results for `Process Stability (SPC)` and `Process Capability (Cpk)`. Use `Tolerance Intervals` to set release specifications.
+            """)
+        elif "instrument" in q1 and "qualification" in q2:
+            st.markdown("""
+            **Focus:** Instrument IQ/OQ/PQ
+            - **Act 0 (Planning):** Define the `Analytical Target Profile (ATP)` (serves as URS). Perform a `Quality Risk Management (FMEA)` on the instrument. Execute `FAT & SAT`.
+            - **Act I (Characterization):** Assess the instrument's measurement system with `Gage R&R / VCA`.
+            - **Act II (Qualification):** Execute the formal IQ/OQ/PQ protocols. Analyze PQ data using `Process Stability (SPC)`.
+            """)
+        else:
+            st.markdown("Select a combination to see a recommended plan.")
 
+def render_case_study_library():
+    """Renders the Case Study Library page."""
+    st.title("📚 Case Study Library")
+    st.markdown("Explore end-to-end V&V workflows through these realistic case studies. Selecting a case will pre-populate the relevant tools with a consistent dataset, guiding you through the narrative.")
+    
+    st.subheader("Case Study 1: Tech Transfer of a Monoclonal Antibody")
+    st.markdown("Follow the journey of transferring a validated biopharmaceutical process from an R&D facility to a new commercial manufacturing site. This case focuses on proving statistical equivalence.")
+    if st.button("Start Case Study: MAb Tech Transfer"):
+        st.session_state['active_case'] = 'mab_transfer'
+        st.success("MAb Tech Transfer case study is now active! Navigate to tools like 'Equivalence Testing' or 'Statistical Equivalence for Process Transfer' to see the case data.")
+        
+    st.subheader("Case Study 2: Validation of a New Point-of-Care IVD")
+    st.markdown("Experience the challenges of validating a new Class II diagnostic device. This case focuses on analytical validation, human factors, and the 510(k) pathway.")
+    if st.button("Start Case Study: IVD Validation"):
+        st.session_state['active_case'] = 'ivd_validation'
+        st.success("IVD Validation case study is now active! Navigate to tools like 'Comprehensive Diagnostic Validation' or 'Usability & HFE' to see the case data.")
+
+def render_doc_control():
+    """Renders the Document Control & Training Management Simulator."""
+    st.title("📑 Document Control & Training Simulator")
+    st.markdown("This module simulates the core QMS functions that govern a validated state: Document Control and Training. These systems ensure that procedures are approved, effective, and that personnel are qualified.")
+    
+    st.subheader("Document Lifecycle Management")
+    doc_status = st.select_slider("Simulate Document Status", 
+                                  options=["Draft", "In Review", "Approved", "Effective", "Obsolete"], 
+                                  value="Approved")
+    st.plotly_chart(plot_doc_control_flow(doc_status), use_container_width=True)
+
+    st.subheader("Training Compliance Dashboard")
+    df_training = pd.DataFrame({
+        "Operator": ["Alice", "Bob", "Charlie", "David"],
+        "SOP-101 (Dispensing)": ["Complete", "Complete", "Overdue", "Complete"],
+        "SOP-203 (Assay)": ["Complete", "In-Progress", "Complete", "Complete"],
+        "WI-05 (Instrument Cal)": ["Complete", "Complete", "Complete", "N/A"]
+    })
+    st.dataframe(df_training.style.applymap(
+        lambda val: 'background-color: #FFCDD2' if val == 'Overdue' else ('background-color: #FFF9C4' if val == 'In-Progress' else '')
+    ), use_container_width=True)
+
+def render_audit_readiness():
+    """Renders the Audit Readiness & Inspection Management module."""
+    st.title("🕵️ Audit Readiness & Inspection Management")
+    st.markdown("This module helps prepare for a regulatory inspection by simulating common audit questions and mapping them to the evidence provided by the V&V Sentinel Toolkit.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Self-Assessment Score")
+        scores = {
+            'QMS & Documentation': st.slider("QMS & Documentation", 0, 10, 8),
+            'Design Controls & DHF': st.slider("Design Controls & DHF", 0, 10, 7),
+            'Process Validation': st.slider("Process Validation", 0, 10, 9),
+            'Method Validation': st.slider("Method Validation", 0, 10, 6),
+            'Data Integrity': st.slider("Data Integrity", 0, 10, 8)
+        }
+        st.plotly_chart(plot_audit_readiness_spider(scores), use_container_width=True)
+        
+    with col2:
+        st.subheader("Mock Audit: The Auditor Asks...")
+        auditor_question = st.selectbox("Select a typical auditor question:",
+            ["How do you know your measurement system is reliable?",
+             "Show me the evidence that your process consistently meets quality targets.",
+             "How did you justify the sampling plan for your PPQ?"])
+        
+        with st.container(border=True):
+            st.write(f"**Auditor:** '{auditor_question}'")
+            if "measurement system" in auditor_question:
+                st.success("**Your Answer:** 'We perform a **Gage R&R / VCA** study as part of our method validation. This provides objective evidence that our measurement system's variability is acceptable for its intended use.'")
+            elif "consistently meets quality" in auditor_question:
+                st.success("**Your Answer:** 'During our PPQ, we demonstrated that the process is stable using **Process Stability (SPC)** charts and capable of meeting specifications with a Cpk well above 1.33, as shown in our **Process Capability (Cpk)** analysis.'")
+            elif "sampling plan" in auditor_question:
+                st.success("**Your Answer:** 'The sampling plan was statistically derived using the **Sample Size for Qualification** tool, based on a pre-defined confidence and reliability requirement of 95%/99%.'")
+
+st.sidebar.divider()
+st.sidebar.subheader("GUIDES & SIMULATORS")
+if st.sidebar.button("🧙‍♂️ Validation Plan Wizard", use_container_width=True):
+    st.session_state.current_view = 'Validation Plan Wizard'
+    st.rerun()
+if st.sidebar.button("📚 Case Study Library", use_container_width=True):
+    st.session_state.current_view = 'Case Study Library'
+    st.rerun()
+if st.sidebar.button("📑 Document Control & Training Sim", use_container_width=True):
+    st.session_state.current_view = 'Document Control & Training Sim'
+    st.rerun()
+if st.sidebar.button("🕵️ Audit Readiness Sim", use_container_width=True):
+    st.session_state.current_view = 'Audit Readiness Sim'
+    st.rerun()
+st.sidebar.divider()
 # ==============================================================================
 # MAIN APP LOGIC AND LAYOUT
 # ==============================================================================
@@ -18100,7 +18313,11 @@ with st.sidebar:
                 st.rerun()
 
 PAGE_DISPATCHER = {
-    # --- ADD THIS NEW MAPPING ---
+    # New Top-Level Pages
+    "Validation Plan Wizard": render_validation_wizard,
+    "Case Study Library": render_case_study_library,
+    "Document Control & Training Sim": render_doc_control,
+    "Audit Readiness Sim": render_audit_readiness,
     "Search": render_search_page,
     # --- END OF ADDITION ---
         # Act 0

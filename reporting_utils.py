@@ -36,10 +36,10 @@ def create_kpi_image(kpis, title="Key Performance Indicators & Summary"):
     plt.close(fig)
     buf.seek(0)
     
-    # --- THIS IS THE CRITICAL FIX ---
-    # Return the entire buffer object (the "tape player"), not just the raw bytes.
+    # --- THIS IS THE DEFINITIVE FIX ---
+    # We must return the entire file-like buffer object, not the raw bytes.
     return buf
-    # --- END OF CRITICAL FIX ---
+    # --- END OF DEFINITIVE FIX ---
 
 # ==============================================================================
 # PDF REPORTING ENGINE (Final)
@@ -59,7 +59,7 @@ def generate_pdf_report(title, kpis, figures):
 
     if kpis:
         kpi_image_buf = create_kpi_image(kpis)
-        # Pass the buffer object directly
+        # Pass the buffer object directly, and specify the type
         pdf.image(name=kpi_image_buf, type='PNG', w=180)
         pdf.ln(5)
 
@@ -75,7 +75,7 @@ def generate_pdf_report(title, kpis, figures):
                 elif isinstance(fig, plt.Figure): fig.savefig(img_buf, format='png', bbox_inches='tight', dpi=200)
                 else: img_buf = fig
                 img_buf.seek(0)
-                # Pass the buffer object directly
+                # Pass the buffer object directly, and specify the type
                 pdf.image(name=img_buf, type='PNG', w=180)
                 pdf.ln(5)
             except Exception as e:
